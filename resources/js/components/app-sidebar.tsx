@@ -1,5 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, Building2, Briefcase, Folder, LayoutGrid } from 'lucide-react';
+import {
+    BookOpen,
+    Building2,
+    Briefcase,
+    Folder,
+    LayoutGrid,
+    Users,
+} from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -15,6 +22,7 @@ import {
 import type { NavItem } from '@/types';
 import AppLogo from './app-logo';
 import { index as departmentsIndex } from '@/routes/departments';
+import { index as employeesIndex } from '@/routes/employees';
 import { index as jobPositionsIndex } from '@/routes/job-positions';
 import { dashboard } from '@/routes';
 
@@ -23,6 +31,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Employees',
+        href: employeesIndex(),
+        icon: Users,
     },
     {
         title: 'Departments',

@@ -1,0 +1,45 @@
+<?php
+
+namespace App\Http\Requests\Employee;
+
+use App\Models\Employee;
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class UpdateEmployeeRequest extends FormRequest
+{
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        /** @var \App\Models\Employee $employee */
+        $employee = $this->route('employee');
+
+        return [
+            'employee_code' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique(Employee::class)->ignore($employee->id),
+            ],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email_address' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique(Employee::class, 'email_address')->ignore($employee->id),
+            ],
+            'contact_number' => ['nullable', 'string', 'max:50'],
+            'address_1' => ['nullable', 'string', 'max:255'],
+            'address_2' => ['nullable', 'string', 'max:255'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'job_position_id' => ['required', 'integer', 'exists:job_positions,id'],
+        ];
+    }
+}
