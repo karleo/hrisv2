@@ -3,6 +3,7 @@ import {
     BookOpen,
     Building2,
     Briefcase,
+    CalendarDays,
     Folder,
     LayoutGrid,
     Users,
@@ -24,6 +25,7 @@ import AppLogo from './app-logo';
 import { index as departmentsIndex } from '@/routes/departments';
 import { index as employeesIndex } from '@/routes/employees';
 import { index as jobPositionsIndex } from '@/routes/job-positions';
+import { index as leaveTypesIndex } from '@/routes/leave-types';
 import { dashboard } from '@/routes';
 
 const mainNavItems: NavItem[] = [
@@ -46,6 +48,11 @@ const mainNavItems: NavItem[] = [
         title: 'Job Positions',
         href: jobPositionsIndex(),
         icon: Briefcase,
+    },
+    {
+        title: 'Leave Types',
+        href: leaveTypesIndex(),
+        icon: CalendarDays,
     },
 ];
 
