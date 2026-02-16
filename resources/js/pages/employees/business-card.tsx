@@ -47,9 +47,19 @@ function buildVCard(
         `FN:${escapeVCard(fullName)}`,
         `N:${escapeVCard(employee.last_name)};${escapeVCard(employee.first_name)};;;`,
     ];
+    if (employee.photo_url) {
+        lines.push(`PHOTO;VALUE=URI:${escapeVCard(employee.photo_url)}`);
+    }
     const org = employee.company_name || appName;
     if (org) {
         lines.push(`ORG:${escapeVCard(org)}`);
+    }
+    const companyAddress = [employee.company_address_1, employee.company_address_2].filter(Boolean).join(', ');
+    if (companyAddress) {
+        lines.push(`ADR;TYPE=WORK:;;${escapeVCard(companyAddress)};;;;`);
+    }
+    if (employee.contact_number) {
+        lines.push(`TEL;TYPE=WORK,VOICE:${escapeVCard(employee.contact_number)}`);
     }
     if (employee.company_website) {
         lines.push(`URL:${escapeVCard(employee.company_website)}`);
@@ -60,19 +70,12 @@ function buildVCard(
     if (employee.department?.name) {
         lines.push(`NOTE:Department: ${escapeVCard(employee.department.name)}`);
     }
-    if (employee.contact_number) {
-        lines.push(`TEL;TYPE=WORK,VOICE:${escapeVCard(employee.contact_number)}`);
-    }
     if (employee.email_address) {
         lines.push(`EMAIL:${escapeVCard(employee.email_address)}`);
     }
     const address = [employee.address_1, employee.address_2].filter(Boolean).join(', ');
     if (address) {
-        lines.push(`ADR;TYPE=WORK:;;${escapeVCard(address)};;;;`);
-    }
-    const companyAddress = [employee.company_address_1, employee.company_address_2].filter(Boolean).join(', ');
-    if (companyAddress) {
-        lines.push(`NOTE:Company address: ${escapeVCard(companyAddress)}`);
+        lines.push(`ADR;TYPE=HOME:;;${escapeVCard(address)};;;;`);
     }
     lines.push('END:VCARD');
     return lines.join('\r\n');
