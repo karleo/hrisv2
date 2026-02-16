@@ -1,10 +1,13 @@
 import { Link } from '@inertiajs/react';
 import {
+    AppWindow,
     BookOpen,
     Building2,
     Briefcase,
     CalendarDays,
+    Cpu,
     Folder,
+    Globe,
     LayoutGrid,
     Users,
 } from 'lucide-react';
@@ -24,8 +27,11 @@ import type { NavItem } from '@/types';
 import AppLogo from './app-logo';
 import { index as departmentsIndex } from '@/routes/departments';
 import { index as employeesIndex } from '@/routes/employees';
+import { index as hardwareIndex } from '@/routes/hardware';
 import { index as jobPositionsIndex } from '@/routes/job-positions';
 import { index as leaveTypesIndex } from '@/routes/leave-types';
+import { index as softwareIndex } from '@/routes/software';
+import { index as countriesIndex } from '@/routes/countries';
 import { dashboard } from '@/routes';
 
 const mainNavItems: NavItem[] = [
@@ -53,6 +59,21 @@ const mainNavItems: NavItem[] = [
         title: 'Leave Types',
         href: leaveTypesIndex(),
         icon: CalendarDays,
+    },
+    {
+        title: 'Countries',
+        href: countriesIndex(),
+        icon: Globe,
+    },
+    {
+        title: 'Software',
+        href: softwareIndex(),
+        icon: AppWindow,
+    },
+    {
+        title: 'Hardware',
+        href: hardwareIndex(),
+        icon: Cpu,
     },
 ];
 

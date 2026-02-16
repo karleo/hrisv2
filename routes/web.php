@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\SoftwareController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -27,6 +30,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('employees.documents.destroy');
     Route::resource('job-positions', JobPositionController::class);
     Route::resource('leave-types', LeaveTypeController::class);
+    Route::resource('countries', CountryController::class);
+    Route::resource('software', SoftwareController::class);
+    Route::resource('hardware', HardwareController::class);
 });
 
 require __DIR__.'/settings.php';
