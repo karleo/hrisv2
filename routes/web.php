@@ -20,6 +20,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('departments', DepartmentController::class);
     Route::resource('employees', EmployeeController::class);
+    Route::delete('employees/{employee}/documents/{employee_document}', [EmployeeController::class, 'destroyDocument'])
+        ->name('employees.documents.destroy');
     Route::resource('job-positions', JobPositionController::class);
 });
 

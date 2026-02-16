@@ -6,9 +6,11 @@ use App\Http\Requests\Employee\StoreEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,7 +59,28 @@ class EmployeeController extends Controller
      */
     public function store(StoreEmployeeRequest $request): RedirectResponse
     {
-        Employee::query()->create($request->validated());
+        $data = $request->validated();
+        $photo = $data['photo'] ?? null;
+        $documents = $data['documents'] ?? [];
+        $documentLabels = $request->input('document_labels', []);
+        unset($data['photo'], $data['documents'], $data['document_labels']);
+
+        $employee = Employee::query()->create($data);
+
+        if ($photo) {
+            $path = $photo->store("employees/{$employee->id}", 'public');
+            $employee->update(['photo' => $path]);
+        }
+
+        foreach ($documents as $i => $file) {
+            $path = $file->store("employees/{$employee->id}/documents", 'public');
+            $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $employee->documents()->create([
+                'name' => $label,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+        }
 
         return to_route('employees.index');
     }
@@ -67,7 +90,10 @@ class EmployeeController extends Controller
      */
     public function edit(Employee $employee): Response
     {
-        $employee->load(['department', 'jobPosition']);
+        $employee->load(['department', 'jobPosition', 'documents']);
+        $employee->photo_url = $employee->photo
+            ? Storage::disk('public')->url($employee->photo)
+            : null;
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
@@ -81,7 +107,31 @@ class EmployeeController extends Controller
      */
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
-        $employee->update($request->validated());
+        $data = $request->validated();
+        $photo = $data['photo'] ?? null;
+        $documents = $data['documents'] ?? [];
+        $documentLabels = $request->input('document_labels', []);
+        unset($data['photo'], $data['documents'], $data['document_labels']);
+
+        $employee->update($data);
+
+        if ($photo) {
+            if ($employee->photo) {
+                Storage::disk('public')->delete($employee->photo);
+            }
+            $path = $photo->store("employees/{$employee->id}", 'public');
+            $employee->update(['photo' => $path]);
+        }
+
+        foreach ($documents as $i => $file) {
+            $path = $file->store("employees/{$employee->id}/documents", 'public');
+            $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $employee->documents()->create([
+                'name' => $label,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+        }
 
         return to_route('employees.index');
     }
@@ -91,8 +141,28 @@ class EmployeeController extends Controller
      */
     public function destroy(Employee $employee): RedirectResponse
     {
+        if ($employee->photo) {
+            Storage::disk('public')->delete($employee->photo);
+        }
+        foreach ($employee->documents as $document) {
+            Storage::disk('public')->delete($document->path);
+        }
         $employee->delete();
 
         return to_route('employees.index');
+    }
+
+    /**
+     * Remove the specified document from the employee.
+     */
+    public function destroyDocument(Employee $employee, EmployeeDocument $employeeDocument): RedirectResponse
+    {
+        if ($employeeDocument->employee_id !== $employee->id) {
+            abort(404);
+        }
+        Storage::disk('public')->delete($employeeDocument->path);
+        $employeeDocument->delete();
+
+        return back();
     }
 }

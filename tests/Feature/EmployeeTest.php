@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EmployeeTest extends TestCase
@@ -129,6 +132,7 @@ class EmployeeTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('employees/edit')
             ->has('employee')
+            ->has('employee.documents')
             ->has('departments')
             ->has('jobPositions')
             ->where('employee.id', $employee->id)
@@ -188,6 +192,53 @@ class EmployeeTest extends TestCase
 
         $response->assertRedirect(route('employees.index'));
         $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
+    }
+
+    public function test_store_creates_employee_with_photo_and_documents(): void
+    {
+        Storage::fake('public');
+        $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
+        $photo = UploadedFile::fake()->image('photo.jpg', 100, 100);
+        $doc1 = UploadedFile::fake()->create('contract.pdf', 100);
+        $doc2 = UploadedFile::fake()->create('id.pdf', 200);
+
+        $response = $this->post(route('employees.store'), [
+            'employee_code' => 'EMP-0001',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'email_address' => 'john.doe@example.com',
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'photo' => $photo,
+            'documents' => [$doc1, $doc2],
+        ]);
+
+        $response->assertRedirect(route('employees.index'));
+        $employee = Employee::query()->where('employee_code', 'EMP-0001')->first();
+        $this->assertNotNull($employee);
+        $this->assertNotNull($employee->photo);
+        $this->assertTrue(Storage::disk('public')->exists($employee->photo));
+        $this->assertSame(2, $employee->documents()->count());
+    }
+
+    public function test_destroy_document_removes_document(): void
+    {
+        Storage::fake('public');
+        $employee = Employee::factory()->create();
+        $path = 'employees/'.$employee->id.'/documents/test.pdf';
+        Storage::disk('public')->put($path, 'content');
+        $document = $employee->documents()->create([
+            'name' => 'test',
+            'path' => $path,
+            'original_name' => 'test.pdf',
+        ]);
+
+        $response = $this->delete(route('employees.documents.destroy', [$employee, $document]));
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('employee_documents', ['id' => $document->id]);
+        $this->assertFalse(Storage::disk('public')->exists($path));
     }
 
     public function test_employees_require_authentication(): void

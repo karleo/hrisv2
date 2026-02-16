@@ -37,6 +37,11 @@ class StoreEmployeeRequest extends FormRequest
             'address_2' => ['nullable', 'string', 'max:255'],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
             'job_position_id' => ['required', 'integer', 'exists:job_positions,id'],
+            'photo' => ['nullable', 'image', 'max:5120'],
+            'documents' => ['nullable', 'array'],
+            'documents.*' => ['file', 'max:10240'],
+            'document_labels' => ['nullable', 'array'],
+            'document_labels.*' => ['nullable', 'string', 'max:255'],
         ];
     }
 }
