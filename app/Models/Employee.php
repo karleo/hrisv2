@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $department_id
  * @property int $job_position_id
  * @property string|null $photo
+ * @property string|null $company_name
+ * @property string|null $company_address_1
+ * @property string|null $company_address_2
+ * @property string|null $company_website
+ * @property string|null $company_logo
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -43,6 +48,11 @@ class Employee extends Model
         'department_id',
         'job_position_id',
         'photo',
+        'company_name',
+        'company_address_1',
+        'company_address_2',
+        'company_website',
+        'company_logo',
     ];
 
     public function department(): BelongsTo

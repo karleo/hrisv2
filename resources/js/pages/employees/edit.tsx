@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, FileStack, ImagePlus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Building2, FileStack, ImagePlus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import Heading from '@/components/heading';
@@ -42,6 +42,12 @@ type Employee = {
     contact_number: string | null;
     address_1: string | null;
     address_2: string | null;
+    company_name: string | null;
+    company_address_1: string | null;
+    company_address_2: string | null;
+    company_website: string | null;
+    company_logo: string | null;
+    company_logo_url: string | null;
     department_id: number;
     job_position_id: number;
     photo: string | null;
@@ -59,9 +65,13 @@ export default function Edit({
     jobPositions: JobPosition[];
 }) {
     const photoInputRef = useRef<HTMLInputElement>(null);
+    const companyLogoInputRef = useRef<HTMLInputElement>(null);
     const documentsInputRef = useRef<HTMLInputElement>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(
         employee.photo_url ?? null
+    );
+    const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(
+        employee.company_logo_url ?? null
     );
     const [documentFiles, setDocumentFiles] = useState<File[]>([]);
     const [documentLabels, setDocumentLabels] = useState<string[]>([]);
@@ -80,6 +90,15 @@ export default function Edit({
             setPhotoPreview(URL.createObjectURL(file));
         } else {
             setPhotoPreview(employee.photo_url ?? null);
+        }
+    }
+
+    function handleCompanyLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (file) {
+            setCompanyLogoPreview(URL.createObjectURL(file));
+        } else {
+            setCompanyLogoPreview(employee.company_logo_url ?? null);
         }
     }
 
@@ -443,6 +462,122 @@ export default function Edit({
                                         />
                                         <InputError
                                             message={errors.address_2}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label className="text-base font-medium">
+                                            Company Logo
+                                        </Label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted/30">
+                                                {companyLogoPreview ? (
+                                                    <img
+                                                        src={companyLogoPreview}
+                                                        alt=""
+                                                        className="size-full object-contain"
+                                                    />
+                                                ) : (
+                                                    <Building2 className="size-8 text-muted-foreground" />
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <input
+                                                    ref={companyLogoInputRef}
+                                                    type="file"
+                                                    name="company_logo"
+                                                    accept="image/*"
+                                                    className="sr-only"
+                                                    onChange={handleCompanyLogoChange}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        companyLogoInputRef.current?.click()
+                                                    }
+                                                >
+                                                    {companyLogoPreview
+                                                        ? 'Change logo'
+                                                        : 'Upload logo'}
+                                                </Button>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Max 2 MB. Shown on business card.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <InputError
+                                            message={errors.company_logo}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="company_name">
+                                            Company Name
+                                        </Label>
+                                        <Input
+                                            id="company_name"
+                                            name="company_name"
+                                            maxLength={255}
+                                            defaultValue={
+                                                employee.company_name ?? ''
+                                            }
+                                            placeholder="Acme Inc."
+                                        />
+                                        <InputError
+                                            message={errors.company_name}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="company_address_1">
+                                            Company Address 1
+                                        </Label>
+                                        <Input
+                                            id="company_address_1"
+                                            name="company_address_1"
+                                            maxLength={255}
+                                            defaultValue={
+                                                employee.company_address_1 ?? ''
+                                            }
+                                            placeholder="Street address"
+                                        />
+                                        <InputError
+                                            message={errors.company_address_1}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="company_address_2">
+                                            Company Address 2
+                                        </Label>
+                                        <Input
+                                            id="company_address_2"
+                                            name="company_address_2"
+                                            maxLength={255}
+                                            defaultValue={
+                                                employee.company_address_2 ?? ''
+                                            }
+                                            placeholder="Suite, floor, etc. (optional)"
+                                        />
+                                        <InputError
+                                            message={errors.company_address_2}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="company_website">
+                                            Company Website
+                                        </Label>
+                                        <Input
+                                            id="company_website"
+                                            name="company_website"
+                                            type="url"
+                                            maxLength={255}
+                                            defaultValue={
+                                                employee.company_website ?? ''
+                                            }
+                                            placeholder="https://www.example.com"
+                                        />
+                                        <InputError
+                                            message={errors.company_website}
                                         />
                                     </div>
 

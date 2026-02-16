@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Printer, User } from 'lucide-react';
+import { ArrowLeft, Download, Printer, User } from 'lucide-react';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/employees';
@@ -23,10 +24,68 @@ type Employee = {
     last_name: string;
     email_address: string;
     contact_number: string | null;
+    address_1: string | null;
+    address_2: string | null;
+    company_name: string | null;
+    company_address_1: string | null;
+    company_address_2: string | null;
+    company_website: string | null;
+    company_logo_url: string | null;
     department?: Department | null;
     job_position?: JobPosition | null;
     photo_url: string | null;
 };
+
+function buildVCard(
+    employee: Employee,
+    appName: string
+): string {
+    const fullName = `${employee.first_name} ${employee.last_name}`;
+    const lines = [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `FN:${escapeVCard(fullName)}`,
+        `N:${escapeVCard(employee.last_name)};${escapeVCard(employee.first_name)};;;`,
+    ];
+    const org = employee.company_name || appName;
+    if (org) {
+        lines.push(`ORG:${escapeVCard(org)}`);
+    }
+    if (employee.company_website) {
+        lines.push(`URL:${escapeVCard(employee.company_website)}`);
+    }
+    if (employee.job_position?.name) {
+        lines.push(`TITLE:${escapeVCard(employee.job_position.name)}`);
+    }
+    if (employee.department?.name) {
+        lines.push(`NOTE:Department: ${escapeVCard(employee.department.name)}`);
+    }
+    if (employee.contact_number) {
+        lines.push(`TEL;TYPE=WORK,VOICE:${escapeVCard(employee.contact_number)}`);
+    }
+    if (employee.email_address) {
+        lines.push(`EMAIL:${escapeVCard(employee.email_address)}`);
+    }
+    const address = [employee.address_1, employee.address_2].filter(Boolean).join(', ');
+    if (address) {
+        lines.push(`ADR;TYPE=WORK:;;${escapeVCard(address)};;;;`);
+    }
+    const companyAddress = [employee.company_address_1, employee.company_address_2].filter(Boolean).join(', ');
+    if (companyAddress) {
+        lines.push(`NOTE:Company address: ${escapeVCard(companyAddress)}`);
+    }
+    lines.push('END:VCARD');
+    return lines.join('\r\n');
+}
+
+function escapeVCard(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+}
+
+function qrCodeDataUrl(data: string, size: number): string {
+    const encoded = encodeURIComponent(data);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}`;
+}
 
 export default function BusinessCard({
     employee,
@@ -38,6 +97,10 @@ export default function BusinessCard({
     const fullName = `${employee.first_name} ${employee.last_name}`;
     const jobTitle = employee.job_position?.name ?? '';
     const department = employee.department?.name ?? '';
+    const vCard = useMemo(
+        () => buildVCard(employee, appName),
+        [employee, appName]
+    );
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employees', href: index().url },
         { title: fullName, href: '#' },
@@ -46,6 +109,16 @@ export default function BusinessCard({
 
     function handlePrint() {
         window.print();
+    }
+
+    function handleDownloadVCard() {
+        const blob = new Blob([vCard], { type: 'text/vcard;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${employee.first_name}_${employee.last_name}.vcf`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     return (
@@ -65,6 +138,28 @@ export default function BusinessCard({
                         <Printer className="mr-2 size-4" />
                         Print / Save as PDF
                     </Button>
+                    <Button onClick={handleDownloadVCard} size="sm" variant="outline">
+                        <Download className="mr-2 size-4" />
+                        Download as contact (.vcf)
+                    </Button>
+                </div>
+
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 print:hidden">
+                    <p className="text-sm font-medium text-muted-foreground">
+                        Scan to add contact
+                    </p>
+                    <div className="rounded-lg border border-border bg-white p-3">
+                        <img
+                            src={qrCodeDataUrl(vCard, 180)}
+                            alt=""
+                            width={180}
+                            height={180}
+                            className="size-[180px]"
+                        />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        QR code contains contact details (vCard)
+                    </p>
                 </div>
 
                 <div className="flex min-h-[50vh] items-start justify-center print:min-h-0 print:items-center print:justify-center">
@@ -114,11 +209,48 @@ export default function BusinessCard({
                                         </p>
                                     )}
                                 </div>
-                                {appName && (
-                                    <p className="mt-auto pt-1 text-[10px] font-medium text-muted-foreground print:pt-0.5 print:text-[8px]">
-                                        {appName}
-                                    </p>
-                                )}
+                                <div className="mt-auto flex items-end justify-between gap-2 pt-1 print:pt-0.5">
+                                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                                        {employee.company_logo_url && (
+                                            <img
+                                                src={employee.company_logo_url}
+                                                alt=""
+                                                className="size-8 shrink-0 object-contain print:size-7"
+                                            />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            {(employee.company_name || appName) && (
+                                                <p className="text-[10px] font-medium text-muted-foreground print:text-[8px]">
+                                                    {employee.company_name || appName}
+                                                </p>
+                                            )}
+                                            {employee.company_website && (
+                                            <a
+                                                href={employee.company_website}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block truncate text-[9px] text-primary underline print:text-[8px]"
+                                            >
+                                                {employee.company_website.replace(/^https?:\/\//i, '')}
+                                            </a>
+                                        )}
+                                        {[employee.company_address_1, employee.company_address_2].filter(Boolean).length > 0 && (
+                                            <p className="truncate text-[9px] text-muted-foreground print:text-[8px]">
+                                                {[employee.company_address_1, employee.company_address_2].filter(Boolean).join(', ')}
+                                            </p>
+                                        )}
+                                        </div>
+                                    </div>
+                                    <div className="shrink-0" aria-hidden>
+                                        <img
+                                            src={qrCodeDataUrl(vCard, 52)}
+                                            alt=""
+                                            width={52}
+                                            height={52}
+                                            className="size-[52px]"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

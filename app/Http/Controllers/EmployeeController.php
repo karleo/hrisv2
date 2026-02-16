@@ -61,15 +61,21 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
+        $companyLogo = $data['company_logo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels']);
+        unset($data['photo'], $data['company_logo'], $data['documents'], $data['document_labels']);
 
         $employee = Employee::query()->create($data);
 
         if ($photo) {
             $path = $photo->store("employees/{$employee->id}", 'public');
             $employee->update(['photo' => $path]);
+        }
+
+        if ($companyLogo) {
+            $path = $companyLogo->store("employees/{$employee->id}", 'public');
+            $employee->update(['company_logo' => $path]);
         }
 
         foreach ($documents as $i => $file) {
@@ -82,7 +88,7 @@ class EmployeeController extends Controller
             ]);
         }
 
-        return to_route('employees.index');
+        return to_route('employees.business-card', $employee);
     }
 
     /**
@@ -93,6 +99,9 @@ class EmployeeController extends Controller
         $employee->load(['department', 'jobPosition']);
         $employee->photo_url = $employee->photo
             ? Storage::disk('public')->url($employee->photo)
+            : null;
+        $employee->company_logo_url = $employee->company_logo
+            ? Storage::disk('public')->url($employee->company_logo)
             : null;
 
         return Inertia::render('employees/business-card', [
@@ -110,6 +119,9 @@ class EmployeeController extends Controller
         $employee->photo_url = $employee->photo
             ? Storage::disk('public')->url($employee->photo)
             : null;
+        $employee->company_logo_url = $employee->company_logo
+            ? Storage::disk('public')->url($employee->company_logo)
+            : null;
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
@@ -125,9 +137,10 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
+        $companyLogo = $data['company_logo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels']);
+        unset($data['photo'], $data['company_logo'], $data['documents'], $data['document_labels']);
 
         $employee->update($data);
 
@@ -137,6 +150,14 @@ class EmployeeController extends Controller
             }
             $path = $photo->store("employees/{$employee->id}", 'public');
             $employee->update(['photo' => $path]);
+        }
+
+        if ($companyLogo) {
+            if ($employee->company_logo) {
+                Storage::disk('public')->delete($employee->company_logo);
+            }
+            $path = $companyLogo->store("employees/{$employee->id}", 'public');
+            $employee->update(['company_logo' => $path]);
         }
 
         foreach ($documents as $i => $file) {
@@ -149,7 +170,7 @@ class EmployeeController extends Controller
             ]);
         }
 
-        return to_route('employees.index');
+        return to_route('employees.business-card', $employee);
     }
 
     /**
@@ -159,6 +180,9 @@ class EmployeeController extends Controller
     {
         if ($employee->photo) {
             Storage::disk('public')->delete($employee->photo);
+        }
+        if ($employee->company_logo) {
+            Storage::disk('public')->delete($employee->company_logo);
         }
         foreach ($employee->documents as $document) {
             Storage::disk('public')->delete($document->path);

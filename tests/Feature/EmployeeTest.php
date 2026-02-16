@@ -68,7 +68,9 @@ class EmployeeTest extends TestCase
 
         $response = $this->post(route('employees.store'), $data);
 
-        $response->assertRedirect(route('employees.index'));
+        $employee = Employee::query()->where('employee_code', 'EMP-0001')->first();
+        $this->assertNotNull($employee);
+        $response->assertRedirect(route('employees.business-card', $employee));
         $this->assertDatabaseHas('employees', $data);
     }
 
@@ -163,7 +165,7 @@ class EmployeeTest extends TestCase
 
         $response = $this->patch(route('employees.update', $employee), $data);
 
-        $response->assertRedirect(route('employees.index'));
+        $response->assertRedirect(route('employees.business-card', $employee));
         $this->assertDatabaseHas('employees', array_merge($data, ['id' => $employee->id]));
     }
 
@@ -214,8 +216,9 @@ class EmployeeTest extends TestCase
             'documents' => [$doc1, $doc2],
         ]);
 
-        $response->assertRedirect(route('employees.index'));
         $employee = Employee::query()->where('employee_code', 'EMP-0001')->first();
+        $this->assertNotNull($employee);
+        $response->assertRedirect(route('employees.business-card', $employee));
         $this->assertNotNull($employee);
         $this->assertNotNull($employee->photo);
         $this->assertTrue(Storage::disk('public')->exists($employee->photo));
