@@ -86,6 +86,22 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Display the employee business card (printable).
+     */
+    public function businessCard(Employee $employee): Response
+    {
+        $employee->load(['department', 'jobPosition']);
+        $employee->photo_url = $employee->photo
+            ? Storage::disk('public')->url($employee->photo)
+            : null;
+
+        return Inertia::render('employees/business-card', [
+            'employee' => $employee,
+            'appName' => config('app.name'),
+        ]);
+    }
+
+    /**
      * Show the form for editing the specified employee.
      */
     public function edit(Employee $employee): Response

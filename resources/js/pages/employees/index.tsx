@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { CreditCard, Pencil, Plus, Trash2 } from 'lucide-react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
@@ -174,6 +174,17 @@ export default function Index({
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex justify-end gap-2">
+                                                        <Link
+                                                            href={`/employees/${employee.id}/business-card`}
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                aria-label="Business card"
+                                                            >
+                                                                <CreditCard />
+                                                            </Button>
+                                                        </Link>
                                                         <Link
                                                             href={edit({
                                                                 employee:

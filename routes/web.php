@@ -19,6 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     Route::resource('departments', DepartmentController::class);
+    Route::get('employees/{employee}/business-card', [EmployeeController::class, 'businessCard'])
+        ->name('employees.business-card');
     Route::resource('employees', EmployeeController::class);
     Route::delete('employees/{employee}/documents/{employee_document}', [EmployeeController::class, 'destroyDocument'])
         ->name('employees.documents.destroy');
