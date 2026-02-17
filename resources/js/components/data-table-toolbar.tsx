@@ -1,8 +1,8 @@
 import { router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type DataTableToolbarProps = {
     searchUrl: string;
@@ -15,22 +15,20 @@ export function DataTableToolbar({
     searchPlaceholder = 'Search...',
     filters = {},
 }: DataTableToolbarProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
-
-    useEffect(() => {
-        setSearch(filters.search ?? '');
-    }, [filters.search]);
+    const [search, setSearch] = useState('');
 
     const handleSearch = useCallback(
         (e: React.FormEvent) => {
             e.preventDefault();
+            const inputValue = search || filters.search || '';
+            const trimmed = inputValue.trim();
             const params: Record<string, string | number> = { page: 1 };
-            if (search.trim()) params.search = search.trim();
+            if (trimmed) params.search = trimmed;
             router.get(searchUrl, params, {
                 preserveState: true,
             });
         },
-        [search, searchUrl]
+        [filters.search, search, searchUrl]
     );
 
     const handleClear = useCallback(() => {
@@ -48,7 +46,7 @@ export function DataTableToolbar({
                 <Input
                     type="search"
                     placeholder={searchPlaceholder}
-                    value={search}
+                    value={search || filters.search || ''}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-9"
                 />

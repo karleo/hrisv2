@@ -23,16 +23,18 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import type { NavItem } from '@/types';
-import AppLogo from './app-logo';
+import { dashboard } from '@/routes';
+import { index as countriesIndex } from '@/routes/countries';
 import { index as departmentsIndex } from '@/routes/departments';
 import { index as employeesIndex } from '@/routes/employees';
 import { index as hardwareIndex } from '@/routes/hardware';
+import { index as itRequestsIndex } from '@/routes/it-requests';
 import { index as jobPositionsIndex } from '@/routes/job-positions';
+import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { index as leaveTypesIndex } from '@/routes/leave-types';
 import { index as softwareIndex } from '@/routes/software';
-import { index as countriesIndex } from '@/routes/countries';
-import { dashboard } from '@/routes';
+import type { NavItem } from '@/types';
+import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
@@ -59,6 +61,21 @@ const mainNavItems: NavItem[] = [
         title: 'Leave Types',
         href: leaveTypesIndex(),
         icon: CalendarDays,
+    },
+    {
+        title: 'Leave Requests',
+        href: leaveRequestsIndex(),
+        icon: CalendarDays,
+    },
+    {
+        title: 'IT Requests',
+        href: itRequestsIndex(),
+        icon: Cpu,
+    },
+    {
+        title: 'Employee Requests',
+        href: '/employee-requests',
+        icon: Briefcase,
     },
     {
         title: 'Countries',

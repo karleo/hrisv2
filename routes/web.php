@@ -4,7 +4,10 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\HardwareController;
+use App\Http\Controllers\EmployeeRequestController;
+use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\SoftwareController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +36,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('countries', CountryController::class);
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
+    Route::resource('leave-requests', LeaveRequestController::class);
+    Route::resource('it-requests', ItRequestController::class);
+    Route::resource('employee-requests', EmployeeRequestController::class);
 });
 
 require __DIR__.'/settings.php';
