@@ -3,8 +3,9 @@
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\EmployeeRequestController;
+use App\Http\Controllers\HardwareController;
+use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveRequestController;
@@ -39,6 +40,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('leave-requests', LeaveRequestController::class);
     Route::resource('it-requests', ItRequestController::class);
     Route::resource('employee-requests', EmployeeRequestController::class);
+    Route::resource('it-asset-requests', ItAssetRequestController::class);
+    Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])
+        ->name('it-asset-requests.signatures.update');
 });
 
 require __DIR__.'/settings.php';

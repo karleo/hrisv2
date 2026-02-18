@@ -73,6 +73,11 @@ const mainNavItems: NavItem[] = [
         icon: Cpu,
     },
     {
+        title: 'IT Asset Requests',
+        href: '/it-asset-requests',
+        icon: Cpu,
+    },
+    {
         title: 'Employee Requests',
         href: '/employee-requests',
         icon: Briefcase,

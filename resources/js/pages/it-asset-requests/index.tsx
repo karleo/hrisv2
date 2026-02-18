@@ -24,8 +24,8 @@ import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Employee Requests',
-        href: '/employee-requests',
+        title: 'IT Asset Requests',
+        href: '/it-asset-requests',
     },
 ];
 
@@ -40,27 +40,17 @@ type Department = {
     name: string;
 };
 
-type JobPosition = {
-    id: number;
-    name: string;
-};
-
-type EmployeeRequest = {
+type ItAssetRequest = {
     id: number;
     code: string;
-    employee_id: number;
-    job_position_id: number;
-    department_id: number;
     date: string;
-    date_of_joining: string;
     status: string;
     employee?: Employee;
     department?: Department;
-    job_position?: JobPosition;
 };
 
-type PaginatedEmployeeRequests = {
-    data: EmployeeRequest[];
+type PaginatedItAssetRequests = {
+    data: ItAssetRequest[];
     current_page: number;
     last_page: number;
     per_page: number;
@@ -70,38 +60,48 @@ type PaginatedEmployeeRequests = {
     links: { url: string | null; label: string; active: boolean }[];
 };
 
+function formatDateDdMmYyyy(value: string | null | undefined): string {
+    if (value == null || value === '') return '—';
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        const [, yyyy, mm, dd] = match;
+        return `${dd}/${mm}/${yyyy}`;
+    }
+    return value;
+}
+
 export default function Index({
-    employeeRequests,
+    itAssetRequests,
     filters = {},
 }: {
-    employeeRequests: PaginatedEmployeeRequests;
+    itAssetRequests: PaginatedItAssetRequests;
     filters?: { search?: string };
 }) {
-    const { data: requestList } = employeeRequests;
+    const { data: requestList } = itAssetRequests;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Employee Requests" />
+            <Head title="IT Asset Requests" />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader className="flex flex-col gap-4 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <CardTitle>Employee Request List</CardTitle>
+                            <CardTitle>IT Asset Request List</CardTitle>
                             <CardDescription>
-                                View and manage employee requests
+                                View and manage IT asset requests
                             </CardDescription>
                         </div>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                             <DataTableToolbar
-                                searchUrl="/employee-requests"
+                                searchUrl="/it-asset-requests"
                                 searchPlaceholder="Search by employee name..."
                                 filters={filters}
                             />
-                            <Link href="/employee-requests/create">
+                            <Link href="/it-asset-requests/create">
                                 <Button>
                                     <Plus />
-                                    New Employee Request
+                                    New IT Asset Request
                                 </Button>
                             </Link>
                         </div>
@@ -116,19 +116,13 @@ export default function Index({
                                             Code
                                         </th>
                                         <th className="px-4 py-3 text-left font-medium">
-                                            Employee
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium">
-                                            Job Position
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium">
-                                            Department
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium">
                                             Date
                                         </th>
                                         <th className="px-4 py-3 text-left font-medium">
-                                            Date of Joining
+                                            Employee
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Department
                                         </th>
                                         <th className="px-4 py-3 text-left font-medium">
                                             Status
@@ -142,12 +136,12 @@ export default function Index({
                                     {requestList.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={8}
+                                                colSpan={6}
                                                 className="px-4 py-8 text-center text-muted-foreground"
                                             >
                                                 {filters.search
-                                                    ? 'No employee requests match your search.'
-                                                    : 'No employee requests found. Create one to get started.'}
+                                                    ? 'No IT asset requests match your search.'
+                                                    : 'No IT asset requests found. Create one to get started.'}
                                             </td>
                                         </tr>
                                     ) : (
@@ -160,30 +154,24 @@ export default function Index({
                                                     {request.code || '—'}
                                                 </td>
                                                 <td className="px-4 py-3">
+                                                    {formatDateDdMmYyyy(request.date)}
+                                                </td>
+                                                <td className="px-4 py-3">
                                                     {request.employee
                                                         ? `${request.employee.first_name} ${request.employee.last_name}`
                                                         : '—'}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {request.job_position
-                                                        ?.name ?? '—'}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {request.department?.name ??
                                                         '—'}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {request.date}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {request.date_of_joining}
-                                                </td>
-                                                <td className="px-4 py-3">
                                                     <span
                                                         className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium"
                                                         data-status={request.status}
                                                     >
-                                                        {request.status === 'draft'
+                                                        {request.status ===
+                                                        'draft'
                                                             ? 'Draft'
                                                             : 'Submitted'}
                                                     </span>
@@ -191,7 +179,7 @@ export default function Index({
                                                 <td className="px-4 py-3">
                                                     <div className="flex justify-end gap-2">
                                                         <Link
-                                                            href={`/employee-requests/${request.id}`}
+                                                            href={`/it-asset-requests/${request.id}`}
                                                             aria-label="View"
                                                         >
                                                             <Button
@@ -203,7 +191,7 @@ export default function Index({
                                                             </Button>
                                                         </Link>
                                                         <Link
-                                                            href={`/employee-requests/${request.id}?print=1`}
+                                                            href={`/it-asset-requests/${request.id}?print=1`}
                                                             aria-label="Print"
                                                         >
                                                             <Button
@@ -215,7 +203,7 @@ export default function Index({
                                                             </Button>
                                                         </Link>
                                                         <Link
-                                                            href={`/employee-requests/${request.id}/edit`}
+                                                            href={`/it-asset-requests/${request.id}/edit`}
                                                             aria-label="Edit"
                                                         >
                                                             <Button
@@ -238,26 +226,16 @@ export default function Index({
                                                             </DialogTrigger>
                                                             <DialogContent>
                                                                 <DialogTitle>
-                                                                    Delete
-                                                                    employee
-                                                                    request?
+                                                                    Delete IT
+                                                                    asset request?
                                                                 </DialogTitle>
                                                                 <DialogDescription>
                                                                     Are you sure
                                                                     you want to
                                                                     delete this
-                                                                    employee
-                                                                    request for{' '}
-                                                                    <strong>
-                                                                        {request
-                                                                            .employee
-                                                                            ? `${request.employee.first_name} ${request.employee.last_name}`
-                                                                            : 'this employee'}
-                                                                    </strong>
-                                                                    ? This
-                                                                    action
-                                                                    cannot be
-                                                                    undone.
+                                                                    request? This
+                                                                    action cannot
+                                                                    be undone.
                                                                 </DialogDescription>
                                                                 <DialogFooter>
                                                                     <DialogClose asChild>
@@ -269,7 +247,7 @@ export default function Index({
                                                                         variant="destructive"
                                                                         onClick={() =>
                                                                             router.delete(
-                                                                                `/employee-requests/${request.id}`,
+                                                                                `/it-asset-requests/${request.id}`,
                                                                             )
                                                                         }
                                                                     >
@@ -288,10 +266,10 @@ export default function Index({
                         </div>
 
                         <DataTablePagination
-                            links={employeeRequests.links}
-                            from={employeeRequests.from}
-                            to={employeeRequests.to}
-                            total={employeeRequests.total}
+                            links={itAssetRequests.links}
+                            from={itAssetRequests.from}
+                            to={itAssetRequests.to}
+                            total={itAssetRequests.total}
                         />
                     </CardContent>
                 </Card>

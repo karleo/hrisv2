@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Support\DocumentCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $code
  * @property int $employee_id
  * @property int $job_position_id
  * @property int $department_id
@@ -26,6 +28,17 @@ class EmployeeRequest extends Model
 {
     /** @use HasFactory<\Database\Factories\EmployeeRequestFactory> */
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $employeeRequest): void {
+            if (! empty($employeeRequest->code)) {
+                return;
+            }
+
+            $employeeRequest->code = DocumentCode::employeeRequest($employeeRequest->date);
+        });
+    }
 
     /**
      * @var list<string>
@@ -50,6 +63,7 @@ class EmployeeRequest extends Model
     protected function casts(): array
     {
         return [
+            'code' => 'string',
             'date' => 'date:Y-m-d',
             'date_of_joining' => 'date:Y-m-d',
             'departure_date' => 'date:Y-m-d',
@@ -74,4 +88,3 @@ class EmployeeRequest extends Model
         return $this->belongsTo(Department::class);
     }
 }
-

@@ -67,7 +67,7 @@ class EmployeeRequestController extends Controller
 
         $status = $data['status'] ?? 'submitted';
 
-        $employeeRequest = EmployeeRequest::query()->create([
+        EmployeeRequest::query()->create([
             'employee_id' => $data['employee_id'],
             'job_position_id' => $data['job_position_id'],
             'department_id' => $data['department_id'],
@@ -81,7 +81,7 @@ class EmployeeRequestController extends Controller
             'status' => $status,
         ]);
 
-        return to_route('employee-requests.show', $employeeRequest);
+        return to_route('employee-requests.index');
     }
 
     /**
@@ -154,4 +154,3 @@ class EmployeeRequestController extends Controller
         return to_route('employee-requests.index');
     }
 }
-

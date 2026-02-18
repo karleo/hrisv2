@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -23,6 +24,7 @@ type JobPosition = {
 
 type EmployeeRequest = {
     id: number;
+    code: string;
     employee_id: number;
     job_position_id: number;
     department_id: number;
@@ -39,14 +41,26 @@ type EmployeeRequest = {
     job_position?: JobPosition;
 };
 
+function formatDateDdMmYyyy(value: string | null | undefined): string {
+    if (value == null || value === '') return '—';
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        const [, yyyy, mm, dd] = match;
+        return `${dd}/${mm}/${yyyy}`;
+    }
+    return value;
+}
+
 export default function Show({
     employeeRequest,
 }: {
     employeeRequest: EmployeeRequest;
 }) {
+    const requestLabel = employeeRequest.code || `Request #${employeeRequest.id}`;
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
-        { title: `Request #${employeeRequest.id}`, href: '#' },
+        { title: requestLabel, href: '#' },
     ];
 
     useEffect(() => {
@@ -81,10 +95,14 @@ export default function Show({
                 <div className="mt-2 rounded-xl border bg-background p-6 shadow-sm print:border-0 print:shadow-none">
                     <Heading
                         title="Employee Request Form"
-                        description={`Request #${employeeRequest.id}`}
+                        description={requestLabel}
                     />
 
                     <div className="mt-6 grid gap-6 text-sm print:text-black">
+                        <div>
+                            <div className="font-semibold">Request Code</div>
+                            <div>{employeeRequest.code || '—'}</div>
+                        </div>
                         <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                             <div>
                                 <div className="font-semibold">Employee</div>
@@ -114,13 +132,13 @@ export default function Show({
                         <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                             <div>
                                 <div className="font-semibold">Date</div>
-                                <div>{employeeRequest.date}</div>
+                                <div>{formatDateDdMmYyyy(employeeRequest.date)}</div>
                             </div>
                             <div>
                                 <div className="font-semibold">
                                     Date of Joining
                                 </div>
-                                <div>{employeeRequest.date_of_joining}</div>
+                                <div>{formatDateDdMmYyyy(employeeRequest.date_of_joining)}</div>
                             </div>
                         </div>
 
@@ -132,7 +150,7 @@ export default function Show({
                                         Departure date
                                     </div>
                                     <div>
-                                        {employeeRequest.departure_date ?? '—'}
+                                        {formatDateDdMmYyyy(employeeRequest.departure_date)}
                                     </div>
                                 </div>
                                 <div>
@@ -140,7 +158,7 @@ export default function Show({
                                         Arrival date
                                     </div>
                                     <div>
-                                        {employeeRequest.arrival_date ?? '—'}
+                                        {formatDateDdMmYyyy(employeeRequest.arrival_date)}
                                     </div>
                                 </div>
                                 <div>
@@ -157,8 +175,7 @@ export default function Show({
                                         Last Encashment Date
                                     </div>
                                     <div>
-                                        {employeeRequest.last_encashment_date ??
-                                            '—'}
+                                        {formatDateDdMmYyyy(employeeRequest.last_encashment_date)}
                                     </div>
                                 </div>
                                 <div>
