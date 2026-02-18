@@ -9,6 +9,7 @@ import {
     Folder,
     Globe,
     LayoutGrid,
+    Settings,
     Users,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
@@ -47,23 +48,9 @@ const mainNavItems: NavItem[] = [
         href: employeesIndex(),
         icon: Users,
     },
+
     {
-        title: 'Departments',
-        href: departmentsIndex(),
-        icon: Building2,
-    },
-    {
-        title: 'Job Positions',
-        href: jobPositionsIndex(),
-        icon: Briefcase,
-    },
-    {
-        title: 'Leave Types',
-        href: leaveTypesIndex(),
-        icon: CalendarDays,
-    },
-    {
-        title: 'Leave Requests',
+        title: 'Leave Management',
         href: leaveRequestsIndex(),
         icon: CalendarDays,
     },
@@ -73,7 +60,7 @@ const mainNavItems: NavItem[] = [
         icon: Cpu,
     },
     {
-        title: 'IT Asset Requests',
+        title: 'IT Asset Management',
         href: '/it-asset-requests',
         icon: Cpu,
     },
@@ -83,19 +70,40 @@ const mainNavItems: NavItem[] = [
         icon: Briefcase,
     },
     {
-        title: 'Countries',
-        href: countriesIndex(),
-        icon: Globe,
-    },
-    {
-        title: 'Software',
-        href: softwareIndex(),
-        icon: AppWindow,
-    },
-    {
-        title: 'Hardware',
-        href: hardwareIndex(),
-        icon: Cpu,
+        title: 'Settings',
+        icon: Settings,
+        items: [
+            {
+                title: 'Departments',
+                href: departmentsIndex(),
+                icon: Building2,
+            },
+            {
+                title: 'Job Positions',
+                href: jobPositionsIndex(),
+                icon: Briefcase,
+            },
+            {
+                title: 'Countries',
+                href: countriesIndex(),
+                icon: Globe,
+            },
+            {
+                title: 'Software',
+                href: softwareIndex(),
+                icon: AppWindow,
+            },
+            {
+                title: 'Hardware',
+                href: hardwareIndex(),
+                icon: Cpu,
+            },
+            {
+                title: 'Leave Types',
+                href: leaveTypesIndex(),
+                icon: CalendarDays,
+            },
+        ],
     },
 ];
 

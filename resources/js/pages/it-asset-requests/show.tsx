@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
+import { SignaturePad } from '@/components/signature-pad';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -120,6 +121,43 @@ export default function Show({
             setData('issued_by_signature', file);
             setIssuedBySignaturePreview(URL.createObjectURL(file));
         }
+    };
+
+    const dataUrlToFile = (dataUrl: string, filename: string): File => {
+        const [header, data] = dataUrl.split(',');
+        const mimeMatch = header.match(/data:(.*);base64/);
+        const mime = mimeMatch?.[1] ?? 'image/png';
+        const binary = atob(data);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new File([bytes], filename, { type: mime });
+    };
+
+    const handleEmployeeSignatureDrawn = (dataUrl: string | null) => {
+        if (!dataUrl) {
+            setData('employee_signature', null);
+            setEmployeeSignaturePreview(null);
+            return;
+        }
+
+        const file = dataUrlToFile(dataUrl, `employee-signature-${itAssetRequest.id}.png`);
+        setData('employee_signature', file);
+        setEmployeeSignaturePreview(dataUrl);
+    };
+
+    const handleIssuedBySignatureDrawn = (dataUrl: string | null) => {
+        if (!dataUrl) {
+            setData('issued_by_signature', null);
+            setIssuedBySignaturePreview(null);
+            return;
+        }
+
+        const file = dataUrlToFile(dataUrl, `issued-by-signature-${itAssetRequest.id}.png`);
+        setData('issued_by_signature', file);
+        setIssuedBySignaturePreview(dataUrl);
     };
 
     const handleSubmitSignatures = (e: React.FormEvent) => {
@@ -259,24 +297,15 @@ export default function Show({
                         <div className="mt-8 border-t pt-6 print:border-t-2">
                             <form onSubmit={handleSubmitSignatures} className="print:hidden">
                                 <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 print:gap-12">
-                                    <div>
-                                        <div className="mb-4 font-semibold print:mb-2">
-                                            Employee Signature
-                                        </div>
-                                        {employeeSignaturePreview ? (
-                                            <div className="mb-4">
-                                                <img
-                                                    src={employeeSignaturePreview}
-                                                    alt="Employee signature"
-                                                    className="max-h-24 w-full border border-gray-300 bg-white object-contain print:max-h-20"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="mb-4 min-h-[96px] border-2 border-dashed border-gray-300 print:min-h-[80px]" />
-                                        )}
+                                    <div className="space-y-4">
+                                        <SignaturePad
+                                            label="Employee Signature"
+                                            initialImageUrl={employeeSignaturePreview}
+                                            onChange={handleEmployeeSignatureDrawn}
+                                        />
                                         <div>
                                             <Label htmlFor="employee_signature">
-                                                Upload Employee Signature
+                                                Or upload Employee Signature
                                             </Label>
                                             <input
                                                 ref={employeeSignatureInputRef}
@@ -296,22 +325,11 @@ export default function Show({
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <div className="mb-4 font-semibold print:mb-2">
-                                            Issued By Signature
+                                    <div className="space-y-4">
+                                        <div className="mb-1 font-semibold print:mb-2">
+                                            Issued By
                                         </div>
-                                        {issuedBySignaturePreview ? (
-                                            <div className="mb-4">
-                                                <img
-                                                    src={issuedBySignaturePreview}
-                                                    alt="Issued by signature"
-                                                    className="max-h-24 w-full border border-gray-300 bg-white object-contain print:max-h-20"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="mb-4 min-h-[96px] border-2 border-dashed border-gray-300 print:min-h-[80px]" />
-                                        )}
-                                        <div className="mb-4">
+                                        <div className="mb-2">
                                             <Label htmlFor="issued_by_employee_id">
                                                 Issued By Employee
                                             </Label>
@@ -322,9 +340,7 @@ export default function Show({
                                                 onChange={(e) =>
                                                     setData(
                                                         'issued_by_employee_id',
-                                                        e.target.value
-                                                            ? Number(e.target.value)
-                                                            : '',
+                                                        e.target.value ? Number(e.target.value) : '',
                                                     )
                                                 }
                                                 className={inputClassName}
@@ -338,9 +354,15 @@ export default function Show({
                                             </select>
                                             <InputError message={errors.issued_by_employee_id} />
                                         </div>
+
+                                        <SignaturePad
+                                            label="Issued By Signature"
+                                            initialImageUrl={issuedBySignaturePreview}
+                                            onChange={handleIssuedBySignatureDrawn}
+                                        />
                                         <div>
                                             <Label htmlFor="issued_by_signature">
-                                                Upload Issued By Signature
+                                                Or upload Issued By Signature
                                             </Label>
                                             <input
                                                 ref={issuedBySignatureInputRef}
@@ -359,8 +381,12 @@ export default function Show({
                                                     return `${itAssetRequest.issued_by_employee.first_name} ${itAssetRequest.issued_by_employee.last_name}`;
                                                 }
                                                 if (data.issued_by_employee_id) {
-                                                    const emp = employees.find((e) => e.id === data.issued_by_employee_id);
-                                                    return emp ? `${emp.first_name} ${emp.last_name}` : 'Issued By';
+                                                    const emp = employees.find(
+                                                        (e) => e.id === data.issued_by_employee_id,
+                                                    );
+                                                    return emp
+                                                        ? `${emp.first_name} ${emp.last_name}`
+                                                        : 'Issued By';
                                                 }
                                                 return 'Issued By';
                                             })()}

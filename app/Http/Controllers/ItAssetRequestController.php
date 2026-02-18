@@ -162,32 +162,35 @@ class ItAssetRequestController extends Controller
     /**
      * Update signatures for the IT Asset Request.
      */
-    public function updateSignatures(Request $request): RedirectResponse
+    public function updateSignatures(Request $request, ItAssetRequest $it_asset_request): RedirectResponse
     {
         $request->validate([
-            'it_asset_request_id' => ['required', 'integer', 'exists:'.ItAssetRequest::class.',id'],
             'employee_signature' => ['nullable', 'image', 'max:2048'],
             'issued_by_signature' => ['nullable', 'image', 'max:2048'],
             'issued_by_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
         ]);
 
-        $itAssetRequest = ItAssetRequest::query()->findOrFail($request->input('it_asset_request_id'));
-
         $updateData = [];
 
         if ($request->hasFile('employee_signature')) {
-            if ($itAssetRequest->employee_signature) {
-                Storage::disk('public')->delete($itAssetRequest->employee_signature);
+            if ($it_asset_request->employee_signature) {
+                Storage::disk('public')->delete($it_asset_request->employee_signature);
             }
-            $path = $request->file('employee_signature')->store("it-asset-requests/{$itAssetRequest->id}/signatures", 'public');
+            $path = $request->file('employee_signature')->store(
+                "it-asset-requests/{$it_asset_request->id}/signatures",
+                'public',
+            );
             $updateData['employee_signature'] = $path;
         }
 
         if ($request->hasFile('issued_by_signature')) {
-            if ($itAssetRequest->issued_by_signature) {
-                Storage::disk('public')->delete($itAssetRequest->issued_by_signature);
+            if ($it_asset_request->issued_by_signature) {
+                Storage::disk('public')->delete($it_asset_request->issued_by_signature);
             }
-            $path = $request->file('issued_by_signature')->store("it-asset-requests/{ $itAssetRequest->id }/signatures", 'public');
+            $path = $request->file('issued_by_signature')->store(
+                "it-asset-requests/{$it_asset_request->id}/signatures",
+                'public',
+            );
             $updateData['issued_by_signature'] = $path;
         }
 
@@ -196,7 +199,7 @@ class ItAssetRequestController extends Controller
         }
 
         if (! empty($updateData)) {
-            $itAssetRequest->update($updateData);
+            $it_asset_request->update($updateData);
         }
 
         return redirect()->back()->with('success', 'Signatures updated successfully.');

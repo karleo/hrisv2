@@ -12,8 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('it_asset_requests', function (Blueprint $table) {
-            $table->dropColumn('asset_name');
-            $table->json('hardware_ids')->nullable()->after('date');
+            if (Schema::hasColumn('it_asset_requests', 'asset_name')) {
+                $table->dropColumn('asset_name');
+            }
+
+            if (! Schema::hasColumn('it_asset_requests', 'hardware_ids')) {
+                $table->json('hardware_ids')->nullable()->after('date');
+            }
         });
     }
 
@@ -23,8 +28,13 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('it_asset_requests', function (Blueprint $table) {
-            $table->dropColumn('hardware_ids');
-            $table->string('asset_name', 100)->nullable()->after('date');
+            if (Schema::hasColumn('it_asset_requests', 'hardware_ids')) {
+                $table->dropColumn('hardware_ids');
+            }
+
+            if (! Schema::hasColumn('it_asset_requests', 'asset_name')) {
+                $table->string('asset_name', 100)->nullable()->after('date');
+            }
         });
     }
 };
