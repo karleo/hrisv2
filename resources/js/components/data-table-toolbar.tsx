@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -8,33 +8,62 @@ type DataTableToolbarProps = {
     searchUrl: string;
     searchPlaceholder?: string;
     filters?: { search?: string };
+    autoSearch?: boolean;
+    debounceMs?: number;
+    showSearchButton?: boolean;
 };
 
 export function DataTableToolbar({
     searchUrl,
     searchPlaceholder = 'Search...',
     filters = {},
+    autoSearch = false,
+    debounceMs = 300,
+    showSearchButton = true,
 }: DataTableToolbarProps) {
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(filters.search ?? '');
+
+    useEffect(() => {
+        setSearch(filters.search ?? '');
+    }, [filters.search]);
+
+    const trimmedSearch = useMemo(() => search.trim(), [search]);
 
     const handleSearch = useCallback(
         (e: React.FormEvent) => {
             e.preventDefault();
-            const inputValue = search || filters.search || '';
-            const trimmed = inputValue.trim();
             const params: Record<string, string | number> = { page: 1 };
-            if (trimmed) params.search = trimmed;
+            if (trimmedSearch) params.search = trimmedSearch;
             router.get(searchUrl, params, {
                 preserveState: true,
+                preserveScroll: true,
+                replace: true,
             });
         },
-        [filters.search, search, searchUrl]
+        [searchUrl, trimmedSearch]
     );
 
     const handleClear = useCallback(() => {
         setSearch('');
-        router.get(searchUrl, {}, { preserveState: true });
+        router.get(searchUrl, {}, { preserveState: true, preserveScroll: true, replace: true });
     }, [searchUrl]);
+
+    useEffect(() => {
+        if (!autoSearch) return;
+
+        const handle = setTimeout(() => {
+            const params: Record<string, string | number> = { page: 1 };
+            if (trimmedSearch) params.search = trimmedSearch;
+
+            router.get(searchUrl, params, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            });
+        }, debounceMs);
+
+        return () => clearTimeout(handle);
+    }, [autoSearch, debounceMs, searchUrl, trimmedSearch]);
 
     return (
         <form
@@ -46,15 +75,27 @@ export function DataTableToolbar({
                 <Input
                     type="search"
                     placeholder={searchPlaceholder}
-                    value={search || filters.search || ''}
+                    value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-9"
                 />
             </div>
-            <Button type="submit" variant="secondary" size="sm">
-                Search
-            </Button>
-            {filters.search && (
+            {showSearchButton && (
+                <Button type="submit" variant="secondary" size="sm">
+                    Search
+                </Button>
+            )}
+            {filters.search && !autoSearch && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClear}
+                >
+                    Clear
+                </Button>
+            )}
+            {(autoSearch && search.trim().length > 0) && (
                 <Button
                     type="button"
                     variant="ghost"

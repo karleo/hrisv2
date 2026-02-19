@@ -49,6 +49,8 @@ function getTodayYmd(): string
 export default function Create({
     employees,
     departments,
+    software,
+    hardware,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];

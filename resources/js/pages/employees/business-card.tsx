@@ -33,6 +33,7 @@ type Employee = {
     company_logo_url: string | null;
     department?: Department | null;
     job_position?: JobPosition | null;
+    role: 'Employee' | 'Manager' | 'CEO';
     photo_url: string | null;
 };
 

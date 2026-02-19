@@ -6,6 +6,7 @@ import EmployeeController from '@/actions/App/Http/Controllers/EmployeeControlle
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -93,7 +94,7 @@ export default function Create({
             <div className="flex min-h-[calc(100vh-8rem)] w-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
                 <Link
                     href={index()}
-                    className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <ArrowLeft className="size-4" />
                     Back to Employees
@@ -114,10 +115,11 @@ export default function Create({
                             {/* Left column: Photo + Documents */}
                             <div className="flex flex-col gap-6">
                                 {/* Employee photo */}
-                                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                                    <Label className="mb-3 block text-base font-medium">
-                                        Employee Photo
-                                    </Label>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Employee Photo</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
                                     <div className="flex flex-col items-start gap-4">
                                         <div className="relative flex size-40 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30">
                                             {photoPreview ? (
@@ -157,17 +159,18 @@ export default function Create({
                                         </Button>
                                         <InputError message={errors.photo} />
                                     </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Documents */}
-                                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                                    <Label className="mb-3 block text-base font-medium">
-                                        Documents
-                                    </Label>
-                                    <p className="mb-3 text-sm text-muted-foreground">
-                                        Upload multiple documents (e.g. ID,
-                                        contract). Max 10 MB each.
-                                    </p>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Documents</CardTitle>
+                                        <p className="text-sm text-muted-foreground">
+                                            Upload multiple documents (e.g. ID, contract). Max 10 MB each.
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent>
                                     <input
                                         ref={documentsInputRef}
                                         type="file"
@@ -242,15 +245,19 @@ export default function Create({
                                             errors['document_labels.0']
                                         }
                                     />
-                                </div>
+                                    </CardContent>
+                                </Card>
                             </div>
 
                             {/* Right column: Form fields */}
-                            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                                <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Employee Information</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
                                     <div className="grid gap-2">
                                         <Label htmlFor="employee_code">
-                                            Employee Code
+                                            Employee Code <span className="text-destructive">*</span>
                                         </Label>
                                         <Input
                                             id="employee_code"
@@ -268,7 +275,7 @@ export default function Create({
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="grid gap-2">
                                             <Label htmlFor="first_name">
-                                                First Name
+                                                First Name <span className="text-destructive">*</span>
                                             </Label>
                                             <Input
                                                 id="first_name"
@@ -283,7 +290,7 @@ export default function Create({
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="last_name">
-                                                Last Name
+                                                Last Name <span className="text-destructive">*</span>
                                             </Label>
                                             <Input
                                                 id="last_name"
@@ -300,7 +307,7 @@ export default function Create({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="email_address">
-                                            Email Address
+                                            Email Address <span className="text-destructive">*</span>
                                         </Label>
                                         <Input
                                             id="email_address"
@@ -357,7 +364,7 @@ export default function Create({
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label className="text-base font-medium">
+                                        <Label>
                                             Company Logo
                                         </Label>
                                         <div className="flex items-center gap-4">
@@ -462,7 +469,7 @@ export default function Create({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="department_id">
-                                            Department
+                                            Department <span className="text-destructive">*</span>
                                         </Label>
                                         <select
                                             id="department_id"
@@ -489,7 +496,7 @@ export default function Create({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="job_position_id">
-                                            Job Position
+                                            Job Position <span className="text-destructive">*</span>
                                         </Label>
                                         <select
                                             id="job_position_id"
@@ -514,7 +521,82 @@ export default function Create({
                                         />
                                     </div>
 
-                                    <div className="flex gap-4 pt-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="role">
+                                            Role <span className="text-destructive">*</span>
+                                        </Label>
+                                        <select
+                                            id="role"
+                                            name="role"
+                                            required
+                                            defaultValue="Employee"
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <option value="Employee">
+                                                Employee
+                                            </option>
+                                            <option value="Manager">
+                                                Manager
+                                            </option>
+                                            <option value="CEO">
+                                                CEO
+                                            </option>
+                                        </select>
+                                        <InputError message={errors.role} />
+                                        <p className="text-xs text-muted-foreground">
+                                            Used for approval flows across requests.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3 border-t pt-4">
+                                        <Label className="flex items-center gap-2 text-sm font-medium">
+                                            <input
+                                                type="checkbox"
+                                                name="create_user"
+                                                className="size-4 rounded border"
+                                            />
+                                            Create system login for this employee
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Login uses the employee email address. Set an initial password below.
+                                        </p>
+
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="user_password">
+                                                    Password{' '}
+                                                    <span className="text-muted-foreground">
+                                                        (required if login is enabled)
+                                                    </span>
+                                                </Label>
+                                                <Input
+                                                    id="user_password"
+                                                    name="user_password"
+                                                    type="password"
+                                                    autoComplete="new-password"
+                                                />
+                                                <InputError
+                                                    message={errors.user_password}
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="user_password_confirmation">
+                                                    Confirm Password{' '}
+                                                    <span className="text-muted-foreground">
+                                                        (required if login is enabled)
+                                                    </span>
+                                                </Label>
+                                                <Input
+                                                    id="user_password_confirmation"
+                                                    name="user_password_confirmation"
+                                                    type="password"
+                                                    autoComplete="new-password"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-4 pt-4 border-t">
                                         <Button disabled={processing} type="submit">
                                             Create Employee
                                         </Button>
@@ -524,8 +606,8 @@ export default function Create({
                                             </Button>
                                         </Link>
                                     </div>
-                                </div>
-                            </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     )}
                 </Form>

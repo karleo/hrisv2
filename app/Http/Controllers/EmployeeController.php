@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -64,9 +65,22 @@ class EmployeeController extends Controller
         $companyLogo = $data['company_logo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
+        $createUser = $request->boolean('create_user');
         unset($data['photo'], $data['company_logo'], $data['documents'], $data['document_labels']);
+        unset($data['create_user'], $data['user_password'], $data['user_password_confirmation']);
 
         $employee = Employee::query()->create($data);
+
+        if ($createUser) {
+            $user = User::query()->create([
+                'name' => "{$employee->first_name} {$employee->last_name}",
+                'email' => $employee->email_address,
+                'email_verified_at' => now(),
+                'password' => $request->input('user_password'),
+            ]);
+
+            $employee->update(['user_id' => $user->id]);
+        }
 
         if ($photo) {
             $path = $photo->store("employees/{$employee->id}", 'public');
@@ -98,10 +112,10 @@ class EmployeeController extends Controller
     {
         $employee->load(['department', 'jobPosition']);
         $employee->photo_url = $employee->photo
-            ? Storage::disk('public')->url($employee->photo)
+            ? '/storage/'.ltrim($employee->photo, '/')
             : null;
         $employee->company_logo_url = $employee->company_logo
-            ? Storage::disk('public')->url($employee->company_logo)
+            ? '/storage/'.ltrim($employee->company_logo, '/')
             : null;
 
         return Inertia::render('employees/business-card', [
@@ -117,10 +131,10 @@ class EmployeeController extends Controller
     {
         $employee->load(['department', 'jobPosition', 'documents']);
         $employee->photo_url = $employee->photo
-            ? Storage::disk('public')->url($employee->photo)
+            ? '/storage/'.ltrim($employee->photo, '/')
             : null;
         $employee->company_logo_url = $employee->company_logo
-            ? Storage::disk('public')->url($employee->company_logo)
+            ? '/storage/'.ltrim($employee->company_logo, '/')
             : null;
 
         return Inertia::render('employees/edit', [
@@ -140,9 +154,30 @@ class EmployeeController extends Controller
         $companyLogo = $data['company_logo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['company_logo'], $data['documents'], $data['document_labels']);
+        $resetUserPassword = $request->boolean('reset_user_password');
+        unset(
+            $data['photo'],
+            $data['company_logo'],
+            $data['documents'],
+            $data['document_labels'],
+            $data['reset_user_password'],
+            $data['user_password'],
+            $data['user_password_confirmation'],
+        );
 
         $employee->update($data);
+
+        if ($resetUserPassword && $employee->user_id) {
+            /** @var \App\Models\User|null $user */
+            $user = $employee->user;
+            if ($user) {
+                $user->update([
+                    'password' => $request->input('user_password'),
+                    'email' => $employee->email_address,
+                    'name' => "{$employee->first_name} {$employee->last_name}",
+                ]);
+            }
+        }
 
         if ($photo) {
             if ($employee->photo) {
@@ -200,7 +235,10 @@ class EmployeeController extends Controller
         if ($employeeDocument->employee_id !== $employee->id) {
             abort(404);
         }
+        $path = str_replace('\\', '/', $employeeDocument->path);
         Storage::disk('public')->delete($employeeDocument->path);
+        Storage::disk('public')->delete($path);
+        Storage::disk('public')->deleteDirectory("employees/{$employee->id}/documents");
         $employeeDocument->delete();
 
         return back();

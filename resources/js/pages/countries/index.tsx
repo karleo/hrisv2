@@ -74,6 +74,8 @@ export default function Index({
                                 searchUrl={index().url}
                                 searchPlaceholder="Search code, name..."
                                 filters={filters}
+                                autoSearch
+                                showSearchButton={false}
                             />
                             <Link href={create().url}>
                                 <Button>

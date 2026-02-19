@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
+ * @property int|null $user_id
  * @property string $employee_code
  * @property string $first_name
  * @property string $last_name
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $address_2
  * @property int $department_id
  * @property int $job_position_id
+ * @property string $role
  * @property string|null $photo
  * @property string|null $company_name
  * @property string|null $company_address_1
@@ -38,6 +40,7 @@ class Employee extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'user_id',
         'employee_code',
         'first_name',
         'last_name',
@@ -47,6 +50,7 @@ class Employee extends Model
         'address_2',
         'department_id',
         'job_position_id',
+        'role',
         'photo',
         'company_name',
         'company_address_1',
@@ -54,6 +58,11 @@ class Employee extends Model
         'company_website',
         'company_logo',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function department(): BelongsTo
     {
