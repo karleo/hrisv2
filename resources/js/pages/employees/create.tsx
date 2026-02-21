@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, Building2, FileStack, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, FileStack, ImagePlus, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import Heading from '@/components/heading';
@@ -30,18 +30,23 @@ type JobPosition = {
     name: string;
 };
 
+type CompanyProfile = {
+    id: number;
+    company_name: string;
+};
+
 export default function Create({
     departments,
     jobPositions,
+    companyProfiles,
 }: {
     departments: Department[];
     jobPositions: JobPosition[];
+    companyProfiles: CompanyProfile[];
 }) {
     const photoInputRef = useRef<HTMLInputElement>(null);
-    const companyLogoInputRef = useRef<HTMLInputElement>(null);
     const documentsInputRef = useRef<HTMLInputElement>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(null);
     const [documentFiles, setDocumentFiles] = useState<File[]>([]);
     const [documentLabels, setDocumentLabels] = useState<string[]>([]);
 
@@ -51,15 +56,6 @@ export default function Create({
             setPhotoPreview(URL.createObjectURL(file));
         } else {
             setPhotoPreview(null);
-        }
-    }
-
-    function handleCompanyLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (file) {
-            setCompanyLogoPreview(URL.createObjectURL(file));
-        } else {
-            setCompanyLogoPreview(null);
         }
     }
 
@@ -364,107 +360,32 @@ export default function Create({
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label>
-                                            Company Logo
+                                        <Label htmlFor="company_profile_id">
+                                            Company Profile
                                         </Label>
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted/30">
-                                                {companyLogoPreview ? (
-                                                    <img
-                                                        src={companyLogoPreview}
-                                                        alt=""
-                                                        className="size-full object-contain"
-                                                    />
-                                                ) : (
-                                                    <Building2 className="size-8 text-muted-foreground" />
-                                                )}
-                                            </div>
-                                            <div className="flex flex-col gap-1">
-                                                <input
-                                                    ref={companyLogoInputRef}
-                                                    type="file"
-                                                    name="company_logo"
-                                                    accept="image/*"
-                                                    className="sr-only"
-                                                    onChange={handleCompanyLogoChange}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        companyLogoInputRef.current?.click()
-                                                    }
+                                        <select
+                                            id="company_profile_id"
+                                            name="company_profile_id"
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <option value="">
+                                                Select company profile
+                                            </option>
+                                            {companyProfiles.map((profile) => (
+                                                <option
+                                                    key={profile.id}
+                                                    value={profile.id}
                                                 >
-                                                    {companyLogoPreview
-                                                        ? 'Change logo'
-                                                        : 'Upload logo'}
-                                                </Button>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Max 2 MB. Shown on business card.
-                                                </p>
-                                            </div>
-                                        </div>
+                                                    {profile.company_name}
+                                                </option>
+                                            ))}
+                                        </select>
                                         <InputError
-                                            message={errors.company_logo}
+                                            message={errors.company_profile_id}
                                         />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="company_name">
-                                            Company Name
-                                        </Label>
-                                        <Input
-                                            id="company_name"
-                                            name="company_name"
-                                            maxLength={255}
-                                            placeholder="Acme Inc."
-                                        />
-                                        <InputError
-                                            message={errors.company_name}
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="company_address_1">
-                                            Company Address 1
-                                        </Label>
-                                        <Input
-                                            id="company_address_1"
-                                            name="company_address_1"
-                                            maxLength={255}
-                                            placeholder="Street address"
-                                        />
-                                        <InputError
-                                            message={errors.company_address_1}
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="company_address_2">
-                                            Company Address 2
-                                        </Label>
-                                        <Input
-                                            id="company_address_2"
-                                            name="company_address_2"
-                                            maxLength={255}
-                                            placeholder="Suite, floor, etc. (optional)"
-                                        />
-                                        <InputError
-                                            message={errors.company_address_2}
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="company_website">
-                                            Company Website
-                                        </Label>
-                                        <Input
-                                            id="company_website"
-                                            name="company_website"
-                                            type="url"
-                                            maxLength={255}
-                                            placeholder="https://www.example.com"
-                                        />
-                                        <InputError
-                                            message={errors.company_website}
-                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Shown on business card.
+                                        </p>
                                     </div>
 
                                     <div className="grid gap-2">

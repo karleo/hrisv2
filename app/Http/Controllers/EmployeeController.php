@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Employee\StoreEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
+use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
@@ -52,6 +53,7 @@ class EmployeeController extends Controller
         return Inertia::render('employees/create', [
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
         ]);
     }
 
@@ -62,11 +64,10 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
-        $companyLogo = $data['company_logo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
         $createUser = $request->boolean('create_user');
-        unset($data['photo'], $data['company_logo'], $data['documents'], $data['document_labels']);
+        unset($data['photo'], $data['documents'], $data['document_labels']);
         unset($data['create_user'], $data['user_password'], $data['user_password_confirmation']);
 
         $employee = Employee::query()->create($data);
@@ -87,11 +88,6 @@ class EmployeeController extends Controller
             $employee->update(['photo' => $path]);
         }
 
-        if ($companyLogo) {
-            $path = $companyLogo->store("employees/{$employee->id}", 'public');
-            $employee->update(['company_logo' => $path]);
-        }
-
         foreach ($documents as $i => $file) {
             $path = $file->store("employees/{$employee->id}/documents", 'public');
             $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
@@ -110,13 +106,15 @@ class EmployeeController extends Controller
      */
     public function businessCard(Employee $employee): Response
     {
-        $employee->load(['department', 'jobPosition']);
+        $employee->load(['department', 'jobPosition', 'companyProfile']);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
-        $employee->company_logo_url = $employee->company_logo
-            ? '/storage/'.ltrim($employee->company_logo, '/')
-            : null;
+        if ($employee->relationLoaded('companyProfile') && $employee->companyProfile) {
+            $employee->companyProfile->logo_url = $employee->companyProfile->logo
+                ? '/storage/'.ltrim($employee->companyProfile->logo, '/')
+                : null;
+        }
 
         return Inertia::render('employees/business-card', [
             'employee' => $employee,
@@ -129,18 +127,16 @@ class EmployeeController extends Controller
      */
     public function edit(Employee $employee): Response
     {
-        $employee->load(['department', 'jobPosition', 'documents']);
+        $employee->load(['department', 'jobPosition', 'documents', 'companyProfile']);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
-            : null;
-        $employee->company_logo_url = $employee->company_logo
-            ? '/storage/'.ltrim($employee->company_logo, '/')
             : null;
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
         ]);
     }
 
@@ -151,13 +147,11 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
-        $companyLogo = $data['company_logo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
         $resetUserPassword = $request->boolean('reset_user_password');
         unset(
             $data['photo'],
-            $data['company_logo'],
             $data['documents'],
             $data['document_labels'],
             $data['reset_user_password'],
@@ -187,14 +181,6 @@ class EmployeeController extends Controller
             $employee->update(['photo' => $path]);
         }
 
-        if ($companyLogo) {
-            if ($employee->company_logo) {
-                Storage::disk('public')->delete($employee->company_logo);
-            }
-            $path = $companyLogo->store("employees/{$employee->id}", 'public');
-            $employee->update(['company_logo' => $path]);
-        }
-
         foreach ($documents as $i => $file) {
             $path = $file->store("employees/{$employee->id}/documents", 'public');
             $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
@@ -215,9 +201,6 @@ class EmployeeController extends Controller
     {
         if ($employee->photo) {
             Storage::disk('public')->delete($employee->photo);
-        }
-        if ($employee->company_logo) {
-            Storage::disk('public')->delete($employee->company_logo);
         }
         foreach ($employee->documents as $document) {
             Storage::disk('public')->delete($document->path);

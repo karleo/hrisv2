@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             EmployeeSeeder::class,
             LeaveTypeSeeder::class,
             CountrySeeder::class,
+            CompanyProfileSeeder::class,
             SoftwareSeeder::class,
             HardwareSeeder::class,
         ]);

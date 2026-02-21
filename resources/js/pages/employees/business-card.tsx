@@ -18,6 +18,15 @@ type JobPosition = {
     name: string;
 };
 
+type CompanyProfile = {
+    id: number;
+    company_name: string;
+    company_address_1: string | null;
+    company_address_2: string | null;
+    website: string | null;
+    logo_url: string | null;
+};
+
 type Employee = {
     id: number;
     first_name: string;
@@ -26,11 +35,7 @@ type Employee = {
     contact_number: string | null;
     address_1: string | null;
     address_2: string | null;
-    company_name: string | null;
-    company_address_1: string | null;
-    company_address_2: string | null;
-    company_website: string | null;
-    company_logo_url: string | null;
+    company_profile: CompanyProfile | null;
     department?: Department | null;
     job_position?: JobPosition | null;
     role: 'Employee' | 'Manager' | 'CEO';
@@ -51,19 +56,21 @@ function buildVCard(
     if (employee.photo_url) {
         lines.push(`PHOTO;VALUE=URI:${escapeVCard(employee.photo_url)}`);
     }
-    const org = employee.company_name || appName;
+    const org = employee.company_profile?.company_name || appName;
     if (org) {
         lines.push(`ORG:${escapeVCard(org)}`);
     }
-    const companyAddress = [employee.company_address_1, employee.company_address_2].filter(Boolean).join(', ');
+    const companyAddress = employee.company_profile
+        ? [employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).join(', ')
+        : '';
     if (companyAddress) {
         lines.push(`ADR;TYPE=WORK:;;${escapeVCard(companyAddress)};;;;`);
     }
     if (employee.contact_number) {
         lines.push(`TEL;TYPE=WORK,VOICE:${escapeVCard(employee.contact_number)}`);
     }
-    if (employee.company_website) {
-        lines.push(`URL:${escapeVCard(employee.company_website)}`);
+    if (employee.company_profile?.website) {
+        lines.push(`URL:${escapeVCard(employee.company_profile.website)}`);
     }
     if (employee.job_position?.name) {
         lines.push(`TITLE:${escapeVCard(employee.job_position.name)}`);
@@ -215,34 +222,34 @@ export default function BusinessCard({
                                 </div>
                                 <div className="mt-auto flex items-end justify-between gap-2 pt-1 print:pt-0.5">
                                     <div className="flex min-w-0 flex-1 items-center gap-2">
-                                        {employee.company_logo_url && (
+                                        {employee.company_profile?.logo_url && (
                                             <img
-                                                src={employee.company_logo_url}
+                                                src={employee.company_profile.logo_url}
                                                 alt=""
                                                 className="size-8 shrink-0 object-contain print:size-7"
                                             />
                                         )}
                                         <div className="min-w-0 flex-1">
-                                            {(employee.company_name || appName) && (
+                                            {(employee.company_profile?.company_name || appName) && (
                                                 <p className="text-[10px] font-medium text-muted-foreground print:text-[8px]">
-                                                    {employee.company_name || appName}
+                                                    {employee.company_profile?.company_name || appName}
                                                 </p>
                                             )}
-                                            {employee.company_website && (
-                                            <a
-                                                href={employee.company_website}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block truncate text-[9px] text-primary underline print:text-[8px]"
-                                            >
-                                                {employee.company_website.replace(/^https?:\/\//i, '')}
-                                            </a>
-                                        )}
-                                        {[employee.company_address_1, employee.company_address_2].filter(Boolean).length > 0 && (
-                                            <p className="truncate text-[9px] text-muted-foreground print:text-[8px]">
-                                                {[employee.company_address_1, employee.company_address_2].filter(Boolean).join(', ')}
-                                            </p>
-                                        )}
+                                            {employee.company_profile?.website && (
+                                                <a
+                                                    href={employee.company_profile.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block truncate text-[9px] text-primary underline print:text-[8px]"
+                                                >
+                                                    {employee.company_profile.website.replace(/^https?:\/\//i, '')}
+                                                </a>
+                                            )}
+                                            {employee.company_profile && [employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).length > 0 && (
+                                                <p className="truncate text-[9px] text-muted-foreground print:text-[8px]">
+                                                    {[employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).join(', ')}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="shrink-0" aria-hidden>

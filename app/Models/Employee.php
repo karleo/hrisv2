@@ -21,11 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $job_position_id
  * @property string $role
  * @property string|null $photo
- * @property string|null $company_name
- * @property string|null $company_address_1
- * @property string|null $company_address_2
- * @property string|null $company_website
- * @property string|null $company_logo
+ * @property int|null $company_profile_id
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -52,11 +48,7 @@ class Employee extends Model
         'job_position_id',
         'role',
         'photo',
-        'company_name',
-        'company_address_1',
-        'company_address_2',
-        'company_website',
-        'company_logo',
+        'company_profile_id',
     ];
 
     public function user(): BelongsTo
@@ -77,5 +69,10 @@ class Employee extends Model
     public function jobPosition(): BelongsTo
     {
         return $this->belongsTo(JobPosition::class);
+    }
+
+    public function companyProfile(): BelongsTo
+    {
+        return $this->belongsTo(CompanyProfile::class);
     }
 }

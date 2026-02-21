@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
@@ -35,6 +36,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('job-positions', JobPositionController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('countries', CountryController::class);
+    Route::resource('company-profiles', CompanyProfileController::class);
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
     Route::resource('leave-requests', LeaveRequestController::class);

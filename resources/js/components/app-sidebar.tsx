@@ -25,6 +25,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as companyProfilesIndex } from '@/routes/company-profiles';
 import { index as countriesIndex } from '@/routes/countries';
 import { index as departmentsIndex } from '@/routes/departments';
 import { index as employeesIndex } from '@/routes/employees';
@@ -87,6 +88,11 @@ const mainNavItems: NavItem[] = [
                 title: 'Countries',
                 href: countriesIndex(),
                 icon: Globe,
+            },
+            {
+                title: 'Company Profiles',
+                href: companyProfilesIndex(),
+                icon: Building2,
             },
             {
                 title: 'Software',
