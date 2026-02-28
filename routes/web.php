@@ -40,6 +40,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
     Route::resource('leave-requests', LeaveRequestController::class);
+    Route::get('leave-requests/{leave_request}/print', [LeaveRequestController::class, 'print'])
+        ->name('leave-requests.print');
+    Route::post('leave-requests/{leave_request}/signatures', [LeaveRequestController::class, 'updateSignatures'])
+        ->name('leave-requests.signatures.update');
     Route::resource('it-requests', ItRequestController::class);
     Route::resource('employee-requests', EmployeeRequestController::class);
     Route::resource('it-asset-requests', ItAssetRequestController::class);

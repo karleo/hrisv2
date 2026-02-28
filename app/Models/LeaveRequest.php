@@ -21,6 +21,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $days
  * @property string|null $remarks
  * @property string $status
+ * @property string|null $employee_signature
+ * @property string|null $approved_by_signature
+ * @property int|null $approved_by_employee_id
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -55,6 +58,9 @@ class LeaveRequest extends Model
         'days',
         'remarks',
         'status',
+        'employee_signature',
+        'approved_by_signature',
+        'approved_by_employee_id',
     ];
 
     /**
@@ -77,5 +83,10 @@ class LeaveRequest extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function approvedByEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'approved_by_employee_id');
     }
 }

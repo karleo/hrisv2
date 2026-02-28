@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LeaveRequest\StoreLeaveRequestRequest;
 use App\Http\Requests\LeaveRequest\UpdateLeaveRequestRequest;
+use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -46,9 +48,10 @@ class LeaveRequestController extends Controller
     {
         return Inertia::render('leave-requests/create', [
             'employees' => Employee::query()
+                ->with('department:id,name')
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -90,10 +93,25 @@ class LeaveRequestController extends Controller
      */
     public function show(LeaveRequest $leave_request): Response
     {
-        $leave_request->load(['employee', 'department']);
+        $leave_request->load(['employee', 'department', 'approvedByEmployee']);
+
+        $employeeSignatureUrl = $leave_request->employee_signature
+            ? Storage::disk('public')->url($leave_request->employee_signature)
+            : null;
+        $approvedBySignatureUrl = $leave_request->approved_by_signature
+            ? Storage::disk('public')->url($leave_request->approved_by_signature)
+            : null;
 
         return Inertia::render('leave-requests/show', [
-            'leaveRequest' => $leave_request,
+            'leaveRequest' => array_merge($leave_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
+            'employees' => Employee::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
+            'signaturesUrl' => route('leave-requests.signatures.update', $leave_request),
         ]);
     }
 
@@ -107,9 +125,10 @@ class LeaveRequestController extends Controller
         return Inertia::render('leave-requests/edit', [
             'leaveRequest' => $leave_request,
             'employees' => Employee::query()
+                ->with('department:id,name')
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -151,9 +170,93 @@ class LeaveRequestController extends Controller
      */
     public function destroy(LeaveRequest $leave_request): RedirectResponse
     {
+        if ($leave_request->employee_signature) {
+            Storage::disk('public')->delete($leave_request->employee_signature);
+        }
+        if ($leave_request->approved_by_signature) {
+            Storage::disk('public')->delete($leave_request->approved_by_signature);
+        }
+
         $leave_request->delete();
 
         return to_route('leave-requests.index');
+    }
+
+    /**
+     * Show printable leave request (company logo, company name, report).
+     */
+    public function print(LeaveRequest $leave_request): Response
+    {
+        $leave_request->load(['employee.companyProfile', 'department', 'approvedByEmployee']);
+
+        $company = $leave_request->employee?->companyProfile ?? CompanyProfile::query()->first();
+        $companyName = $company?->company_name ?? config('app.name');
+        $companyLogoUrl = null;
+        if ($company?->logo) {
+            $companyLogoUrl = Storage::disk('public')->url($company->logo);
+        }
+
+        $employeeSignatureUrl = $leave_request->employee_signature
+            ? Storage::disk('public')->url($leave_request->employee_signature)
+            : null;
+        $approvedBySignatureUrl = $leave_request->approved_by_signature
+            ? Storage::disk('public')->url($leave_request->approved_by_signature)
+            : null;
+
+        return Inertia::render('leave-requests/print', [
+            'leaveRequest' => array_merge($leave_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
+            'companyName' => $companyName,
+            'companyLogoUrl' => $companyLogoUrl,
+        ]);
+    }
+
+    /**
+     * Update signatures for the Leave Request (sign in web portal).
+     */
+    public function updateSignatures(Request $request, LeaveRequest $leave_request): RedirectResponse
+    {
+        $request->validate([
+            'employee_signature' => ['nullable', 'image', 'max:2048'],
+            'approved_by_signature' => ['nullable', 'image', 'max:2048'],
+            'approved_by_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
+        ]);
+
+        $updateData = [];
+
+        if ($request->hasFile('employee_signature')) {
+            if ($leave_request->employee_signature) {
+                Storage::disk('public')->delete($leave_request->employee_signature);
+            }
+            $path = $request->file('employee_signature')->store(
+                "leave-requests/{$leave_request->id}/signatures",
+                'public',
+            );
+            $updateData['employee_signature'] = $path;
+        }
+
+        if ($request->hasFile('approved_by_signature')) {
+            if ($leave_request->approved_by_signature) {
+                Storage::disk('public')->delete($leave_request->approved_by_signature);
+            }
+            $path = $request->file('approved_by_signature')->store(
+                "leave-requests/{$leave_request->id}/signatures",
+                'public',
+            );
+            $updateData['approved_by_signature'] = $path;
+        }
+
+        if ($request->filled('approved_by_employee_id')) {
+            $updateData['approved_by_employee_id'] = $request->input('approved_by_employee_id');
+        }
+
+        if (! empty($updateData)) {
+            $leave_request->update($updateData);
+        }
+
+        return redirect()->back()->with('success', 'Signatures updated successfully.');
     }
 
     /**

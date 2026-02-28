@@ -1,334 +1,177 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Calendar, Eye, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
-import LeaveRequestController from '@/actions/App/Http/Controllers/LeaveRequestController';
-import { DataTablePagination } from '@/components/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table-toolbar';
-import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-} from '@/components/ui/card';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { CalendarDays, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
-import { create, index } from '@/routes/leave-requests';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Leave Requests',
-        href: index().url,
-    },
-];
-
-function StatusBadge({ status }: { status: string }) {
-    const isDraft = status === 'draft';
-    return (
-        <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                isDraft
-                    ? 'bg-muted text-muted-foreground'
-                    : 'bg-primary/10 text-primary'
-            }`}
-        >
-            {isDraft ? 'Draft' : 'Submitted'}
-        </span>
-    );
-}
-
-type Employee = {
-    id: number;
-    first_name: string;
-    last_name: string;
-};
-
-type Department = {
-    id: number;
-    name: string;
-};
-
+type Employee = { id: number; first_name: string; last_name: string };
+type Department = { id: number; name: string };
 type LeaveRequest = {
     id: number;
     code: string;
     employee_id: number;
     department_id: number;
-    absence_types: string[];
-    absence_other: string | null;
-    details: string | null;
-    remarks: string | null;
-    date: string | null;
+    status: string;
     period_from: string | null;
     period_to: string | null;
     days: number | null;
-    status: string;
-    employee?: Employee;
+    employee?: Employee & { department?: Department };
     department?: Department;
 };
 
-type PaginatedLeaveRequests = {
-    data: LeaveRequest[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    links: { url: string | null; label: string; active: boolean }[];
-};
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Leave Management', href: '/leave-requests' },
+];
 
-export default function Index({
+export default function LeaveRequestsIndex({
     leaveRequests,
-    filters = {},
+    filters,
 }: {
-    leaveRequests: PaginatedLeaveRequests;
-    filters?: { search?: string };
+    leaveRequests: { data: LeaveRequest[]; current_page: number; last_page: number; links: unknown[] };
+    filters: { search?: string };
 }) {
-    const { data: requestList } = leaveRequests;
+    const { data: items, current_page, last_page } = leaveRequests;
+    const [search, setSearch] = useState(filters?.search ?? '');
+
+    const handleSearch = (e: FormEvent) => {
+        e.preventDefault();
+        router.get('/leave-requests', { search: search || undefined }, { preserveState: true });
+    };
+
+    const handleDelete = (id: number) => {
+        if (confirm('Delete this leave request?')) {
+            router.delete(`/leave-requests/${id}`);
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave Requests" />
-
-            <div className="flex h-full flex-1 flex-col">
-                {/* Page header */}
-                <div className="border-b bg-gradient-to-b from-muted/30 to-background px-4 py-6 sm:px-6 lg:px-8">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                                <Calendar className="size-5 text-primary" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                    Leave Requests
-                                </h1>
-                                <p className="text-muted-foreground text-sm">
-                                    View and manage submitted leave requests
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <DataTableToolbar
-                                searchUrl={index().url}
-                                searchPlaceholder="Search by employee..."
-                                filters={filters}
-                                autoSearch
-                                showSearchButton={false}
-                            />
-                            <Link href={create().url}>
-                                <Button size="sm" className="gap-2">
-                                    <Plus className="size-4" />
-                                    New Request
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
+            <div className="flex flex-col gap-4 p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <h1 className="text-xl font-semibold">Leave Requests</h1>
+                    <Button asChild>
+                        <Link href="/leave-requests/create" prefetch>
+                            <Plus className="mr-2 size-4" />
+                            New request
+                        </Link>
+                    </Button>
                 </div>
 
-                <div className="flex-1 overflow-x-auto p-4 sm:p-6 lg:p-8">
-                    <Card className="border shadow-sm">
-                        <CardContent className="p-0">
+                <form onSubmit={handleSearch} className="flex gap-2">
+                    <Input
+                        type="search"
+                        placeholder="Search by employee name…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="max-w-xs"
+                    />
+                    <Button type="submit" variant="secondary">
+                        <Search className="size-4" />
+                    </Button>
+                </form>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <CalendarDays className="size-4" />
+                            Requests
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {items.length === 0 ? (
+                            <p className="text-muted-foreground py-8 text-center text-sm">No leave requests yet.</p>
+                        ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Code
-                                            </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Employee
-                                            </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
-                                                Department
-                                            </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Types
-                                            </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Status
-                                            </th>
-                                            <th className="w-36 px-4 py-3.5 text-right font-medium">
-                                                Actions
-                                            </th>
+                                        <tr className="border-b text-left">
+                                            <th className="pb-2 pr-4 font-medium">Code</th>
+                                            <th className="pb-2 pr-4 font-medium">Employee</th>
+                                            <th className="pb-2 pr-4 font-medium">Department</th>
+                                            <th className="pb-2 pr-4 font-medium">Period</th>
+                                            <th className="pb-2 pr-4 font-medium">Days</th>
+                                            <th className="pb-2 pr-4 font-medium">Status</th>
+                                            <th className="pb-2 text-right font-medium">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {requestList.length === 0 ? (
-                                            <tr>
-                                                <td
-                                                    colSpan={6}
-                                                    className="px-4 py-16 text-center"
-                                                >
-                                                    <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
-                                                        <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-                                                            <FileText className="size-7 text-muted-foreground" />
-                                                        </div>
-                                                        <p className="text-muted-foreground text-sm">
-                                                            {filters.search
-                                                                ? 'No leave requests match your search.'
-                                                                : 'No leave requests yet. Create your first request to get started.'}
-                                                        </p>
-                                                        {!filters.search && (
-                                                            <Link href={create().url}>
-                                                                <Button size="sm" variant="outline" className="gap-2">
-                                                                    <Plus className="size-4" />
-                                                                    New Leave Request
-                                                                </Button>
+                                        {items.map((lr) => (
+                                            <tr key={lr.id} className="border-b last:border-0">
+                                                <td className="py-3 pr-4">{lr.code}</td>
+                                                <td className="py-3 pr-4">
+                                                    {lr.employee
+                                                        ? `${lr.employee.first_name} ${lr.employee.last_name}`
+                                                        : '—'}
+                                                </td>
+                                                <td className="py-3 pr-4">{lr.department?.name ?? '—'}</td>
+                                                <td className="py-3 pr-4">
+                                                    {lr.period_from && lr.period_to
+                                                        ? `${lr.period_from} – ${lr.period_to}`
+                                                        : '—'}
+                                                </td>
+                                                <td className="py-3 pr-4">{lr.days ?? '—'}</td>
+                                                <td className="py-3 pr-4 capitalize">{lr.status}</td>
+                                                <td className="py-3 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="ghost" size="icon" asChild>
+                                                            <Link href={`/leave-requests/${lr.id}`}>
+                                                                <span className="sr-only">View</span>
+                                                                <CalendarDays className="size-4" />
                                                             </Link>
-                                                        )}
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" asChild>
+                                                            <Link href={`/leave-requests/${lr.id}/edit`}>
+                                                                <span className="sr-only">Edit</span>
+                                                                <Pencil className="size-4" />
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDelete(lr.id)}
+                                                            className="text-destructive hover:text-destructive"
+                                                        >
+                                                            <span className="sr-only">Delete</span>
+                                                            <Trash2 className="size-4" />
+                                                        </Button>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ) : (
-                                            requestList.map((request) => (
-                                                <tr
-                                                    key={request.id}
-                                                    className="border-b transition-colors hover:bg-muted/30 last:border-0"
-                                                >
-                                                    <td className="px-4 py-3 font-medium">
-                                                        {request.code || '—'}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {request.employee
-                                                            ? `${request.employee.first_name} ${request.employee.last_name}`
-                                                            : '—'}
-                                                    </td>
-                                                    <td className="hidden px-4 py-3 md:table-cell">
-                                                        {request.department?.name ??
-                                                            '—'}
-                                                    </td>
-                                                    <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
-                                                        {request.absence_types.join(
-                                                            ', ',
-                                                        )}
-                                                        {request.absence_other
-                                                            ? ` (${request.absence_other})`
-                                                            : ''}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <StatusBadge status={request.status} />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-end gap-1">
-                                                            <Link
-                                                                href={LeaveRequestController.show.url(request.id)}
-                                                                aria-label="View"
-                                                            >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                >
-                                                                    <Eye className="size-4" />
-                                                                </Button>
-                                                            </Link>
-                                                            <Link
-                                                                href={`${LeaveRequestController.show.url(request.id)}?print=1`}
-                                                                aria-label="Print"
-                                                            >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                >
-                                                                    <Printer className="size-4" />
-                                                                </Button>
-                                                            </Link>
-                                                            {request.status ===
-                                                                'draft' && (
-                                                                <Link
-                                                                    href={LeaveRequestController.edit.url(
-                                                                        request.id,
-                                                                    )}
-                                                                    aria-label="Edit"
-                                                                >
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                    >
-                                                                        <Pencil className="size-4" />
-                                                                    </Button>
-                                                                </Link>
-                                                            )}
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        aria-label="Delete"
-                                                                    >
-                                                                        <Trash2 className="size-4 text-destructive" />
-                                                                    </Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent>
-                                                                <DialogTitle>
-                                                                    Delete leave
-                                                                    request?
-                                                                </DialogTitle>
-                                                                <DialogDescription>
-                                                                    Are you sure
-                                                                    you want to
-                                                                    delete this
-                                                                    leave
-                                                                    request for{' '}
-                                                                    <strong>
-                                                                        {request
-                                                                            .employee
-                                                                            ? `${request.employee.first_name} ${request.employee.last_name}`
-                                                                            : 'this employee'}
-                                                                    </strong>
-                                                                    ? This
-                                                                    action
-                                                                    cannot be
-                                                                    undone.
-                                                                </DialogDescription>
-                                                                <DialogFooter>
-                                                                    <DialogClose asChild>
-                                                                        <Button variant="secondary">
-                                                                            Cancel
-                                                                        </Button>
-                                                                    </DialogClose>
-                                                                    <Button
-                                                                        variant="destructive"
-                                                                        onClick={() =>
-                                                                            router.delete(
-                                                                                LeaveRequestController.destroy.url(
-                                                                                    request.id,
-                                                                                ),
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Delete
-                                                                    </Button>
-                                                                </DialogFooter>
-                                                                </DialogContent>
-                                                            </Dialog>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
-                            <DataTablePagination
-                                links={leaveRequests.links}
-                                from={leaveRequests.from}
-                                to={leaveRequests.to}
-                                total={leaveRequests.total}
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
+                        )}
+                        {last_page > 1 && (
+                            <div className="mt-4 flex justify-center gap-2">
+                                {current_page > 1 && (
+                                    <Link
+                                        href={`/leave-requests?page=${current_page - 1}${filters?.search ? `&search=${encodeURIComponent(filters.search)}` : ''}`}
+                                        className="text-primary text-sm underline"
+                                    >
+                                        Previous
+                                    </Link>
+                                )}
+                                <span className="text-muted-foreground text-sm">
+                                    Page {current_page} of {last_page}
+                                </span>
+                                {current_page < last_page && (
+                                    <Link
+                                        href={`/leave-requests?page=${current_page + 1}${filters?.search ? `&search=${encodeURIComponent(filters.search)}` : ''}`}
+                                        className="text-primary text-sm underline"
+                                    >
+                                        Next
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </AppLayout>
     );
 }
-
