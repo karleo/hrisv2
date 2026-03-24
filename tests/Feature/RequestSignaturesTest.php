@@ -1,0 +1,88 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Department;
+use App\Models\Employee;
+use App\Models\EmployeeRequest;
+use App\Models\ItRequest;
+use App\Models\JobPosition;
+use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class RequestSignaturesTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
+
+    public function test_user_can_update_it_request_signature(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs(User::factory()->create());
+
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $itRequest = ItRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-03-24',
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->post(route('it-requests.signatures.update', $itRequest), [
+            'employee_signature' => UploadedFile::fake()->create('employee-signature.png', 50, 'image/png'),
+        ]);
+
+        $response->assertRedirect();
+
+        $itRequest->refresh();
+        $this->assertNotNull($itRequest->employee_signature);
+        Storage::disk('public')->assertExists($itRequest->employee_signature);
+    }
+
+    public function test_user_can_update_employee_request_signature(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs(User::factory()->create());
+
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+        $jobPosition = JobPosition::factory()->create();
+
+        $employeeRequest = EmployeeRequest::query()->create([
+            'employee_id' => $employee->id,
+            'job_position_id' => $jobPosition->id,
+            'department_id' => $department->id,
+            'date' => '2026-03-24',
+            'date_of_joining' => '2026-03-24',
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->post(route('employee-requests.signatures.update', $employeeRequest), [
+            'employee_signature' => UploadedFile::fake()->create('employee-signature.png', 50, 'image/png'),
+        ]);
+
+        $response->assertRedirect();
+
+        $employeeRequest->refresh();
+        $this->assertNotNull($employeeRequest->employee_signature);
+        Storage::disk('public')->assertExists($employeeRequest->employee_signature);
+    }
+}

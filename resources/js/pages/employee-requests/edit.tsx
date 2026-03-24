@@ -22,6 +22,7 @@ type EmployeeOption = {
     id: number;
     first_name: string;
     last_name: string;
+    department_id: number | null;
 };
 
 type DepartmentOption = {
@@ -133,14 +134,16 @@ export default function Edit({
                                     name="employee_id"
                                     required
                                     value={data.employee_id}
-                                    onChange={(e) =>
-                                        setData(
-                                            'employee_id',
-                                            e.target.value
-                                                ? Number(e.target.value)
-                                                : '',
-                                        )
-                                    }
+                                    onChange={(e) => {
+                                        const employeeId = e.target.value ? Number(e.target.value) : '';
+                                        const employee = employees.find((item) => item.id === employeeId);
+
+                                        setData((previous) => ({
+                                            ...previous,
+                                            employee_id: employeeId,
+                                            department_id: employee?.department_id ?? '',
+                                        }));
+                                    }}
                                     className={inputClassName}
                                 >
                                     <option value="">Select employee</option>
@@ -186,12 +189,7 @@ export default function Edit({
                                     required
                                     value={data.department_id}
                                     onChange={(e) =>
-                                        setData(
-                                            'department_id',
-                                            e.target.value
-                                                ? Number(e.target.value)
-                                                : '',
-                                        )
+                                        setData('department_id', e.target.value ? Number(e.target.value) : '')
                                     }
                                     className={inputClassName}
                                 >

@@ -96,10 +96,10 @@ class LeaveRequestController extends Controller
         $leave_request->load(['employee', 'department', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $leave_request->employee_signature
-            ? Storage::disk('public')->url($leave_request->employee_signature)
+            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->employee_signature, '/'))
             : null;
         $approvedBySignatureUrl = $leave_request->approved_by_signature
-            ? Storage::disk('public')->url($leave_request->approved_by_signature)
+            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->approved_by_signature, '/'))
             : null;
 
         return Inertia::render('leave-requests/show', [
@@ -197,10 +197,10 @@ class LeaveRequestController extends Controller
         }
 
         $employeeSignatureUrl = $leave_request->employee_signature
-            ? Storage::disk('public')->url($leave_request->employee_signature)
+            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->employee_signature, '/'))
             : null;
         $approvedBySignatureUrl = $leave_request->approved_by_signature
-            ? Storage::disk('public')->url($leave_request->approved_by_signature)
+            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->approved_by_signature, '/'))
             : null;
 
         return Inertia::render('leave-requests/print', [

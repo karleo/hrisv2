@@ -11,21 +11,20 @@ import ItRequestController from './ItRequestController'
 import EmployeeRequestController from './EmployeeRequestController'
 import ItAssetRequestController from './ItAssetRequestController'
 import Settings from './Settings'
-
 const Controllers = {
     DepartmentController: Object.assign(DepartmentController, DepartmentController),
-    EmployeeController: Object.assign(EmployeeController, EmployeeController),
-    JobPositionController: Object.assign(JobPositionController, JobPositionController),
-    LeaveTypeController: Object.assign(LeaveTypeController, LeaveTypeController),
-    CountryController: Object.assign(CountryController, CountryController),
-    CompanyProfileController: Object.assign(CompanyProfileController, CompanyProfileController),
-    SoftwareController: Object.assign(SoftwareController, SoftwareController),
-    HardwareController: Object.assign(HardwareController, HardwareController),
-    LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestController),
-    ItRequestController: Object.assign(ItRequestController, ItRequestController),
-    EmployeeRequestController: Object.assign(EmployeeRequestController, EmployeeRequestController),
-    ItAssetRequestController: Object.assign(ItAssetRequestController, ItAssetRequestController),
-    Settings: Object.assign(Settings, Settings),
+EmployeeController: Object.assign(EmployeeController, EmployeeController),
+JobPositionController: Object.assign(JobPositionController, JobPositionController),
+LeaveTypeController: Object.assign(LeaveTypeController, LeaveTypeController),
+CountryController: Object.assign(CountryController, CountryController),
+CompanyProfileController: Object.assign(CompanyProfileController, CompanyProfileController),
+SoftwareController: Object.assign(SoftwareController, SoftwareController),
+HardwareController: Object.assign(HardwareController, HardwareController),
+LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestController),
+ItRequestController: Object.assign(ItRequestController, ItRequestController),
+EmployeeRequestController: Object.assign(EmployeeRequestController, EmployeeRequestController),
+ItAssetRequestController: Object.assign(ItAssetRequestController, ItAssetRequestController),
+Settings: Object.assign(Settings, Settings),
 }
 
 export default Controllers

@@ -13,6 +13,7 @@ type EmployeeOption = {
     id: number;
     first_name: string;
     last_name: string;
+    department_id: number | null;
 };
 
 type DepartmentOption = {
@@ -73,6 +74,8 @@ export default function Create({
         status: 'draft',
     });
 
+    const selectedEmployee = employees.find((employee) => employee.id === data.employee_id);
+
     const submitAs = (status: 'draft' | 'submitted') => (e: React.FormEvent) => {
         e.preventDefault();
         transform((payload) => ({ ...payload, status }));
@@ -108,14 +111,16 @@ export default function Create({
                             name="employee_id"
                             required
                             value={data.employee_id}
-                            onChange={(e) =>
-                                setData(
-                                    'employee_id',
-                                    e.target.value
-                                        ? Number(e.target.value)
-                                        : '',
-                                )
-                            }
+                            onChange={(e) => {
+                                const employeeId = e.target.value ? Number(e.target.value) : '';
+                                const employee = employees.find((item) => item.id === employeeId);
+
+                                setData((previous) => ({
+                                    ...previous,
+                                    employee_id: employeeId,
+                                    department_id: employee?.department_id ?? '',
+                                }));
+                            }}
                             className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <option value="">Select employee</option>
@@ -150,12 +155,7 @@ export default function Create({
                             required
                             value={data.department_id}
                             onChange={(e) =>
-                                setData(
-                                    'department_id',
-                                    e.target.value
-                                        ? Number(e.target.value)
-                                        : '',
-                                )
+                                setData('department_id', e.target.value ? Number(e.target.value) : '')
                             }
                             className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -167,6 +167,11 @@ export default function Create({
                             ))}
                         </select>
                         <InputError message={errors.department_id} />
+                        {selectedEmployee?.department_id === null && (
+                            <p className="text-xs text-muted-foreground">
+                                Selected employee has no department assigned.
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-2">

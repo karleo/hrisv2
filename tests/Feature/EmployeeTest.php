@@ -241,6 +241,36 @@ class EmployeeTest extends TestCase
         $this->assertTrue(Hash::check('NewPassword123!', $user->password));
     }
 
+    public function test_update_can_create_linked_user_when_employee_has_no_user(): void
+    {
+        $employee = Employee::factory()->create([
+            'user_id' => null,
+            'employee_code' => 'EMP-NOLOGIN',
+            'first_name' => 'No',
+            'last_name' => 'Login',
+            'email_address' => 'no.login@example.com',
+        ]);
+
+        $this->patch(route('employees.update', $employee), [
+            'employee_code' => $employee->employee_code,
+            'first_name' => $employee->first_name,
+            'last_name' => $employee->last_name,
+            'email_address' => $employee->email_address,
+            'department_id' => $employee->department_id,
+            'job_position_id' => $employee->job_position_id,
+            'role' => $employee->role ?? 'Employee',
+            'create_user' => true,
+            'user_password' => 'NewLogin123!',
+            'user_password_confirmation' => 'NewLogin123!',
+        ]);
+
+        $employee->refresh();
+        $this->assertNotNull($employee->user_id);
+        $user = $employee->user;
+        $this->assertSame('no.login@example.com', $user->email);
+        $this->assertTrue(Hash::check('NewLogin123!', $user->password));
+    }
+
     public function test_update_validates_unique_employee_code_excluding_current(): void
     {
         $employee = Employee::factory()->create(['employee_code' => 'EMP-0001']);

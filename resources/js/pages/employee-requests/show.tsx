@@ -1,7 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { useEffect } from 'react';
+import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Heading from '@/components/heading';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -39,6 +41,8 @@ type EmployeeRequest = {
     employee?: Employee;
     department?: Department;
     job_position?: JobPosition;
+    employee_signature_url?: string | null;
+    approved_by_signature_url?: string | null;
 };
 
 function formatDateDdMmYyyy(value: string | null | undefined): string {
@@ -53,9 +57,12 @@ function formatDateDdMmYyyy(value: string | null | undefined): string {
 
 export default function Show({
     employeeRequest,
+    signaturesUrl,
 }: {
     employeeRequest: EmployeeRequest;
+    signaturesUrl: string;
 }) {
+    const { flash } = usePage().props as { flash?: { success?: string } };
     const requestLabel = employeeRequest.code || `Request #${employeeRequest.id}`;
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -199,6 +206,29 @@ export default function Show({
                         </div>
                     </div>
                 </div>
+
+                {flash?.success && (
+                    <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                        {flash.success}
+                    </div>
+                )}
+
+                <Card className="print:hidden">
+                    <CardHeader>
+                        <CardTitle>Signatures (sign in web portal)</CardTitle>
+                        <p className="text-muted-foreground text-sm">
+                            Draw your signature below or replace an existing one. Click Save signature to store it.
+                        </p>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <SignaturePad
+                            label="Employee signature"
+                            signatureUrl={employeeRequest.employee_signature_url ?? null}
+                            submitUrl={signaturesUrl}
+                            fieldName="employee_signature"
+                        />
+                    </CardContent>
+                </Card>
             </div>
         </AppLayout>
     );

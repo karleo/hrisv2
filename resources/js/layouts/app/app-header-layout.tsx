@@ -7,10 +7,17 @@ export default function AppHeaderLayout({
     children,
     breadcrumbs,
 }: AppLayoutProps) {
+    const year = new Date().getFullYear();
+
     return (
         <AppShell>
             <AppHeader breadcrumbs={breadcrumbs} />
-            <AppContent>{children}</AppContent>
+            <AppContent>
+                {children}
+                <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground">
+                    {`© ${year} Prime Logistics. All rights reserved.`}
+                </footer>
+            </AppContent>
         </AppShell>
     );
 }

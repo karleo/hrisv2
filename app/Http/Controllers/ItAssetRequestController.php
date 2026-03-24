@@ -49,7 +49,7 @@ class ItAssetRequestController extends Controller
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -98,10 +98,10 @@ class ItAssetRequestController extends Controller
         }
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
-            ? Storage::disk('public')->url($it_asset_request->employee_signature)
+            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->employee_signature, '/'))
             : null;
         $it_asset_request->issued_by_signature_url = $it_asset_request->issued_by_signature
-            ? Storage::disk('public')->url($it_asset_request->issued_by_signature)
+            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->issued_by_signature, '/'))
             : null;
 
         return Inertia::render('it-asset-requests/show', [
@@ -110,7 +110,7 @@ class ItAssetRequestController extends Controller
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
         ]);
     }
 
@@ -126,7 +126,7 @@ class ItAssetRequestController extends Controller
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),

@@ -10,6 +10,7 @@ use App\Models\EmployeeRequest;
 use App\Models\JobPosition;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,7 +49,7 @@ class EmployeeRequestController extends Controller
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -89,10 +90,25 @@ class EmployeeRequestController extends Controller
      */
     public function show(EmployeeRequest $employee_request): Response
     {
-        $employee_request->load(['employee', 'department', 'jobPosition']);
+        $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
+
+        $employeeSignatureUrl = $employee_request->employee_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
+            : null;
+        $approvedBySignatureUrl = $employee_request->approved_by_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->approved_by_signature, '/'))
+            : null;
 
         return Inertia::render('employee-requests/show', [
-            'employeeRequest' => $employee_request,
+            'employeeRequest' => array_merge($employee_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
+            'employees' => Employee::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
+            'signaturesUrl' => route('employee-requests.signatures.update', $employee_request),
         ]);
     }
 
@@ -108,7 +124,7 @@ class EmployeeRequestController extends Controller
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name', 'department_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -149,8 +165,61 @@ class EmployeeRequestController extends Controller
      */
     public function destroy(EmployeeRequest $employee_request): RedirectResponse
     {
+        if ($employee_request->employee_signature) {
+            Storage::disk('public')->delete($employee_request->employee_signature);
+        }
+        if ($employee_request->approved_by_signature) {
+            Storage::disk('public')->delete($employee_request->approved_by_signature);
+        }
+
         $employee_request->delete();
 
         return to_route('employee-requests.index');
+    }
+
+    /**
+     * Update signatures for the Employee request.
+     */
+    public function updateSignatures(Request $request, EmployeeRequest $employee_request): RedirectResponse
+    {
+        $request->validate([
+            'employee_signature' => ['nullable', 'image', 'max:2048'],
+            'approved_by_signature' => ['nullable', 'image', 'max:2048'],
+            'approved_by_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
+        ]);
+
+        $updateData = [];
+
+        if ($request->hasFile('employee_signature')) {
+            if ($employee_request->employee_signature) {
+                Storage::disk('public')->delete($employee_request->employee_signature);
+            }
+            $path = $request->file('employee_signature')->store(
+                "employee-requests/{$employee_request->id}/signatures",
+                'public',
+            );
+            $updateData['employee_signature'] = $path;
+        }
+
+        if ($request->hasFile('approved_by_signature')) {
+            if ($employee_request->approved_by_signature) {
+                Storage::disk('public')->delete($employee_request->approved_by_signature);
+            }
+            $path = $request->file('approved_by_signature')->store(
+                "employee-requests/{$employee_request->id}/signatures",
+                'public',
+            );
+            $updateData['approved_by_signature'] = $path;
+        }
+
+        if ($request->filled('approved_by_employee_id')) {
+            $updateData['approved_by_employee_id'] = $request->input('approved_by_employee_id');
+        }
+
+        if (! empty($updateData)) {
+            $employee_request->update($updateData);
+        }
+
+        return redirect()->back()->with('success', 'Signatures updated successfully.');
     }
 }

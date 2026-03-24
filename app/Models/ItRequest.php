@@ -32,6 +32,9 @@ class ItRequest extends Model
         'hardware_id',
         'status',
         'date',
+        'employee_signature',
+        'approved_by_signature',
+        'approved_by_employee_id',
     ];
 
     /**
@@ -65,5 +68,10 @@ class ItRequest extends Model
     public function hardware(): BelongsTo
     {
         return $this->belongsTo(Hardware::class);
+    }
+
+    public function approvedByEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'approved_by_employee_id');
     }
 }

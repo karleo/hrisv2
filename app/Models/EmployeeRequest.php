@@ -55,6 +55,9 @@ class EmployeeRequest extends Model
         'preferred_airlines',
         'last_encashment_date',
         'bag_allowance',
+        'employee_signature',
+        'approved_by_signature',
+        'approved_by_employee_id',
     ];
 
     /**
@@ -86,5 +89,10 @@ class EmployeeRequest extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function approvedByEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'approved_by_employee_id');
     }
 }

@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CalendarDays, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -120,7 +120,7 @@ export default function LeaveRequestsIndex({
                                                         <Button variant="ghost" size="icon" asChild>
                                                             <Link href={`/leave-requests/${lr.id}`}>
                                                                 <span className="sr-only">View</span>
-                                                                <CalendarDays className="size-4" />
+                                                                <Eye className="size-4" />
                                                             </Link>
                                                         </Button>
                                                         <Button variant="ghost" size="icon" asChild>
