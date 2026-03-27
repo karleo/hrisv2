@@ -1,6 +1,7 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
+import LoginBrandHeader from '@/components/auth/login-brand-header';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
+import { LOGIN_PASSWORD_FIELD_BG } from '@/config/login-theme';
+import AuthLoginSplitLayout from '@/layouts/auth/auth-login-split-layout';
+import { cn } from '@/lib/utils';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
@@ -19,122 +22,142 @@ type Props = {
     canRegister: boolean;
 };
 
-export default function Login({
-    status,
-    canResetPassword,
-    canRegister,
-}: Props) {
+export default function Login({ status, canResetPassword, canRegister }: Props) {
     const [showPassword, setShowPassword] = useState(false);
+    const { name } = usePage<{ name: string }>().props;
+
+    const underlineInputClass =
+        'h-12 rounded-none border-0 border-b border-neutral-300 bg-transparent px-0 shadow-none focus-visible:border-b-2 focus-visible:border-[#3CA99B] focus-visible:ring-0 placeholder:text-neutral-400 md:text-base';
+
+    const passwordInputClass = cn(
+        'h-12 rounded-t-md border-0 border-b border-neutral-300 px-3 shadow-none focus-visible:border-b-2 focus-visible:border-[#3CA99B] focus-visible:ring-0 md:text-base',
+        'placeholder:text-neutral-400',
+    );
 
     return (
-        <AuthLayout
-            title="Log in to your account"
-            description="Enter your email and password below to log in"
-        >
+        <AuthLoginSplitLayout>
             <Head title="Log in" />
 
-            <Form
-                {...store.form()}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
-                                />
-                                <InputError message={errors.email} />
-                            </div>
+            <div className="mx-auto flex w-full max-w-sm flex-col px-8 py-10 md:py-14">
+                <LoginBrandHeader appName={name} />
 
-                            <div className="relative grid gap-2">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="password">Password</Label>
+                {status && (
+                    <div className="mb-6 text-center text-sm font-medium text-green-600">
+                        {status}
+                    </div>
+                )}
+
+                <Form
+                    {...store.form()}
+                    resetOnSuccess={['password']}
+                    className="flex flex-col gap-8"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="flex flex-col gap-6">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email" className="sr-only">
+                                        Email address
+                                    </Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        required
+                                        autoFocus
+                                        tabIndex={1}
+                                        autoComplete="email"
+                                        placeholder="email@example.com"
+                                        className={underlineInputClass}
+                                    />
+                                    <InputError message={errors.email} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="password" className="sr-only">
+                                        Password
+                                    </Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            name="password"
+                                            required
+                                            tabIndex={2}
+                                            autoComplete="current-password"
+                                            placeholder="••••••••"
+                                            className={cn(passwordInputClass, 'pr-10')}
+                                            style={{
+                                                backgroundColor: LOGIN_PASSWORD_FIELD_BG,
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword((value) => !value)}
+                                            className="absolute right-3 bottom-3 text-neutral-400 hover:text-neutral-600"
+                                            tabIndex={-1}
+                                            aria-label={
+                                                showPassword ? 'Hide password' : 'Show password'
+                                            }
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="size-4" />
+                                            ) : (
+                                                <Eye className="size-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <InputError message={errors.password} />
+
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}
-                                            className="text-sm font-medium"
+                                            className="w-fit text-sm font-normal text-neutral-500 no-underline decoration-transparent hover:text-neutral-700 hover:underline"
                                             tabIndex={5}
                                         >
                                             Forgot password?
                                         </TextLink>
                                     )}
                                 </div>
-                                <Input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Enter your password"
-                                    className="pr-10"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword((value) => !value)}
-                                    className="text-muted-foreground hover:text-foreground absolute right-3 top-9"
-                                    tabIndex={-1}
-                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+
+                                <div className="flex items-center gap-2">
+                                    <Checkbox id="remember" name="remember" tabIndex={3} />
+                                    <Label
+                                        htmlFor="remember"
+                                        className="cursor-pointer text-sm font-normal text-neutral-500"
+                                    >
+                                        Remember me
+                                    </Label>
+                                </div>
+
+                                <Button
+                                    type="submit"
+                                    tabIndex={4}
+                                    disabled={processing}
+                                    data-test="login-button"
+                                    className="h-12 w-full rounded-full border-0 bg-[#3CA99B] text-base font-semibold text-white shadow-none hover:bg-[#36968a] focus-visible:ring-[#3CA99B]/40"
                                 >
-                                    {showPassword ? (
-                                        <EyeOff className="size-4" />
-                                    ) : (
-                                        <Eye className="size-4" />
-                                    )}
-                                </button>
-                                <InputError message={errors.password} />
+                                    {processing && <Spinner />}
+                                    Login
+                                </Button>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember" className="cursor-pointer font-normal">
-                                    Remember me
-                                </Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-2 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
-                            </Button>
-                        </div>
-
-                        {canRegister && (
-                            <div className="text-center text-sm text-muted-foreground">
-                                Don't have an account?{' '}
-                                <TextLink href={register()} tabIndex={5}>
-                                    Sign up
-                                </TextLink>
-                            </div>
-                        )}
-                    </>
-                )}
-            </Form>
-
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
-        </AuthLayout>
+                            {canRegister && (
+                                <div className="text-center text-sm text-neutral-500">
+                                    Don&apos;t have an account?{' '}
+                                    <TextLink
+                                        href={register()}
+                                        tabIndex={5}
+                                        className="font-medium text-[#3CA99B] no-underline decoration-[#3CA99B]/30 hover:underline hover:decoration-[#3CA99B]"
+                                    >
+                                        Sign up
+                                    </TextLink>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </Form>
+            </div>
+        </AuthLoginSplitLayout>
     );
 }
