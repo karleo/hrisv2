@@ -9,7 +9,6 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -66,22 +65,11 @@ class EmployeeController extends Controller
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
-        $createUser = $request->boolean('create_user');
         unset($data['photo'], $data['documents'], $data['document_labels']);
-        unset($data['create_user'], $data['user_password'], $data['user_password_confirmation']);
+
+        $data['role'] = 'Employee';
 
         $employee = Employee::query()->create($data);
-
-        if ($createUser) {
-            $user = User::query()->create([
-                'name' => "{$employee->first_name} {$employee->last_name}",
-                'email' => $employee->email_address,
-                'email_verified_at' => now(),
-                'password' => $request->input('user_password'),
-            ]);
-
-            $employee->update(['user_id' => $user->id]);
-        }
 
         if ($photo) {
             $path = $photo->store("employees/{$employee->id}", 'public');
@@ -149,29 +137,9 @@ class EmployeeController extends Controller
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
-        $resetUserPassword = $request->boolean('reset_user_password');
-        unset(
-            $data['photo'],
-            $data['documents'],
-            $data['document_labels'],
-            $data['reset_user_password'],
-            $data['user_password'],
-            $data['user_password_confirmation'],
-        );
+        unset($data['photo'], $data['documents'], $data['document_labels']);
 
         $employee->update($data);
-
-        if ($resetUserPassword && $employee->user_id) {
-            /** @var \App\Models\User|null $user */
-            $user = $employee->user;
-            if ($user) {
-                $user->update([
-                    'password' => $request->input('user_password'),
-                    'email' => $employee->email_address,
-                    'name' => "{$employee->first_name} {$employee->last_name}",
-                ]);
-            }
-        }
 
         if ($photo) {
             if ($employee->photo) {

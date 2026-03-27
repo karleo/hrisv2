@@ -1,0 +1,173 @@
+<?php
+
+namespace App\Support;
+
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
+use App\Http\Controllers\CompanyProfileController;
+use App\Http\Controllers\CountryController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeRequestController;
+use App\Http\Controllers\HardwareController;
+use App\Http\Controllers\ItAssetRequestController;
+use App\Http\Controllers\ItRequestController;
+use App\Http\Controllers\JobPositionController;
+use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SoftwareController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserRoleController;
+
+final class ModulePermissionRegistry
+{
+    /**
+     * @var array<class-string, array<string, array{0: PermissionModule, 1: ModuleAbility}>>
+     */
+    private const CONTROLLER_ACTIONS = [
+        DepartmentController::class => [
+            'index' => [PermissionModule::Departments, ModuleAbility::View],
+            'create' => [PermissionModule::Departments, ModuleAbility::Create],
+            'store' => [PermissionModule::Departments, ModuleAbility::Create],
+            'show' => [PermissionModule::Departments, ModuleAbility::View],
+            'edit' => [PermissionModule::Departments, ModuleAbility::Update],
+            'update' => [PermissionModule::Departments, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Departments, ModuleAbility::Delete],
+        ],
+        EmployeeController::class => [
+            'index' => [PermissionModule::Employees, ModuleAbility::View],
+            'create' => [PermissionModule::Employees, ModuleAbility::Create],
+            'store' => [PermissionModule::Employees, ModuleAbility::Create],
+            'businessCard' => [PermissionModule::Employees, ModuleAbility::View],
+            'show' => [PermissionModule::Employees, ModuleAbility::View],
+            'edit' => [PermissionModule::Employees, ModuleAbility::Update],
+            'update' => [PermissionModule::Employees, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Employees, ModuleAbility::Delete],
+            'destroyDocument' => [PermissionModule::Employees, ModuleAbility::Delete],
+        ],
+        JobPositionController::class => [
+            'index' => [PermissionModule::JobPositions, ModuleAbility::View],
+            'create' => [PermissionModule::JobPositions, ModuleAbility::Create],
+            'store' => [PermissionModule::JobPositions, ModuleAbility::Create],
+            'show' => [PermissionModule::JobPositions, ModuleAbility::View],
+            'edit' => [PermissionModule::JobPositions, ModuleAbility::Update],
+            'update' => [PermissionModule::JobPositions, ModuleAbility::Update],
+            'destroy' => [PermissionModule::JobPositions, ModuleAbility::Delete],
+        ],
+        LeaveTypeController::class => [
+            'index' => [PermissionModule::LeaveTypes, ModuleAbility::View],
+            'create' => [PermissionModule::LeaveTypes, ModuleAbility::Create],
+            'store' => [PermissionModule::LeaveTypes, ModuleAbility::Create],
+            'show' => [PermissionModule::LeaveTypes, ModuleAbility::View],
+            'edit' => [PermissionModule::LeaveTypes, ModuleAbility::Update],
+            'update' => [PermissionModule::LeaveTypes, ModuleAbility::Update],
+            'destroy' => [PermissionModule::LeaveTypes, ModuleAbility::Delete],
+        ],
+        CountryController::class => [
+            'index' => [PermissionModule::Countries, ModuleAbility::View],
+            'create' => [PermissionModule::Countries, ModuleAbility::Create],
+            'store' => [PermissionModule::Countries, ModuleAbility::Create],
+            'show' => [PermissionModule::Countries, ModuleAbility::View],
+            'edit' => [PermissionModule::Countries, ModuleAbility::Update],
+            'update' => [PermissionModule::Countries, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Countries, ModuleAbility::Delete],
+        ],
+        CompanyProfileController::class => [
+            'index' => [PermissionModule::CompanyProfiles, ModuleAbility::View],
+            'create' => [PermissionModule::CompanyProfiles, ModuleAbility::Create],
+            'store' => [PermissionModule::CompanyProfiles, ModuleAbility::Create],
+            'show' => [PermissionModule::CompanyProfiles, ModuleAbility::View],
+            'edit' => [PermissionModule::CompanyProfiles, ModuleAbility::Update],
+            'update' => [PermissionModule::CompanyProfiles, ModuleAbility::Update],
+            'destroy' => [PermissionModule::CompanyProfiles, ModuleAbility::Delete],
+        ],
+        SoftwareController::class => [
+            'index' => [PermissionModule::Software, ModuleAbility::View],
+            'create' => [PermissionModule::Software, ModuleAbility::Create],
+            'store' => [PermissionModule::Software, ModuleAbility::Create],
+            'show' => [PermissionModule::Software, ModuleAbility::View],
+            'edit' => [PermissionModule::Software, ModuleAbility::Update],
+            'update' => [PermissionModule::Software, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Software, ModuleAbility::Delete],
+        ],
+        HardwareController::class => [
+            'index' => [PermissionModule::Hardware, ModuleAbility::View],
+            'create' => [PermissionModule::Hardware, ModuleAbility::Create],
+            'store' => [PermissionModule::Hardware, ModuleAbility::Create],
+            'show' => [PermissionModule::Hardware, ModuleAbility::View],
+            'edit' => [PermissionModule::Hardware, ModuleAbility::Update],
+            'update' => [PermissionModule::Hardware, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Hardware, ModuleAbility::Delete],
+        ],
+        LeaveRequestController::class => [
+            'index' => [PermissionModule::LeaveRequests, ModuleAbility::View],
+            'create' => [PermissionModule::LeaveRequests, ModuleAbility::Create],
+            'store' => [PermissionModule::LeaveRequests, ModuleAbility::Create],
+            'show' => [PermissionModule::LeaveRequests, ModuleAbility::View],
+            'edit' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
+            'update' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
+            'destroy' => [PermissionModule::LeaveRequests, ModuleAbility::Delete],
+            'print' => [PermissionModule::LeaveRequests, ModuleAbility::View],
+            'updateSignatures' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
+        ],
+        ItRequestController::class => [
+            'index' => [PermissionModule::ItRequests, ModuleAbility::View],
+            'create' => [PermissionModule::ItRequests, ModuleAbility::Create],
+            'store' => [PermissionModule::ItRequests, ModuleAbility::Create],
+            'show' => [PermissionModule::ItRequests, ModuleAbility::View],
+            'edit' => [PermissionModule::ItRequests, ModuleAbility::Update],
+            'update' => [PermissionModule::ItRequests, ModuleAbility::Update],
+            'destroy' => [PermissionModule::ItRequests, ModuleAbility::Delete],
+            'updateSignatures' => [PermissionModule::ItRequests, ModuleAbility::Update],
+        ],
+        EmployeeRequestController::class => [
+            'index' => [PermissionModule::EmployeeRequests, ModuleAbility::View],
+            'create' => [PermissionModule::EmployeeRequests, ModuleAbility::Create],
+            'store' => [PermissionModule::EmployeeRequests, ModuleAbility::Create],
+            'show' => [PermissionModule::EmployeeRequests, ModuleAbility::View],
+            'edit' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
+            'update' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
+            'destroy' => [PermissionModule::EmployeeRequests, ModuleAbility::Delete],
+            'updateSignatures' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
+        ],
+        ItAssetRequestController::class => [
+            'index' => [PermissionModule::ItAssetRequests, ModuleAbility::View],
+            'create' => [PermissionModule::ItAssetRequests, ModuleAbility::Create],
+            'store' => [PermissionModule::ItAssetRequests, ModuleAbility::Create],
+            'show' => [PermissionModule::ItAssetRequests, ModuleAbility::View],
+            'edit' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
+            'update' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
+            'destroy' => [PermissionModule::ItAssetRequests, ModuleAbility::Delete],
+            'updateSignatures' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
+        ],
+        RoleController::class => [
+            'index' => [PermissionModule::RoleManagement, ModuleAbility::View],
+            'create' => [PermissionModule::RoleManagement, ModuleAbility::Create],
+            'store' => [PermissionModule::RoleManagement, ModuleAbility::Create],
+            'edit' => [PermissionModule::RoleManagement, ModuleAbility::Update],
+            'update' => [PermissionModule::RoleManagement, ModuleAbility::Update],
+            'destroy' => [PermissionModule::RoleManagement, ModuleAbility::Delete],
+        ],
+        UserRoleController::class => [
+            'index' => [PermissionModule::RoleManagement, ModuleAbility::View],
+            'update' => [PermissionModule::RoleManagement, ModuleAbility::Update],
+        ],
+        UserController::class => [
+            'index' => [PermissionModule::UserManagement, ModuleAbility::View],
+            'create' => [PermissionModule::UserManagement, ModuleAbility::Create],
+            'store' => [PermissionModule::UserManagement, ModuleAbility::Create],
+            'edit' => [PermissionModule::UserManagement, ModuleAbility::Update],
+            'update' => [PermissionModule::UserManagement, ModuleAbility::Update],
+            'destroy' => [PermissionModule::UserManagement, ModuleAbility::Delete],
+        ],
+    ];
+
+    /**
+     * @return array{0: PermissionModule, 1: ModuleAbility}|null
+     */
+    public static function forControllerAction(string $controller, string $method): ?array
+    {
+        return self::CONTROLLER_ACTIONS[$controller][$method] ?? null;
+    }
+}

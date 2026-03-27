@@ -3,7 +3,11 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -22,6 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role_id',
     ];
 
     /**
@@ -48,5 +53,67 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
+
+    public function isAdministrator(): bool
+    {
+        $this->loadMissing('role');
+
+        return $this->role instanceof Role && $this->role->slug === 'administrator';
+    }
+
+    public function hasModuleAbility(PermissionModule $module, ModuleAbility $ability): bool
+    {
+        if ($this->isAdministrator()) {
+            return true;
+        }
+
+        $this->loadMissing('role.modulePermissions');
+
+        if (! $this->role instanceof Role) {
+            return false;
+        }
+
+        return $this->role->grants($module, $ability);
+    }
+
+    /**
+     * @return array<string, array{can_access: bool, can_view: bool, can_create: bool, can_update: bool, can_delete: bool}>
+     */
+    public function modulePermissionsPayload(): array
+    {
+        if ($this->isAdministrator()) {
+            $payload = [];
+
+            foreach (PermissionModule::cases() as $module) {
+                $payload[$module->value] = [
+                    'can_access' => true,
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_update' => true,
+                    'can_delete' => true,
+                ];
+            }
+
+            return $payload;
+        }
+
+        $this->loadMissing('role.modulePermissions');
+
+        if (! $this->role instanceof Role) {
+            return [];
+        }
+
+        return $this->role->modulePermissionsPayload();
     }
 }

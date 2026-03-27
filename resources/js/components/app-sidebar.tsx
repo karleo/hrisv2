@@ -1,18 +1,19 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     AppWindow,
-    BookOpen,
-    Building2,
     Briefcase,
+    Building2,
     CalendarDays,
     Cpu,
-    Folder,
     Globe,
     LayoutGrid,
     Settings,
+    Shield,
+    UserCog,
+    UserRound,
     Users,
 } from 'lucide-react';
-import { NavFooter } from '@/components/nav-footer';
+import { useMemo } from 'react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -24,6 +25,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { dashboard } from '@/routes';
 import { index as companyProfilesIndex } from '@/routes/company-profiles';
 import { index as countriesIndex } from '@/routes/countries';
@@ -38,37 +40,42 @@ import { index as softwareIndex } from '@/routes/software';
 import type { NavItem } from '@/types';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
+const mainNavItemsSource: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+        module: 'dashboard',
     },
     {
         title: 'Employees',
         href: employeesIndex(),
         icon: Users,
+        module: 'employees',
     },
-
     {
         title: 'Leave Management',
         href: leaveRequestsIndex(),
         icon: CalendarDays,
+        module: 'leave_requests',
     },
     {
         title: 'IT Requests',
         href: itRequestsIndex(),
         icon: Cpu,
+        module: 'it_requests',
     },
     {
         title: 'IT Asset Management',
         href: '/it-asset-requests',
         icon: Cpu,
+        module: 'it_asset_requests',
     },
     {
         title: 'Employee Requests',
         href: '/employee-requests',
         icon: Briefcase,
+        module: 'employee_requests',
     },
     {
         title: 'Settings',
@@ -78,55 +85,74 @@ const mainNavItems: NavItem[] = [
                 title: 'Departments',
                 href: departmentsIndex(),
                 icon: Building2,
+                module: 'departments',
             },
             {
                 title: 'Job Positions',
                 href: jobPositionsIndex(),
                 icon: Briefcase,
+                module: 'job_positions',
             },
             {
                 title: 'Countries',
                 href: countriesIndex(),
                 icon: Globe,
+                module: 'countries',
             },
             {
                 title: 'Company Profiles',
                 href: companyProfilesIndex(),
                 icon: Building2,
+                module: 'company_profiles',
             },
             {
                 title: 'Software',
                 href: softwareIndex(),
                 icon: AppWindow,
+                module: 'software',
             },
             {
                 title: 'Hardware',
                 href: hardwareIndex(),
                 icon: Cpu,
+                module: 'hardware',
             },
             {
                 title: 'Leave Types',
                 href: leaveTypesIndex(),
                 icon: CalendarDays,
+                module: 'leave_types',
+            },
+            {
+                title: 'Users',
+                href: '/users',
+                icon: UserRound,
+                module: 'user_management',
+            },
+            {
+                title: 'Roles',
+                href: '/roles',
+                icon: Shield,
+                module: 'role_management',
+            },
+            {
+                title: 'User roles',
+                href: '/user-roles',
+                icon: UserCog,
+                module: 'role_management',
             },
         ],
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
-
 export function AppSidebar() {
+    const { modulePermissions } = usePage().props;
+
+    const mainNavItems = useMemo(
+        () => filterNavByModuleAccess(mainNavItemsSource, modulePermissions),
+        [modulePermissions],
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>

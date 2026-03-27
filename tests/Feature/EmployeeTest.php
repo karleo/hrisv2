@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -66,7 +65,6 @@ class EmployeeTest extends TestCase
             'address_2' => 'Apt 4',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
-            'role' => 'Employee',
         ];
 
         $response = $this->post(route('employees.store'), $data);
@@ -75,37 +73,9 @@ class EmployeeTest extends TestCase
         $employee = Employee::query()->where('employee_code', 'EMP-0001')->first();
         $this->assertNotNull($employee);
         $response->assertRedirect(route('employees.business-card', $employee));
-        $this->assertDatabaseHas('employees', $data);
-    }
-
-    public function test_store_can_create_linked_user_credentials_for_login(): void
-    {
-        $department = Department::factory()->create();
-        $jobPosition = JobPosition::factory()->create();
-
-        $response = $this->post(route('employees.store'), [
-            'employee_code' => 'EMP-LOGIN-01',
-            'first_name' => 'Login',
-            'last_name' => 'User',
-            'email_address' => 'login.user@example.com',
-            'department_id' => $department->id,
-            'job_position_id' => $jobPosition->id,
+        $this->assertDatabaseHas('employees', array_merge($data, [
             'role' => 'Employee',
-            'create_user' => true,
-            'user_password' => 'Password123!',
-            'user_password_confirmation' => 'Password123!',
-        ]);
-
-        $employee = Employee::query()->where('employee_code', 'EMP-LOGIN-01')->first();
-        $this->assertNotNull($employee);
-        $this->assertNotNull($employee->user_id);
-
-        $user = User::query()->find($employee->user_id);
-        $this->assertNotNull($user);
-        $this->assertSame('login.user@example.com', $user->email);
-        $this->assertTrue(Hash::check('Password123!', $user->password));
-
-        $response->assertRedirect(route('employees.business-card', $employee));
+        ]));
     }
 
     public function test_store_validates_required_fields(): void
@@ -135,7 +105,6 @@ class EmployeeTest extends TestCase
             'email_address' => 'jane.doe@example.com',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
-            'role' => 'Employee',
         ]);
 
         $response->assertSessionHasErrors(['employee_code']);
@@ -154,7 +123,6 @@ class EmployeeTest extends TestCase
             'email_address' => 'same@example.com',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
-            'role' => 'Employee',
         ]);
 
         $response->assertSessionHasErrors(['email_address']);
@@ -187,6 +155,8 @@ class EmployeeTest extends TestCase
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
 
+        $previousRole = $employee->role;
+
         $data = [
             'employee_code' => 'EMP-0002',
             'first_name' => 'Jane',
@@ -197,78 +167,15 @@ class EmployeeTest extends TestCase
             'address_2' => null,
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
-            'role' => 'Manager',
         ];
 
         $response = $this->patch(route('employees.update', $employee), $data);
 
         $response->assertRedirect(route('employees.business-card', $employee));
-        $this->assertDatabaseHas('employees', array_merge($data, ['id' => $employee->id]));
-    }
-
-    public function test_update_can_reset_linked_user_password(): void
-    {
-        $employee = Employee::factory()->create([
-            'employee_code' => 'EMP-RESET',
-            'first_name' => 'Reset',
-            'last_name' => 'User',
-            'email_address' => 'reset.user@example.com',
-        ]);
-
-        $user = User::factory()->create([
-            'email' => 'reset.user@example.com',
-            'password' => 'OldPassword123!',
-        ]);
-
-        $employee->update(['user_id' => $user->id]);
-
-        $response = $this->patch(route('employees.update', $employee), [
-            'employee_code' => 'EMP-RESET',
-            'first_name' => 'Reset',
-            'last_name' => 'User',
-            'email_address' => 'reset.user@example.com',
-            'department_id' => $employee->department_id,
-            'job_position_id' => $employee->job_position_id,
-            'role' => $employee->role ?? 'Employee',
-            'reset_user_password' => true,
-            'user_password' => 'NewPassword123!',
-            'user_password_confirmation' => 'NewPassword123!',
-        ]);
-
-        $response->assertRedirect(route('employees.business-card', $employee));
-
-        $user->refresh();
-        $this->assertTrue(Hash::check('NewPassword123!', $user->password));
-    }
-
-    public function test_update_can_create_linked_user_when_employee_has_no_user(): void
-    {
-        $employee = Employee::factory()->create([
-            'user_id' => null,
-            'employee_code' => 'EMP-NOLOGIN',
-            'first_name' => 'No',
-            'last_name' => 'Login',
-            'email_address' => 'no.login@example.com',
-        ]);
-
-        $this->patch(route('employees.update', $employee), [
-            'employee_code' => $employee->employee_code,
-            'first_name' => $employee->first_name,
-            'last_name' => $employee->last_name,
-            'email_address' => $employee->email_address,
-            'department_id' => $employee->department_id,
-            'job_position_id' => $employee->job_position_id,
-            'role' => $employee->role ?? 'Employee',
-            'create_user' => true,
-            'user_password' => 'NewLogin123!',
-            'user_password_confirmation' => 'NewLogin123!',
-        ]);
-
-        $employee->refresh();
-        $this->assertNotNull($employee->user_id);
-        $user = $employee->user;
-        $this->assertSame('no.login@example.com', $user->email);
-        $this->assertTrue(Hash::check('NewLogin123!', $user->password));
+        $this->assertDatabaseHas('employees', array_merge($data, [
+            'id' => $employee->id,
+            'role' => $previousRole,
+        ]));
     }
 
     public function test_update_validates_unique_employee_code_excluding_current(): void
@@ -283,7 +190,6 @@ class EmployeeTest extends TestCase
             'email_address' => $employee->email_address,
             'department_id' => $employee->department_id,
             'job_position_id' => $employee->job_position_id,
-            'role' => $employee->role ?? 'Employee',
         ]);
 
         $response->assertSessionHasErrors(['employee_code']);
@@ -315,7 +221,6 @@ class EmployeeTest extends TestCase
             'email_address' => 'john.doe@example.com',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
-            'role' => 'Employee',
             'photo' => $photo,
             'documents' => [$doc1, $doc2],
         ]);

@@ -11,7 +11,11 @@ use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserRoleController;
+use App\Http\Middleware\EnforceModulePermissions;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -22,7 +26,7 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
@@ -53,6 +57,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('it-asset-requests', ItAssetRequestController::class);
     Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])
         ->name('it-asset-requests.signatures.update');
+
+    Route::get('user-roles', [UserRoleController::class, 'index'])->name('user-roles.index');
+    Route::patch('user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');
+    Route::resource('roles', RoleController::class)->except(['show']);
+    Route::resource('users', UserController::class)->except(['show']);
 });
 
 require __DIR__.'/settings.php';

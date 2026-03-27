@@ -3,16 +3,12 @@
 namespace App\Http\Requests\Employee;
 
 use App\Models\Employee;
-use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class UpdateEmployeeRequest extends FormRequest
 {
-    public const ROLES = ['Employee', 'Manager', 'CEO'];
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,7 +19,7 @@ class UpdateEmployeeRequest extends FormRequest
         /** @var \App\Models\Employee $employee */
         $employee = $this->route('employee');
 
-        $rules = [
+        return [
             'employee_code' => [
                 'required',
                 'string',
@@ -43,27 +39,13 @@ class UpdateEmployeeRequest extends FormRequest
             'address_1' => ['nullable', 'string', 'max:255'],
             'address_2' => ['nullable', 'string', 'max:255'],
             'company_profile_id' => ['nullable', 'integer', 'exists:company_profiles,id'],
-            'reset_user_password' => ['sometimes', 'accepted'],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
             'job_position_id' => ['required', 'integer', 'exists:job_positions,id'],
-            'role' => ['required', 'string', Rule::in(self::ROLES)],
             'photo' => ['nullable', 'image', 'max:5120'],
             'documents' => ['nullable', 'array'],
             'documents.*' => ['file', 'max:10240'],
             'document_labels' => ['nullable', 'array'],
             'document_labels.*' => ['nullable', 'string', 'max:255'],
         ];
-
-        if ($this->boolean('reset_user_password') && $employee->user_id) {
-            $rules['email_address'][] = Rule::unique(User::class, 'email')->ignore($employee->user_id);
-            $rules['user_password'] = [
-                'required',
-                'string',
-                Password::defaults(),
-                'confirmed',
-            ];
-        }
-
-        return $rules;
     }
 }

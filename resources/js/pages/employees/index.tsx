@@ -130,7 +130,7 @@ export default function Index({
                                         Employee Master List
                                     </h1>
                                     <p className="text-muted-foreground text-sm">
-                                        Manage employee codes, roles, and system access
+                                        Manage employee records, departments, and job positions
                                     </p>
                                 </div>
                             </div>
