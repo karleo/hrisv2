@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\JobPosition;
+use App\Models\WorkTimetable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -36,6 +37,7 @@ class EmployeeFactory extends Factory
             'address_2' => fake()->optional(0.3)->secondaryAddress(),
             'department_id' => Department::factory(),
             'job_position_id' => JobPosition::factory(),
+            'work_timetable_id' => WorkTimetable::factory(),
         ];
     }
 }

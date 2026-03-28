@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
+use App\Models\WorkTimetable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -53,6 +54,7 @@ class EmployeeController extends Controller
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -115,7 +117,7 @@ class EmployeeController extends Controller
      */
     public function edit(Employee $employee): Response
     {
-        $employee->load(['department', 'jobPosition', 'documents', 'companyProfile']);
+        $employee->load(['department', 'jobPosition', 'documents', 'companyProfile', 'workTimetable']);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
@@ -125,6 +127,7 @@ class EmployeeController extends Controller
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

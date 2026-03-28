@@ -35,14 +35,21 @@ type CompanyProfile = {
     company_name: string;
 };
 
+type WorkTimetable = {
+    id: number;
+    name: string;
+};
+
 export default function Create({
     departments,
     jobPositions,
     companyProfiles,
+    workTimetables,
 }: {
     departments: Department[];
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
+    workTimetables: WorkTimetable[];
 }) {
     const photoInputRef = useRef<HTMLInputElement>(null);
     const documentsInputRef = useRef<HTMLInputElement>(null);
@@ -440,6 +447,38 @@ export default function Create({
                                         <InputError
                                             message={errors.job_position_id}
                                         />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="work_timetable_id">
+                                            Work timetable{' '}
+                                            <span className="text-destructive">*</span>
+                                        </Label>
+                                        <select
+                                            id="work_timetable_id"
+                                            name="work_timetable_id"
+                                            required
+                                            defaultValue={
+                                                workTimetables[0]?.id ?? ''
+                                            }
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <option value="">
+                                                Select work timetable
+                                            </option>
+                                            {workTimetables.map((wt) => (
+                                                <option key={wt.id} value={wt.id}>
+                                                    {wt.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError
+                                            message={errors.work_timetable_id}
+                                        />
+                                        <p className="text-muted-foreground text-xs">
+                                            Master weekly template (Settings → Work timetables).
+                                            Late / early and overtime are computed from this tag.
+                                        </p>
                                     </div>
 
                                     <div className="flex gap-4 pt-4 border-t">

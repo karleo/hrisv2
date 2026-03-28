@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use DateTimeInterface;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -22,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $role
  * @property string|null $photo
  * @property int|null $company_profile_id
+ * @property int|null $work_timetable_id
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -49,6 +52,7 @@ class Employee extends Model
         'role',
         'photo',
         'company_profile_id',
+        'work_timetable_id',
     ];
 
     public function user(): BelongsTo
@@ -74,5 +78,42 @@ class Employee extends Model
     public function companyProfile(): BelongsTo
     {
         return $this->belongsTo(CompanyProfile::class);
+    }
+
+    public function workTimetable(): BelongsTo
+    {
+        return $this->belongsTo(WorkTimetable::class);
+    }
+
+    /**
+     * @return HasMany<EmployeeTimeEntry, $this>
+     */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(EmployeeTimeEntry::class)->orderByDesc('clock_in_at');
+    }
+
+    public function hasUsableWorkTimetable(): bool
+    {
+        if ($this->work_timetable_id === null) {
+            return false;
+        }
+
+        $this->loadMissing('workTimetable.days');
+
+        return $this->workTimetable !== null
+            && $this->workTimetable->days->count() === 7;
+    }
+
+    public function scheduleDayFor(DateTimeInterface $at): ?WorkTimetableDay
+    {
+        $this->loadMissing('workTimetable.days');
+        if ($this->workTimetable === null) {
+            return null;
+        }
+
+        $weekday = (int) Carbon::parse($at)->timezone(config('app.timezone'))->format('N');
+
+        return $this->workTimetable->days->firstWhere('weekday', $weekday);
     }
 }

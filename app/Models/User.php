@@ -88,7 +88,7 @@ class User extends Authenticatable
     }
 
     /**
-     * @return array<string, array{can_access: bool, can_view: bool, can_create: bool, can_update: bool, can_delete: bool}>
+     * @return array<string, array{can_access: bool, can_view: bool, can_create: bool, can_update: bool, can_delete: bool, can_check_in: bool, can_check_out: bool}>
      */
     public function modulePermissionsPayload(): array
     {
@@ -102,6 +102,8 @@ class User extends Authenticatable
                     'can_create' => true,
                     'can_update' => true,
                     'can_delete' => true,
+                    'can_check_in' => true,
+                    'can_check_out' => true,
                 ];
             }
 

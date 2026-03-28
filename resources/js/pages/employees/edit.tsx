@@ -38,6 +38,11 @@ type EmployeeDocument = {
     url: string;
 };
 
+type WorkTimetable = {
+    id: number;
+    name: string;
+};
+
 type Employee = {
     id: number;
     user_id: number | null;
@@ -55,6 +60,8 @@ type Employee = {
     photo: string | null;
     photo_url: string | null;
     documents: EmployeeDocument[];
+    work_timetable_id: number | null;
+    work_timetable?: WorkTimetable | null;
 };
 
 export default function Edit({
@@ -62,11 +69,13 @@ export default function Edit({
     departments,
     jobPositions,
     companyProfiles,
+    workTimetables,
 }: {
     employee: Employee;
     departments: Department[];
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
+    workTimetables: WorkTimetable[];
 }) {
     const photoInputRef = useRef<HTMLInputElement>(null);
     const documentsInputRef = useRef<HTMLInputElement>(null);
@@ -548,7 +557,40 @@ export default function Edit({
                                         />
                                     </div>
 
-                                    <div className="flex gap-4 pt-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="work_timetable_id">
+                                            Work timetable
+                                        </Label>
+                                        <select
+                                            id="work_timetable_id"
+                                            name="work_timetable_id"
+                                            required
+                                            defaultValue={
+                                                employee.work_timetable_id ??
+                                                employee.work_timetable?.id ??
+                                                ''
+                                            }
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <option value="">
+                                                Select work timetable
+                                            </option>
+                                            {workTimetables.map((wt) => (
+                                                <option key={wt.id} value={wt.id}>
+                                                    {wt.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError
+                                            message={errors.work_timetable_id}
+                                        />
+                                        <p className="text-muted-foreground text-xs">
+                                            Master weekly template for attendance
+                                            (early/late, overtime).
+                                        </p>
+                                    </div>
+
+                                    <div className="flex gap-4 pt-4 border-t">
                                         <Button
                                             disabled={processing}
                                             type="submit"

@@ -17,8 +17,10 @@ use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
+use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserRoleController;
+use App\Http\Controllers\WorkTimetableController;
 
 final class ModulePermissionRegistry
 {
@@ -160,6 +162,21 @@ final class ModulePermissionRegistry
             'edit' => [PermissionModule::UserManagement, ModuleAbility::Update],
             'update' => [PermissionModule::UserManagement, ModuleAbility::Update],
             'destroy' => [PermissionModule::UserManagement, ModuleAbility::Delete],
+        ],
+        EmployeeTimeEntryController::class => [
+            'index' => [PermissionModule::TimeAttendance, ModuleAbility::View],
+            'store' => [PermissionModule::TimeAttendance, ModuleAbility::CheckIn],
+            'update' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
+            'destroy' => [PermissionModule::TimeAttendance, ModuleAbility::Delete],
+            'checkOut' => [PermissionModule::TimeAttendance, ModuleAbility::CheckOut],
+        ],
+        WorkTimetableController::class => [
+            'index' => [PermissionModule::WorkTimetables, ModuleAbility::View],
+            'create' => [PermissionModule::WorkTimetables, ModuleAbility::Create],
+            'store' => [PermissionModule::WorkTimetables, ModuleAbility::Create],
+            'edit' => [PermissionModule::WorkTimetables, ModuleAbility::Update],
+            'update' => [PermissionModule::WorkTimetables, ModuleAbility::Update],
+            'destroy' => [PermissionModule::WorkTimetables, ModuleAbility::Delete],
         ],
     ];
 

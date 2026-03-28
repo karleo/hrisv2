@@ -73,16 +73,6 @@ export default function Edit({
         employee_id: user.employee_id?.toString() ?? '',
     });
 
-    transform((payload) => ({
-        ...payload,
-        role_id:
-            payload.role_id === '' ? null : Number(payload.role_id),
-        employee_id:
-            payload.employee_id === ''
-                ? null
-                : Number(payload.employee_id),
-    }));
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit ${user.name}`} />
@@ -105,7 +95,37 @@ export default function Edit({
                     className="flex w-full min-w-0 flex-1 flex-col"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        put(`/users/${user.id}`);
+                        transform((payload) => {
+                            const roleId =
+                                payload.role_id === ''
+                                    ? null
+                                    : Number(payload.role_id);
+                            const employeeId =
+                                payload.employee_id === ''
+                                    ? null
+                                    : Number(payload.employee_id);
+
+                            if (payload.password === '') {
+                                const {
+                                    password: _p,
+                                    password_confirmation: _c,
+                                    ...rest
+                                } = payload;
+
+                                return {
+                                    ...rest,
+                                    role_id: roleId,
+                                    employee_id: employeeId,
+                                };
+                            }
+
+                            return {
+                                ...payload,
+                                role_id: roleId,
+                                employee_id: employeeId,
+                            };
+                        });
+                        put(`/users/${user.id}`, { preserveScroll: true });
                     }}
                 >
                     <Card className="min-h-0 w-full flex-1">

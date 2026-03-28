@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $can_create
  * @property bool $can_update
  * @property bool $can_delete
+ * @property bool $can_check_in
+ * @property bool $can_check_out
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -31,6 +33,8 @@ class RoleModulePermission extends Model
         'can_create',
         'can_update',
         'can_delete',
+        'can_check_in',
+        'can_check_out',
     ];
 
     protected function casts(): array
@@ -42,6 +46,8 @@ class RoleModulePermission extends Model
             'can_create' => 'boolean',
             'can_update' => 'boolean',
             'can_delete' => 'boolean',
+            'can_check_in' => 'boolean',
+            'can_check_out' => 'boolean',
         ];
     }
 

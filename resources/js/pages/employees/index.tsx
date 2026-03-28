@@ -57,7 +57,6 @@ type Employee = {
     department_id: number;
     job_position_id: number;
     user_id?: number | null;
-    role?: 'Employee' | 'Manager' | 'CEO';
     department?: Department;
     job_position?: JobPosition;
 };
@@ -70,25 +69,6 @@ function AvatarInitial({ name }: { name: string }) {
             aria-hidden
         >
             {initial}
-        </span>
-    );
-}
-
-function RoleBadge({ role }: { role?: 'Employee' | 'Manager' | 'CEO' | null }) {
-    if (!role) return <span className="text-muted-foreground">—</span>;
-    const isManager = role === 'Manager';
-    const isCEO = role === 'CEO';
-    return (
-        <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                isCEO
-                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                    : isManager
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
-            }`}
-        >
-            {role}
         </span>
     );
 }
@@ -119,7 +99,7 @@ export default function Index({
             <div className="flex min-h-screen flex-1 flex-col bg-muted/30">
                 {/* Page header */}
                 <div className="border-b bg-card px-4 py-6 sm:px-6 lg:px-8">
-                    <div className="mx-auto max-w-7xl">
+                    <div className="w-full">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -155,7 +135,7 @@ export default function Index({
 
                 {/* Table */}
                 <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-                    <div className="mx-auto max-w-7xl">
+                    <div className="w-full">
                         <Card className="overflow-hidden border shadow-sm">
                             <CardContent className="p-0">
                                 <div className="overflow-x-auto">
@@ -180,9 +160,6 @@ export default function Index({
                                                 <th className="hidden px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
                                                     Job
                                                 </th>
-                                                <th className="hidden px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                                                    Role
-                                                </th>
                                                 <th className="w-32 px-4 py-3.5 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                                     Actions
                                                 </th>
@@ -192,7 +169,7 @@ export default function Index({
                                             {employeeList.length === 0 ? (
                                                 <tr>
                                                     <td
-                                                        colSpan={8}
+                                                        colSpan={7}
                                                         className="px-4 py-16 text-center"
                                                     >
                                                         <div className="mx-auto flex max-w-sm flex-col items-center gap-4">
@@ -273,13 +250,6 @@ export default function Index({
                                                         <td className="hidden px-4 py-3 md:table-cell">
                                                             {employee.job_position
                                                                 ?.name ?? '—'}
-                                                        </td>
-                                                        <td className="hidden px-4 py-3 md:table-cell">
-                                                            <RoleBadge
-                                                                role={
-                                                                    employee.role
-                                                                }
-                                                            />
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <div className="flex justify-end gap-0.5">

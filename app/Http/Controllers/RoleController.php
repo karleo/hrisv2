@@ -138,6 +138,7 @@ class RoleController extends Controller
             fn (PermissionModule $module) => [
                 'key' => $module->value,
                 'label' => $module->label(),
+                'time_attendance_checks' => $module === PermissionModule::TimeAttendance,
             ],
             PermissionModule::cases()
         ));
@@ -161,6 +162,8 @@ class RoleController extends Controller
                     'can_create' => $this->boolInput($row['can_create'] ?? false),
                     'can_update' => $this->boolInput($row['can_update'] ?? false),
                     'can_delete' => $this->boolInput($row['can_delete'] ?? false),
+                    'can_check_in' => $this->boolInput($row['can_check_in'] ?? false),
+                    'can_check_out' => $this->boolInput($row['can_check_out'] ?? false),
                 ]
             );
         }

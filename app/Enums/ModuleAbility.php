@@ -9,4 +9,6 @@ enum ModuleAbility: string
     case Create = 'create';
     case Update = 'update';
     case Delete = 'delete';
+    case CheckIn = 'check_in';
+    case CheckOut = 'check_out';
 }

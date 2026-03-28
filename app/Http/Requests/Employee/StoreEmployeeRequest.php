@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Employee;
 
 use App\Models\Employee;
+use App\Models\WorkTimetable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -38,11 +39,26 @@ class StoreEmployeeRequest extends FormRequest
             'company_profile_id' => ['nullable', 'integer', 'exists:company_profiles,id'],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
             'job_position_id' => ['required', 'integer', 'exists:job_positions,id'],
+            'work_timetable_id' => ['required', 'integer', 'exists:work_timetables,id'],
             'photo' => ['nullable', 'image', 'max:5120'],
             'documents' => ['nullable', 'array'],
             'documents.*' => ['file', 'max:10240'],
             'document_labels' => ['nullable', 'array'],
             'document_labels.*' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $id = $this->input('work_timetable_id');
+            if ($id === null) {
+                return;
+            }
+            $timetable = WorkTimetable::query()->withCount('days')->find($id);
+            if ($timetable !== null && $timetable->days_count !== 7) {
+                $validator->errors()->add('work_timetable_id', 'The selected work timetable must have all seven weekdays defined.');
+            }
+        });
     }
 }

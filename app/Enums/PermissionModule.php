@@ -19,6 +19,8 @@ enum PermissionModule: string
     case ItRequests = 'it_requests';
     case EmployeeRequests = 'employee_requests';
     case ItAssetRequests = 'it_asset_requests';
+    case TimeAttendance = 'time_attendance';
+    case WorkTimetables = 'work_timetables';
 
     public function label(): string
     {
@@ -38,6 +40,8 @@ enum PermissionModule: string
             self::ItRequests => 'IT requests',
             self::EmployeeRequests => 'Employee requests',
             self::ItAssetRequests => 'IT asset requests',
+            self::TimeAttendance => 'Time & attendance',
+            self::WorkTimetables => 'Work timetables',
         };
     }
 }

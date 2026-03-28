@@ -5,6 +5,7 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRequestController;
+use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserRoleController;
+use App\Http\Controllers\WorkTimetableController;
 use App\Http\Middleware\EnforceModulePermissions;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -43,6 +45,14 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('company-profiles', CompanyProfileController::class);
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
+    Route::resource('time-attendance', EmployeeTimeEntryController::class)->parameters([
+        'time-attendance' => 'employee_time_entry',
+    ])->only(['index', 'store', 'update', 'destroy']);
+    Route::post('time-attendance/check-out', [EmployeeTimeEntryController::class, 'checkOut'])
+        ->name('time-attendance.check-out');
+    Route::resource('work-timetables', WorkTimetableController::class)->parameters([
+        'work-timetables' => 'work_timetable',
+    ]);
     Route::resource('leave-requests', LeaveRequestController::class);
     Route::get('leave-requests/{leave_request}/print', [LeaveRequestController::class, 'print'])
         ->name('leave-requests.print');

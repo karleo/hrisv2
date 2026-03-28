@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\JobPosition;
 use App\Models\User;
+use App\Models\WorkTimetable;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -47,6 +48,7 @@ class EmployeeTest extends TestCase
             ->component('employees/create')
             ->has('departments')
             ->has('jobPositions')
+            ->has('workTimetables')
         );
     }
 
@@ -54,6 +56,7 @@ class EmployeeTest extends TestCase
     {
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
+        $timetable = WorkTimetable::factory()->create();
 
         $data = [
             'employee_code' => 'EMP-0001',
@@ -65,6 +68,7 @@ class EmployeeTest extends TestCase
             'address_2' => 'Apt 4',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
         ];
 
         $response = $this->post(route('employees.store'), $data);
@@ -73,9 +77,14 @@ class EmployeeTest extends TestCase
         $employee = Employee::query()->where('employee_code', 'EMP-0001')->first();
         $this->assertNotNull($employee);
         $response->assertRedirect(route('employees.business-card', $employee));
-        $this->assertDatabaseHas('employees', array_merge($data, [
+        $this->assertDatabaseHas('employees', [
+            'employee_code' => 'EMP-0001',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'email_address' => 'john.doe@example.com',
+            'work_timetable_id' => $timetable->id,
             'role' => 'Employee',
-        ]));
+        ]);
     }
 
     public function test_store_validates_required_fields(): void
@@ -89,6 +98,7 @@ class EmployeeTest extends TestCase
             'email_address',
             'department_id',
             'job_position_id',
+            'work_timetable_id',
         ]);
     }
 
@@ -96,6 +106,7 @@ class EmployeeTest extends TestCase
     {
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
+        $timetable = WorkTimetable::factory()->create();
         Employee::factory()->create(['employee_code' => 'EMP-0001']);
 
         $response = $this->post(route('employees.store'), [
@@ -105,6 +116,7 @@ class EmployeeTest extends TestCase
             'email_address' => 'jane.doe@example.com',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
         ]);
 
         $response->assertSessionHasErrors(['employee_code']);
@@ -114,6 +126,7 @@ class EmployeeTest extends TestCase
     {
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
+        $timetable = WorkTimetable::factory()->create();
         Employee::factory()->create(['email_address' => 'same@example.com']);
 
         $response = $this->post(route('employees.store'), [
@@ -123,6 +136,7 @@ class EmployeeTest extends TestCase
             'email_address' => 'same@example.com',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
         ]);
 
         $response->assertSessionHasErrors(['email_address']);
@@ -139,8 +153,10 @@ class EmployeeTest extends TestCase
             ->component('employees/edit')
             ->has('employee')
             ->has('employee.documents')
+            ->has('employee.work_timetable')
             ->has('departments')
             ->has('jobPositions')
+            ->has('workTimetables')
             ->where('employee.id', $employee->id)
         );
     }
@@ -154,6 +170,7 @@ class EmployeeTest extends TestCase
         ]);
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
+        $timetable = WorkTimetable::factory()->create();
 
         $previousRole = $employee->role;
 
@@ -167,6 +184,7 @@ class EmployeeTest extends TestCase
             'address_2' => null,
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
         ];
 
         $response = $this->patch(route('employees.update', $employee), $data);
@@ -190,6 +208,7 @@ class EmployeeTest extends TestCase
             'email_address' => $employee->email_address,
             'department_id' => $employee->department_id,
             'job_position_id' => $employee->job_position_id,
+            'work_timetable_id' => $employee->work_timetable_id,
         ]);
 
         $response->assertSessionHasErrors(['employee_code']);
@@ -210,6 +229,7 @@ class EmployeeTest extends TestCase
         Storage::fake('public');
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
+        $timetable = WorkTimetable::factory()->create();
         $photo = UploadedFile::fake()->create('photo.jpg', 100, 'image/jpeg');
         $doc1 = UploadedFile::fake()->create('contract.pdf', 100);
         $doc2 = UploadedFile::fake()->create('id.pdf', 200);
@@ -221,6 +241,7 @@ class EmployeeTest extends TestCase
             'email_address' => 'john.doe@example.com',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
             'photo' => $photo,
             'documents' => [$doc1, $doc2],
         ]);

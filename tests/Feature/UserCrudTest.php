@@ -130,4 +130,43 @@ class UserCrudTest extends TestCase
         $response->assertSessionHasErrors('user');
         $this->assertDatabaseHas('users', ['id' => $actor->id]);
     }
+
+    public function test_administrator_can_update_user_linked_employee(): void
+    {
+        $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
+
+        $targetUser = User::factory()->create([
+            'email_verified_at' => now(),
+            'email' => 'cali@example.com',
+        ]);
+
+        $employeeA = Employee::factory()->create([
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'user_id' => $targetUser->id,
+        ]);
+
+        $employeeB = Employee::factory()->create([
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'user_id' => null,
+        ]);
+
+        $response = $this->put(route('users.update', $targetUser), [
+            'name' => 'Cali',
+            'email' => 'cali@example.com',
+            'password' => '',
+            'password_confirmation' => '',
+            'role_id' => null,
+            'employee_id' => $employeeB->id,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $employeeA->refresh();
+        $employeeB->refresh();
+        $this->assertNull($employeeA->user_id);
+        $this->assertSame($targetUser->id, $employeeB->user_id);
+    }
 }

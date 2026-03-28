@@ -36,6 +36,8 @@ class RoleSeeder extends Seeder
                     'can_create' => true,
                     'can_update' => true,
                     'can_delete' => true,
+                    'can_check_in' => true,
+                    'can_check_out' => true,
                 ]
             );
         }
@@ -63,6 +65,38 @@ class RoleSeeder extends Seeder
                     'can_create' => false,
                     'can_update' => false,
                     'can_delete' => false,
+                    'can_check_in' => false,
+                    'can_check_out' => false,
+                ]
+            );
+        }
+
+        $employeeRole = Role::query()->updateOrCreate(
+            ['slug' => 'employee'],
+            [
+                'name' => 'Employee',
+                'description' => 'Dashboard and personal time & attendance (self check-in/out when linked to an employee).',
+                'is_system' => true,
+            ]
+        );
+
+        foreach (PermissionModule::cases() as $module) {
+            $isDashboard = $module === PermissionModule::Dashboard;
+            $isTimeAttendance = $module === PermissionModule::TimeAttendance;
+
+            RoleModulePermission::query()->updateOrCreate(
+                [
+                    'role_id' => $employeeRole->id,
+                    'module' => $module,
+                ],
+                [
+                    'can_access' => $isDashboard || $isTimeAttendance,
+                    'can_view' => $isDashboard || $isTimeAttendance,
+                    'can_create' => false,
+                    'can_update' => false,
+                    'can_delete' => false,
+                    'can_check_in' => false,
+                    'can_check_out' => false,
                 ]
             );
         }

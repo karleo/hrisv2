@@ -35,7 +35,7 @@ class UpdateRoleRequest extends FormRequest
 
         foreach (PermissionModule::cases() as $module) {
             $m = $module->value;
-            foreach (['can_access', 'can_view', 'can_create', 'can_update', 'can_delete'] as $field) {
+            foreach (['can_access', 'can_view', 'can_create', 'can_update', 'can_delete', 'can_check_in', 'can_check_out'] as $field) {
                 $rules["permissions.{$m}.{$field}"] = ['sometimes', 'boolean'];
             }
         }

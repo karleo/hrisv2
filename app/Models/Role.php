@@ -63,11 +63,13 @@ class Role extends Model
             ModuleAbility::Create => $row->can_access && $row->can_create,
             ModuleAbility::Update => $row->can_access && $row->can_update,
             ModuleAbility::Delete => $row->can_access && $row->can_delete,
+            ModuleAbility::CheckIn => $row->can_access && $row->can_check_in,
+            ModuleAbility::CheckOut => $row->can_access && $row->can_check_out,
         };
     }
 
     /**
-     * @return array<string, array{can_access: bool, can_view: bool, can_create: bool, can_update: bool, can_delete: bool}>
+     * @return array<string, array{can_access: bool, can_view: bool, can_create: bool, can_update: bool, can_delete: bool, can_check_in: bool, can_check_out: bool}>
      */
     public function modulePermissionsPayload(): array
     {
@@ -80,6 +82,8 @@ class Role extends Model
                 'can_create' => false,
                 'can_update' => false,
                 'can_delete' => false,
+                'can_check_in' => false,
+                'can_check_out' => false,
             ];
         }
 
@@ -90,6 +94,8 @@ class Role extends Model
                 'can_create' => $row->can_create,
                 'can_update' => $row->can_update,
                 'can_delete' => $row->can_delete,
+                'can_check_in' => $row->can_check_in,
+                'can_check_out' => $row->can_check_out,
             ];
         }
 

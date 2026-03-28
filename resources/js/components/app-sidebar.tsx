@@ -4,11 +4,13 @@ import {
     Briefcase,
     Building2,
     CalendarDays,
+    Clock,
     Cpu,
     Globe,
     LayoutGrid,
     Settings,
     Shield,
+    Table2,
     UserCog,
     UserRound,
     Users,
@@ -25,6 +27,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { index as workTimetablesIndex } from '@/actions/App/Http/Controllers/WorkTimetableController';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { dashboard } from '@/routes';
 import { index as companyProfilesIndex } from '@/routes/company-profiles';
@@ -58,6 +61,12 @@ const mainNavItemsSource: NavItem[] = [
         href: leaveRequestsIndex(),
         icon: CalendarDays,
         module: 'leave_requests',
+    },
+    {
+        title: 'Time & attendance',
+        href: '/time-attendance',
+        icon: Clock,
+        module: 'time_attendance',
     },
     {
         title: 'IT Requests',
@@ -122,6 +131,12 @@ const mainNavItemsSource: NavItem[] = [
                 href: leaveTypesIndex(),
                 icon: CalendarDays,
                 module: 'leave_types',
+            },
+            {
+                title: 'Work timetables',
+                href: workTimetablesIndex(),
+                icon: Table2,
+                module: 'work_timetables',
             },
             {
                 title: 'Users',
