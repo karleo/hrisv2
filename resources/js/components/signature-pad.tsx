@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,9 @@ export function SignaturePad({
     onSuccess,
     fieldName,
 }: SignaturePadProps) {
+    const { errors } = usePage().props as { errors?: Partial<Record<SignaturePadProps['fieldName'], string>> };
+    const fieldError = errors?.[fieldName];
+
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +83,7 @@ export function SignaturePad({
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
+            {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
             {signatureUrl ? (
                 <div className="flex min-w-0 max-w-[12rem] flex-shrink-0 flex-col gap-1">
                     <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">

@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\EmployeeRequest;
 use App\Models\ItRequest;
 use App\Models\JobPosition;
+use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -84,5 +85,63 @@ class RequestSignaturesTest extends TestCase
         $employeeRequest->refresh();
         $this->assertNotNull($employeeRequest->employee_signature);
         Storage::disk('public')->assertExists($employeeRequest->employee_signature);
+    }
+
+    public function test_user_can_update_leave_request_signature(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs(User::factory()->create());
+
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+        ]);
+
+        $response = $this->post(route('leave-requests.signatures.update', $leaveRequest), [
+            'employee_signature' => UploadedFile::fake()->image('employee-signature.png', 240, 48),
+        ]);
+
+        $response->assertRedirect();
+
+        $leaveRequest->refresh();
+        $this->assertNotNull($leaveRequest->employee_signature);
+        Storage::disk('public')->assertExists($leaveRequest->employee_signature);
+    }
+
+    public function test_leave_request_show_exposes_host_relative_signature_url(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs(User::factory()->create());
+
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+        ]);
+
+        $relativePath = 'leave-requests/'.$leaveRequest->id.'/signatures/test.png';
+        Storage::disk('public')->put($relativePath, 'fake-png');
+        $leaveRequest->update(['employee_signature' => $relativePath]);
+        $leaveRequest->refresh();
+
+        $response = $this->get(route('leave-requests.show', $leaveRequest));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('leaveRequest.employee_signature_url', '/storage/'.$leaveRequest->employee_signature)
+        );
     }
 }

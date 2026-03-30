@@ -111,7 +111,7 @@ final class ModulePermissionRegistry
             'update' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
             'destroy' => [PermissionModule::LeaveRequests, ModuleAbility::Delete],
             'print' => [PermissionModule::LeaveRequests, ModuleAbility::View],
-            'updateSignatures' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
+            'updateSignatures' => [PermissionModule::LeaveRequests, ModuleAbility::View],
         ],
         ItRequestController::class => [
             'index' => [PermissionModule::ItRequests, ModuleAbility::View],

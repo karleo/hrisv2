@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\File;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -95,12 +96,8 @@ class LeaveRequestController extends Controller
     {
         $leave_request->load(['employee', 'department', 'approvedByEmployee']);
 
-        $employeeSignatureUrl = $leave_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->employee_signature, '/'))
-            : null;
-        $approvedBySignatureUrl = $leave_request->approved_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->approved_by_signature, '/'))
-            : null;
+        $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
+        $approvedBySignatureUrl = $this->publicStorageBrowserUrl($leave_request->approved_by_signature);
 
         return Inertia::render('leave-requests/show', [
             'leaveRequest' => array_merge($leave_request->toArray(), [
@@ -187,21 +184,14 @@ class LeaveRequestController extends Controller
      */
     public function print(LeaveRequest $leave_request): Response
     {
-        $leave_request->load(['employee.companyProfile', 'department', 'approvedByEmployee']);
+        $leave_request->load(['employee.companyProfile', 'department']);
 
         $company = $leave_request->employee?->companyProfile ?? CompanyProfile::query()->first();
         $companyName = $company?->company_name ?? config('app.name');
-        $companyLogoUrl = null;
-        if ($company?->logo) {
-            $companyLogoUrl = Storage::disk('public')->url($company->logo);
-        }
+        $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
 
-        $employeeSignatureUrl = $leave_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->employee_signature, '/'))
-            : null;
-        $approvedBySignatureUrl = $leave_request->approved_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($leave_request->approved_by_signature, '/'))
-            : null;
+        $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
+        $approvedBySignatureUrl = $this->publicStorageBrowserUrl($leave_request->approved_by_signature);
 
         return Inertia::render('leave-requests/print', [
             'leaveRequest' => array_merge($leave_request->toArray(), [
@@ -218,9 +208,11 @@ class LeaveRequestController extends Controller
      */
     public function updateSignatures(Request $request, LeaveRequest $leave_request): RedirectResponse
     {
+        $imageRule = ['nullable', File::types(['png', 'jpeg', 'jpg', 'gif', 'webp'])->max(2048)];
+
         $request->validate([
-            'employee_signature' => ['nullable', 'image', 'max:2048'],
-            'approved_by_signature' => ['nullable', 'image', 'max:2048'],
+            'employee_signature' => $imageRule,
+            'approved_by_signature' => $imageRule,
             'approved_by_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
         ]);
 
@@ -272,5 +264,18 @@ class LeaveRequestController extends Controller
         $to = Carbon::parse($periodTo);
 
         return $from->diffInDays($to) + 1;
+    }
+
+    /**
+     * Host-relative URL for files stored on the public disk so images load under the same
+     * origin as the browser (avoids broken URLs when APP_URL differs from the visit URL).
+     */
+    private function publicStorageBrowserUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
     }
 }

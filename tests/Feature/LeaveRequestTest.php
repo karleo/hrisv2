@@ -129,4 +129,29 @@ class LeaveRequestTest extends TestCase
         $response->assertRedirect(route('leave-requests.index'));
         $this->assertDatabaseMissing('leave_requests', ['id' => $leaveRequest->id]);
     }
+
+    public function test_print_renders_printable_page(): void
+    {
+        [$employee, $department] = $this->createEmployeeAndDepartment();
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Personal Leave'],
+            'date' => '2026-02-14',
+            'period_from' => '2026-02-18',
+            'period_to' => '2026-02-18',
+            'days' => 1,
+        ]);
+
+        $response = $this->get(route('leave-requests.print', $leaveRequest));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('leave-requests/print')
+            ->has('leaveRequest')
+            ->has('companyName')
+            ->where('leaveRequest.code', $leaveRequest->code)
+        );
+    }
 }
