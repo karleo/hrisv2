@@ -92,7 +92,7 @@ export default function LeaveRequestsEdit({
                 <Form
                     action={`/leave-requests/${leaveRequest.id}`}
                     method="post"
-                    className="max-w-2xl space-y-6"
+                    className="w-full space-y-6"
                     options={{ preserveScroll: true }}
                 >
                     <input type="hidden" name="_method" value="PUT" />

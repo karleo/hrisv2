@@ -9,6 +9,7 @@ export default function AppSidebarLayout({
     breadcrumbs = [],
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
+    const appVersion = import.meta.env.VITE_APP_VERSION || '';
 
     return (
         <AppShell variant="sidebar">
@@ -18,6 +19,7 @@ export default function AppSidebarLayout({
                 {children}
                 <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground md:px-6">
                     {`© ${year} Prime Logistics. All rights reserved.`}
+                    {appVersion ? ` v${appVersion}` : null}
                 </footer>
             </AppContent>
         </AppShell>

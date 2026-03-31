@@ -127,7 +127,7 @@ export default function LeaveRequestPrint({
     return (
         <>
             <Head title={`Leave Request ${leaveRequest.code} – Print`} />
-            <div className="min-h-screen bg-[#e0e0e0] p-6 text-neutral-800 print:bg-[#e0e0e0] print:p-4">
+            <div className="min-h-screen bg-white p-6 text-neutral-800 print:bg-white print:p-4">
                 <div className="no-print mb-6 flex items-center justify-between gap-4 border-b border-neutral-300 pb-4">
                     <Link
                         href={`/leave-requests/${leaveRequest.id}`}
