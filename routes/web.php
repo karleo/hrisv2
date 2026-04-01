@@ -59,12 +59,16 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::post('leave-requests/{leave_request}/signatures', [LeaveRequestController::class, 'updateSignatures'])
         ->name('leave-requests.signatures.update');
     Route::resource('it-requests', ItRequestController::class);
+    Route::get('it-requests/{it_request}/print', [ItRequestController::class, 'print'])
+        ->name('it-requests.print');
     Route::post('it-requests/{it_request}/signatures', [ItRequestController::class, 'updateSignatures'])
         ->name('it-requests.signatures.update');
     Route::resource('employee-requests', EmployeeRequestController::class);
     Route::post('employee-requests/{employee_request}/signatures', [EmployeeRequestController::class, 'updateSignatures'])
         ->name('employee-requests.signatures.update');
     Route::resource('it-asset-requests', ItAssetRequestController::class);
+    Route::get('it-asset-requests/{it_asset_request}/print', [ItAssetRequestController::class, 'print'])
+        ->name('it-asset-requests.print');
     Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])
         ->name('it-asset-requests.signatures.update');
 

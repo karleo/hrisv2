@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Printer, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -94,12 +94,6 @@ export default function Show({
     });
 
     useEffect(() => {
-        if (new URLSearchParams(window.location.search).get('print') === '1') {
-            window.print();
-        }
-    }, []);
-
-    useEffect(() => {
         setEmployeeSignaturePreview(itAssetRequest.employee_signature_url ?? null);
     }, [itAssetRequest.employee_signature_url]);
 
@@ -136,6 +130,38 @@ export default function Show({
         return new File([bytes], filename, { type: mime });
     };
 
+    const saveSignaturesDirectly = (payload: {
+        employeeSignature?: File | null;
+        issuedBySignature?: File | null;
+    }) => {
+        const hasEmployee = payload.employeeSignature instanceof File;
+        const hasIssuedBy = payload.issuedBySignature instanceof File;
+        if (!hasEmployee && !hasIssuedBy) {
+            return;
+        }
+
+        const formData = new FormData();
+        if (hasEmployee && payload.employeeSignature) {
+            formData.append('employee_signature', payload.employeeSignature);
+        }
+        if (hasIssuedBy && payload.issuedBySignature) {
+            formData.append('issued_by_signature', payload.issuedBySignature);
+            if (data.issued_by_employee_id !== '') {
+                formData.append('issued_by_employee_id', String(data.issued_by_employee_id));
+            }
+        }
+
+        router.post(`/it-asset-requests/${itAssetRequest.id}/signatures`, formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            preserveState: true,
+            only: ['itAssetRequest', 'flash', 'errors'],
+            onSuccess: () => {
+                reset('employee_signature', 'issued_by_signature');
+            },
+        });
+    };
+
     const handleEmployeeSignatureDrawn = (dataUrl: string | null) => {
         if (!dataUrl) {
             setData('employee_signature', null);
@@ -160,10 +186,29 @@ export default function Show({
         setIssuedBySignaturePreview(dataUrl);
     };
 
+    const handleEmployeeSignatureSave = (dataUrl: string | null) => {
+        if (!dataUrl) {
+            return;
+        }
+        const file = dataUrlToFile(dataUrl, `employee-signature-${itAssetRequest.id}.png`);
+        saveSignaturesDirectly({ employeeSignature: file });
+    };
+
+    const handleIssuedBySignatureSave = (dataUrl: string | null) => {
+        if (!dataUrl) {
+            return;
+        }
+        const file = dataUrlToFile(dataUrl, `issued-by-signature-${itAssetRequest.id}.png`);
+        saveSignaturesDirectly({ issuedBySignature: file });
+    };
+
     const handleSubmitSignatures = (e: React.FormEvent) => {
         e.preventDefault();
         post(`/it-asset-requests/${itAssetRequest.id}/signatures`, {
             forceFormData: true,
+            preserveScroll: true,
+            preserveState: true,
+            only: ['itAssetRequest', 'flash', 'errors'],
             onSuccess: () => {
                 reset();
             },
@@ -183,7 +228,7 @@ export default function Show({
                         <ArrowLeft className="size-4" />
                         Back to IT Asset Requests
                     </Link>
-                    <Link href={`/it-asset-requests/${itAssetRequest.id}?print=1`}>
+                    <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
                         <Button type="button">
                             <Printer className="size-4" />
                             Print
@@ -302,6 +347,7 @@ export default function Show({
                                             label="Employee Signature"
                                             initialImageUrl={employeeSignaturePreview}
                                             onChange={handleEmployeeSignatureDrawn}
+                                            onSave={handleEmployeeSignatureSave}
                                         />
                                         <div>
                                             <Label htmlFor="employee_signature">
@@ -359,6 +405,7 @@ export default function Show({
                                             label="Issued By Signature"
                                             initialImageUrl={issuedBySignaturePreview}
                                             onChange={handleIssuedBySignatureDrawn}
+                                            onSave={handleIssuedBySignatureSave}
                                         />
                                         <div>
                                             <Label htmlFor="issued_by_signature">

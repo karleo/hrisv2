@@ -108,7 +108,7 @@ class EmployeeRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
-            'signaturesUrl' => route('employee-requests.signatures.update', $employee_request),
+            'signaturesUrl' => route('employee-requests.signatures.update', $employee_request, false),
         ]);
     }
 

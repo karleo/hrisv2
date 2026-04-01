@@ -108,7 +108,7 @@ class LeaveRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
-            'signaturesUrl' => route('leave-requests.signatures.update', $leave_request),
+            'signaturesUrl' => route('leave-requests.signatures.update', $leave_request, false),
         ]);
     }
 

@@ -15,6 +15,38 @@ class ItAssetRequestSignaturesTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_print_renders_printable_page(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        /** @var Department $department */
+        $department = Department::factory()->create();
+        /** @var Employee $employee */
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        /** @var ItAssetRequest $itAssetRequest */
+        $itAssetRequest = ItAssetRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-03-31',
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->get(route('it-asset-requests.print', $itAssetRequest));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('it-asset-requests/print')
+            ->has('itAssetRequest')
+            ->has('companyName')
+            ->where('itAssetRequest.id', $itAssetRequest->id)
+        );
+    }
+
     public function test_user_can_update_it_asset_request_signatures(): void
     {
         Storage::fake('public');

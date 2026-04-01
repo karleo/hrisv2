@@ -1,6 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
-import { useEffect } from 'react';
 import Heading from '@/components/heading';
 import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
@@ -59,16 +58,6 @@ export default function Show({
         { title: `Request #${itRequest.id}`, href: '#' },
     ];
 
-    const handlePrint = () => {
-        window.print();
-    };
-
-    useEffect(() => {
-        if (new URLSearchParams(window.location.search).get('print') === '1') {
-            window.print();
-        }
-    }, []);
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`IT Request #${itRequest.id}`} />
@@ -82,9 +71,11 @@ export default function Show({
                         <ArrowLeft className="size-4" />
                         Back to IT Requests
                     </Link>
-                    <Button onClick={handlePrint}>
-                        <Printer className="size-4" />
-                        Print
+                    <Button asChild>
+                        <Link href={`/it-requests/${itRequest.id}/print`}>
+                            <Printer className="size-4" />
+                            Print
+                        </Link>
                     </Button>
                 </div>
 

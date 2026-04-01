@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ItAssetRequest\StoreItAssetRequestRequest;
 use App\Http\Requests\ItAssetRequest\UpdateItAssetRequestRequest;
+use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
@@ -89,14 +90,6 @@ class ItAssetRequestController extends Controller
     {
         $it_asset_request->load(['employee', 'department', 'issuedByEmployee']);
 
-        $hardware = [];
-        if ($it_asset_request->hardware_ids) {
-            $hardware = Hardware::query()
-                ->whereIn('id', $it_asset_request->hardware_ids)
-                ->get(['id', 'code', 'name'])
-                ->toArray();
-        }
-
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->employee_signature, '/'))
             : null;
@@ -106,11 +99,50 @@ class ItAssetRequestController extends Controller
 
         return Inertia::render('it-asset-requests/show', [
             'itAssetRequest' => $it_asset_request,
-            'hardware' => $hardware,
-            'employees' => Employee::query()
+            'hardware' => function () use ($it_asset_request): array {
+                if (empty($it_asset_request->hardware_ids)) {
+                    return [];
+                }
+
+                return Hardware::query()
+                    ->whereIn('id', $it_asset_request->hardware_ids)
+                    ->get(['id', 'code', 'name'])
+                    ->toArray();
+            },
+            'employees' => fn () => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id']),
+        ]);
+    }
+
+    /**
+     * Show printable IT Asset request.
+     */
+    public function print(ItAssetRequest $it_asset_request): Response
+    {
+        $it_asset_request->load(['employee.companyProfile', 'department', 'issuedByEmployee']);
+
+        $hardware = [];
+        if ($it_asset_request->hardware_ids) {
+            $hardware = Hardware::query()
+                ->whereIn('id', $it_asset_request->hardware_ids)
+                ->get(['id', 'code', 'name'])
+                ->toArray();
+        }
+
+        $company = $it_asset_request->employee?->companyProfile ?? CompanyProfile::query()->first();
+        $companyName = $company?->company_name ?? config('app.name');
+        $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
+
+        return Inertia::render('it-asset-requests/print', [
+            'itAssetRequest' => array_merge($it_asset_request->toArray(), [
+                'employee_signature_url' => $this->publicStorageBrowserUrl($it_asset_request->employee_signature),
+                'issued_by_signature_url' => $this->publicStorageBrowserUrl($it_asset_request->issued_by_signature),
+            ]),
+            'hardware' => $hardware,
+            'companyName' => $companyName,
+            'companyLogoUrl' => $companyLogoUrl,
         ]);
     }
 
@@ -220,5 +252,18 @@ class ItAssetRequestController extends Controller
         $it_asset_request->delete();
 
         return to_route('it-asset-requests.index');
+    }
+
+    /**
+     * Host-relative URL for files stored on the public disk so images load under the same
+     * origin as the browser (avoids broken URLs when APP_URL differs from the visit URL).
+     */
+    private function publicStorageBrowserUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
     }
 }

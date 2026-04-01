@@ -6,10 +6,15 @@ import CountryController from './CountryController'
 import CompanyProfileController from './CompanyProfileController'
 import SoftwareController from './SoftwareController'
 import HardwareController from './HardwareController'
+import EmployeeTimeEntryController from './EmployeeTimeEntryController'
+import WorkTimetableController from './WorkTimetableController'
 import LeaveRequestController from './LeaveRequestController'
 import ItRequestController from './ItRequestController'
 import EmployeeRequestController from './EmployeeRequestController'
 import ItAssetRequestController from './ItAssetRequestController'
+import UserRoleController from './UserRoleController'
+import RoleController from './RoleController'
+import UserController from './UserController'
 import Settings from './Settings'
 const Controllers = {
     DepartmentController: Object.assign(DepartmentController, DepartmentController),
@@ -20,10 +25,15 @@ CountryController: Object.assign(CountryController, CountryController),
 CompanyProfileController: Object.assign(CompanyProfileController, CompanyProfileController),
 SoftwareController: Object.assign(SoftwareController, SoftwareController),
 HardwareController: Object.assign(HardwareController, HardwareController),
+EmployeeTimeEntryController: Object.assign(EmployeeTimeEntryController, EmployeeTimeEntryController),
+WorkTimetableController: Object.assign(WorkTimetableController, WorkTimetableController),
 LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestController),
 ItRequestController: Object.assign(ItRequestController, ItRequestController),
 EmployeeRequestController: Object.assign(EmployeeRequestController, EmployeeRequestController),
 ItAssetRequestController: Object.assign(ItAssetRequestController, ItAssetRequestController),
+UserRoleController: Object.assign(UserRoleController, UserRoleController),
+RoleController: Object.assign(RoleController, RoleController),
+UserController: Object.assign(UserController, UserController),
 Settings: Object.assign(Settings, Settings),
 }
 

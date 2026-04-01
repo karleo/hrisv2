@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ItRequest\StoreItRequestRequest;
 use App\Http\Requests\ItRequest\UpdateItRequestRequest;
+use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
@@ -108,7 +109,31 @@ class ItRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
-            'signaturesUrl' => route('it-requests.signatures.update', $it_request),
+            'signaturesUrl' => route('it-requests.signatures.update', $it_request, false),
+        ]);
+    }
+
+    /**
+     * Show printable IT request.
+     */
+    public function print(ItRequest $it_request): Response
+    {
+        $it_request->load(['employee.companyProfile', 'department', 'software', 'hardware']);
+
+        $company = $it_request->employee?->companyProfile ?? CompanyProfile::query()->first();
+        $companyName = $company?->company_name ?? config('app.name');
+        $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
+
+        $employeeSignatureUrl = $this->publicStorageBrowserUrl($it_request->employee_signature);
+        $approvedBySignatureUrl = $this->publicStorageBrowserUrl($it_request->approved_by_signature);
+
+        return Inertia::render('it-requests/print', [
+            'itRequest' => array_merge($it_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
+            'companyName' => $companyName,
+            'companyLogoUrl' => $companyLogoUrl,
         ]);
     }
 
@@ -220,5 +245,18 @@ class ItRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Signatures updated successfully.');
+    }
+
+    /**
+     * Host-relative URL for files stored on the public disk so images load under the same
+     * origin as the browser (avoids broken URLs when APP_URL differs from the visit URL).
+     */
+    private function publicStorageBrowserUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
     }
 }

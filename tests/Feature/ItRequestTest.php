@@ -50,4 +50,29 @@ class ItRequestTest extends TestCase
             'status' => 'submitted',
         ]);
     }
+
+    public function test_print_renders_printable_page(): void
+    {
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $itRequest = ItRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-02-17',
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->get(route('it-requests.print', $itRequest));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('it-requests/print')
+            ->has('itRequest')
+            ->has('companyName')
+            ->where('itRequest.id', $itRequest->id)
+        );
+    }
 }
