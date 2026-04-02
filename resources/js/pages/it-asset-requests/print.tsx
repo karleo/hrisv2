@@ -103,7 +103,7 @@ export default function ItAssetRequestPrint({
                                 <img
                                     src={companyLogoUrl}
                                     alt=""
-                                    className="mb-1 h-14 w-auto max-w-[200px] object-contain print:h-12"
+                                    className="mb-1 h-24 w-auto max-w-[300px] object-contain print:h-20"
                                 />
                             ) : null}
                             <p className="max-w-[220px] text-xs font-semibold uppercase leading-tight text-[#1a237e]">

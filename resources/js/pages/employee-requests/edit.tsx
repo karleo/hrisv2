@@ -183,23 +183,19 @@ export default function Edit({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="department_id">Department</Label>
-                                <select
+                                <input
                                     id="department_id"
-                                    name="department_id"
-                                    required
-                                    value={data.department_id}
-                                    onChange={(e) =>
-                                        setData('department_id', e.target.value ? Number(e.target.value) : '')
+                                    type="text"
+                                    readOnly
+                                    value={
+                                        data.department_id
+                                            ? (departments.find((department) => department.id === data.department_id)?.name ?? '')
+                                            : ''
                                     }
+                                    placeholder="Select employee first"
                                     className={inputClassName}
-                                >
-                                    <option value="">Select department</option>
-                                    {departments.map((dept) => (
-                                        <option key={dept.id} value={dept.id}>
-                                            {dept.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
+                                <input type="hidden" name="department_id" value={data.department_id} />
                                 <InputError message={errors.department_id} />
                             </div>
                             <div className="grid gap-2">

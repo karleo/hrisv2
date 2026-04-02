@@ -36,6 +36,9 @@ export default function LeaveRequestsShow({
     signaturesUrl: string;
 }) {
     const { flash } = usePage().props as { flash?: { success?: string } };
+    const normalizedStatus = leaveRequest.status?.toLowerCase() ?? 'draft';
+    const statusLabel =
+        normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
 
     return (
         <AppLayout
@@ -45,7 +48,8 @@ export default function LeaveRequestsShow({
             ]}
         >
             <Head title={`Leave request ${leaveRequest.code}`} />
-            <div className="flex flex-col gap-6 p-4">
+            <div className="px-4 py-8 md:px-8">
+                <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon" asChild>
@@ -70,6 +74,18 @@ export default function LeaveRequestsShow({
                         </Button>
                     </div>
                 </div>
+
+                <Card className="border-muted/60 bg-muted/20">
+                    <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+                        <div>
+                            <p className="text-muted-foreground text-xs">Leave Request</p>
+                            <p className="text-lg font-semibold">{leaveRequest.code}</p>
+                        </div>
+                        <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
+                            {statusLabel}
+                        </span>
+                    </CardContent>
+                </Card>
 
                 {flash?.success && (
                     <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
@@ -129,6 +145,7 @@ export default function LeaveRequestsShow({
                         />
                     </CardContent>
                 </Card>
+                </div>
             </div>
         </AppLayout>
     );

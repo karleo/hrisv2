@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, User } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -98,6 +98,7 @@ export default function Create({
     const [dateIssuedInput, setDateIssuedInput] = useState<string>(
         data.date_issued ? toDdMmYyyy(data.date_issued) : '',
     );
+    const [hardwareSearch, setHardwareSearch] = useState<string>('');
 
     const dateRef = useRef<HTMLInputElement>(null);
     const dateIssuedRef = useRef<HTMLInputElement>(null);
@@ -131,6 +132,17 @@ export default function Create({
     const selectedHardware = hardware.filter((hw) =>
         data.hardware_ids.includes(hw.id),
     );
+
+    const filteredHardware = useMemo(() => {
+        const keyword = hardwareSearch.trim().toLowerCase();
+        if (keyword === '') {
+            return hardware;
+        }
+
+        return hardware.filter((item) =>
+            `${item.code} ${item.name}`.toLowerCase().includes(keyword),
+        );
+    }, [hardware, hardwareSearch]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -311,23 +323,19 @@ export default function Create({
                                             <Label htmlFor="department_id">
                                                 Department <span className="text-destructive">*</span>
                                             </Label>
-                                            <select
+                                            <input
                                                 id="department_id"
-                                                name="department_id"
-                                                required
-                                                value={data.department_id}
-                                                onChange={(e) =>
-                                                    setData('department_id', e.target.value ? Number(e.target.value) : '')
+                                                type="text"
+                                                readOnly
+                                                value={
+                                                    data.department_id
+                                                        ? (departments.find((department) => department.id === data.department_id)?.name ?? '')
+                                                        : ''
                                                 }
+                                                placeholder="Select employee first"
                                                 className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                <option value="">Select department</option>
-                                                {departments.map((dept) => (
-                                                    <option key={dept.id} value={dept.id}>
-                                                        {dept.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            />
+                                            <input type="hidden" name="department_id" value={data.department_id} />
                                             <InputError message={errors.department_id} />
                                         </div>
                                     </CardContent>
@@ -348,23 +356,41 @@ export default function Create({
                                             <Label htmlFor="hardware_ids">
                                                 Hardware Assets
                                             </Label>
-                                            <div className="border-input focus-within:ring-ring max-h-[400px] w-full overflow-y-auto rounded-md border bg-card p-4 shadow-xs focus-within:ring-[3px]">
+                                            <Input
+                                                value={hardwareSearch}
+                                                onChange={(e) => setHardwareSearch(e.target.value)}
+                                                placeholder="Search hardware by code or name..."
+                                                className="h-10"
+                                            />
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                <span>
+                                                    {filteredHardware.length} item{filteredHardware.length !== 1 ? 's' : ''} found
+                                                </span>
+                                                <span>
+                                                    {data.hardware_ids.length} selected
+                                                </span>
+                                            </div>
+                                            <div className="border-input focus-within:ring-ring max-h-[420px] w-full overflow-y-auto rounded-md border bg-card p-3 shadow-xs focus-within:ring-[3px]">
                                                 {hardware.length === 0 ? (
                                                     <div className="py-8 text-center text-sm text-muted-foreground">
                                                         <Package className="mx-auto mb-2 size-8 opacity-50" />
                                                         No hardware available
                                                     </div>
+                                                ) : filteredHardware.length === 0 ? (
+                                                    <div className="py-8 text-center text-sm text-muted-foreground">
+                                                        No hardware matches "{hardwareSearch}".
+                                                    </div>
                                                 ) : (
                                                     <div className="grid gap-2 sm:grid-cols-2">
-                                                        {hardware.map((hw) => {
+                                                        {filteredHardware.map((hw) => {
                                                             const isSelected = data.hardware_ids.includes(hw.id);
                                                             return (
                                                                 <label
                                                                     key={hw.id}
-                                                                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all hover:bg-muted/50 ${
+                                                                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
                                                                         isSelected
-                                                                            ? 'border-primary bg-primary/5'
-                                                                            : 'border-border'
+                                                                            ? 'border-primary bg-primary/10 shadow-sm'
+                                                                            : 'border-border hover:border-primary/40 hover:bg-primary/5'
                                                                     }`}
                                                                 >
                                                                     <div className="mt-0.5 flex shrink-0">

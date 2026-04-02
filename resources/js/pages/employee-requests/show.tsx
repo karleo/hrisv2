@@ -64,6 +64,7 @@ export default function Show({
 }) {
     const { flash } = usePage().props as { flash?: { success?: string } };
     const requestLabel = employeeRequest.code || `Request #${employeeRequest.id}`;
+    const statusLabel = employeeRequest.status === 'draft' ? 'Draft' : 'Submitted';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
@@ -84,7 +85,8 @@ export default function Show({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Employee Request #${employeeRequest.id}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4 print:bg-white">
+            <div className="px-4 py-8 md:px-8 print:bg-white">
+                <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
                 <div className="flex items-center justify-between gap-2 print:hidden">
                     <Link
                         href="/employee-requests"
@@ -99,7 +101,19 @@ export default function Show({
                     </Button>
                 </div>
 
-                <div className="mt-2 rounded-xl border bg-background p-6 shadow-sm print:border-0 print:shadow-none">
+                <Card className="border-muted/60 bg-muted/20 print:hidden">
+                    <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+                        <div>
+                            <p className="text-muted-foreground text-xs">Employee Request</p>
+                            <p className="text-lg font-semibold">{requestLabel}</p>
+                        </div>
+                        <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
+                            {statusLabel}
+                        </span>
+                    </CardContent>
+                </Card>
+
+                <div className="rounded-xl border bg-background p-6 shadow-sm print:border-0 print:shadow-none">
                     <Heading
                         title="Employee Request Form"
                         description={requestLabel}
@@ -229,6 +243,7 @@ export default function Show({
                         />
                     </CardContent>
                 </Card>
+                </div>
             </div>
         </AppLayout>
     );

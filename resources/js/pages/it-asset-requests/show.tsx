@@ -2,7 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Printer, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import Heading from '@/components/heading';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { SignaturePad } from '@/components/signature-pad';
@@ -219,104 +219,108 @@ export default function Show({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`IT Asset Request #${itAssetRequest.id}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4 print:bg-white">
-                <div className="flex items-center justify-between gap-2 print:hidden">
-                    <Link
-                        href="/it-asset-requests"
-                        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                        <ArrowLeft className="size-4" />
-                        Back to IT Asset Requests
-                    </Link>
-                    <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
-                        <Button type="button">
-                            <Printer className="size-4" />
-                            Print
-                        </Button>
-                    </Link>
+            <div className="flex min-h-screen flex-1 flex-col bg-muted/30">
+                <div className="border-b bg-card px-4 py-6 md:px-8 print:hidden">
+                    <div className="mx-auto flex w-full max-w-7xl items-start justify-between gap-4">
+                        <div className="space-y-2">
+                            <Link
+                                href="/it-asset-requests"
+                                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                            >
+                                <ArrowLeft className="size-4" />
+                                Back to IT Asset Requests
+                            </Link>
+                            <h1 className="text-2xl font-bold tracking-tight">{requestLabel}</h1>
+                            <p className="text-sm text-muted-foreground">IT Asset Request Form</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                    itAssetRequest.status === 'submitted'
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                }`}
+                            >
+                                {itAssetRequest.status === 'submitted' ? 'Submitted' : 'Draft'}
+                            </span>
+                            <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
+                                <Button type="button">
+                                    <Printer className="size-4" />
+                                    Print
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="mt-2 rounded-xl border bg-background p-6 shadow-sm print:border-0 print:shadow-none">
-                    <Heading
-                        title="IT Asset Request Form"
-                        description={requestLabel}
-                    />
-
-                    <div className="mt-6 grid gap-6 text-sm print:text-black">
-                        <div>
-                            <div className="font-semibold">Request Code</div>
-                            <div>{itAssetRequest.code || '—'}</div>
+                <div className="px-4 py-8 md:px-8 print:p-4">
+                    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+                        <div className="rounded-xl border bg-background p-6 shadow-sm print:border-0 print:shadow-none">
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-lg border bg-muted/30 p-3">
+                            <div className="text-xs text-muted-foreground">Request Code</div>
+                            <div className="font-semibold">{itAssetRequest.code || '—'}</div>
                         </div>
-                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                            <div>
-                                <div className="font-semibold">Date</div>
-                                <div>{formatDateDdMmYyyy(itAssetRequest.date)}</div>
-                            </div>
-                            <div>
-                                <div className="font-semibold">Date Issued</div>
-                                <div>{formatDateDdMmYyyy(itAssetRequest.date_issued)}</div>
-                            </div>
-                            <div>
-                                <div className="font-semibold">Status</div>
-                                <div>
-                                    {itAssetRequest.status === 'draft'
-                                        ? 'Draft'
-                                        : 'Submitted'}
-                                </div>
+                        <div className="rounded-lg border bg-muted/30 p-3">
+                            <div className="text-xs text-muted-foreground">Date</div>
+                            <div className="font-semibold">{formatDateDdMmYyyy(itAssetRequest.date)}</div>
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 p-3">
+                            <div className="text-xs text-muted-foreground">Date Issued</div>
+                            <div className="font-semibold">{formatDateDdMmYyyy(itAssetRequest.date_issued)}</div>
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 p-3">
+                            <div className="text-xs text-muted-foreground">Status</div>
+                            <div className="font-semibold">
+                                {itAssetRequest.status === 'draft' ? 'Draft' : 'Submitted'}
                             </div>
                         </div>
+                    </div>
 
-                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                            <div>
-                                <div className="font-semibold">Employee</div>
-                                <div>
-                                    {itAssetRequest.employee
-                                        ? `${itAssetRequest.employee.first_name} ${itAssetRequest.employee.last_name}`
-                                        : '—'}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="font-semibold">Department</div>
-                                <div>{itAssetRequest.department?.name ?? '—'}</div>
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-lg border p-4">
+                            <div className="text-xs text-muted-foreground">Employee</div>
+                            <div className="font-semibold">
+                                {itAssetRequest.employee
+                                    ? `${itAssetRequest.employee.first_name} ${itAssetRequest.employee.last_name}`
+                                    : '—'}
                             </div>
                         </div>
+                        <div className="rounded-lg border p-4">
+                            <div className="text-xs text-muted-foreground">Department</div>
+                            <div className="font-semibold">{itAssetRequest.department?.name ?? '—'}</div>
+                        </div>
+                    </div>
 
-                        <div>
-                            <div className="font-semibold">Asset information</div>
-                            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <div>
-                                    <div className="text-xs text-muted-foreground">
-                                        Hardware
-                                    </div>
-                                    <div>
-                                        {hardware.length > 0 ? (
-                                            <ul className="list-disc list-inside">
-                                                {hardware.map((hw) => (
-                                                    <li key={hw.id}>
-                                                        {hw.code} - {hw.name}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            '—'
-                                        )}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground">
-                                        Serial number
-                                    </div>
-                                    <div>{itAssetRequest.serial_number ?? '—'}</div>
-                                </div>
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-lg border p-4">
+                            <div className="text-xs text-muted-foreground">Hardware</div>
+                            <div className="mt-1">
+                                {hardware.length > 0 ? (
+                                    <ul className="list-disc list-inside space-y-1 text-sm">
+                                        {hardware.map((hw) => (
+                                            <li key={hw.id}>
+                                                {hw.code} - {hw.name}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground">—</span>
+                                )}
                             </div>
                         </div>
+                        <div className="rounded-lg border p-4">
+                            <div className="text-xs text-muted-foreground">Serial number</div>
+                            <div className="font-semibold">{itAssetRequest.serial_number ?? '—'}</div>
+                        </div>
+                    </div>
 
-                        <div>
-                            <div className="font-semibold">Remarks</div>
-                            <div className="whitespace-pre-wrap">
-                                {itAssetRequest.remarks ?? '—'}
-                            </div>
-                            <div className="mt-4 hidden text-sm leading-relaxed print:block print:text-black">
+                    <div className="mt-5 rounded-lg border p-4">
+                        <div className="text-xs text-muted-foreground">Remarks</div>
+                        <div className="mt-1 min-h-[80px] whitespace-pre-wrap text-sm">
+                            {itAssetRequest.remarks ?? '—'}
+                        </div>
+                        <div className="mt-4 hidden text-sm leading-relaxed print:block print:text-black">
                                 <p>
                                     I hereby acknowledge that I have received the above-mentioned
                                     assets. I understand that these assets are the property of
@@ -336,12 +340,18 @@ export default function Show({
                                     also agree to return all assets issued to me in good condition
                                     upon my last working day with PRIME LOGISTICS FZCO.
                                 </p>
+                        </div>
                             </div>
                         </div>
 
-                        <div className="mt-8 border-t pt-6 print:border-t-2">
-                            <form onSubmit={handleSubmitSignatures} className="print:hidden">
-                                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 print:gap-12">
+                        <Card className="print:hidden">
+                            <CardHeader>
+                                <CardTitle>Signatures</CardTitle>
+                                <CardDescription>Capture employee and issued-by signatures.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                            <form onSubmit={handleSubmitSignatures}>
+                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                                     <div className="space-y-4">
                                         <SignaturePad
                                             label="Employee Signature"
@@ -372,10 +382,7 @@ export default function Show({
                                     </div>
 
                                     <div className="space-y-4">
-                                        <div className="mb-1 font-semibold print:mb-2">
-                                            Issued By
-                                        </div>
-                                        <div className="mb-2">
+                                        <div className="grid gap-2">
                                             <Label htmlFor="issued_by_employee_id">
                                                 Issued By Employee
                                             </Label>
@@ -452,7 +459,10 @@ export default function Show({
                                     </div>
                                 )}
                             </form>
-                            <div className="hidden print:grid print:grid-cols-2 print:gap-12">
+                            </CardContent>
+                        </Card>
+                        <div className="hidden rounded-xl border bg-background p-6 shadow-sm print:block print:border-0 print:p-0 print:shadow-none">
+                            <div className="print:grid print:grid-cols-2 print:gap-12">
                                 <div>
                                     <div className="mb-2 font-semibold">
                                         Employee Signature
