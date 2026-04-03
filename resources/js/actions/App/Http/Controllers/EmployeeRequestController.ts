@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::index
  * @see app/Http/Controllers/EmployeeRequestController.php:22
@@ -42,6 +42,41 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::index
+ * @see app/Http/Controllers/EmployeeRequestController.php:22
+ * @route '/employee-requests'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::index
+ * @see app/Http/Controllers/EmployeeRequestController.php:22
+ * @route '/employee-requests'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::index
+ * @see app/Http/Controllers/EmployeeRequestController.php:22
+ * @route '/employee-requests'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::create
  * @see app/Http/Controllers/EmployeeRequestController.php:46
@@ -85,6 +120,41 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::create
+ * @see app/Http/Controllers/EmployeeRequestController.php:46
+ * @route '/employee-requests/create'
+ */
+    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: create.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::create
+ * @see app/Http/Controllers/EmployeeRequestController.php:46
+ * @route '/employee-requests/create'
+ */
+        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::create
+ * @see app/Http/Controllers/EmployeeRequestController.php:46
+ * @route '/employee-requests/create'
+ */
+        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    create.form = createForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::store
  * @see app/Http/Controllers/EmployeeRequestController.php:65
@@ -119,6 +189,27 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::store
+ * @see app/Http/Controllers/EmployeeRequestController.php:65
+ * @route '/employee-requests'
+ */
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::store
+ * @see app/Http/Controllers/EmployeeRequestController.php:65
+ * @route '/employee-requests'
+ */
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::show
  * @see app/Http/Controllers/EmployeeRequestController.php:89
@@ -186,9 +277,44 @@ show.head = (args: { employee_request: number | { id: number } } | [employee_req
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::show
+ * @see app/Http/Controllers/EmployeeRequestController.php:89
+ * @route '/employee-requests/{employee_request}'
+ */
+    const showForm = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::show
+ * @see app/Http/Controllers/EmployeeRequestController.php:89
+ * @route '/employee-requests/{employee_request}'
+ */
+        showForm.get = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::show
+ * @see app/Http/Controllers/EmployeeRequestController.php:89
+ * @route '/employee-requests/{employee_request}'
+ */
+        showForm.head = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::edit
- * @see app/Http/Controllers/EmployeeRequestController.php:131
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
  * @route '/employee-requests/{employee_request}/edit'
  */
 export const edit = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -203,7 +329,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::edit
- * @see app/Http/Controllers/EmployeeRequestController.php:131
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
  * @route '/employee-requests/{employee_request}/edit'
  */
 edit.url = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -236,7 +362,7 @@ edit.url = (args: { employee_request: number | { id: number } } | [employee_requ
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::edit
- * @see app/Http/Controllers/EmployeeRequestController.php:131
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
  * @route '/employee-requests/{employee_request}/edit'
  */
 edit.get = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -245,7 +371,7 @@ edit.get = (args: { employee_request: number | { id: number } } | [employee_requ
 })
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::edit
- * @see app/Http/Controllers/EmployeeRequestController.php:131
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
  * @route '/employee-requests/{employee_request}/edit'
  */
 edit.head = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -253,9 +379,44 @@ edit.head = (args: { employee_request: number | { id: number } } | [employee_req
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::edit
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
+ * @route '/employee-requests/{employee_request}/edit'
+ */
+    const editForm = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::edit
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
+ * @route '/employee-requests/{employee_request}/edit'
+ */
+        editForm.get = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::edit
+ * @see app/Http/Controllers/EmployeeRequestController.php:133
+ * @route '/employee-requests/{employee_request}/edit'
+ */
+        editForm.head = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    edit.form = editForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::update
- * @see app/Http/Controllers/EmployeeRequestController.php:164
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
  * @route '/employee-requests/{employee_request}'
  */
 export const update = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -270,7 +431,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::update
- * @see app/Http/Controllers/EmployeeRequestController.php:164
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
  * @route '/employee-requests/{employee_request}'
  */
 update.url = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -303,7 +464,7 @@ update.url = (args: { employee_request: number | { id: number } } | [employee_re
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::update
- * @see app/Http/Controllers/EmployeeRequestController.php:164
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
  * @route '/employee-requests/{employee_request}'
  */
 update.put = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -312,7 +473,7 @@ update.put = (args: { employee_request: number | { id: number } } | [employee_re
 })
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::update
- * @see app/Http/Controllers/EmployeeRequestController.php:164
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
  * @route '/employee-requests/{employee_request}'
  */
 update.patch = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -320,9 +481,54 @@ update.patch = (args: { employee_request: number | { id: number } } | [employee_
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::update
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
+ * @route '/employee-requests/{employee_request}'
+ */
+    const updateForm = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PUT',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::update
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
+ * @route '/employee-requests/{employee_request}'
+ */
+        updateForm.put = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PUT',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::update
+ * @see app/Http/Controllers/EmployeeRequestController.php:166
+ * @route '/employee-requests/{employee_request}'
+ */
+        updateForm.patch = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::destroy
- * @see app/Http/Controllers/EmployeeRequestController.php:190
+ * @see app/Http/Controllers/EmployeeRequestController.php:192
  * @route '/employee-requests/{employee_request}'
  */
 export const destroy = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -337,7 +543,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::destroy
- * @see app/Http/Controllers/EmployeeRequestController.php:190
+ * @see app/Http/Controllers/EmployeeRequestController.php:192
  * @route '/employee-requests/{employee_request}'
  */
 destroy.url = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -370,7 +576,7 @@ destroy.url = (args: { employee_request: number | { id: number } } | [employee_r
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::destroy
- * @see app/Http/Controllers/EmployeeRequestController.php:190
+ * @see app/Http/Controllers/EmployeeRequestController.php:192
  * @route '/employee-requests/{employee_request}'
  */
 destroy.delete = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -378,6 +584,37 @@ destroy.delete = (args: { employee_request: number | { id: number } } | [employe
     method: 'delete',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::destroy
+ * @see app/Http/Controllers/EmployeeRequestController.php:192
+ * @route '/employee-requests/{employee_request}'
+ */
+    const destroyForm = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::destroy
+ * @see app/Http/Controllers/EmployeeRequestController.php:192
+ * @route '/employee-requests/{employee_request}'
+ */
+        destroyForm.delete = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::submit
  * @see app/Http/Controllers/EmployeeRequestController.php:117
@@ -436,9 +673,30 @@ submit.post = (args: { employee_request: number | { id: number } } | [employee_r
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::submit
+ * @see app/Http/Controllers/EmployeeRequestController.php:117
+ * @route '/employee-requests/{employee_request}/submit'
+ */
+    const submitForm = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: submit.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::submit
+ * @see app/Http/Controllers/EmployeeRequestController.php:117
+ * @route '/employee-requests/{employee_request}/submit'
+ */
+        submitForm.post = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: submit.url(args, options),
+            method: 'post',
+        })
+    
+    submit.form = submitForm
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::updateSignatures
- * @see app/Http/Controllers/EmployeeRequestController.php:207
+ * @see app/Http/Controllers/EmployeeRequestController.php:209
  * @route '/employee-requests/{employee_request}/signatures'
  */
 export const updateSignatures = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -453,7 +711,7 @@ updateSignatures.definition = {
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::updateSignatures
- * @see app/Http/Controllers/EmployeeRequestController.php:207
+ * @see app/Http/Controllers/EmployeeRequestController.php:209
  * @route '/employee-requests/{employee_request}/signatures'
  */
 updateSignatures.url = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -486,13 +744,35 @@ updateSignatures.url = (args: { employee_request: number | { id: number } } | [e
 
 /**
 * @see \App\Http\Controllers\EmployeeRequestController::updateSignatures
- * @see app/Http/Controllers/EmployeeRequestController.php:207
+ * @see app/Http/Controllers/EmployeeRequestController.php:209
  * @route '/employee-requests/{employee_request}/signatures'
  */
 updateSignatures.post = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: updateSignatures.url(args, options),
     method: 'post',
 })
+
+    /**
+* @see \App\Http\Controllers\EmployeeRequestController::updateSignatures
+ * @see app/Http/Controllers/EmployeeRequestController.php:209
+ * @route '/employee-requests/{employee_request}/signatures'
+ */
+    const updateSignaturesForm = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: updateSignatures.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\EmployeeRequestController::updateSignatures
+ * @see app/Http/Controllers/EmployeeRequestController.php:209
+ * @route '/employee-requests/{employee_request}/signatures'
+ */
+        updateSignaturesForm.post = (args: { employee_request: number | { id: number } } | [employee_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: updateSignatures.url(args, options),
+            method: 'post',
+        })
+    
+    updateSignatures.form = updateSignaturesForm
 const EmployeeRequestController = { index, create, store, show, edit, update, destroy, submit, updateSignatures }
 
 export default EmployeeRequestController

@@ -68,7 +68,7 @@ class RequestDraftSubmitTest extends TestCase
         $response = $this->from(route('employee-requests.show', $employeeRequest))
             ->post(route('employee-requests.submit', $employeeRequest));
 
-        $response->assertRedirect(route('employee-requests.show', $employeeRequest));
+        $response->assertRedirect(route('employee-requests.index'));
         $response->assertSessionHas('success');
         $this->assertSame('submitted', $employeeRequest->fresh()->status);
     }
@@ -111,7 +111,7 @@ class RequestDraftSubmitTest extends TestCase
         $response = $this->from(route('it-asset-requests.show', $itAssetRequest))
             ->post(route('it-asset-requests.submit', $itAssetRequest));
 
-        $response->assertRedirect(route('it-asset-requests.show', $itAssetRequest));
+        $response->assertRedirect(route('it-asset-requests.index'));
         $response->assertSessionHas('success');
         $this->assertSame('submitted', $itAssetRequest->fresh()->status);
     }

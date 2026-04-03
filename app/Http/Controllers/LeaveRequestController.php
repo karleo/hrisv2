@@ -23,22 +23,70 @@ class LeaveRequestController extends Controller
      */
     public function index(Request $request): Response
     {
-        $leaveRequests = LeaveRequest::query()
-            ->with(['employee', 'department'])
-            ->when(
+        $validated = $request->validate([
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'department_id' => ['sometimes', 'nullable', 'integer', 'exists:departments,id'],
+            'status' => ['sometimes', 'nullable', 'string', 'max:50'],
+        ]);
+
+        $departmentId = $validated['department_id'] ?? null;
+        $statusFilter = isset($validated['status']) && $validated['status'] !== ''
+            ? $validated['status']
+            : null;
+
+        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter): void {
+            $query->when(
                 $request->filled('search'),
-                fn ($query) => $query->whereHas('employee', function ($q) use ($request): void {
-                    $q->where('first_name', 'like', '%'.$request->search.'%')
+                fn ($q) => $q->whereHas('employee', function ($sub) use ($request): void {
+                    $sub->where('first_name', 'like', '%'.$request->search.'%')
                         ->orWhere('last_name', 'like', '%'.$request->search.'%');
                 })
             )
+                ->when($departmentId !== null, fn ($q) => $q->where('department_id', $departmentId))
+                ->when($statusFilter !== null && $statusFilter !== '', fn ($q) => $q->where('status', $statusFilter));
+        };
+
+        $statusAggregation = LeaveRequest::query();
+        $applyFilters($statusAggregation);
+
+        $statusRows = $statusAggregation
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->get();
+
+        $byStatus = [];
+        foreach ($statusRows as $row) {
+            $byStatus[$row->status] = (int) $row->aggregate;
+        }
+
+        $stats = [
+            'total' => array_sum($byStatus),
+            'draft' => $byStatus['draft'] ?? 0,
+            'submitted' => $byStatus['submitted'] ?? 0,
+            'approved' => $byStatus['approved'] ?? 0,
+            'rejected' => $byStatus['rejected'] ?? 0,
+        ];
+
+        $leaveRequests = LeaveRequest::query();
+        $applyFilters($leaveRequests);
+
+        $leaveRequests = $leaveRequests
+            ->with(['employee', 'department'])
             ->orderByDesc('created_at')
             ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('leave-requests/index', [
             'leaveRequests' => $leaveRequests,
-            'filters' => $request->only('search'),
+            'filters' => [
+                'search' => $validated['search'] ?? null,
+                'department_id' => $departmentId,
+                'status' => $statusFilter,
+            ],
+            'departments' => Department::query()
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'stats' => $stats,
         ]);
     }
 
@@ -123,7 +171,9 @@ class LeaveRequestController extends Controller
 
         $leave_request->update(['status' => 'submitted']);
 
-        return redirect()->back()->with('success', 'Leave request submitted.');
+        return redirect()
+            ->route('leave-requests.index')
+            ->with('success', 'Leave request submitted.');
     }
 
     /**

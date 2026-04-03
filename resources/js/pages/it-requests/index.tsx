@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Eye,
     FileText,
@@ -76,6 +76,7 @@ export default function Index({
     filters?: { search?: string };
 }) {
     const { data: requestList } = itRequests;
+    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -84,6 +85,17 @@ export default function Index({
             <div className="flex h-full flex-1 flex-col">
                 {/* Page header */}
                 <div className="border-b bg-gradient-to-b from-muted/30 to-background px-4 py-6 sm:px-6 lg:px-8">
+                    <div className="flex flex-col gap-4">
+                        {flash?.success && (
+                            <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                {flash.success}
+                            </div>
+                        )}
+                        {flash?.error && (
+                            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                                {flash.error}
+                            </div>
+                        )}
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
                             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
@@ -113,6 +125,7 @@ export default function Index({
                                 </Button>
                             </Link>
                         </div>
+                    </div>
                     </div>
                 </div>
 

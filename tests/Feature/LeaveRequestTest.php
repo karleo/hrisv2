@@ -49,6 +49,8 @@ class LeaveRequestTest extends TestCase
             ->component('leave-requests/index')
             ->has('leaveRequests')
             ->has('leaveRequests.data', 1)
+            ->has('stats')
+            ->has('departments')
         );
     }
 
@@ -106,7 +108,7 @@ class LeaveRequestTest extends TestCase
         $response = $this->from(route('leave-requests.show', $leaveRequest))
             ->post(route('leave-requests.submit', $leaveRequest));
 
-        $response->assertRedirect(route('leave-requests.show', $leaveRequest));
+        $response->assertRedirect(route('leave-requests.index'));
         $response->assertSessionHas('success');
         $this->assertSame('submitted', $leaveRequest->fresh()->status);
     }

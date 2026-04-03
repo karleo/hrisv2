@@ -8,15 +8,34 @@ type DataTableToolbarProps = {
     searchUrl: string;
     searchPlaceholder?: string;
     filters?: { search?: string };
+    /** Merged into every navigation (e.g. department or status filters). Empty values are omitted. */
+    persistQuery?: Record<string, string | number | undefined>;
     autoSearch?: boolean;
     debounceMs?: number;
     showSearchButton?: boolean;
 };
 
+function mergePersistQuery(
+    base: Record<string, string | number>,
+    persistQuery?: Record<string, string | number | undefined>,
+): Record<string, string | number> {
+    if (!persistQuery) {
+        return base;
+    }
+    const out = { ...base };
+    for (const [key, value] of Object.entries(persistQuery)) {
+        if (value !== undefined && value !== '') {
+            out[key] = value;
+        }
+    }
+    return out;
+}
+
 export function DataTableToolbar({
     searchUrl,
     searchPlaceholder = 'Search...',
     filters = {},
+    persistQuery,
     autoSearch = false,
     debounceMs = 300,
     showSearchButton = true,
@@ -32,7 +51,7 @@ export function DataTableToolbar({
     const handleSearch = useCallback(
         (e: React.FormEvent) => {
             e.preventDefault();
-            const params: Record<string, string | number> = { page: 1 };
+            const params = mergePersistQuery({ page: 1 }, persistQuery);
             if (trimmedSearch) params.search = trimmedSearch;
             router.get(searchUrl, params, {
                 preserveState: true,
@@ -40,19 +59,23 @@ export function DataTableToolbar({
                 replace: true,
             });
         },
-        [searchUrl, trimmedSearch]
+        [searchUrl, trimmedSearch, persistQuery]
     );
 
     const handleClear = useCallback(() => {
         setSearch('');
-        router.get(searchUrl, {}, { preserveState: true, preserveScroll: true, replace: true });
-    }, [searchUrl]);
+        router.get(searchUrl, mergePersistQuery({ page: 1 }, persistQuery), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }, [searchUrl, persistQuery]);
 
     useEffect(() => {
         if (!autoSearch) return;
 
         const handle = setTimeout(() => {
-            const params: Record<string, string | number> = { page: 1 };
+            const params = mergePersistQuery({ page: 1 }, persistQuery);
             if (trimmedSearch) params.search = trimmedSearch;
 
             router.get(searchUrl, params, {
@@ -63,7 +86,7 @@ export function DataTableToolbar({
         }, debounceMs);
 
         return () => clearTimeout(handle);
-    }, [autoSearch, debounceMs, searchUrl, trimmedSearch]);
+    }, [autoSearch, debounceMs, searchUrl, trimmedSearch, persistQuery]);
 
     return (
         <form

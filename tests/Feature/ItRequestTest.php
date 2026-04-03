@@ -68,7 +68,7 @@ class ItRequestTest extends TestCase
         $response = $this->from(route('it-requests.show', $itRequest))
             ->post(route('it-requests.submit', $itRequest));
 
-        $response->assertRedirect(route('it-requests.show', $itRequest));
+        $response->assertRedirect(route('it-requests.index'));
         $response->assertSessionHas('success');
         $this->assertSame('submitted', $itRequest->fresh()->status);
     }

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LeaveTypeController::index
  * @see app/Http/Controllers/LeaveTypeController.php:18
@@ -42,6 +42,41 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::index
+ * @see app/Http/Controllers/LeaveTypeController.php:18
+ * @route '/leave-types'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::index
+ * @see app/Http/Controllers/LeaveTypeController.php:18
+ * @route '/leave-types'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::index
+ * @see app/Http/Controllers/LeaveTypeController.php:18
+ * @route '/leave-types'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\LeaveTypeController::create
  * @see app/Http/Controllers/LeaveTypeController.php:42
@@ -85,6 +120,41 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::create
+ * @see app/Http/Controllers/LeaveTypeController.php:42
+ * @route '/leave-types/create'
+ */
+    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: create.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::create
+ * @see app/Http/Controllers/LeaveTypeController.php:42
+ * @route '/leave-types/create'
+ */
+        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::create
+ * @see app/Http/Controllers/LeaveTypeController.php:42
+ * @route '/leave-types/create'
+ */
+        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    create.form = createForm
 /**
 * @see \App\Http\Controllers\LeaveTypeController::store
  * @see app/Http/Controllers/LeaveTypeController.php:50
@@ -119,6 +189,27 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::store
+ * @see app/Http/Controllers/LeaveTypeController.php:50
+ * @route '/leave-types'
+ */
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::store
+ * @see app/Http/Controllers/LeaveTypeController.php:50
+ * @route '/leave-types'
+ */
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\LeaveTypeController::show
  * @see app/Http/Controllers/LeaveTypeController.php:0
@@ -181,6 +272,41 @@ show.head = (args: { leave_type: string | number } | [leave_type: string | numbe
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::show
+ * @see app/Http/Controllers/LeaveTypeController.php:0
+ * @route '/leave-types/{leave_type}'
+ */
+    const showForm = (args: { leave_type: string | number } | [leave_type: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::show
+ * @see app/Http/Controllers/LeaveTypeController.php:0
+ * @route '/leave-types/{leave_type}'
+ */
+        showForm.get = (args: { leave_type: string | number } | [leave_type: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::show
+ * @see app/Http/Controllers/LeaveTypeController.php:0
+ * @route '/leave-types/{leave_type}'
+ */
+        showForm.head = (args: { leave_type: string | number } | [leave_type: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
 /**
 * @see \App\Http\Controllers\LeaveTypeController::edit
  * @see app/Http/Controllers/LeaveTypeController.php:60
@@ -248,6 +374,41 @@ edit.head = (args: { leave_type: number | { id: number } } | [leave_type: number
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::edit
+ * @see app/Http/Controllers/LeaveTypeController.php:60
+ * @route '/leave-types/{leave_type}/edit'
+ */
+    const editForm = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::edit
+ * @see app/Http/Controllers/LeaveTypeController.php:60
+ * @route '/leave-types/{leave_type}/edit'
+ */
+        editForm.get = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::edit
+ * @see app/Http/Controllers/LeaveTypeController.php:60
+ * @route '/leave-types/{leave_type}/edit'
+ */
+        editForm.head = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    edit.form = editForm
 /**
 * @see \App\Http\Controllers\LeaveTypeController::update
  * @see app/Http/Controllers/LeaveTypeController.php:70
@@ -315,6 +476,51 @@ update.patch = (args: { leave_type: number | { id: number } } | [leave_type: num
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::update
+ * @see app/Http/Controllers/LeaveTypeController.php:70
+ * @route '/leave-types/{leave_type}'
+ */
+    const updateForm = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PUT',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::update
+ * @see app/Http/Controllers/LeaveTypeController.php:70
+ * @route '/leave-types/{leave_type}'
+ */
+        updateForm.put = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PUT',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::update
+ * @see app/Http/Controllers/LeaveTypeController.php:70
+ * @route '/leave-types/{leave_type}'
+ */
+        updateForm.patch = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\LeaveTypeController::destroy
  * @see app/Http/Controllers/LeaveTypeController.php:80
@@ -372,6 +578,38 @@ destroy.delete = (args: { leave_type: number | { id: number } } | [leave_type: n
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\LeaveTypeController::destroy
+ * @see app/Http/Controllers/LeaveTypeController.php:80
+ * @route '/leave-types/{leave_type}'
+ */
+    const destroyForm = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LeaveTypeController::destroy
+ * @see app/Http/Controllers/LeaveTypeController.php:80
+ * @route '/leave-types/{leave_type}'
+ */
+        destroyForm.delete = (args: { leave_type: number | { id: number } } | [leave_type: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const LeaveTypeController = { index, create, store, show, edit, update, destroy }
 
 export default LeaveTypeController

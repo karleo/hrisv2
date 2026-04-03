@@ -124,7 +124,9 @@ class ItRequestController extends Controller
 
         $it_request->update(['status' => 'submitted']);
 
-        return redirect()->back()->with('success', 'IT request submitted.');
+        return redirect()
+            ->route('it-requests.index')
+            ->with('success', 'IT request submitted.');
     }
 
     /**

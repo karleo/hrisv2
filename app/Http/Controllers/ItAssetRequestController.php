@@ -127,7 +127,9 @@ class ItAssetRequestController extends Controller
 
         $it_asset_request->update(['status' => 'submitted']);
 
-        return redirect()->back()->with('success', 'IT asset request submitted.');
+        return redirect()
+            ->route('it-asset-requests.index')
+            ->with('success', 'IT asset request submitted.');
     }
 
     /**

@@ -122,7 +122,9 @@ class EmployeeRequestController extends Controller
 
         $employee_request->update(['status' => 'submitted']);
 
-        return redirect()->back()->with('success', 'Employee request submitted.');
+        return redirect()
+            ->route('employee-requests.index')
+            ->with('success', 'Employee request submitted.');
     }
 
     /**

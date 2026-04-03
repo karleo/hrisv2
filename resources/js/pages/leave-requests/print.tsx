@@ -66,7 +66,7 @@ function fullName(emp?: Employee | null): string {
 function FormInputBox({ children, className = '' }: { children: ReactNode; className?: string }) {
     return (
         <div
-            className={`flex min-h-9 items-center border border-neutral-400 bg-white px-2 py-1.5 text-sm uppercase tracking-wide text-neutral-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)] ${className}`}
+            className={`flex min-h-9 items-center border border-neutral-400 bg-white px-2 py-1.5 text-sm uppercase tracking-wide text-neutral-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)] print:min-h-8 print:py-1 print:text-xs ${className}`}
         >
             {children}
         </div>
@@ -75,7 +75,7 @@ function FormInputBox({ children, className = '' }: { children: ReactNode; class
 
 function AccentRule() {
     return (
-        <div className="my-5 flex h-px items-stretch">
+        <div className="my-5 flex h-px items-stretch print:my-2">
             <div className="flex h-1 shrink-0 self-center rounded-sm overflow-hidden">
                 <div className="w-6 bg-cyan-500" />
                 <div className="w-6 bg-orange-500" />
@@ -125,7 +125,7 @@ export default function LeaveRequestPrint({
     return (
         <>
             <Head title={`Leave Request ${leaveRequest.code} – Print`} />
-            <div className="min-h-screen bg-white p-6 text-neutral-800 print:bg-white print:p-4">
+            <div className="leave-print-root min-h-screen bg-[#d9d9d9] p-4 text-[#111a6b] print:min-h-screen print:flex print:flex-col print:bg-[#d9d9d9] print:p-1">
                 <div className="no-print mb-6 flex items-center justify-between gap-4 border-b border-neutral-300 pb-4">
                     <Link
                         href={`/leave-requests/${leaveRequest.id}`}
@@ -144,53 +144,63 @@ export default function LeaveRequestPrint({
                     </button>
                 </div>
 
-                <article className="mx-auto max-w-4xl px-1 print:max-w-none">
+                <article className="leave-print-article mx-auto w-full max-w-[920px] border border-neutral-400 bg-[#e6e6e6] p-10 print:mx-0 print:flex print:min-h-0 print:max-w-none print:flex-1 print:flex-col print:p-5">
                     {/* Header */}
-                    <header className="mb-6 flex flex-row items-start justify-between gap-4">
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                            <div className="h-14 w-1 shrink-0 bg-[#1a237e]" aria-hidden />
-                            <h1 className="font-serif text-3xl font-normal tracking-tight text-[#1a237e] md:text-4xl">
-                                Leave Form
-                            </h1>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end text-right">
-                            {companyLogoUrl ? (
-                                <img
-                                    src={companyLogoUrl}
-                                    alt=""
-                                    className="h-24 w-auto max-w-[300px] object-contain print:h-20"
-                                />
-                            ) : null}
+                    <header className="-mx-10 -mt-10 mb-6 shrink-0 border-b border-neutral-300 bg-white px-10 py-6 print:-mx-5 print:-mt-5 print:mb-3 print:px-5 print:py-3">
+                        <div className="flex min-h-24 flex-row items-center justify-between gap-4 print:min-h-[3.75rem]">
+                            <div className="flex min-w-0 flex-1 items-center pt-2 print:pt-0">
+                                <h1 className="text-3xl font-semibold leading-tight tracking-tight text-[#111a8a] print:text-xl">
+                                    Leave Form
+                                </h1>
+                            </div>
+                            <div className="flex h-24 min-w-0 max-w-[45%] shrink-0 items-center justify-end sm:min-w-[15rem] print:h-[3.75rem]">
+                                {companyLogoUrl ? (
+                                    <img
+                                        src={companyLogoUrl}
+                                        alt=""
+                                        className="max-h-24 w-auto max-w-full object-contain object-right-bottom sm:max-w-[300px] print:max-h-[3.75rem]"
+                                    />
+                                ) : (
+                                    <div
+                                        className="h-12 w-44 border-b border-neutral-400"
+                                        aria-hidden
+                                    >
+                                        &nbsp;
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </header>
 
+                    <div className="flex min-h-0 flex-1 flex-col print:min-h-0">
                     {/* Employee details */}
-                    <section className="space-y-4">
-                        <div className="flex flex-wrap items-end justify-between gap-4">
-                            <div className="min-w-[200px] flex-1 space-y-4">
-                                <div>
-                                    <p className="mb-1 text-xs font-medium text-neutral-600">Full Name</p>
-                                    <FormInputBox>
-                                        {fullName(leaveRequest.employee) ? (
-                                            fullName(leaveRequest.employee)
-                                        ) : (
-                                            <span className="text-neutral-400 normal-case">—</span>
-                                        )}
-                                    </FormInputBox>
-                                </div>
-                                <div>
-                                    <p className="mb-1 text-xs font-medium text-neutral-600">Department / Location</p>
-                                    <FormInputBox>
-                                        {leaveRequest.department?.name ?? (
-                                            <span className="text-neutral-400 normal-case">—</span>
-                                        )}
-                                    </FormInputBox>
-                                </div>
-                            </div>
-                            <div className="w-40 shrink-0">
-                                <p className="mb-1 text-xs font-medium text-neutral-600">Date</p>
+                    <section className="space-y-3">
+                        <div className="grid grid-cols-[1fr_150px] items-end gap-3">
+                            <h2 className="text-sm font-semibold text-[#48525a]">Employees Details</h2>
+                            <div className="min-w-0">
+                                <p className="mb-1 text-xs font-semibold text-[#1c287f]">Date</p>
                                 <FormInputBox>
                                     {formatUsDate(leaveRequest.date) || (
+                                        <span className="text-neutral-400 normal-case">—</span>
+                                    )}
+                                </FormInputBox>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="min-w-0">
+                                <p className="mb-1 text-xs font-semibold text-[#1c287f]">Full Name</p>
+                                <FormInputBox>
+                                    {fullName(leaveRequest.employee) ? (
+                                        fullName(leaveRequest.employee)
+                                    ) : (
+                                        <span className="text-neutral-400 normal-case">—</span>
+                                    )}
+                                </FormInputBox>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="mb-1 text-xs font-semibold text-[#1c287f]">Department/Location:</p>
+                                <FormInputBox>
+                                    {leaveRequest.department?.name ?? (
                                         <span className="text-neutral-400 normal-case">—</span>
                                     )}
                                 </FormInputBox>
@@ -201,12 +211,12 @@ export default function LeaveRequestPrint({
                     <AccentRule />
 
                     {/* Absence, details, remarks */}
-                    <section className="grid gap-6 md:grid-cols-3 md:gap-4">
-                        <div>
-                            <p className="mb-3 text-xs font-semibold text-neutral-700">
+                    <section className="grid items-start gap-6 md:grid-cols-3 md:gap-8 print:grid-cols-3 print:items-stretch print:gap-3">
+                        <div className="min-w-0">
+                            <p className="mb-2 text-sm font-semibold text-[#1c287f]">
                                 Type of Absence Requested
                             </p>
-                            <ul className="space-y-2 text-sm text-neutral-800">
+                            <ul className="space-y-2 text-sm text-neutral-800 print:space-y-1">
                                 {ABSENCE_LABELS.map(({ label, value }) => (
                                     <li key={value} className="flex items-start gap-2">
                                         <MarkBoxX checked={selectedAbsence === value} />
@@ -227,9 +237,9 @@ export default function LeaveRequestPrint({
                             </ul>
                         </div>
 
-                        <div>
-                            <p className="mb-3 text-xs font-semibold text-neutral-700">Details</p>
-                            <ul className="space-y-2 text-sm text-neutral-800">
+                        <div className="min-w-0">
+                            <p className="mb-2 text-sm font-semibold text-[#1c287f]">Details</p>
+                            <ul className="space-y-2 text-sm text-neutral-800 print:space-y-1">
                                 {DETAIL_OPTIONS.map((opt) => (
                                     <li key={opt} className="flex items-start gap-2">
                                         <MarkBoxDot checked={leaveRequest.details === opt} />
@@ -239,9 +249,9 @@ export default function LeaveRequestPrint({
                             </ul>
                         </div>
 
-                        <div className="md:min-h-[200px]">
-                            <p className="mb-3 text-xs font-semibold text-neutral-700">Reason / Remarks</p>
-                            <div className="flex min-h-[180px] flex-col border border-neutral-500 bg-white p-2 text-sm uppercase tracking-wide text-neutral-600 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] md:min-h-[200px]">
+                        <div className="flex min-h-0 min-w-0 flex-col md:min-h-[200px] print:min-h-0">
+                            <p className="mb-2 text-sm font-semibold text-[#1c287f] print:mb-1">Reason / Remarks</p>
+                            <div className="flex min-h-[180px] flex-1 flex-col border border-neutral-500 bg-white p-2 text-sm uppercase tracking-wide text-neutral-600 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] md:min-h-[200px] print:min-h-[5rem] print:flex-1 print:p-1.5 print:text-xs">
                                 {remarksText ? (
                                     <p className="whitespace-pre-wrap">{remarksText}</p>
                                 ) : (
@@ -252,13 +262,13 @@ export default function LeaveRequestPrint({
                     </section>
 
                     {/* Period of absence */}
-                    <section className="mt-8">
-                        <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-[#1a237e]">
+                    <section className="mt-8 print:mt-4">
+                        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#00107f] print:mb-1.5 print:text-xs">
                             Period of Absence
                         </h2>
-                        <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-3 print:grid-cols-3 print:gap-3">
                             <div>
-                                <p className="mb-1 text-xs font-medium text-neutral-600">From</p>
+                                <p className="mb-1 text-xs font-semibold text-[#00107f]">From</p>
                                 <FormInputBox>
                                     {formatUsDate(leaveRequest.period_from) || (
                                         <span className="text-neutral-400 normal-case">—</span>
@@ -266,7 +276,7 @@ export default function LeaveRequestPrint({
                                 </FormInputBox>
                             </div>
                             <div>
-                                <p className="mb-1 text-xs font-medium text-neutral-600">To</p>
+                                <p className="mb-1 text-xs font-semibold text-[#00107f]">To</p>
                                 <FormInputBox>
                                     {formatUsDate(leaveRequest.period_to) || (
                                         <span className="text-neutral-400 normal-case">—</span>
@@ -274,7 +284,7 @@ export default function LeaveRequestPrint({
                                 </FormInputBox>
                             </div>
                             <div>
-                                <p className="mb-1 text-xs font-medium text-neutral-600">Number of Days</p>
+                                <p className="mb-1 text-xs font-semibold text-[#00107f]">Number of Days</p>
                                 <FormInputBox>
                                     {daysLabel(leaveRequest.days) || (
                                         <span className="text-neutral-400 normal-case">—</span>
@@ -283,38 +293,43 @@ export default function LeaveRequestPrint({
                             </div>
                         </div>
 
-                        <div className="mt-10">
-                            <div className="flex min-h-20 items-end justify-center px-2 pb-2 print:min-h-[5.5rem]">
+                        <div className="mt-10 print:mt-4">
+                            <div className="flex min-h-20 items-end justify-center px-2 pb-2 print:min-h-10 print:pb-0.5">
                                 {leaveRequest.employee_signature_url ? (
                                     <img
                                         src={leaveRequest.employee_signature_url}
                                         alt="Employee signature"
-                                        className="max-h-20 w-auto max-w-full object-contain object-bottom print:max-h-24"
+                                        className="max-h-20 w-auto max-w-full object-contain object-bottom"
                                     />
                                 ) : null}
                             </div>
                             <div className="border-b border-neutral-800" />
-                            <p className="mt-1 text-center text-xs text-neutral-600">Employees Signature</p>
+                            <p className="mt-1 text-center text-xs font-medium text-[#3c4295]">Employees Signature</p>
                         </div>
                     </section>
 
+                    {/* Grows in print so manager + Ref sit toward the bottom of the page */}
+                    <div
+                        className="hidden min-h-0 print:block print:flex-1"
+                        aria-hidden
+                    />
+
                     <AccentRule />
 
-                    {/* Manager approval */}
-                    <section className="pb-8">
-                        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-                            <h2 className="text-sm font-bold uppercase tracking-wide text-[#1a237e]">
+                    <section className="shrink-0 pb-8 print:pb-2">
+                        <div className="mb-4 grid grid-cols-[1fr_11rem] items-end gap-3 print:mb-1.5">
+                            <h2 className="text-sm font-bold uppercase tracking-wide text-[#00107f] print:text-xs">
                                 Manager / Supervisor Approval
                             </h2>
-                            <div className="w-44 shrink-0">
-                                <p className="mb-1 text-xs font-medium text-neutral-600">Date Approved</p>
+                            <div className="min-w-0">
+                                <p className="mb-1 text-xs font-semibold text-[#00107f]">Date Approved</p>
                                 <FormInputBox>
                                     <span className="text-neutral-400 normal-case">&nbsp;</span>
                                 </FormInputBox>
                             </div>
                         </div>
 
-                        <div className="mb-6 flex flex-wrap gap-8 text-sm">
+                        <div className="mb-6 flex flex-wrap gap-8 text-sm print:mb-2 print:gap-5 print:text-xs">
                             <label className="flex cursor-default items-start gap-2">
                                 <MarkBoxX checked={false} />
                                 <span>Cancelled</span>
@@ -325,29 +340,70 @@ export default function LeaveRequestPrint({
                             </label>
                         </div>
 
-                        <div className="mt-8">
-                            <div className="border-b border-neutral-800 pb-1" />
-                            <p className="mt-1 text-center text-xs text-neutral-600">CEO / Manager Signature</p>
+                        <div className="mt-8 print:mt-3">
+                            <div className="border-b border-neutral-800 pb-1 print:pb-0" />
+                            <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
+                                Signature
+                            </p>
                             {leaveRequest.approved_by_signature_url ? (
-                                <div className="mt-2 flex justify-center">
+                                <div className="mt-2 flex justify-center print:mt-0.5">
                                     <img
                                         src={leaveRequest.approved_by_signature_url}
                                         alt=""
-                                        className="h-16 max-w-xs object-contain object-bottom"
+                                        className="h-16 max-w-xs object-contain object-bottom print:h-10"
                                     />
                                 </div>
                             ) : null}
                         </div>
                     </section>
 
-                    <p className="mt-6 text-center text-[10px] text-neutral-500 print:mt-4">Ref: {leaveRequest.code}</p>
+                    <p className="mt-6 shrink-0 text-center text-[10px] text-neutral-500 print:mt-2 print:text-[9px]">
+                        Ref: {leaveRequest.code}
+                    </p>
+                    </div>
                 </article>
             </div>
 
             <style>{`
+                /* Match on-screen preview: centered card on gray frame; normal page margins. */
+                @page {
+                    size: A4 portrait;
+                    margin: 6mm;
+                }
                 @media print {
                     .no-print { display: none !important; }
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    html,
+                    body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        min-height: 100vh;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .leave-print-root {
+                        box-sizing: border-box;
+                        min-height: 100vh !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                    }
+                    .leave-print-article {
+                        width: 100% !important;
+                        max-width: none !important;
+                        margin: 0 !important;
+                        box-sizing: border-box;
+                    }
+                    #app {
+                        width: 100% !important;
+                        max-width: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        display: block !important;
+                        min-height: 100vh !important;
+                    }
+                    #app > * {
+                        width: 100% !important;
+                        max-width: none !important;
+                    }
                 }
             `}</style>
         </>
