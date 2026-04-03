@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,6 +18,7 @@ class LeaveRequestTest extends TestCase
     {
         parent::setUp();
 
+        $this->withoutMiddleware(ValidateCsrfToken::class);
         $this->actingAs(User::factory()->create());
     }
 
@@ -86,7 +88,46 @@ class LeaveRequestTest extends TestCase
             'id' => $leaveRequest->id,
             'employee_id' => $employee->id,
             'department_id' => $department->id,
+            'status' => 'draft',
         ]);
+    }
+
+    public function test_submit_sets_status_to_submitted_when_draft(): void
+    {
+        [$employee, $department] = $this->createEmployeeAndDepartment();
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+            'status' => 'draft',
+        ]);
+
+        $response = $this->from(route('leave-requests.show', $leaveRequest))
+            ->post(route('leave-requests.submit', $leaveRequest));
+
+        $response->assertRedirect(route('leave-requests.show', $leaveRequest));
+        $response->assertSessionHas('success');
+        $this->assertSame('submitted', $leaveRequest->fresh()->status);
+    }
+
+    public function test_submit_fails_when_not_draft(): void
+    {
+        [$employee, $department] = $this->createEmployeeAndDepartment();
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->from(route('leave-requests.show', $leaveRequest))
+            ->post(route('leave-requests.submit', $leaveRequest));
+
+        $response->assertRedirect(route('leave-requests.show', $leaveRequest));
+        $response->assertSessionHas('error');
+        $this->assertSame('submitted', $leaveRequest->fresh()->status);
     }
 
     public function test_store_requires_absence_types(): void
@@ -150,7 +191,7 @@ class LeaveRequestTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('leave-requests/print')
             ->has('leaveRequest')
-            ->has('companyName')
+            ->has('companyLogoUrl')
             ->where('leaveRequest.code', $leaveRequest->code)
         );
     }

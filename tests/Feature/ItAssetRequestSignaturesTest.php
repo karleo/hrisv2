@@ -42,7 +42,7 @@ class ItAssetRequestSignaturesTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('it-asset-requests/print')
             ->has('itAssetRequest')
-            ->has('companyName')
+            ->has('companyLogoUrl')
             ->where('itAssetRequest.id', $itAssetRequest->id)
         );
     }

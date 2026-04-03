@@ -3,6 +3,10 @@ import { ArrowLeft } from 'lucide-react';
 import ItRequestController from '@/actions/App/Http/Controllers/ItRequestController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import {
+    RequestEmployeeSignatureCard,
+    itRequestEditSignatureVisitOnly,
+} from '@/components/request-employee-signature-card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -29,6 +33,8 @@ type ItRequest = {
     hardware_id: number | null;
     date: string;
     status: string;
+    employee_signature_url?: string | null;
+    employee?: { first_name: string; last_name: string };
 };
 
 type SoftwareOption = {
@@ -47,12 +53,16 @@ export default function Edit({
     itRequest,
     employees,
     departments,
+    software,
+    hardware,
+    signaturesUrl,
 }: {
     itRequest: ItRequest;
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     software: SoftwareOption[];
     hardware: HardwareOption[];
+    signaturesUrl: string;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Requests', href: index().url },
@@ -98,7 +108,7 @@ export default function Edit({
 
                 <Heading
                     title={`Edit IT Request #${itRequest.id}`}
-                    description="Update the IT request details"
+                    description="Update the IT request details and employee signature."
                 />
 
                 <form
@@ -226,6 +236,19 @@ export default function Edit({
                         />
                         <InputError message={errors.date} />
                     </div>
+
+                    <RequestEmployeeSignatureCard
+                        signatureUrl={itRequest.employee_signature_url ?? null}
+                        signaturesUrl={signaturesUrl}
+                        visitOnly={itRequestEditSignatureVisitOnly}
+                        employeeName={
+                            itRequest.employee
+                                ? `${itRequest.employee.first_name} ${itRequest.employee.last_name}`
+                                : selectedEmployee
+                                  ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
+                                  : undefined
+                        }
+                    />
 
                     <div className="flex gap-4">
                         <Button

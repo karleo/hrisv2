@@ -94,6 +94,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('it-requests/edit')
+                ->has('signaturesUrl')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
             );
@@ -110,6 +111,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('employee-requests/edit')
+                ->has('signaturesUrl')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
             );

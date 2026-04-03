@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ItRequestController::index
  * @see app/Http/Controllers/ItRequestController.php:24
@@ -42,41 +42,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::index
- * @see app/Http/Controllers/ItRequestController.php:24
- * @route '/it-requests'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::index
- * @see app/Http/Controllers/ItRequestController.php:24
- * @route '/it-requests'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ItRequestController::index
- * @see app/Http/Controllers/ItRequestController.php:24
- * @route '/it-requests'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\ItRequestController::create
  * @see app/Http/Controllers/ItRequestController.php:48
@@ -120,41 +85,6 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::create
- * @see app/Http/Controllers/ItRequestController.php:48
- * @route '/it-requests/create'
- */
-    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::create
- * @see app/Http/Controllers/ItRequestController.php:48
- * @route '/it-requests/create'
- */
-        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ItRequestController::create
- * @see app/Http/Controllers/ItRequestController.php:48
- * @route '/it-requests/create'
- */
-        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    create.form = createForm
 /**
 * @see \App\Http\Controllers\ItRequestController::store
  * @see app/Http/Controllers/ItRequestController.php:70
@@ -189,30 +119,9 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::store
- * @see app/Http/Controllers/ItRequestController.php:70
- * @route '/it-requests'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::store
- * @see app/Http/Controllers/ItRequestController.php:70
- * @route '/it-requests'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
+ * @see app/Http/Controllers/ItRequestController.php:91
  * @route '/it-requests/{it_request}'
  */
 export const show = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -227,7 +136,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
+ * @see app/Http/Controllers/ItRequestController.php:91
  * @route '/it-requests/{it_request}'
  */
 show.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -260,7 +169,7 @@ show.url = (args: { it_request: number | { id: number } } | [it_request: number 
 
 /**
 * @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
+ * @see app/Http/Controllers/ItRequestController.php:91
  * @route '/it-requests/{it_request}'
  */
 show.get = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -269,7 +178,7 @@ show.get = (args: { it_request: number | { id: number } } | [it_request: number 
 })
 /**
 * @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
+ * @see app/Http/Controllers/ItRequestController.php:91
  * @route '/it-requests/{it_request}'
  */
 show.head = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -277,44 +186,9 @@ show.head = (args: { it_request: number | { id: number } } | [it_request: number
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
- * @route '/it-requests/{it_request}'
- */
-    const showForm = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
- * @route '/it-requests/{it_request}'
- */
-        showForm.get = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ItRequestController::show
- * @see app/Http/Controllers/ItRequestController.php:92
- * @route '/it-requests/{it_request}'
- */
-        showForm.head = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
+ * @see app/Http/Controllers/ItRequestController.php:157
  * @route '/it-requests/{it_request}/edit'
  */
 export const edit = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -329,7 +203,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
+ * @see app/Http/Controllers/ItRequestController.php:157
  * @route '/it-requests/{it_request}/edit'
  */
 edit.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -362,7 +236,7 @@ edit.url = (args: { it_request: number | { id: number } } | [it_request: number 
 
 /**
 * @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
+ * @see app/Http/Controllers/ItRequestController.php:157
  * @route '/it-requests/{it_request}/edit'
  */
 edit.get = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -371,7 +245,7 @@ edit.get = (args: { it_request: number | { id: number } } | [it_request: number 
 })
 /**
 * @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
+ * @see app/Http/Controllers/ItRequestController.php:157
  * @route '/it-requests/{it_request}/edit'
  */
 edit.head = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -379,44 +253,9 @@ edit.head = (args: { it_request: number | { id: number } } | [it_request: number
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
- * @route '/it-requests/{it_request}/edit'
- */
-    const editForm = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: edit.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
- * @route '/it-requests/{it_request}/edit'
- */
-        editForm.get = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ItRequestController::edit
- * @see app/Http/Controllers/ItRequestController.php:143
- * @route '/it-requests/{it_request}/edit'
- */
-        editForm.head = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    edit.form = editForm
 /**
 * @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
+ * @see app/Http/Controllers/ItRequestController.php:193
  * @route '/it-requests/{it_request}'
  */
 export const update = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -431,7 +270,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
+ * @see app/Http/Controllers/ItRequestController.php:193
  * @route '/it-requests/{it_request}'
  */
 update.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -464,7 +303,7 @@ update.url = (args: { it_request: number | { id: number } } | [it_request: numbe
 
 /**
 * @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
+ * @see app/Http/Controllers/ItRequestController.php:193
  * @route '/it-requests/{it_request}'
  */
 update.put = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -473,7 +312,7 @@ update.put = (args: { it_request: number | { id: number } } | [it_request: numbe
 })
 /**
 * @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
+ * @see app/Http/Controllers/ItRequestController.php:193
  * @route '/it-requests/{it_request}'
  */
 update.patch = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -481,54 +320,9 @@ update.patch = (args: { it_request: number | { id: number } } | [it_request: num
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
- * @route '/it-requests/{it_request}'
- */
-    const updateForm = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PUT',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
- * @route '/it-requests/{it_request}'
- */
-        updateForm.put = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PUT',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-            /**
-* @see \App\Http\Controllers\ItRequestController::update
- * @see app/Http/Controllers/ItRequestController.php:168
- * @route '/it-requests/{it_request}'
- */
-        updateForm.patch = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\ItRequestController::destroy
- * @see app/Http/Controllers/ItRequestController.php:190
+ * @see app/Http/Controllers/ItRequestController.php:215
  * @route '/it-requests/{it_request}'
  */
 export const destroy = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -543,7 +337,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\ItRequestController::destroy
- * @see app/Http/Controllers/ItRequestController.php:190
+ * @see app/Http/Controllers/ItRequestController.php:215
  * @route '/it-requests/{it_request}'
  */
 destroy.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -576,7 +370,7 @@ destroy.url = (args: { it_request: number | { id: number } } | [it_request: numb
 
 /**
 * @see \App\Http\Controllers\ItRequestController::destroy
- * @see app/Http/Controllers/ItRequestController.php:190
+ * @see app/Http/Controllers/ItRequestController.php:215
  * @route '/it-requests/{it_request}'
  */
 destroy.delete = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -584,40 +378,67 @@ destroy.delete = (args: { it_request: number | { id: number } } | [it_request: n
     method: 'delete',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::destroy
- * @see app/Http/Controllers/ItRequestController.php:190
- * @route '/it-requests/{it_request}'
+/**
+* @see \App\Http\Controllers\ItRequestController::submit
+ * @see app/Http/Controllers/ItRequestController.php:119
+ * @route '/it-requests/{it_request}/submit'
  */
-    const destroyForm = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+export const submit = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: submit.url(args, options),
+    method: 'post',
+})
 
-            /**
-* @see \App\Http\Controllers\ItRequestController::destroy
- * @see app/Http/Controllers/ItRequestController.php:190
- * @route '/it-requests/{it_request}'
+submit.definition = {
+    methods: ["post"],
+    url: '/it-requests/{it_request}/submit',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\ItRequestController::submit
+ * @see app/Http/Controllers/ItRequestController.php:119
+ * @route '/it-requests/{it_request}/submit'
  */
-        destroyForm.delete = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+submit.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { it_request: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { it_request: args.id }
+        }
     
-    destroy.form = destroyForm
+    if (Array.isArray(args)) {
+        args = {
+                    it_request: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        it_request: typeof args.it_request === 'object'
+                ? args.it_request.id
+                : args.it_request,
+                }
+
+    return submit.definition.url
+            .replace('{it_request}', parsedArgs.it_request.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\ItRequestController::submit
+ * @see app/Http/Controllers/ItRequestController.php:119
+ * @route '/it-requests/{it_request}/submit'
+ */
+submit.post = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: submit.url(args, options),
+    method: 'post',
+})
+
 /**
 * @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
+ * @see app/Http/Controllers/ItRequestController.php:133
  * @route '/it-requests/{it_request}/print'
  */
 export const print = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -632,7 +453,7 @@ print.definition = {
 
 /**
 * @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
+ * @see app/Http/Controllers/ItRequestController.php:133
  * @route '/it-requests/{it_request}/print'
  */
 print.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -665,7 +486,7 @@ print.url = (args: { it_request: number | { id: number } } | [it_request: number
 
 /**
 * @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
+ * @see app/Http/Controllers/ItRequestController.php:133
  * @route '/it-requests/{it_request}/print'
  */
 print.get = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -674,7 +495,7 @@ print.get = (args: { it_request: number | { id: number } } | [it_request: number
 })
 /**
 * @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
+ * @see app/Http/Controllers/ItRequestController.php:133
  * @route '/it-requests/{it_request}/print'
  */
 print.head = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -682,44 +503,9 @@ print.head = (args: { it_request: number | { id: number } } | [it_request: numbe
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
- * @route '/it-requests/{it_request}/print'
- */
-    const printForm = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: print.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
- * @route '/it-requests/{it_request}/print'
- */
-        printForm.get = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: print.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ItRequestController::print
- * @see app/Http/Controllers/ItRequestController.php:119
- * @route '/it-requests/{it_request}/print'
- */
-        printForm.head = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: print.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    print.form = printForm
 /**
 * @see \App\Http\Controllers\ItRequestController::updateSignatures
- * @see app/Http/Controllers/ItRequestController.php:207
+ * @see app/Http/Controllers/ItRequestController.php:232
  * @route '/it-requests/{it_request}/signatures'
  */
 export const updateSignatures = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -734,7 +520,7 @@ updateSignatures.definition = {
 
 /**
 * @see \App\Http\Controllers\ItRequestController::updateSignatures
- * @see app/Http/Controllers/ItRequestController.php:207
+ * @see app/Http/Controllers/ItRequestController.php:232
  * @route '/it-requests/{it_request}/signatures'
  */
 updateSignatures.url = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -767,35 +553,13 @@ updateSignatures.url = (args: { it_request: number | { id: number } } | [it_requ
 
 /**
 * @see \App\Http\Controllers\ItRequestController::updateSignatures
- * @see app/Http/Controllers/ItRequestController.php:207
+ * @see app/Http/Controllers/ItRequestController.php:232
  * @route '/it-requests/{it_request}/signatures'
  */
 updateSignatures.post = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: updateSignatures.url(args, options),
     method: 'post',
 })
-
-    /**
-* @see \App\Http\Controllers\ItRequestController::updateSignatures
- * @see app/Http/Controllers/ItRequestController.php:207
- * @route '/it-requests/{it_request}/signatures'
- */
-    const updateSignaturesForm = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: updateSignatures.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ItRequestController::updateSignatures
- * @see app/Http/Controllers/ItRequestController.php:207
- * @route '/it-requests/{it_request}/signatures'
- */
-        updateSignaturesForm.post = (args: { it_request: number | { id: number } } | [it_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: updateSignatures.url(args, options),
-            method: 'post',
-        })
-    
-    updateSignatures.form = updateSignaturesForm
-const ItRequestController = { index, create, store, show, edit, update, destroy, print, updateSignatures }
+const ItRequestController = { index, create, store, show, edit, update, destroy, submit, print, updateSignatures }
 
 export default ItRequestController

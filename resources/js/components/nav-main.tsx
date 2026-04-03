@@ -38,7 +38,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <SidebarMenuSubButton
                         asChild
                         isActive={isActive}
-                        className="h-9 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2.5 text-[13px] font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                        className="h-9 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2.5 text-[13px] font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words [&>span:last-child]:leading-tight"
                     >
                         <Link href={item.href ?? '#'} prefetch>
                             {item.icon && <item.icon />}
@@ -55,7 +55,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <CollapsibleTrigger asChild>
                         <SidebarMenuSubButton
                             isActive={isActive}
-                            className="h-9 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2.5 text-[13px] font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                            className="h-9 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2.5 text-[13px] font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words [&>span:last-child]:leading-tight"
                         >
                             {item.icon && <item.icon />}
                             <span>{item.title}</span>
@@ -63,7 +63,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         </SidebarMenuSubButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                        <SidebarMenuSub className="mt-2 space-y-1 pl-4">
+                        <SidebarMenuSub className="mt-2 space-y-1 pl-2">
                             {item.items!.map((child) => renderSubItem(child))}
                         </SidebarMenuSub>
                     </CollapsibleContent>
@@ -93,11 +93,13 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
                                             isActive={isAnyChildActive}
-                                            className="h-auto min-h-14 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                                            className="h-auto min-h-14 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
                                         >
                                             {item.icon && <item.icon className="mt-0.5" />}
                                             <div className="flex min-w-0 flex-1 items-center">
-                                                <span className="truncate font-medium">{item.title}</span>
+                                                <span className="font-medium whitespace-normal break-words leading-tight">
+                                                    {item.title}
+                                                </span>
                                             </div>
                                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                                         </SidebarMenuButton>
@@ -119,12 +121,14 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 asChild
                                 isActive={!!item.href && isCurrentUrl(item.href)}
                                 tooltip={{ children: item.title }}
-                                className="h-auto min-h-14 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                                className="h-auto min-h-14 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
                             >
                                 <Link href={item.href ?? '#'} prefetch>
                                     {item.icon && <item.icon className="mt-0.5" />}
                                     <div className="flex min-w-0 flex-1 items-center">
-                                        <span className="truncate font-medium">{item.title}</span>
+                                        <span className="font-medium whitespace-normal break-words leading-tight">
+                                            {item.title}
+                                        </span>
                                     </div>
                                 </Link>
                             </SidebarMenuButton>

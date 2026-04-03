@@ -54,19 +54,27 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         'work-timetables' => 'work_timetable',
     ]);
     Route::resource('leave-requests', LeaveRequestController::class);
+    Route::post('leave-requests/{leave_request}/submit', [LeaveRequestController::class, 'submit'])
+        ->name('leave-requests.submit');
     Route::get('leave-requests/{leave_request}/print', [LeaveRequestController::class, 'print'])
         ->name('leave-requests.print');
     Route::post('leave-requests/{leave_request}/signatures', [LeaveRequestController::class, 'updateSignatures'])
         ->name('leave-requests.signatures.update');
     Route::resource('it-requests', ItRequestController::class);
+    Route::post('it-requests/{it_request}/submit', [ItRequestController::class, 'submit'])
+        ->name('it-requests.submit');
     Route::get('it-requests/{it_request}/print', [ItRequestController::class, 'print'])
         ->name('it-requests.print');
     Route::post('it-requests/{it_request}/signatures', [ItRequestController::class, 'updateSignatures'])
         ->name('it-requests.signatures.update');
     Route::resource('employee-requests', EmployeeRequestController::class);
+    Route::post('employee-requests/{employee_request}/submit', [EmployeeRequestController::class, 'submit'])
+        ->name('employee-requests.submit');
     Route::post('employee-requests/{employee_request}/signatures', [EmployeeRequestController::class, 'updateSignatures'])
         ->name('employee-requests.signatures.update');
     Route::resource('it-asset-requests', ItAssetRequestController::class);
+    Route::post('it-asset-requests/{it_asset_request}/submit', [ItAssetRequestController::class, 'submit'])
+        ->name('it-asset-requests.submit');
     Route::get('it-asset-requests/{it_asset_request}/print', [ItAssetRequestController::class, 'print'])
         ->name('it-asset-requests.print');
     Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])

@@ -1,6 +1,10 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronLeft, PenLine, Printer } from 'lucide-react';
-import { SignaturePad } from '@/components/signature-pad';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { ChevronLeft, PenLine, Printer, Send } from 'lucide-react';
+import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
+import {
+    RequestEmployeeSignatureCard,
+    leaveRequestShowSignatureVisitOnly,
+} from '@/components/request-employee-signature-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
@@ -31,14 +35,15 @@ type LeaveRequest = {
 export default function LeaveRequestsShow({
     leaveRequest,
     signaturesUrl,
+    submitUrl,
 }: {
     leaveRequest: LeaveRequest;
     signaturesUrl: string;
+    submitUrl: string;
 }) {
-    const { flash } = usePage().props as { flash?: { success?: string } };
-    const normalizedStatus = leaveRequest.status?.toLowerCase() ?? 'draft';
-    const statusLabel =
-        normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
+    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const normalizedStatus = normalizeRequestStatus(leaveRequest.status);
+    const isDraft = normalizedStatus === 'draft';
 
     return (
         <AppLayout
@@ -59,7 +64,22 @@ export default function LeaveRequestsShow({
                         </Button>
                         <h1 className="text-xl font-semibold">Leave request {leaveRequest.code}</h1>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {isDraft ? (
+                            <Form
+                                action={submitUrl}
+                                method="post"
+                                options={{ preserveScroll: true }}
+                                className="contents"
+                            >
+                                {({ processing }) => (
+                                    <Button type="submit" size="sm" disabled={processing}>
+                                        <Send className="mr-2 size-4" />
+                                        Submit request
+                                    </Button>
+                                )}
+                            </Form>
+                        ) : null}
                         <Button variant="outline" size="sm" asChild>
                             <Link href={`/leave-requests/${leaveRequest.id}/print`}>
                                 <Printer className="mr-2 size-4" />
@@ -81,15 +101,18 @@ export default function LeaveRequestsShow({
                             <p className="text-muted-foreground text-xs">Leave Request</p>
                             <p className="text-lg font-semibold">{leaveRequest.code}</p>
                         </div>
-                        <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
-                            {statusLabel}
-                        </span>
+                        <RequestStatusBadge status={leaveRequest.status} />
                     </CardContent>
                 </Card>
 
                 {flash?.success && (
                     <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                         {flash.success}
+                    </div>
+                )}
+                {flash?.error && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                        {flash.error}
                     </div>
                 )}
 
@@ -118,7 +141,12 @@ export default function LeaveRequestsShow({
                             <span className="text-muted-foreground">Days</span>
                             <span>{leaveRequest.days ?? '—'}</span>
                             <span className="text-muted-foreground">Status</span>
-                            <span className="capitalize">{leaveRequest.status}</span>
+                            <span>
+                                <RequestStatusBadge
+                                    status={leaveRequest.status}
+                                    className="px-2.5 py-0.5"
+                                />
+                            </span>
                             {leaveRequest.remarks ? (
                                 <>
                                     <span className="text-muted-foreground">Remarks</span>
@@ -129,22 +157,16 @@ export default function LeaveRequestsShow({
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Signatures (sign in web portal)</CardTitle>
-                        <p className="text-muted-foreground text-sm">
-                            Draw your signature below or replace an existing one. Click Save signature to store it.
-                        </p>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <SignaturePad
-                            label="Employee signature"
-                            signatureUrl={leaveRequest.employee_signature_url ?? null}
-                            submitUrl={signaturesUrl}
-                            fieldName="employee_signature"
-                        />
-                    </CardContent>
-                </Card>
+                <RequestEmployeeSignatureCard
+                    signatureUrl={leaveRequest.employee_signature_url ?? null}
+                    signaturesUrl={signaturesUrl}
+                    visitOnly={leaveRequestShowSignatureVisitOnly}
+                    employeeName={
+                        leaveRequest.employee
+                            ? `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`
+                            : undefined
+                    }
+                />
                 </div>
             </div>
         </AppLayout>

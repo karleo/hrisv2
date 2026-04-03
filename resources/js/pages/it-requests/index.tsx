@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import ItRequestController from '@/actions/App/Http/Controllers/ItRequestController';
 import { DataTablePagination } from '@/components/data-table-pagination';
+import { RequestStatusBadge } from '@/components/request-status-badge';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,21 +67,6 @@ type PaginatedItRequests = {
     to: number | null;
     links: { url: string | null; label: string; active: boolean }[];
 };
-
-function StatusBadge({ status }: { status: string }) {
-    const isDraft = status === 'draft';
-    return (
-        <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                isDraft
-                    ? 'bg-muted text-muted-foreground'
-                    : 'bg-primary/10 text-primary'
-            }`}
-        >
-            {isDraft ? 'Draft' : 'Submitted'}
-        </span>
-    );
-}
 
 export default function Index({
     itRequests,
@@ -193,7 +179,10 @@ export default function Index({
                                                         {request.department?.name ?? '—'}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <StatusBadge status={request.status} />
+                                                        <RequestStatusBadge
+                                                            status={request.status}
+                                                            className="px-2.5 py-0.5"
+                                                        />
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex justify-end gap-1">

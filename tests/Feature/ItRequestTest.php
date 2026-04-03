@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\ItRequest;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,7 +18,7 @@ class ItRequestTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware();
+        $this->withoutMiddleware(ValidateCsrfToken::class);
         $this->actingAs(User::factory()->create([
             'email_verified_at' => now(),
         ]));
@@ -34,7 +35,6 @@ class ItRequestTest extends TestCase
             'employee_id' => $employee->id,
             'department_id' => $department->id,
             'date' => '2026-02-17',
-            'status' => 'submitted',
         ];
 
         $response = $this->post(route('it-requests.store'), $data);
@@ -47,8 +47,52 @@ class ItRequestTest extends TestCase
             'employee_id' => $employee->id,
             'department_id' => $department->id,
             'date' => '2026-02-17',
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_submit_sets_status_to_submitted_when_draft(): void
+    {
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $itRequest = ItRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-02-17',
+            'status' => 'draft',
+        ]);
+
+        $response = $this->from(route('it-requests.show', $itRequest))
+            ->post(route('it-requests.submit', $itRequest));
+
+        $response->assertRedirect(route('it-requests.show', $itRequest));
+        $response->assertSessionHas('success');
+        $this->assertSame('submitted', $itRequest->fresh()->status);
+    }
+
+    public function test_submit_fails_when_not_draft(): void
+    {
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $itRequest = ItRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-02-17',
             'status' => 'submitted',
         ]);
+
+        $response = $this->from(route('it-requests.show', $itRequest))
+            ->post(route('it-requests.submit', $itRequest));
+
+        $response->assertRedirect(route('it-requests.show', $itRequest));
+        $response->assertSessionHas('error');
+        $this->assertSame('submitted', $itRequest->fresh()->status);
     }
 
     public function test_print_renders_printable_page(): void
@@ -71,8 +115,7 @@ class ItRequestTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('it-requests/print')
             ->has('itRequest')
-            ->has('companyName')
-            ->where('itRequest.id', $itRequest->id)
+            ->has('companyLogoUrl')
         );
     }
 }

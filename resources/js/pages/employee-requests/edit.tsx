@@ -11,6 +11,10 @@ import {
 } from '@/components/ui/card';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import {
+    RequestEmployeeSignatureCard,
+    employeeRequestEditSignatureVisitOnly,
+} from '@/components/request-employee-signature-card';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -48,6 +52,8 @@ type EmployeeRequest = {
     preferred_airlines: string | null;
     last_encashment_date: string | null;
     bag_allowance: string | null;
+    employee_signature_url?: string | null;
+    employee?: { first_name: string; last_name: string };
 };
 
 export default function Edit({
@@ -55,11 +61,13 @@ export default function Edit({
     employees,
     departments,
     jobPositions,
+    signaturesUrl,
 }: {
     employeeRequest: EmployeeRequest;
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     jobPositions: JobPositionOption[];
+    signaturesUrl: string;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
@@ -92,6 +100,8 @@ export default function Edit({
         bag_allowance: employeeRequest.bag_allowance ?? '',
     });
 
+    const selectedEmployee = employees.find((item) => item.id === data.employee_id);
+
     const submitAs = (status: 'draft' | 'submitted') => (e: React.FormEvent) => {
         e.preventDefault();
         transform((payload) => ({ ...payload, status }));
@@ -112,7 +122,7 @@ export default function Edit({
 
                 <Heading
                     title={`Employee Request #${employeeRequest.id}`}
-                    description="Capture employee information and request details"
+                    description="Update employee information, request details, and signature."
                 />
 
                 <form
@@ -245,6 +255,19 @@ export default function Edit({
                             </div>
                         </CardContent>
                     </Card>
+
+                    <RequestEmployeeSignatureCard
+                        signatureUrl={employeeRequest.employee_signature_url ?? null}
+                        signaturesUrl={signaturesUrl}
+                        visitOnly={employeeRequestEditSignatureVisitOnly}
+                        employeeName={
+                            employeeRequest.employee
+                                ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`
+                                : selectedEmployee
+                                  ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
+                                  : undefined
+                        }
+                    />
 
                     <Card>
                         <CardHeader>

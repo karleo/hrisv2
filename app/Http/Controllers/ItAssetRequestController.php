@@ -67,8 +67,6 @@ class ItAssetRequestController extends Controller
     {
         $data = $request->validated();
 
-        $status = $data['status'] ?? 'submitted';
-
         $itAssetRequest = ItAssetRequest::query()->create([
             'employee_id' => $data['employee_id'],
             'department_id' => $data['department_id'],
@@ -77,7 +75,7 @@ class ItAssetRequestController extends Controller
             'hardware_ids' => $data['hardware_ids'] ?? null,
             'serial_number' => $data['serial_number'] ?? null,
             'remarks' => $data['remarks'] ?? null,
-            'status' => $status,
+            'status' => 'draft',
         ]);
 
         return to_route('it-asset-requests.show', $itAssetRequest);
@@ -113,7 +111,23 @@ class ItAssetRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'submitUrl' => route('it-asset-requests.submit', $it_asset_request, false),
+            'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
         ]);
+    }
+
+    /**
+     * Submit a draft IT asset request.
+     */
+    public function submit(ItAssetRequest $it_asset_request): RedirectResponse
+    {
+        if (strtolower((string) $it_asset_request->status) !== 'draft') {
+            return redirect()->back()->with('error', 'Only draft IT asset requests can be submitted.');
+        }
+
+        $it_asset_request->update(['status' => 'submitted']);
+
+        return redirect()->back()->with('success', 'IT asset request submitted.');
     }
 
     /**
@@ -132,7 +146,6 @@ class ItAssetRequestController extends Controller
         }
 
         $company = $it_asset_request->employee?->companyProfile ?? CompanyProfile::query()->first();
-        $companyName = $company?->company_name ?? config('app.name');
         $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
 
         return Inertia::render('it-asset-requests/print', [
@@ -141,7 +154,6 @@ class ItAssetRequestController extends Controller
                 'issued_by_signature_url' => $this->publicStorageBrowserUrl($it_asset_request->issued_by_signature),
             ]),
             'hardware' => $hardware,
-            'companyName' => $companyName,
             'companyLogoUrl' => $companyLogoUrl,
         ]);
     }
@@ -151,7 +163,14 @@ class ItAssetRequestController extends Controller
      */
     public function edit(ItAssetRequest $it_asset_request): Response
     {
-        $it_asset_request->load(['employee', 'department']);
+        $it_asset_request->load(['employee', 'department', 'issuedByEmployee']);
+
+        $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->employee_signature, '/'))
+            : null;
+        $it_asset_request->issued_by_signature_url = $it_asset_request->issued_by_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->issued_by_signature, '/'))
+            : null;
 
         return Inertia::render('it-asset-requests/edit', [
             'itAssetRequest' => $it_asset_request,
@@ -165,6 +184,7 @@ class ItAssetRequestController extends Controller
             'hardware' => Hardware::query()
                 ->orderBy('name')
                 ->get(['id', 'code', 'name']),
+            'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
         ]);
     }
 
@@ -252,6 +272,19 @@ class ItAssetRequestController extends Controller
         $it_asset_request->delete();
 
         return to_route('it-asset-requests.index');
+    }
+
+    /**
+     * POST URL for saving IT asset request signatures (host-relative).
+     */
+    private function itAssetRequestSignaturesPostUrl(ItAssetRequest $it_asset_request): string
+    {
+        $key = $it_asset_request->getKey();
+        if ($key === null || $key === '') {
+            $key = request()->segment(2);
+        }
+
+        return '/it-asset-requests/'.$key.'/signatures';
     }
 
     /**

@@ -33,7 +33,6 @@ class StoreItAssetRequestRequest extends FormRequest
             'hardware_ids.*' => ['integer', 'exists:'.Hardware::class.',id'],
             'serial_number' => ['nullable', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:2000'],
-            'status' => ['sometimes', 'string', 'in:draft,submitted'],
         ];
     }
 }

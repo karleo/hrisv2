@@ -1,9 +1,13 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { ArrowLeft, Printer, Send } from 'lucide-react';
 import Heading from '@/components/heading';
-import { SignaturePad } from '@/components/signature-pad';
+import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
+import {
+    RequestEmployeeSignatureCard,
+    itRequestShowSignatureVisitOnly,
+} from '@/components/request-employee-signature-card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/it-requests';
 import type { BreadcrumbItem } from '@/types';
@@ -48,12 +52,14 @@ type ItRequest = {
 export default function Show({
     itRequest,
     signaturesUrl,
+    submitUrl,
 }: {
     itRequest: ItRequest;
     signaturesUrl: string;
+    submitUrl: string;
 }) {
-    const { flash } = usePage().props as { flash?: { success?: string } };
-    const statusLabel = itRequest.status === 'draft' ? 'Draft' : 'Submitted';
+    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const isDraft = normalizeRequestStatus(itRequest.status) === 'draft';
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Requests', href: index().url },
         { title: `Request #${itRequest.id}`, href: '#' },
@@ -65,7 +71,7 @@ export default function Show({
 
             <div className="px-4 py-8 md:px-8 print:bg-white">
                 <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-                <div className="flex items-center justify-between gap-2 print:hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
                     <Link
                         href={index()}
                         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -73,12 +79,29 @@ export default function Show({
                         <ArrowLeft className="size-4" />
                         Back to IT Requests
                     </Link>
-                    <Button asChild>
-                        <Link href={`/it-requests/${itRequest.id}/print`}>
-                            <Printer className="size-4" />
-                            Print
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {isDraft ? (
+                            <Form
+                                action={submitUrl}
+                                method="post"
+                                options={{ preserveScroll: true }}
+                                className="contents"
+                            >
+                                {({ processing }) => (
+                                    <Button type="submit" disabled={processing}>
+                                        <Send className="mr-2 size-4" />
+                                        Submit request
+                                    </Button>
+                                )}
+                            </Form>
+                        ) : null}
+                        <Button asChild>
+                            <Link href={`/it-requests/${itRequest.id}/print`}>
+                                <Printer className="size-4" />
+                                Print
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <Card className="border-muted/60 bg-muted/20 print:hidden">
@@ -87,9 +110,7 @@ export default function Show({
                             <p className="text-muted-foreground text-xs">IT Request</p>
                             <p className="text-lg font-semibold">Request #{itRequest.id}</p>
                         </div>
-                        <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
-                            {statusLabel}
-                        </span>
+                        <RequestStatusBadge status={itRequest.status} />
                     </CardContent>
                 </Card>
 
@@ -149,10 +170,11 @@ export default function Show({
 
                         <div>
                             <div className="font-semibold">Status</div>
-                            <div>
-                                {itRequest.status === 'draft'
-                                    ? 'Draft'
-                                    : 'Submitted'}
+                            <div className="mt-1">
+                                <RequestStatusBadge
+                                    status={itRequest.status}
+                                    className="px-2.5 py-0.5"
+                                />
                             </div>
                         </div>
                     </div>
@@ -170,23 +192,22 @@ export default function Show({
                         {flash.success}
                     </div>
                 )}
+                {flash?.error && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                        {flash.error}
+                    </div>
+                )}
 
-                <Card className="print:hidden">
-                    <CardHeader>
-                        <CardTitle>Signatures (sign in web portal)</CardTitle>
-                        <p className="text-muted-foreground text-sm">
-                            Draw your signature below or replace an existing one. Click Save signature to store it.
-                        </p>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <SignaturePad
-                            label="Employee signature"
-                            signatureUrl={itRequest.employee_signature_url ?? null}
-                            submitUrl={signaturesUrl}
-                            fieldName="employee_signature"
-                        />
-                    </CardContent>
-                </Card>
+                <RequestEmployeeSignatureCard
+                    signatureUrl={itRequest.employee_signature_url ?? null}
+                    signaturesUrl={signaturesUrl}
+                    visitOnly={itRequestShowSignatureVisitOnly}
+                    employeeName={
+                        itRequest.employee
+                            ? `${itRequest.employee.first_name} ${itRequest.employee.last_name}`
+                            : undefined
+                    }
+                />
                 </div>
             </div>
         </AppLayout>

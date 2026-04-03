@@ -29,7 +29,6 @@ class StoreItRequestRequest extends FormRequest
             'software_id' => ['nullable', 'integer', 'exists:'.Software::class.',id'],
             'hardware_id' => ['nullable', 'integer', 'exists:'.Hardware::class.',id'],
             'date' => ['required', 'date'],
-            'status' => ['sometimes', 'string', 'in:draft,submitted'],
         ];
     }
 }

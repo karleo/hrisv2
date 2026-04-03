@@ -66,7 +66,6 @@ class LeaveRequestController extends Controller
     {
         $data = $request->validated();
 
-        $status = $data['status'] ?? 'submitted';
         $days = $this->computeDays(
             $data['period_from'] ?? null,
             $data['period_to'] ?? null
@@ -83,7 +82,7 @@ class LeaveRequestController extends Controller
             'period_to' => $data['period_to'] ?? null,
             'days' => $days,
             'remarks' => ! empty($data['remarks']) ? $data['remarks'] : null,
-            'status' => $status,
+            'status' => 'draft',
         ]);
 
         return to_route('leave-requests.show', $leaveRequest);
@@ -108,8 +107,23 @@ class LeaveRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
-            'signaturesUrl' => route('leave-requests.signatures.update', $leave_request, false),
+            'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
+            'submitUrl' => route('leave-requests.submit', $leave_request, false),
         ]);
+    }
+
+    /**
+     * Submit a draft leave request for processing.
+     */
+    public function submit(LeaveRequest $leave_request): RedirectResponse
+    {
+        if (strtolower((string) $leave_request->status) !== 'draft') {
+            return redirect()->back()->with('error', 'Only draft leave requests can be submitted.');
+        }
+
+        $leave_request->update(['status' => 'submitted']);
+
+        return redirect()->back()->with('success', 'Leave request submitted.');
     }
 
     /**
@@ -117,10 +131,16 @@ class LeaveRequestController extends Controller
      */
     public function edit(LeaveRequest $leave_request): Response
     {
-        $leave_request->load(['employee', 'department']);
+        $leave_request->load(['employee', 'department', 'approvedByEmployee']);
+
+        $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
+        $approvedBySignatureUrl = $this->publicStorageBrowserUrl($leave_request->approved_by_signature);
 
         return Inertia::render('leave-requests/edit', [
-            'leaveRequest' => $leave_request,
+            'leaveRequest' => array_merge($leave_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
             'employees' => Employee::query()
                 ->with('department:id,name')
                 ->orderBy('first_name')
@@ -129,6 +149,7 @@ class LeaveRequestController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
         ]);
     }
 
@@ -187,7 +208,6 @@ class LeaveRequestController extends Controller
         $leave_request->load(['employee.companyProfile', 'department']);
 
         $company = $leave_request->employee?->companyProfile ?? CompanyProfile::query()->first();
-        $companyName = $company?->company_name ?? config('app.name');
         $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
@@ -198,7 +218,6 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'companyName' => $companyName,
             'companyLogoUrl' => $companyLogoUrl,
         ]);
     }
@@ -277,5 +296,18 @@ class LeaveRequestController extends Controller
         }
 
         return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+    }
+
+    /**
+     * POST URL for saving leave request signatures (host-relative).
+     */
+    private function leaveRequestSignaturesPostUrl(LeaveRequest $leave_request): string
+    {
+        $key = $leave_request->getKey();
+        if ($key === null || $key === '') {
+            $key = request()->segment(2);
+        }
+
+        return '/leave-requests/'.$key.'/signatures';
     }
 }

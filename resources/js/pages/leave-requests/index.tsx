@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDays, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
+import { RequestStatusBadge } from '@/components/request-status-badge';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,7 +115,12 @@ export default function LeaveRequestsIndex({
                                                         : '—'}
                                                 </td>
                                                 <td className="py-3 pr-4">{lr.days ?? '—'}</td>
-                                                <td className="py-3 pr-4 capitalize">{lr.status}</td>
+                                                <td className="py-3 pr-4">
+                                                    <RequestStatusBadge
+                                                        status={lr.status}
+                                                        className="px-2.5 py-0.5"
+                                                    />
+                                                </td>
                                                 <td className="py-3 text-right">
                                                     <div className="flex justify-end gap-2">
                                                         <Button variant="ghost" size="icon" asChild>

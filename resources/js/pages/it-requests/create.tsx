@@ -65,27 +65,24 @@ export default function Create({
     software: SoftwareOption[];
     hardware: HardwareOption[];
 }) {
-    const { data, setData, post, processing, errors, transform } = useForm<{
+    const { data, setData, post, processing, errors } = useForm<{
         employee_id: number | '';
         department_id: number | '';
         date: string;
         software_id: number | '';
         hardware_id: number | '';
-        status: string;
     }>({
         employee_id: '',
         department_id: '',
         date: getTodayYmd(),
         software_id: '',
         hardware_id: '',
-        status: 'draft',
     });
 
     const selectedEmployee = employees.find((employee) => employee.id === data.employee_id);
 
-    const submitAs = (status: 'draft' | 'submitted') => (e: React.FormEvent) => {
+    const saveDraft = (e: React.FormEvent) => {
         e.preventDefault();
-        transform((payload) => ({ ...payload, status }));
         post(ItRequestController.store.post().url);
     };
 
@@ -109,7 +106,7 @@ export default function Create({
                         </Link>
                         <Heading
                             title="Create IT Request"
-                            description="Submit software and hardware requirements for an employee."
+                            description="Save a draft first, then open the request and use Submit when it is ready to send."
                         />
                     </div>
                 </div>
@@ -296,19 +293,10 @@ export default function Create({
                                             disabled={processing}
                                             type="button"
                                             className="w-full"
-                                            onClick={submitAs('submitted')}
+                                            onClick={saveDraft}
                                         >
                                             <Send className="mr-2 size-4" />
-                                            Submit
-                                        </Button>
-                                        <Button
-                                            disabled={processing}
-                                            type="button"
-                                            variant="outline"
-                                            className="w-full"
-                                            onClick={submitAs('draft')}
-                                        >
-                                            Save (Draft)
+                                            Save as draft
                                         </Button>
                                         <Link href={index()} className="block">
                                             <Button type="button" variant="ghost" className="w-full">

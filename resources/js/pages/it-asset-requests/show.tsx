@@ -1,11 +1,11 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Printer, Upload } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { ArrowLeft, Printer, Send } from 'lucide-react';
+import {
+    ItAssetRequestSignaturesCard,
+    itAssetRequestShowSignatureVisitOnly,
+} from '@/components/it-asset-request-signatures-card';
+import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import InputError from '@/components/input-error';
-import { Label } from '@/components/ui/label';
-import { SignaturePad } from '@/components/signature-pad';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -55,165 +55,27 @@ function formatDateDdMmYyyy(value: string | null | undefined): string {
     return value;
 }
 
-const inputClassName =
-    'border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50';
-
 export default function Show({
     itAssetRequest,
     hardware = [],
     employees = [],
+    submitUrl,
+    signaturesUrl,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
     employees?: Employee[];
+    submitUrl: string;
+    signaturesUrl: string;
 }) {
+    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
+    const isDraft = normalizeRequestStatus(itAssetRequest.status) === 'draft';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Asset Requests', href: '/it-asset-requests' },
         { title: requestLabel, href: '#' },
     ];
-
-    const employeeSignatureInputRef = useRef<HTMLInputElement>(null);
-    const issuedBySignatureInputRef = useRef<HTMLInputElement>(null);
-    const [employeeSignaturePreview, setEmployeeSignaturePreview] = useState<string | null>(
-        itAssetRequest.employee_signature_url ?? null
-    );
-    const [issuedBySignaturePreview, setIssuedBySignaturePreview] = useState<string | null>(
-        itAssetRequest.issued_by_signature_url ?? null
-    );
-
-    const { data, setData, post, processing, errors, reset } = useForm<{
-        employee_signature: File | null;
-        issued_by_signature: File | null;
-        issued_by_employee_id: number | '';
-    }>({
-        employee_signature: null,
-        issued_by_signature: null,
-        issued_by_employee_id: itAssetRequest.issued_by_employee_id ?? '',
-    });
-
-    useEffect(() => {
-        setEmployeeSignaturePreview(itAssetRequest.employee_signature_url ?? null);
-    }, [itAssetRequest.employee_signature_url]);
-
-    useEffect(() => {
-        setIssuedBySignaturePreview(itAssetRequest.issued_by_signature_url ?? null);
-    }, [itAssetRequest.issued_by_signature_url]);
-
-    const handleEmployeeSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setData('employee_signature', file);
-            setEmployeeSignaturePreview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleIssuedBySignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setData('issued_by_signature', file);
-            setIssuedBySignaturePreview(URL.createObjectURL(file));
-        }
-    };
-
-    const dataUrlToFile = (dataUrl: string, filename: string): File => {
-        const [header, data] = dataUrl.split(',');
-        const mimeMatch = header.match(/data:(.*);base64/);
-        const mime = mimeMatch?.[1] ?? 'image/png';
-        const binary = atob(data);
-        const len = binary.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i += 1) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        return new File([bytes], filename, { type: mime });
-    };
-
-    const saveSignaturesDirectly = (payload: {
-        employeeSignature?: File | null;
-        issuedBySignature?: File | null;
-    }) => {
-        const hasEmployee = payload.employeeSignature instanceof File;
-        const hasIssuedBy = payload.issuedBySignature instanceof File;
-        if (!hasEmployee && !hasIssuedBy) {
-            return;
-        }
-
-        const formData = new FormData();
-        if (hasEmployee && payload.employeeSignature) {
-            formData.append('employee_signature', payload.employeeSignature);
-        }
-        if (hasIssuedBy && payload.issuedBySignature) {
-            formData.append('issued_by_signature', payload.issuedBySignature);
-            if (data.issued_by_employee_id !== '') {
-                formData.append('issued_by_employee_id', String(data.issued_by_employee_id));
-            }
-        }
-
-        router.post(`/it-asset-requests/${itAssetRequest.id}/signatures`, formData, {
-            forceFormData: true,
-            preserveScroll: true,
-            preserveState: true,
-            only: ['itAssetRequest', 'flash', 'errors'],
-            onSuccess: () => {
-                reset('employee_signature', 'issued_by_signature');
-            },
-        });
-    };
-
-    const handleEmployeeSignatureDrawn = (dataUrl: string | null) => {
-        if (!dataUrl) {
-            setData('employee_signature', null);
-            setEmployeeSignaturePreview(null);
-            return;
-        }
-
-        const file = dataUrlToFile(dataUrl, `employee-signature-${itAssetRequest.id}.png`);
-        setData('employee_signature', file);
-        setEmployeeSignaturePreview(dataUrl);
-    };
-
-    const handleIssuedBySignatureDrawn = (dataUrl: string | null) => {
-        if (!dataUrl) {
-            setData('issued_by_signature', null);
-            setIssuedBySignaturePreview(null);
-            return;
-        }
-
-        const file = dataUrlToFile(dataUrl, `issued-by-signature-${itAssetRequest.id}.png`);
-        setData('issued_by_signature', file);
-        setIssuedBySignaturePreview(dataUrl);
-    };
-
-    const handleEmployeeSignatureSave = (dataUrl: string | null) => {
-        if (!dataUrl) {
-            return;
-        }
-        const file = dataUrlToFile(dataUrl, `employee-signature-${itAssetRequest.id}.png`);
-        saveSignaturesDirectly({ employeeSignature: file });
-    };
-
-    const handleIssuedBySignatureSave = (dataUrl: string | null) => {
-        if (!dataUrl) {
-            return;
-        }
-        const file = dataUrlToFile(dataUrl, `issued-by-signature-${itAssetRequest.id}.png`);
-        saveSignaturesDirectly({ issuedBySignature: file });
-    };
-
-    const handleSubmitSignatures = (e: React.FormEvent) => {
-        e.preventDefault();
-        post(`/it-asset-requests/${itAssetRequest.id}/signatures`, {
-            forceFormData: true,
-            preserveScroll: true,
-            preserveState: true,
-            only: ['itAssetRequest', 'flash', 'errors'],
-            onSuccess: () => {
-                reset();
-            },
-        });
-    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -233,16 +95,23 @@ export default function Show({
                             <h1 className="text-2xl font-bold tracking-tight">{requestLabel}</h1>
                             <p className="text-sm text-muted-foreground">IT Asset Request Form</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span
-                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                    itAssetRequest.status === 'submitted'
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                                }`}
-                            >
-                                {itAssetRequest.status === 'submitted' ? 'Submitted' : 'Draft'}
-                            </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <RequestStatusBadge status={itAssetRequest.status} />
+                            {isDraft ? (
+                                <Form
+                                    action={submitUrl}
+                                    method="post"
+                                    options={{ preserveScroll: true }}
+                                    className="contents"
+                                >
+                                    {({ processing }) => (
+                                        <Button type="submit" disabled={processing}>
+                                            <Send className="mr-2 size-4" />
+                                            Submit request
+                                        </Button>
+                                    )}
+                                </Form>
+                            ) : null}
                             <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
                                 <Button type="button">
                                     <Printer className="size-4" />
@@ -252,6 +121,23 @@ export default function Show({
                         </div>
                     </div>
                 </div>
+
+                {(flash?.success || flash?.error) && (
+                    <div className="border-b bg-card px-4 py-3 md:px-8 print:hidden">
+                        <div className="mx-auto max-w-7xl space-y-2">
+                            {flash?.success ? (
+                                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                    {flash.success}
+                                </div>
+                            ) : null}
+                            {flash?.error ? (
+                                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                                    {flash.error}
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                )}
 
                 <div className="px-4 py-8 md:px-8 print:p-4">
                     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -271,8 +157,11 @@ export default function Show({
                         </div>
                         <div className="rounded-lg border bg-muted/30 p-3">
                             <div className="text-xs text-muted-foreground">Status</div>
-                            <div className="font-semibold">
-                                {itAssetRequest.status === 'draft' ? 'Draft' : 'Submitted'}
+                            <div className="mt-1.5">
+                                <RequestStatusBadge
+                                    status={itAssetRequest.status}
+                                    className="px-2.5 py-0.5"
+                                />
                             </div>
                         </div>
                     </div>
@@ -344,133 +233,22 @@ export default function Show({
                             </div>
                         </div>
 
-                        <Card className="print:hidden">
-                            <CardHeader>
-                                <CardTitle>Signatures</CardTitle>
-                                <CardDescription>Capture employee and issued-by signatures.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                            <form onSubmit={handleSubmitSignatures}>
-                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                                    <div className="space-y-4">
-                                        <SignaturePad
-                                            label="Employee Signature"
-                                            initialImageUrl={employeeSignaturePreview}
-                                            onChange={handleEmployeeSignatureDrawn}
-                                            onSave={handleEmployeeSignatureSave}
-                                        />
-                                        <div>
-                                            <Label htmlFor="employee_signature">
-                                                Or upload Employee Signature
-                                            </Label>
-                                            <input
-                                                ref={employeeSignatureInputRef}
-                                                id="employee_signature"
-                                                name="employee_signature"
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleEmployeeSignatureChange}
-                                                className="mt-1.5 block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
-                                            />
-                                            <InputError message={errors.employee_signature} />
-                                        </div>
-                                        <div className="mt-2 text-xs text-muted-foreground print:text-black">
-                                            {itAssetRequest.employee
-                                                ? `${itAssetRequest.employee.first_name} ${itAssetRequest.employee.last_name}`
-                                                : 'Employee Name'}
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="issued_by_employee_id">
-                                                Issued By Employee
-                                            </Label>
-                                            <select
-                                                id="issued_by_employee_id"
-                                                name="issued_by_employee_id"
-                                                value={data.issued_by_employee_id}
-                                                onChange={(e) =>
-                                                    setData(
-                                                        'issued_by_employee_id',
-                                                        e.target.value ? Number(e.target.value) : '',
-                                                    )
-                                                }
-                                                className={inputClassName}
-                                            >
-                                                <option value="">Select employee</option>
-                                                {employees.map((emp) => (
-                                                    <option key={emp.id} value={emp.id}>
-                                                        {emp.first_name} {emp.last_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <InputError message={errors.issued_by_employee_id} />
-                                        </div>
-
-                                        <SignaturePad
-                                            label="Issued By Signature"
-                                            initialImageUrl={issuedBySignaturePreview}
-                                            onChange={handleIssuedBySignatureDrawn}
-                                            onSave={handleIssuedBySignatureSave}
-                                        />
-                                        <div>
-                                            <Label htmlFor="issued_by_signature">
-                                                Or upload Issued By Signature
-                                            </Label>
-                                            <input
-                                                ref={issuedBySignatureInputRef}
-                                                id="issued_by_signature"
-                                                name="issued_by_signature"
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleIssuedBySignatureChange}
-                                                className="mt-1.5 block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
-                                            />
-                                            <InputError message={errors.issued_by_signature} />
-                                        </div>
-                                        <div className="mt-2 text-xs text-muted-foreground print:text-black">
-                                            {(() => {
-                                                if (itAssetRequest.issued_by_employee) {
-                                                    return `${itAssetRequest.issued_by_employee.first_name} ${itAssetRequest.issued_by_employee.last_name}`;
-                                                }
-                                                if (data.issued_by_employee_id) {
-                                                    const emp = employees.find(
-                                                        (e) => e.id === data.issued_by_employee_id,
-                                                    );
-                                                    return emp
-                                                        ? `${emp.first_name} ${emp.last_name}`
-                                                        : 'Issued By';
-                                                }
-                                                return 'Issued By';
-                                            })()}
-                                        </div>
-                                    </div>
-                                </div>
-                                {(data.employee_signature || data.issued_by_signature || data.issued_by_employee_id !== (itAssetRequest.issued_by_employee_id ?? '')) && (
-                                    <div className="mt-6 flex justify-end">
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            <Upload className="mr-2 size-4" />
-                                            Save Signatures & Issued By
-                                        </Button>
-                                    </div>
-                                )}
-                            </form>
-                            </CardContent>
-                        </Card>
+                        <ItAssetRequestSignaturesCard
+                            itAssetRequest={itAssetRequest}
+                            employees={employees}
+                            signaturesUrl={signaturesUrl}
+                            visitOnly={itAssetRequestShowSignatureVisitOnly}
+                        />
                         <div className="hidden rounded-xl border bg-background p-6 shadow-sm print:block print:border-0 print:p-0 print:shadow-none">
                             <div className="print:grid print:grid-cols-2 print:gap-12">
                                 <div>
                                     <div className="mb-2 font-semibold">
                                         Employee Signature
                                     </div>
-                                    {employeeSignaturePreview ? (
+                                    {itAssetRequest.employee_signature_url ? (
                                         <div className="mb-4">
                                             <img
-                                                src={employeeSignaturePreview}
+                                                src={itAssetRequest.employee_signature_url}
                                                 alt="Employee signature"
                                                 className="max-h-20 w-full border border-gray-300 bg-white object-contain"
                                             />
@@ -488,10 +266,10 @@ export default function Show({
                                     <div className="mb-2 font-semibold">
                                         Issued By Signature
                                     </div>
-                                    {issuedBySignaturePreview ? (
+                                    {itAssetRequest.issued_by_signature_url ? (
                                         <div className="mb-4">
                                             <img
-                                                src={issuedBySignaturePreview}
+                                                src={itAssetRequest.issued_by_signature_url}
                                                 alt="Issued by signature"
                                                 className="max-h-20 w-full border border-gray-300 bg-white object-contain"
                                             />

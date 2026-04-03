@@ -50,11 +50,9 @@ function CheckRow({ label, checked }: { label: string; checked: boolean }) {
 
 export default function ItRequestPrint({
     itRequest,
-    companyName,
     companyLogoUrl,
 }: {
     itRequest: ItRequest;
-    companyName: string;
     companyLogoUrl: string | null;
 }) {
     const handlePrint = () => window.print();
@@ -104,12 +102,9 @@ export default function ItRequestPrint({
                                 <img
                                     src={companyLogoUrl}
                                     alt=""
-                                    className="mb-1 h-24 w-auto max-w-[300px] object-contain print:h-20"
+                                    className="h-24 w-auto max-w-[300px] object-contain print:h-20"
                                 />
                             ) : null}
-                            <p className="max-w-[220px] text-xs font-semibold uppercase leading-tight text-[#1a237e]">
-                                {companyName}
-                            </p>
                         </div>
                     </header>
 

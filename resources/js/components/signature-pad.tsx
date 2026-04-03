@@ -9,6 +9,13 @@ type AutoSubmitSignaturePadProps = {
     submitUrl: string;
     onSuccess?: () => void;
     fieldName: 'employee_signature' | 'approved_by_signature' | 'issued_by_signature';
+    /** Appended to the multipart POST (e.g. `issued_by_employee_id` on IT asset requests). */
+    extraFormData?: Record<string, string>;
+    visitOptions?: {
+        preserveScroll?: boolean;
+        preserveState?: boolean;
+        only?: string[];
+    };
 };
 
 type ControlledSignaturePadProps = {
@@ -26,8 +33,10 @@ export function SignaturePad(props: SignaturePadProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const isAutoSubmitMode = 'submitUrl' in props && 'fieldName' in props && typeof props.submitUrl === 'string' && props.submitUrl.length > 0;
 
-    const { errors } = usePage().props as {
+    const page = usePage();
+    const { errors, csrf_token: csrfFromPage } = page.props as {
         errors?: Partial<Record<'employee_signature' | 'approved_by_signature' | 'issued_by_signature', string>>;
+        csrf_token?: string;
     };
     const fieldError = isAutoSubmitMode ? errors?.[props.fieldName] : undefined;
 
@@ -75,11 +84,29 @@ export function SignaturePad(props: SignaturePadProps) {
             if (!blob) return;
             const formData = new FormData();
             formData.append(props.fieldName, blob, 'signature.png');
-            const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
-            if (token) formData.append('_token', token);
+            if (props.extraFormData) {
+                for (const [key, value] of Object.entries(props.extraFormData)) {
+                    if (value !== '') {
+                        formData.append(key, value);
+                    }
+                }
+            }
+            const token =
+                (typeof csrfFromPage === 'string' && csrfFromPage.length > 0
+                    ? csrfFromPage
+                    : undefined) ??
+                document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
+            if (token) {
+                formData.append('_token', token);
+            }
             setIsSubmitting(true);
+            const visit = isAutoSubmitMode ? props.visitOptions : undefined;
             router.post(props.submitUrl, formData, {
                 forceFormData: true,
+                headers: token ? { 'X-CSRF-TOKEN': token } : {},
+                preserveScroll: visit?.preserveScroll ?? true,
+                preserveState: visit?.preserveState ?? true,
+                ...(visit?.only?.length ? { only: visit.only } : {}),
                 onFinish: () => setIsSubmitting(false),
                 onSuccess: () => {
                     clear();

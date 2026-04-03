@@ -74,7 +74,9 @@ export default function LeaveRequestsCreate({
                         </Link>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">New leave request</h1>
-                            <p className="text-muted-foreground">Create and submit an employee leave request.</p>
+                            <p className="text-muted-foreground">
+                                Save a draft first, then open the request and use Submit when it is ready to send.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -247,7 +249,7 @@ export default function LeaveRequestsCreate({
                                         <CardContent className="space-y-3">
                                             <Button type="submit" className="w-full">
                                                 <Send className="mr-2 size-4" />
-                                                Create leave request
+                                                Save as draft
                                             </Button>
                                             <Link href="/leave-requests" className="block">
                                                 <Button type="button" variant="ghost" className="w-full">

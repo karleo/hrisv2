@@ -71,7 +71,6 @@ class ItRequestController extends Controller
     {
         $data = $request->validated();
 
-        $status = $data['status'] ?? 'submitted';
         $date = $data['date'] ?? now()->toDateString();
 
         $itRequest = ItRequest::query()->create([
@@ -79,7 +78,7 @@ class ItRequestController extends Controller
             'department_id' => $data['department_id'],
             'software_id' => $data['software_id'] ?? null,
             'hardware_id' => $data['hardware_id'] ?? null,
-            'status' => $status,
+            'status' => 'draft',
             'date' => $date,
         ]);
 
@@ -109,8 +108,23 @@ class ItRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
-            'signaturesUrl' => route('it-requests.signatures.update', $it_request, false),
+            'signaturesUrl' => $this->itRequestSignaturesPostUrl($it_request),
+            'submitUrl' => route('it-requests.submit', $it_request, false),
         ]);
+    }
+
+    /**
+     * Submit a draft IT request.
+     */
+    public function submit(ItRequest $it_request): RedirectResponse
+    {
+        if (strtolower((string) $it_request->status) !== 'draft') {
+            return redirect()->back()->with('error', 'Only draft IT requests can be submitted.');
+        }
+
+        $it_request->update(['status' => 'submitted']);
+
+        return redirect()->back()->with('success', 'IT request submitted.');
     }
 
     /**
@@ -121,7 +135,6 @@ class ItRequestController extends Controller
         $it_request->load(['employee.companyProfile', 'department', 'software', 'hardware']);
 
         $company = $it_request->employee?->companyProfile ?? CompanyProfile::query()->first();
-        $companyName = $company?->company_name ?? config('app.name');
         $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($it_request->employee_signature);
@@ -132,7 +145,6 @@ class ItRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'companyName' => $companyName,
             'companyLogoUrl' => $companyLogoUrl,
         ]);
     }
@@ -142,10 +154,20 @@ class ItRequestController extends Controller
      */
     public function edit(ItRequest $it_request): Response
     {
-        $it_request->load(['employee', 'department', 'software', 'hardware']);
+        $it_request->load(['employee', 'department', 'software', 'hardware', 'approvedByEmployee']);
+
+        $employeeSignatureUrl = $it_request->employee_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($it_request->employee_signature, '/'))
+            : null;
+        $approvedBySignatureUrl = $it_request->approved_by_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($it_request->approved_by_signature, '/'))
+            : null;
 
         return Inertia::render('it-requests/edit', [
-            'itRequest' => $it_request,
+            'itRequest' => array_merge($it_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
@@ -159,6 +181,7 @@ class ItRequestController extends Controller
             'hardware' => Hardware::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
+            'signaturesUrl' => $this->itRequestSignaturesPostUrl($it_request),
         ]);
     }
 
@@ -245,6 +268,19 @@ class ItRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Signatures updated successfully.');
+    }
+
+    /**
+     * POST URL for saving IT request signatures (host-relative).
+     */
+    private function itRequestSignaturesPostUrl(ItRequest $it_request): string
+    {
+        $key = $it_request->getKey();
+        if ($key === null || $key === '') {
+            $key = request()->segment(2);
+        }
+
+        return '/it-requests/'.$key.'/signatures';
     }
 
     /**

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\CountryController::index
  * @see app/Http/Controllers/CountryController.php:18
@@ -42,41 +42,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\CountryController::index
- * @see app/Http/Controllers/CountryController.php:18
- * @route '/countries'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::index
- * @see app/Http/Controllers/CountryController.php:18
- * @route '/countries'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\CountryController::index
- * @see app/Http/Controllers/CountryController.php:18
- * @route '/countries'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\CountryController::create
  * @see app/Http/Controllers/CountryController.php:41
@@ -120,41 +85,6 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\CountryController::create
- * @see app/Http/Controllers/CountryController.php:41
- * @route '/countries/create'
- */
-    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::create
- * @see app/Http/Controllers/CountryController.php:41
- * @route '/countries/create'
- */
-        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\CountryController::create
- * @see app/Http/Controllers/CountryController.php:41
- * @route '/countries/create'
- */
-        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    create.form = createForm
 /**
 * @see \App\Http\Controllers\CountryController::store
  * @see app/Http/Controllers/CountryController.php:49
@@ -189,27 +119,6 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\CountryController::store
- * @see app/Http/Controllers/CountryController.php:49
- * @route '/countries'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::store
- * @see app/Http/Controllers/CountryController.php:49
- * @route '/countries'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\CountryController::show
  * @see app/Http/Controllers/CountryController.php:0
@@ -272,41 +181,6 @@ show.head = (args: { country: string | number } | [country: string | number ] | 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\CountryController::show
- * @see app/Http/Controllers/CountryController.php:0
- * @route '/countries/{country}'
- */
-    const showForm = (args: { country: string | number } | [country: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::show
- * @see app/Http/Controllers/CountryController.php:0
- * @route '/countries/{country}'
- */
-        showForm.get = (args: { country: string | number } | [country: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\CountryController::show
- * @see app/Http/Controllers/CountryController.php:0
- * @route '/countries/{country}'
- */
-        showForm.head = (args: { country: string | number } | [country: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\CountryController::edit
  * @see app/Http/Controllers/CountryController.php:62
@@ -374,41 +248,6 @@ edit.head = (args: { country: number | { id: number } } | [country: number | { i
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\CountryController::edit
- * @see app/Http/Controllers/CountryController.php:62
- * @route '/countries/{country}/edit'
- */
-    const editForm = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: edit.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::edit
- * @see app/Http/Controllers/CountryController.php:62
- * @route '/countries/{country}/edit'
- */
-        editForm.get = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\CountryController::edit
- * @see app/Http/Controllers/CountryController.php:62
- * @route '/countries/{country}/edit'
- */
-        editForm.head = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    edit.form = editForm
 /**
 * @see \App\Http\Controllers\CountryController::update
  * @see app/Http/Controllers/CountryController.php:72
@@ -476,51 +315,6 @@ update.patch = (args: { country: number | { id: number } } | [country: number | 
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\CountryController::update
- * @see app/Http/Controllers/CountryController.php:72
- * @route '/countries/{country}'
- */
-    const updateForm = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PUT',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::update
- * @see app/Http/Controllers/CountryController.php:72
- * @route '/countries/{country}'
- */
-        updateForm.put = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PUT',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-            /**
-* @see \App\Http\Controllers\CountryController::update
- * @see app/Http/Controllers/CountryController.php:72
- * @route '/countries/{country}'
- */
-        updateForm.patch = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\CountryController::destroy
  * @see app/Http/Controllers/CountryController.php:85
@@ -578,38 +372,6 @@ destroy.delete = (args: { country: number | { id: number } } | [country: number 
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\CountryController::destroy
- * @see app/Http/Controllers/CountryController.php:85
- * @route '/countries/{country}'
- */
-    const destroyForm = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CountryController::destroy
- * @see app/Http/Controllers/CountryController.php:85
- * @route '/countries/{country}'
- */
-        destroyForm.delete = (args: { country: number | { id: number } } | [country: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const CountryController = { index, create, store, show, edit, update, destroy }
 
 export default CountryController

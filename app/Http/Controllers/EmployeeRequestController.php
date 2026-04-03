@@ -66,9 +66,7 @@ class EmployeeRequestController extends Controller
     {
         $data = $request->validated();
 
-        $status = $data['status'] ?? 'submitted';
-
-        EmployeeRequest::query()->create([
+        $employeeRequest = EmployeeRequest::query()->create([
             'employee_id' => $data['employee_id'],
             'job_position_id' => $data['job_position_id'],
             'department_id' => $data['department_id'],
@@ -79,10 +77,10 @@ class EmployeeRequestController extends Controller
             'preferred_airlines' => $data['preferred_airlines'] ?? null,
             'last_encashment_date' => $data['last_encashment_date'] ?? null,
             'bag_allowance' => $data['bag_allowance'] ?? null,
-            'status' => $status,
+            'status' => 'draft',
         ]);
 
-        return to_route('employee-requests.index');
+        return to_route('employee-requests.show', $employeeRequest);
     }
 
     /**
@@ -108,8 +106,23 @@ class EmployeeRequestController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
-            'signaturesUrl' => route('employee-requests.signatures.update', $employee_request, false),
+            'signaturesUrl' => $this->employeeRequestSignaturesPostUrl($employee_request),
+            'submitUrl' => route('employee-requests.submit', $employee_request, false),
         ]);
+    }
+
+    /**
+     * Submit a draft employee request.
+     */
+    public function submit(EmployeeRequest $employee_request): RedirectResponse
+    {
+        if (strtolower((string) $employee_request->status) !== 'draft') {
+            return redirect()->back()->with('error', 'Only draft employee requests can be submitted.');
+        }
+
+        $employee_request->update(['status' => 'submitted']);
+
+        return redirect()->back()->with('success', 'Employee request submitted.');
     }
 
     /**
@@ -117,10 +130,20 @@ class EmployeeRequestController extends Controller
      */
     public function edit(EmployeeRequest $employee_request): Response
     {
-        $employee_request->load(['employee', 'department', 'jobPosition']);
+        $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
+
+        $employeeSignatureUrl = $employee_request->employee_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
+            : null;
+        $approvedBySignatureUrl = $employee_request->approved_by_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->approved_by_signature, '/'))
+            : null;
 
         return Inertia::render('employee-requests/edit', [
-            'employeeRequest' => $employee_request,
+            'employeeRequest' => array_merge($employee_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+            ]),
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
@@ -131,6 +154,7 @@ class EmployeeRequestController extends Controller
             'jobPositions' => JobPosition::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'signaturesUrl' => $this->employeeRequestSignaturesPostUrl($employee_request),
         ]);
     }
 
@@ -221,5 +245,18 @@ class EmployeeRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Signatures updated successfully.');
+    }
+
+    /**
+     * POST URL for saving employee request signatures (host-relative).
+     */
+    private function employeeRequestSignaturesPostUrl(EmployeeRequest $employee_request): string
+    {
+        $key = $employee_request->getKey();
+        if ($key === null || $key === '') {
+            $key = request()->segment(2);
+        }
+
+        return '/employee-requests/'.$key.'/signatures';
     }
 }

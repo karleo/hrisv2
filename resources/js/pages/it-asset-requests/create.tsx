@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, User } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, Send, User } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,7 +72,7 @@ export default function Create({
 }) {
     const initialDate = getTodayYmd();
 
-    const { data, setData, post, processing, errors, transform } = useForm<{
+    const { data, setData, post, processing, errors } = useForm<{
         date: string;
         date_issued: string;
         employee_id: number | '';
@@ -80,7 +80,6 @@ export default function Create({
         hardware_ids: number[];
         serial_number: string;
         remarks: string;
-        status: string;
     }>({
         date: initialDate,
         date_issued: '',
@@ -89,7 +88,6 @@ export default function Create({
         hardware_ids: [],
         serial_number: '',
         remarks: '',
-        status: 'draft',
     });
 
     const [dateInput, setDateInput] = useState<string>(
@@ -123,9 +121,8 @@ export default function Create({
         el.click();
     };
 
-    const submitAs = (status: 'draft' | 'submitted') => (e: React.FormEvent) => {
+    const saveDraft = (e: React.FormEvent) => {
         e.preventDefault();
-        transform((payload) => ({ ...payload, status }));
         post('/it-asset-requests');
     };
 
@@ -166,7 +163,7 @@ export default function Create({
                                     Create IT Asset Request
                                 </h1>
                                 <p className="text-muted-foreground">
-                                    Request IT hardware assets for employees
+                                    Save a draft first, then open the request and use Submit when it is ready to send.
                                 </p>
                             </div>
 
@@ -570,20 +567,11 @@ export default function Create({
                                                 disabled={processing}
                                                 type="button"
                                                 className="w-full"
-                                                onClick={submitAs('submitted')}
+                                                onClick={saveDraft}
                                                 size="lg"
                                             >
-                                                {processing ? 'Submitting...' : 'Submit Request'}
-                                            </Button>
-                                            <Button
-                                                disabled={processing}
-                                                type="button"
-                                                variant="outline"
-                                                className="w-full"
-                                                onClick={submitAs('draft')}
-                                                size="lg"
-                                            >
-                                                Save as Draft
+                                                <Send className="mr-2 size-4" />
+                                                {processing ? 'Saving...' : 'Save as draft'}
                                             </Button>
                                             <Link href={index()} className="block">
                                                 <Button

@@ -33,8 +33,6 @@ class StoreEmployeeRequestRequest extends FormRequest
             'preferred_airlines' => ['nullable', 'string', 'max:100'],
             'last_encashment_date' => ['nullable', 'date'],
             'bag_allowance' => ['nullable', 'string', 'max:50'],
-            'status' => ['sometimes', 'string', 'in:draft,submitted'],
         ];
     }
 }
-

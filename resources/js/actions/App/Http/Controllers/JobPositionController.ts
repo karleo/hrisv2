@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\JobPositionController::index
  * @see app/Http/Controllers/JobPositionController.php:18
@@ -42,41 +42,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\JobPositionController::index
- * @see app/Http/Controllers/JobPositionController.php:18
- * @route '/job-positions'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::index
- * @see app/Http/Controllers/JobPositionController.php:18
- * @route '/job-positions'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\JobPositionController::index
- * @see app/Http/Controllers/JobPositionController.php:18
- * @route '/job-positions'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\JobPositionController::create
  * @see app/Http/Controllers/JobPositionController.php:42
@@ -120,41 +85,6 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\JobPositionController::create
- * @see app/Http/Controllers/JobPositionController.php:42
- * @route '/job-positions/create'
- */
-    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::create
- * @see app/Http/Controllers/JobPositionController.php:42
- * @route '/job-positions/create'
- */
-        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\JobPositionController::create
- * @see app/Http/Controllers/JobPositionController.php:42
- * @route '/job-positions/create'
- */
-        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    create.form = createForm
 /**
 * @see \App\Http\Controllers\JobPositionController::store
  * @see app/Http/Controllers/JobPositionController.php:50
@@ -189,27 +119,6 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\JobPositionController::store
- * @see app/Http/Controllers/JobPositionController.php:50
- * @route '/job-positions'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::store
- * @see app/Http/Controllers/JobPositionController.php:50
- * @route '/job-positions'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\JobPositionController::show
  * @see app/Http/Controllers/JobPositionController.php:0
@@ -272,41 +181,6 @@ show.head = (args: { job_position: string | number } | [job_position: string | n
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\JobPositionController::show
- * @see app/Http/Controllers/JobPositionController.php:0
- * @route '/job-positions/{job_position}'
- */
-    const showForm = (args: { job_position: string | number } | [job_position: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::show
- * @see app/Http/Controllers/JobPositionController.php:0
- * @route '/job-positions/{job_position}'
- */
-        showForm.get = (args: { job_position: string | number } | [job_position: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\JobPositionController::show
- * @see app/Http/Controllers/JobPositionController.php:0
- * @route '/job-positions/{job_position}'
- */
-        showForm.head = (args: { job_position: string | number } | [job_position: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\JobPositionController::edit
  * @see app/Http/Controllers/JobPositionController.php:60
@@ -374,41 +248,6 @@ edit.head = (args: { job_position: number | { id: number } } | [job_position: nu
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\JobPositionController::edit
- * @see app/Http/Controllers/JobPositionController.php:60
- * @route '/job-positions/{job_position}/edit'
- */
-    const editForm = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: edit.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::edit
- * @see app/Http/Controllers/JobPositionController.php:60
- * @route '/job-positions/{job_position}/edit'
- */
-        editForm.get = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\JobPositionController::edit
- * @see app/Http/Controllers/JobPositionController.php:60
- * @route '/job-positions/{job_position}/edit'
- */
-        editForm.head = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    edit.form = editForm
 /**
 * @see \App\Http\Controllers\JobPositionController::update
  * @see app/Http/Controllers/JobPositionController.php:70
@@ -476,51 +315,6 @@ update.patch = (args: { job_position: number | { id: number } } | [job_position:
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\JobPositionController::update
- * @see app/Http/Controllers/JobPositionController.php:70
- * @route '/job-positions/{job_position}'
- */
-    const updateForm = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PUT',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::update
- * @see app/Http/Controllers/JobPositionController.php:70
- * @route '/job-positions/{job_position}'
- */
-        updateForm.put = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PUT',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-            /**
-* @see \App\Http\Controllers\JobPositionController::update
- * @see app/Http/Controllers/JobPositionController.php:70
- * @route '/job-positions/{job_position}'
- */
-        updateForm.patch = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\JobPositionController::destroy
  * @see app/Http/Controllers/JobPositionController.php:80
@@ -578,38 +372,6 @@ destroy.delete = (args: { job_position: number | { id: number } } | [job_positio
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\JobPositionController::destroy
- * @see app/Http/Controllers/JobPositionController.php:80
- * @route '/job-positions/{job_position}'
- */
-    const destroyForm = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\JobPositionController::destroy
- * @see app/Http/Controllers/JobPositionController.php:80
- * @route '/job-positions/{job_position}'
- */
-        destroyForm.delete = (args: { job_position: number | { id: number } } | [job_position: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const JobPositionController = { index, create, store, show, edit, update, destroy }
 
 export default JobPositionController

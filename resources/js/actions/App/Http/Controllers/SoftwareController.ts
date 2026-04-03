@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\SoftwareController::index
  * @see app/Http/Controllers/SoftwareController.php:18
@@ -42,41 +42,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\SoftwareController::index
- * @see app/Http/Controllers/SoftwareController.php:18
- * @route '/software'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::index
- * @see app/Http/Controllers/SoftwareController.php:18
- * @route '/software'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\SoftwareController::index
- * @see app/Http/Controllers/SoftwareController.php:18
- * @route '/software'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\SoftwareController::create
  * @see app/Http/Controllers/SoftwareController.php:42
@@ -120,41 +85,6 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\SoftwareController::create
- * @see app/Http/Controllers/SoftwareController.php:42
- * @route '/software/create'
- */
-    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::create
- * @see app/Http/Controllers/SoftwareController.php:42
- * @route '/software/create'
- */
-        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\SoftwareController::create
- * @see app/Http/Controllers/SoftwareController.php:42
- * @route '/software/create'
- */
-        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    create.form = createForm
 /**
 * @see \App\Http\Controllers\SoftwareController::store
  * @see app/Http/Controllers/SoftwareController.php:50
@@ -189,27 +119,6 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\SoftwareController::store
- * @see app/Http/Controllers/SoftwareController.php:50
- * @route '/software'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::store
- * @see app/Http/Controllers/SoftwareController.php:50
- * @route '/software'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\SoftwareController::show
  * @see app/Http/Controllers/SoftwareController.php:0
@@ -272,41 +181,6 @@ show.head = (args: { software: string | number } | [software: string | number ] 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\SoftwareController::show
- * @see app/Http/Controllers/SoftwareController.php:0
- * @route '/software/{software}'
- */
-    const showForm = (args: { software: string | number } | [software: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::show
- * @see app/Http/Controllers/SoftwareController.php:0
- * @route '/software/{software}'
- */
-        showForm.get = (args: { software: string | number } | [software: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\SoftwareController::show
- * @see app/Http/Controllers/SoftwareController.php:0
- * @route '/software/{software}'
- */
-        showForm.head = (args: { software: string | number } | [software: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\SoftwareController::edit
  * @see app/Http/Controllers/SoftwareController.php:60
@@ -374,41 +248,6 @@ edit.head = (args: { software: number | { id: number } } | [software: number | {
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\SoftwareController::edit
- * @see app/Http/Controllers/SoftwareController.php:60
- * @route '/software/{software}/edit'
- */
-    const editForm = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: edit.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::edit
- * @see app/Http/Controllers/SoftwareController.php:60
- * @route '/software/{software}/edit'
- */
-        editForm.get = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\SoftwareController::edit
- * @see app/Http/Controllers/SoftwareController.php:60
- * @route '/software/{software}/edit'
- */
-        editForm.head = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    edit.form = editForm
 /**
 * @see \App\Http\Controllers\SoftwareController::update
  * @see app/Http/Controllers/SoftwareController.php:70
@@ -476,51 +315,6 @@ update.patch = (args: { software: number | { id: number } } | [software: number 
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\SoftwareController::update
- * @see app/Http/Controllers/SoftwareController.php:70
- * @route '/software/{software}'
- */
-    const updateForm = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PUT',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::update
- * @see app/Http/Controllers/SoftwareController.php:70
- * @route '/software/{software}'
- */
-        updateForm.put = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PUT',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-            /**
-* @see \App\Http\Controllers\SoftwareController::update
- * @see app/Http/Controllers/SoftwareController.php:70
- * @route '/software/{software}'
- */
-        updateForm.patch = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\SoftwareController::destroy
  * @see app/Http/Controllers/SoftwareController.php:80
@@ -578,38 +372,6 @@ destroy.delete = (args: { software: number | { id: number } } | [software: numbe
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\SoftwareController::destroy
- * @see app/Http/Controllers/SoftwareController.php:80
- * @route '/software/{software}'
- */
-    const destroyForm = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\SoftwareController::destroy
- * @see app/Http/Controllers/SoftwareController.php:80
- * @route '/software/{software}'
- */
-        destroyForm.delete = (args: { software: number | { id: number } } | [software: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const SoftwareController = { index, create, store, show, edit, update, destroy }
 
 export default SoftwareController
