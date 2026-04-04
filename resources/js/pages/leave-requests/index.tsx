@@ -83,6 +83,13 @@ const STATUS_FILTER_OPTIONS = [
     { value: 'rejected', label: 'Rejected' },
 ] as const;
 
+const DATE_PRESET_OPTIONS = [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'last_7_days', label: 'Last 7 days' },
+    { value: 'this_month', label: 'This month' },
+] as const;
+
 function formatDateDdMmYyyy(value: string | null | undefined): string {
     if (value == null || value === '') return '—';
     const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -105,6 +112,7 @@ function navigateIndex(params: {
     search?: string;
     department_id?: number;
     status?: string;
+    date_preset?: string;
 }) {
     const cleaned: Record<string, string | number> = { page: 1 };
     if (params.search?.trim()) {
@@ -115,6 +123,9 @@ function navigateIndex(params: {
     }
     if (params.status) {
         cleaned.status = params.status;
+    }
+    if (params.date_preset) {
+        cleaned.date_preset = params.date_preset;
     }
     router.get(LeaveRequestController.index.url(), cleaned, {
         preserveState: true,
@@ -129,7 +140,12 @@ export default function LeaveRequestsIndex({
     stats,
 }: {
     leaveRequests: PaginatedLeaveRequests;
-    filters: { search?: string | null; department_id?: number | null; status?: string | null };
+    filters: {
+        search?: string | null;
+        department_id?: number | null;
+        status?: string | null;
+        date_preset?: string | null;
+    };
     departments: Department[];
     stats: LeaveStats;
 }) {
@@ -143,18 +159,25 @@ export default function LeaveRequestsIndex({
         if (filters.status) {
             q.status = filters.status;
         }
+        if (filters.date_preset) {
+            q.date_preset = filters.date_preset;
+        }
         return q;
-    }, [filters.department_id, filters.status]);
+    }, [filters.department_id, filters.status, filters.date_preset]);
 
     const departmentSelectValue =
         filters.department_id != null ? String(filters.department_id) : 'all';
 
     const statusSelectValue = filters.status && filters.status !== '' ? filters.status : 'all';
 
+    const datePresetSelectValue =
+        filters.date_preset && filters.date_preset !== '' ? filters.date_preset : 'all';
+
     const hasActiveFilters =
         Boolean(filters.search?.trim()) ||
         filters.department_id != null ||
-        Boolean(filters.status);
+        Boolean(filters.status) ||
+        Boolean(filters.date_preset);
 
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
 
@@ -290,6 +313,7 @@ export default function LeaveRequestsIndex({
                                                 search: filters.search?.trim() || undefined,
                                                 department_id: v === 'all' ? undefined : Number(v),
                                                 status: filters.status ?? undefined,
+                                                date_preset: filters.date_preset ?? undefined,
                                             });
                                         }}
                                     >
@@ -312,6 +336,7 @@ export default function LeaveRequestsIndex({
                                                 search: filters.search?.trim() || undefined,
                                                 department_id: filters.department_id ?? undefined,
                                                 status: v === 'all' ? undefined : v,
+                                                date_preset: filters.date_preset ?? undefined,
                                             });
                                         }}
                                     >
@@ -321,6 +346,29 @@ export default function LeaveRequestsIndex({
                                         <SelectContent>
                                             <SelectItem value="all">All statuses</SelectItem>
                                             {STATUS_FILTER_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={datePresetSelectValue}
+                                        onValueChange={(v) => {
+                                            navigateIndex({
+                                                search: filters.search?.trim() || undefined,
+                                                department_id: filters.department_id ?? undefined,
+                                                status: filters.status ?? undefined,
+                                                date_preset: v === 'all' ? undefined : v,
+                                            });
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-[200px]">
+                                            <SelectValue placeholder="Date" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Any date</SelectItem>
+                                            {DATE_PRESET_OPTIONS.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>

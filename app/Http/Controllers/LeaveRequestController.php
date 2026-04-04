@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,14 +28,18 @@ class LeaveRequestController extends Controller
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'department_id' => ['sometimes', 'nullable', 'integer', 'exists:departments,id'],
             'status' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month'])],
         ]);
 
         $departmentId = $validated['department_id'] ?? null;
         $statusFilter = isset($validated['status']) && $validated['status'] !== ''
             ? $validated['status']
             : null;
+        $datePreset = isset($validated['date_preset']) && $validated['date_preset'] !== ''
+            ? $validated['date_preset']
+            : null;
 
-        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter): void {
+        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter, $datePreset): void {
             $query->when(
                 $request->filled('search'),
                 fn ($q) => $q->whereHas('employee', function ($sub) use ($request): void {
@@ -43,7 +48,20 @@ class LeaveRequestController extends Controller
                 })
             )
                 ->when($departmentId !== null, fn ($q) => $q->where('department_id', $departmentId))
-                ->when($statusFilter !== null && $statusFilter !== '', fn ($q) => $q->where('status', $statusFilter));
+                ->when($statusFilter !== null && $statusFilter !== '', fn ($q) => $q->where('status', $statusFilter))
+                ->when($datePreset === 'today', fn ($q) => $q->whereDate('created_at', Carbon::today()))
+                ->when($datePreset === 'yesterday', fn ($q) => $q->whereDate('created_at', Carbon::yesterday()))
+                ->when($datePreset === 'last_7_days', fn ($q) => $q->where(
+                    'created_at',
+                    '>=',
+                    Carbon::today()->subDays(6)->startOfDay()
+                ))
+                ->when($datePreset === 'this_month', function ($q): void {
+                    $q->whereBetween('created_at', [
+                        Carbon::now()->startOfMonth()->startOfDay(),
+                        Carbon::now()->endOfMonth()->endOfDay(),
+                    ]);
+                });
         };
 
         $statusAggregation = LeaveRequest::query();
@@ -82,6 +100,7 @@ class LeaveRequestController extends Controller
                 'search' => $validated['search'] ?? null,
                 'department_id' => $departmentId,
                 'status' => $statusFilter,
+                'date_preset' => $datePreset,
             ],
             'departments' => Department::query()
                 ->orderBy('name')

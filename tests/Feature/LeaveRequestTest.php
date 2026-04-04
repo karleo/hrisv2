@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -52,6 +53,43 @@ class LeaveRequestTest extends TestCase
             ->has('stats')
             ->has('departments')
         );
+    }
+
+    public function test_index_filters_by_date_preset_on_created_at(): void
+    {
+        [$employee, $department] = $this->createEmployeeAndDepartment();
+
+        $this->travelTo(Carbon::parse('2026-04-03 12:00:00', config('app.timezone')));
+
+        $todayRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+            'created_at' => now(),
+        ]);
+
+        $yesterdayRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Sick Leave'],
+            'created_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('leave-requests.index', ['date_preset' => 'today']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('leave-requests/index')
+                ->has('leaveRequests.data', 1)
+                ->where('leaveRequests.data.0.id', $todayRequest->id)
+            );
+
+        $this->get(route('leave-requests.index', ['date_preset' => 'yesterday']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('leave-requests/index')
+                ->has('leaveRequests.data', 1)
+                ->where('leaveRequests.data.0.id', $yesterdayRequest->id)
+            );
     }
 
     public function test_create_displays_form(): void
