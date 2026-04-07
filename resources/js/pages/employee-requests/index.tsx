@@ -256,7 +256,7 @@ export default function Index({
                                                                 </Button>
                                                             </Link>
                                                             <Link
-                                                                href={`${EmployeeRequestController.show.url(request.id)}?print=1`}
+                                                                href={EmployeeRequestController.print.url(request.id)}
                                                                 aria-label="Print"
                                                             >
                                                                 <Button

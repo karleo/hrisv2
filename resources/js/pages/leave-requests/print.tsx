@@ -147,18 +147,18 @@ export default function LeaveRequestPrint({
                 <article className="leave-print-article mx-auto w-full max-w-[920px] border border-neutral-400 bg-[#e6e6e6] p-10 print:mx-0 print:flex print:min-h-0 print:max-w-none print:flex-1 print:flex-col print:p-5">
                     {/* Header */}
                     <header className="-mx-10 -mt-10 mb-6 shrink-0 border-b border-neutral-300 bg-white px-10 py-6 print:-mx-5 print:-mt-5 print:mb-3 print:px-5 print:py-3">
-                        <div className="flex min-h-24 flex-row items-center justify-between gap-4 print:min-h-[3.75rem]">
+                        <div className="flex min-h-24 flex-row items-center justify-between gap-4 print:min-h-[6rem]">
                             <div className="flex min-w-0 flex-1 items-center pt-2 print:pt-0">
                                 <h1 className="text-3xl font-semibold leading-tight tracking-tight text-[#111a8a] print:text-xl">
                                     Leave Form
                                 </h1>
                             </div>
-                            <div className="flex h-24 min-w-0 max-w-[45%] shrink-0 items-center justify-end sm:min-w-[15rem] print:h-[3.75rem]">
+                            <div className="flex h-24 min-w-0 max-w-[45%] shrink-0 items-center justify-end sm:min-w-[15rem] print:h-[6rem] print:max-w-[58%]">
                                 {companyLogoUrl ? (
                                     <img
                                         src={companyLogoUrl}
                                         alt=""
-                                        className="max-h-24 w-auto max-w-full object-contain object-right-bottom sm:max-w-[300px] print:max-h-[3.75rem]"
+                                        className="max-h-24 w-auto max-w-full object-contain object-right-bottom sm:max-w-[300px] print:max-h-[6rem] print:max-w-[360px]"
                                     />
                                 ) : (
                                     <div

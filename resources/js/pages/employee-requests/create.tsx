@@ -13,6 +13,7 @@ import {
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/employee-requests';
@@ -23,6 +24,7 @@ type EmployeeOption = {
     first_name: string;
     last_name: string;
     department_id: number | null;
+    job_position_id: number | null;
 };
 
 type DepartmentOption = {
@@ -102,6 +104,16 @@ export default function Create({
         preferred_airlines: string;
         last_encashment_date: string;
         bag_allowance: string;
+        ticket_booking: boolean;
+        passport_request: boolean;
+        ticket_encashment: boolean;
+        amount_2000: boolean;
+        amount_1000: boolean;
+        leave_salary: string;
+        passport_ack_airline_name: string;
+        passport_ack_home_country: string;
+        passport_ack_departure_date_time: string;
+        passport_ack_home_country_departure_date_time: string;
     }>({
         employee_id: '',
         job_position_id: '',
@@ -113,6 +125,16 @@ export default function Create({
         preferred_airlines: '',
         last_encashment_date: '',
         bag_allowance: '',
+        ticket_booking: false,
+        passport_request: false,
+        ticket_encashment: false,
+        amount_2000: false,
+        amount_1000: false,
+        leave_salary: '',
+        passport_ack_airline_name: '',
+        passport_ack_home_country: '',
+        passport_ack_departure_date_time: '',
+        passport_ack_home_country_departure_date_time: '',
     });
 
     const saveDraft = (e: React.FormEvent) => {
@@ -244,6 +266,7 @@ export default function Create({
                                                         ...previous,
                                                         employee_id: employeeId,
                                                         department_id: employee?.department_id ?? '',
+                                                        job_position_id: employee?.job_position_id ?? '',
                                                     }));
                                                 }}
                                                 className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
@@ -261,28 +284,19 @@ export default function Create({
                                             <Label htmlFor="job_position_id">
                                                 Job Position <span className="text-destructive">*</span>
                                             </Label>
-                                            <select
+                                            <input
                                                 id="job_position_id"
-                                                name="job_position_id"
-                                                required
-                                                value={data.job_position_id}
-                                                onChange={(e) =>
-                                                    setData(
-                                                        'job_position_id',
-                                                        e.target.value
-                                                            ? Number(e.target.value)
-                                                            : '',
-                                                    )
+                                                type="text"
+                                                readOnly
+                                                value={
+                                                    data.job_position_id
+                                                        ? (jobPositions.find((position) => position.id === data.job_position_id)?.name ?? '')
+                                                        : ''
                                                 }
+                                                placeholder="Select employee first"
                                                 className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                <option value="">Select job position</option>
-                                                {jobPositions.map((pos) => (
-                                                    <option key={pos.id} value={pos.id}>
-                                                        {pos.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            />
+                                            <input type="hidden" name="job_position_id" value={data.job_position_id} />
                                             <InputError message={errors.job_position_id} />
                                         </div>
                                         <div className="grid gap-2">
@@ -395,13 +409,89 @@ export default function Create({
                                             Provide travel and allowance information
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="departure_date" className="flex items-center gap-2">
-                                                <Calendar className="size-4" />
+                                    <CardContent className="grid gap-6 sm:grid-cols-2">
+                                        <div className="sm:col-span-2 rounded-lg border border-dashed border-muted-foreground/25 bg-muted/30 p-5">
+                                            <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+                                                <div className="space-y-3">
+                                                    <p className="text-sm font-semibold text-foreground">
+                                                        Request type
+                                                    </p>
+                                                    <div className="flex flex-col gap-2.5">
+                                                        <label className="flex cursor-pointer items-center gap-3 text-sm leading-none">
+                                                            <Checkbox
+                                                                id="ticket_booking"
+                                                                checked={data.ticket_booking}
+                                                                onCheckedChange={(v) =>
+                                                                    setData('ticket_booking', v === true)
+                                                                }
+                                                            />
+                                                            <span>Ticket booking</span>
+                                                        </label>
+                                                        <label className="flex cursor-pointer items-center gap-3 text-sm leading-none">
+                                                            <Checkbox
+                                                                id="passport_request"
+                                                                checked={data.passport_request}
+                                                                onCheckedChange={(v) =>
+                                                                    setData('passport_request', v === true)
+                                                                }
+                                                            />
+                                                            <span>Passport</span>
+                                                        </label>
+                                                        <label className="flex cursor-pointer items-center gap-3 text-sm leading-none">
+                                                            <Checkbox
+                                                                id="ticket_encashment"
+                                                                checked={data.ticket_encashment}
+                                                                onCheckedChange={(v) =>
+                                                                    setData('ticket_encashment', v === true)
+                                                                }
+                                                            />
+                                                            <span>Ticket encashment</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col justify-end gap-3 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+                                                    <p className="text-sm font-semibold text-foreground">
+                                                        Amount
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-md border border-border/80 bg-background/80 px-4 py-3">
+                                                        <label className="flex cursor-pointer items-center gap-2.5 text-sm tabular-nums">
+                                                            <span className="min-w-[2.5rem] font-medium">2000</span>
+                                                            <Checkbox
+                                                                id="amount_2000"
+                                                                checked={data.amount_2000}
+                                                                onCheckedChange={(v) =>
+                                                                    setData((prev) => ({
+                                                                        ...prev,
+                                                                        amount_2000: v === true,
+                                                                        amount_1000: v === true ? false : prev.amount_1000,
+                                                                    }))
+                                                                }
+                                                            />
+                                                        </label>
+                                                        <label className="flex cursor-pointer items-center gap-2.5 text-sm tabular-nums">
+                                                            <span className="min-w-[2.5rem] font-medium">1000</span>
+                                                            <Checkbox
+                                                                id="amount_1000"
+                                                                checked={data.amount_1000}
+                                                                onCheckedChange={(v) =>
+                                                                    setData((prev) => ({
+                                                                        ...prev,
+                                                                        amount_1000: v === true,
+                                                                        amount_2000: v === true ? false : prev.amount_2000,
+                                                                    }))
+                                                                }
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="departure_date_display" className="flex items-center gap-2">
+                                                <Calendar className="size-4 shrink-0" />
                                                 Departure Date (DD/MM/YYYY)
                                             </Label>
-                                            <div className="relative">
+                                            <div className="relative w-full">
                                                 <Input
                                                     id="departure_date_display"
                                                     type="text"
@@ -415,7 +505,7 @@ export default function Create({
                                                             openDatePicker(departureDateRef);
                                                         }
                                                     }}
-                                                    className="h-10 pr-10 cursor-pointer"
+                                                    className="h-10 w-full cursor-pointer pr-10"
                                                 />
                                                 <input
                                                     id="departure_date"
@@ -434,12 +524,12 @@ export default function Create({
                                             </div>
                                             <InputError message={errors.departure_date} />
                                         </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="arrival_date" className="flex items-center gap-2">
-                                                <Calendar className="size-4" />
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="arrival_date_display" className="flex items-center gap-2">
+                                                <Calendar className="size-4 shrink-0" />
                                                 Arrival Date (DD/MM/YYYY)
                                             </Label>
-                                            <div className="relative">
+                                            <div className="relative w-full">
                                                 <Input
                                                     id="arrival_date_display"
                                                     type="text"
@@ -453,7 +543,7 @@ export default function Create({
                                                             openDatePicker(arrivalDateRef);
                                                         }
                                                     }}
-                                                    className="h-10 pr-10 cursor-pointer"
+                                                    className="h-10 w-full cursor-pointer pr-10"
                                                 />
                                                 <input
                                                     id="arrival_date"
@@ -472,7 +562,7 @@ export default function Create({
                                             </div>
                                             <InputError message={errors.arrival_date} />
                                         </div>
-                                        <div className="grid gap-2">
+                                        <div className="grid min-w-0 gap-2">
                                             <Label htmlFor="preferred_airlines">Preferred Airlines</Label>
                                             <Input
                                                 id="preferred_airlines"
@@ -486,31 +576,19 @@ export default function Create({
                                                     )
                                                 }
                                                 placeholder="e.g. Qatar Airways, Emirates"
-                                                className="h-10"
+                                                className="h-10 w-full"
                                             />
                                             <InputError message={errors.preferred_airlines} />
                                         </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="bag_allowance">Bag Allowance</Label>
-                                            <Input
-                                                id="bag_allowance"
-                                                name="bag_allowance"
-                                                type="text"
-                                                value={data.bag_allowance}
-                                                onChange={(e) =>
-                                                    setData('bag_allowance', e.target.value)
-                                                }
-                                                placeholder="e.g. 30kg"
-                                                className="h-10"
-                                            />
-                                            <InputError message={errors.bag_allowance} />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="last_encashment_date" className="flex items-center gap-2">
-                                                <Calendar className="size-4" />
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label
+                                                htmlFor="last_encashment_date_display"
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Calendar className="size-4 shrink-0" />
                                                 Last Encashment Date (DD/MM/YYYY)
                                             </Label>
-                                            <div className="relative">
+                                            <div className="relative w-full">
                                                 <Input
                                                     id="last_encashment_date_display"
                                                     type="text"
@@ -524,7 +602,7 @@ export default function Create({
                                                             openDatePicker(lastEncashmentDateRef);
                                                         }
                                                     }}
-                                                    className="h-10 pr-10 cursor-pointer"
+                                                    className="h-10 w-full cursor-pointer pr-10"
                                                 />
                                                 <input
                                                     id="last_encashment_date"
@@ -542,6 +620,104 @@ export default function Create({
                                                 <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                             </div>
                                             <InputError message={errors.last_encashment_date} />
+                                        </div>
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="bag_allowance">Bag Allowance</Label>
+                                            <Input
+                                                id="bag_allowance"
+                                                name="bag_allowance"
+                                                type="text"
+                                                value={data.bag_allowance}
+                                                onChange={(e) =>
+                                                    setData('bag_allowance', e.target.value)
+                                                }
+                                                placeholder="e.g. 30kg"
+                                                className="h-10 w-full"
+                                            />
+                                            <InputError message={errors.bag_allowance} />
+                                        </div>
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="leave_salary">Leave salary</Label>
+                                            <Input
+                                                id="leave_salary"
+                                                name="leave_salary"
+                                                type="text"
+                                                value={data.leave_salary}
+                                                onChange={(e) =>
+                                                    setData('leave_salary', e.target.value)
+                                                }
+                                                placeholder="Amount or details (optional)"
+                                                className="h-10 w-full"
+                                            />
+                                            <InputError message={errors.leave_salary} />
+                                        </div>
+                                        <div className="grid gap-4 sm:col-span-2">
+                                            <div className="rounded-lg border border-dashed border-muted-foreground/25 bg-muted/20 p-4">
+                                                <p className="text-sm font-semibold text-foreground">
+                                                    Passport acknowledgement / remarks / flight details
+                                                </p>
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    This is to acknowledge that I received my passport in good condition. Signed below with date.
+                                                </p>
+                                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                                    <div className="grid min-w-0 gap-2">
+                                                        <Label htmlFor="passport_ack_airline_name">Name of airlines</Label>
+                                                        <Input
+                                                            id="passport_ack_airline_name"
+                                                            name="passport_ack_airline_name"
+                                                            type="text"
+                                                            value={data.passport_ack_airline_name}
+                                                            onChange={(e) =>
+                                                                setData('passport_ack_airline_name', e.target.value)
+                                                            }
+                                                            className="h-10 w-full"
+                                                        />
+                                                        <InputError message={errors.passport_ack_airline_name} />
+                                                    </div>
+                                                    <div className="grid min-w-0 gap-2">
+                                                        <Label htmlFor="passport_ack_home_country">Home country</Label>
+                                                        <Input
+                                                            id="passport_ack_home_country"
+                                                            name="passport_ack_home_country"
+                                                            type="text"
+                                                            value={data.passport_ack_home_country}
+                                                            onChange={(e) =>
+                                                                setData('passport_ack_home_country', e.target.value)
+                                                            }
+                                                            className="h-10 w-full"
+                                                        />
+                                                        <InputError message={errors.passport_ack_home_country} />
+                                                    </div>
+                                                    <div className="grid min-w-0 gap-2">
+                                                        <Label htmlFor="passport_ack_departure_date_time">Departure date/time</Label>
+                                                        <Input
+                                                            id="passport_ack_departure_date_time"
+                                                            name="passport_ack_departure_date_time"
+                                                            type="text"
+                                                            value={data.passport_ack_departure_date_time}
+                                                            onChange={(e) =>
+                                                                setData('passport_ack_departure_date_time', e.target.value)
+                                                            }
+                                                            className="h-10 w-full"
+                                                        />
+                                                        <InputError message={errors.passport_ack_departure_date_time} />
+                                                    </div>
+                                                    <div className="grid min-w-0 gap-2">
+                                                        <Label htmlFor="passport_ack_home_country_departure_date_time">Home country departure date/time</Label>
+                                                        <Input
+                                                            id="passport_ack_home_country_departure_date_time"
+                                                            name="passport_ack_home_country_departure_date_time"
+                                                            type="text"
+                                                            value={data.passport_ack_home_country_departure_date_time}
+                                                            onChange={(e) =>
+                                                                setData('passport_ack_home_country_departure_date_time', e.target.value)
+                                                            }
+                                                            className="h-10 w-full"
+                                                        />
+                                                        <InputError message={errors.passport_ack_home_country_departure_date_time} />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -655,6 +831,17 @@ export default function Create({
                                                     </Label>
                                                     <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
                                                         {data.bag_allowance}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {data.leave_salary.trim() !== '' && (
+                                                <div className="space-y-2">
+                                                    <Label className="text-sm font-medium text-muted-foreground">
+                                                        Leave salary
+                                                    </Label>
+                                                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
+                                                        {data.leave_salary}
                                                     </div>
                                                 </div>
                                             )}

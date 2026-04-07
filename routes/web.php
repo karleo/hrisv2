@@ -68,6 +68,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::post('it-requests/{it_request}/signatures', [ItRequestController::class, 'updateSignatures'])
         ->name('it-requests.signatures.update');
     Route::resource('employee-requests', EmployeeRequestController::class);
+    Route::get('employee-requests/{employee_request}/print', [EmployeeRequestController::class, 'print'])
+        ->name('employee-requests.print');
     Route::post('employee-requests/{employee_request}/submit', [EmployeeRequestController::class, 'submit'])
         ->name('employee-requests.submit');
     Route::post('employee-requests/{employee_request}/signatures', [EmployeeRequestController::class, 'updateSignatures'])

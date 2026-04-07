@@ -30,8 +30,10 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
     public function test_create_forms_include_employee_department_id_in_options(): void
     {
         $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
         $employee = Employee::factory()->create([
             'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
         ]);
 
         $this->get(route('it-requests.create'))
@@ -56,16 +58,18 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
                 ->component('employee-requests/create')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
+                ->where('employees.0.job_position_id', $jobPosition->id)
             );
     }
 
     public function test_edit_forms_include_employee_department_id_in_options(): void
     {
         $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
         $employee = Employee::factory()->create([
             'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
         ]);
-        $jobPosition = JobPosition::factory()->create();
 
         $itRequest = ItRequest::query()->create([
             'employee_id' => $employee->id,
@@ -114,6 +118,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
                 ->has('signaturesUrl')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
+                ->where('employees.0.job_position_id', $jobPosition->id)
             );
     }
 }

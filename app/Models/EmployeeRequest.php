@@ -21,6 +21,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $preferred_airlines
  * @property string|null $last_encashment_date
  * @property string|null $bag_allowance
+ * @property bool $ticket_booking
+ * @property bool $passport_request
+ * @property bool $ticket_encashment
+ * @property bool $amount_2000
+ * @property bool $amount_1000
+ * @property string|null $leave_salary
+ * @property string|null $passport_ack_airline_name
+ * @property string|null $passport_ack_home_country
+ * @property string|null $passport_ack_departure_date_time
+ * @property string|null $passport_ack_home_country_departure_date_time
+ * @property string|null $dept_head_signature
+ * @property string|null $ceo_signature
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -55,6 +67,18 @@ class EmployeeRequest extends Model
         'preferred_airlines',
         'last_encashment_date',
         'bag_allowance',
+        'ticket_booking',
+        'passport_request',
+        'ticket_encashment',
+        'amount_2000',
+        'amount_1000',
+        'leave_salary',
+        'passport_ack_airline_name',
+        'passport_ack_home_country',
+        'passport_ack_departure_date_time',
+        'passport_ack_home_country_departure_date_time',
+        'dept_head_signature',
+        'ceo_signature',
         'employee_signature',
         'approved_by_signature',
         'approved_by_employee_id',
@@ -73,6 +97,11 @@ class EmployeeRequest extends Model
             'arrival_date' => 'date:Y-m-d',
             'last_encashment_date' => 'date:Y-m-d',
             'status' => 'string',
+            'ticket_booking' => 'boolean',
+            'passport_request' => 'boolean',
+            'ticket_encashment' => 'boolean',
+            'amount_2000' => 'boolean',
+            'amount_1000' => 'boolean',
         ];
     }
 

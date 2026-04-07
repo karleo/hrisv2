@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\EmployeeRequest\StoreEmployeeRequestRequest;
 use App\Http\Requests\EmployeeRequest\UpdateEmployeeRequestRequest;
+use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
@@ -49,7 +50,7 @@ class EmployeeRequestController extends Controller
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+                ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -77,6 +78,16 @@ class EmployeeRequestController extends Controller
             'preferred_airlines' => $data['preferred_airlines'] ?? null,
             'last_encashment_date' => $data['last_encashment_date'] ?? null,
             'bag_allowance' => $data['bag_allowance'] ?? null,
+            'ticket_booking' => (bool) ($data['ticket_booking'] ?? false),
+            'passport_request' => (bool) ($data['passport_request'] ?? false),
+            'ticket_encashment' => (bool) ($data['ticket_encashment'] ?? false),
+            'amount_2000' => (bool) ($data['amount_2000'] ?? false),
+            'amount_1000' => (bool) ($data['amount_1000'] ?? false),
+            'leave_salary' => $data['leave_salary'] ?? null,
+            'passport_ack_airline_name' => $data['passport_ack_airline_name'] ?? null,
+            'passport_ack_home_country' => $data['passport_ack_home_country'] ?? null,
+            'passport_ack_departure_date_time' => $data['passport_ack_departure_date_time'] ?? null,
+            'passport_ack_home_country_departure_date_time' => $data['passport_ack_home_country_departure_date_time'] ?? null,
             'status' => 'draft',
         ]);
 
@@ -93,6 +104,12 @@ class EmployeeRequestController extends Controller
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
             : null;
+        $deptHeadSignatureUrl = $employee_request->dept_head_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->dept_head_signature, '/'))
+            : null;
+        $ceoSignatureUrl = $employee_request->ceo_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->ceo_signature, '/'))
+            : null;
         $approvedBySignatureUrl = $employee_request->approved_by_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->approved_by_signature, '/'))
             : null;
@@ -100,6 +117,8 @@ class EmployeeRequestController extends Controller
         return Inertia::render('employee-requests/show', [
             'employeeRequest' => array_merge($employee_request->toArray(), [
                 'employee_signature_url' => $employeeSignatureUrl,
+                'dept_head_signature_url' => $deptHeadSignatureUrl,
+                'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
             'employees' => Employee::query()
@@ -137,6 +156,12 @@ class EmployeeRequestController extends Controller
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
             : null;
+        $deptHeadSignatureUrl = $employee_request->dept_head_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->dept_head_signature, '/'))
+            : null;
+        $ceoSignatureUrl = $employee_request->ceo_signature
+            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->ceo_signature, '/'))
+            : null;
         $approvedBySignatureUrl = $employee_request->approved_by_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->approved_by_signature, '/'))
             : null;
@@ -144,12 +169,14 @@ class EmployeeRequestController extends Controller
         return Inertia::render('employee-requests/edit', [
             'employeeRequest' => array_merge($employee_request->toArray(), [
                 'employee_signature_url' => $employeeSignatureUrl,
+                'dept_head_signature_url' => $deptHeadSignatureUrl,
+                'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
             'employees' => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+                ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -180,10 +207,52 @@ class EmployeeRequestController extends Controller
             'preferred_airlines' => $data['preferred_airlines'] ?? null,
             'last_encashment_date' => $data['last_encashment_date'] ?? null,
             'bag_allowance' => $data['bag_allowance'] ?? null,
+            'ticket_booking' => (bool) ($data['ticket_booking'] ?? false),
+            'passport_request' => (bool) ($data['passport_request'] ?? false),
+            'ticket_encashment' => (bool) ($data['ticket_encashment'] ?? false),
+            'amount_2000' => (bool) ($data['amount_2000'] ?? false),
+            'amount_1000' => (bool) ($data['amount_1000'] ?? false),
+            'leave_salary' => $data['leave_salary'] ?? null,
+            'passport_ack_airline_name' => $data['passport_ack_airline_name'] ?? null,
+            'passport_ack_home_country' => $data['passport_ack_home_country'] ?? null,
+            'passport_ack_departure_date_time' => $data['passport_ack_departure_date_time'] ?? null,
+            'passport_ack_home_country_departure_date_time' => $data['passport_ack_home_country_departure_date_time'] ?? null,
             'status' => $status,
         ]);
 
         return to_route('employee-requests.index');
+    }
+
+    /**
+     * Printable employee request (matches leave request print styling).
+     */
+    public function print(EmployeeRequest $employee_request): Response
+    {
+        $employee_request->load(['employee.companyProfile', 'department', 'jobPosition', 'approvedByEmployee']);
+
+        $company = $employee_request->employee?->companyProfile ?? CompanyProfile::query()->first();
+        $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
+
+        $employeeSignatureUrl = $this->publicStorageBrowserUrl($employee_request->employee_signature);
+        $deptHeadSignatureUrl = $this->publicStorageBrowserUrl($employee_request->dept_head_signature);
+        $ceoSignatureUrl = $this->publicStorageBrowserUrl($employee_request->ceo_signature);
+        $approvedBySignatureUrl = $this->publicStorageBrowserUrl($employee_request->approved_by_signature);
+
+        $approvedByName = '';
+        if ($employee_request->approvedByEmployee) {
+            $approvedByName = trim($employee_request->approvedByEmployee->first_name.' '.$employee_request->approvedByEmployee->last_name);
+        }
+
+        return Inertia::render('employee-requests/print', [
+            'employeeRequest' => array_merge($employee_request->toArray(), [
+                'employee_signature_url' => $employeeSignatureUrl,
+                'dept_head_signature_url' => $deptHeadSignatureUrl,
+                'ceo_signature_url' => $ceoSignatureUrl,
+                'approved_by_signature_url' => $approvedBySignatureUrl,
+                'approved_by_name' => $approvedByName,
+            ]),
+            'companyLogoUrl' => $companyLogoUrl,
+        ]);
     }
 
     /**
@@ -196,6 +265,12 @@ class EmployeeRequestController extends Controller
         }
         if ($employee_request->approved_by_signature) {
             Storage::disk('public')->delete($employee_request->approved_by_signature);
+        }
+        if ($employee_request->dept_head_signature) {
+            Storage::disk('public')->delete($employee_request->dept_head_signature);
+        }
+        if ($employee_request->ceo_signature) {
+            Storage::disk('public')->delete($employee_request->ceo_signature);
         }
 
         $employee_request->delete();
@@ -211,6 +286,8 @@ class EmployeeRequestController extends Controller
         $request->validate([
             'employee_signature' => ['nullable', 'image', 'max:2048'],
             'approved_by_signature' => ['nullable', 'image', 'max:2048'],
+            'dept_head_signature' => ['nullable', 'image', 'max:2048'],
+            'ceo_signature' => ['nullable', 'image', 'max:2048'],
             'approved_by_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
         ]);
 
@@ -238,6 +315,28 @@ class EmployeeRequestController extends Controller
             $updateData['approved_by_signature'] = $path;
         }
 
+        if ($request->hasFile('dept_head_signature')) {
+            if ($employee_request->dept_head_signature) {
+                Storage::disk('public')->delete($employee_request->dept_head_signature);
+            }
+            $path = $request->file('dept_head_signature')->store(
+                "employee-requests/{$employee_request->id}/signatures",
+                'public',
+            );
+            $updateData['dept_head_signature'] = $path;
+        }
+
+        if ($request->hasFile('ceo_signature')) {
+            if ($employee_request->ceo_signature) {
+                Storage::disk('public')->delete($employee_request->ceo_signature);
+            }
+            $path = $request->file('ceo_signature')->store(
+                "employee-requests/{$employee_request->id}/signatures",
+                'public',
+            );
+            $updateData['ceo_signature'] = $path;
+        }
+
         if ($request->filled('approved_by_employee_id')) {
             $updateData['approved_by_employee_id'] = $request->input('approved_by_employee_id');
         }
@@ -260,5 +359,17 @@ class EmployeeRequestController extends Controller
         }
 
         return '/employee-requests/'.$key.'/signatures';
+    }
+
+    /**
+     * Host-relative URL for files stored on the public disk.
+     */
+    private function publicStorageBrowserUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
     }
 }

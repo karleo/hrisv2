@@ -74,6 +74,7 @@ export function RequestEmployeeSignatureCard({
     visitOnly,
     employeeName,
     className,
+    additionalSignatures = [],
 }: {
     signatureUrl: string | null;
     signaturesUrl: string;
@@ -81,6 +82,11 @@ export function RequestEmployeeSignatureCard({
     /** Shown under the pad when provided (e.g. current request employee). */
     employeeName?: string | null;
     className?: string;
+    additionalSignatures?: Array<{
+        label: string;
+        signatureUrl: string | null;
+        fieldName: 'dept_head_signature' | 'ceo_signature';
+    }>;
 }) {
     const only = [...visitOnly];
 
@@ -104,6 +110,20 @@ export function RequestEmployeeSignatureCard({
                         only,
                     }}
                 />
+                {additionalSignatures.map((signature) => (
+                    <SignaturePad
+                        key={signature.fieldName}
+                        label={signature.label}
+                        signatureUrl={signature.signatureUrl}
+                        submitUrl={signaturesUrl}
+                        fieldName={signature.fieldName}
+                        visitOptions={{
+                            preserveScroll: true,
+                            preserveState: true,
+                            only,
+                        }}
+                    />
+                ))}
                 {employeeName ? <p className="text-xs text-muted-foreground">{employeeName}</p> : null}
             </CardContent>
         </Card>

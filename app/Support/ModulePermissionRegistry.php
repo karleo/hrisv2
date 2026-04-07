@@ -133,6 +133,7 @@ final class ModulePermissionRegistry
             'edit' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
             'update' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
             'destroy' => [PermissionModule::EmployeeRequests, ModuleAbility::Delete],
+            'print' => [PermissionModule::EmployeeRequests, ModuleAbility::View],
             'submit' => [PermissionModule::EmployeeRequests, ModuleAbility::Create],
             'updateSignatures' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
         ],

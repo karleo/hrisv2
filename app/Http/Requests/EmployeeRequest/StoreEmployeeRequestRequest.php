@@ -33,6 +33,16 @@ class StoreEmployeeRequestRequest extends FormRequest
             'preferred_airlines' => ['nullable', 'string', 'max:100'],
             'last_encashment_date' => ['nullable', 'date'],
             'bag_allowance' => ['nullable', 'string', 'max:50'],
+            'ticket_booking' => ['sometimes', 'boolean'],
+            'passport_request' => ['sometimes', 'boolean'],
+            'ticket_encashment' => ['sometimes', 'boolean'],
+            'amount_2000' => ['sometimes', 'boolean', 'prohibited_if:amount_1000,1'],
+            'amount_1000' => ['sometimes', 'boolean', 'prohibited_if:amount_2000,1'],
+            'leave_salary' => ['nullable', 'string', 'max:255'],
+            'passport_ack_airline_name' => ['nullable', 'string', 'max:255'],
+            'passport_ack_home_country' => ['nullable', 'string', 'max:255'],
+            'passport_ack_departure_date_time' => ['nullable', 'string', 'max:255'],
+            'passport_ack_home_country_departure_date_time' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

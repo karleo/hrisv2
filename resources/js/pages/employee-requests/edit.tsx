@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     RequestEmployeeSignatureCard,
     employeeRequestEditSignatureVisitOnly,
@@ -27,6 +28,7 @@ type EmployeeOption = {
     first_name: string;
     last_name: string;
     department_id: number | null;
+    job_position_id: number | null;
 };
 
 type DepartmentOption = {
@@ -52,7 +54,19 @@ type EmployeeRequest = {
     preferred_airlines: string | null;
     last_encashment_date: string | null;
     bag_allowance: string | null;
+    ticket_booking?: boolean;
+    passport_request?: boolean;
+    ticket_encashment?: boolean;
+    amount_2000?: boolean;
+    amount_1000?: boolean;
+    leave_salary?: string | null;
+    passport_ack_airline_name?: string | null;
+    passport_ack_home_country?: string | null;
+    passport_ack_departure_date_time?: string | null;
+    passport_ack_home_country_departure_date_time?: string | null;
     employee_signature_url?: string | null;
+    dept_head_signature_url?: string | null;
+    ceo_signature_url?: string | null;
     employee?: { first_name: string; last_name: string };
 };
 
@@ -86,6 +100,16 @@ export default function Edit({
         preferred_airlines: string;
         last_encashment_date: string;
         bag_allowance: string;
+        ticket_booking: boolean;
+        passport_request: boolean;
+        ticket_encashment: boolean;
+        amount_2000: boolean;
+        amount_1000: boolean;
+        leave_salary: string;
+        passport_ack_airline_name: string;
+        passport_ack_home_country: string;
+        passport_ack_departure_date_time: string;
+        passport_ack_home_country_departure_date_time: string;
     }>({
         employee_id: employeeRequest.employee_id,
         job_position_id: employeeRequest.job_position_id,
@@ -98,6 +122,16 @@ export default function Edit({
         preferred_airlines: employeeRequest.preferred_airlines ?? '',
         last_encashment_date: employeeRequest.last_encashment_date ?? '',
         bag_allowance: employeeRequest.bag_allowance ?? '',
+        ticket_booking: Boolean(employeeRequest.ticket_booking),
+        passport_request: Boolean(employeeRequest.passport_request),
+        ticket_encashment: Boolean(employeeRequest.ticket_encashment),
+        amount_2000: Boolean(employeeRequest.amount_2000),
+        amount_1000: Boolean(employeeRequest.amount_1000),
+        leave_salary: employeeRequest.leave_salary ?? '',
+        passport_ack_airline_name: employeeRequest.passport_ack_airline_name ?? '',
+        passport_ack_home_country: employeeRequest.passport_ack_home_country ?? '',
+        passport_ack_departure_date_time: employeeRequest.passport_ack_departure_date_time ?? '',
+        passport_ack_home_country_departure_date_time: employeeRequest.passport_ack_home_country_departure_date_time ?? '',
     });
 
     const selectedEmployee = employees.find((item) => item.id === data.employee_id);
@@ -152,6 +186,7 @@ export default function Edit({
                                             ...previous,
                                             employee_id: employeeId,
                                             department_id: employee?.department_id ?? '',
+                                            job_position_id: employee?.job_position_id ?? '',
                                         }));
                                     }}
                                     className={inputClassName}
@@ -167,28 +202,19 @@ export default function Edit({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="job_position_id">Job position</Label>
-                                <select
+                                <input
                                     id="job_position_id"
-                                    name="job_position_id"
-                                    required
-                                    value={data.job_position_id}
-                                    onChange={(e) =>
-                                        setData(
-                                            'job_position_id',
-                                            e.target.value
-                                                ? Number(e.target.value)
-                                                : '',
-                                        )
+                                    type="text"
+                                    readOnly
+                                    value={
+                                        data.job_position_id
+                                            ? (jobPositions.find((position) => position.id === data.job_position_id)?.name ?? '')
+                                            : ''
                                     }
+                                    placeholder="Select employee first"
                                     className={inputClassName}
-                                >
-                                    <option value="">Select job position</option>
-                                    {jobPositions.map((pos) => (
-                                        <option key={pos.id} value={pos.id}>
-                                            {pos.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
+                                <input type="hidden" name="job_position_id" value={data.job_position_id} />
                                 <InputError message={errors.job_position_id} />
                             </div>
                             <div className="grid gap-2">
@@ -256,19 +282,6 @@ export default function Edit({
                         </CardContent>
                     </Card>
 
-                    <RequestEmployeeSignatureCard
-                        signatureUrl={employeeRequest.employee_signature_url ?? null}
-                        signaturesUrl={signaturesUrl}
-                        visitOnly={employeeRequestEditSignatureVisitOnly}
-                        employeeName={
-                            employeeRequest.employee
-                                ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`
-                                : selectedEmployee
-                                  ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-                                  : undefined
-                        }
-                    />
-
                     <Card>
                         <CardHeader>
                             <CardTitle>Request details</CardTitle>
@@ -276,13 +289,87 @@ export default function Edit({
                                 Travel and allowance information
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
+                        <CardContent className="grid gap-6 sm:grid-cols-2">
+                            <div className="sm:col-span-2 rounded-lg border border-dashed border-muted-foreground/25 bg-muted/30 p-5">
+                                <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+                                    <div className="space-y-3">
+                                        <p className="text-sm font-semibold text-foreground">
+                                            Request type
+                                        </p>
+                                        <div className="flex flex-col gap-2.5">
+                                            <label className="flex cursor-pointer items-center gap-3 text-sm leading-none">
+                                                <Checkbox
+                                                    id="edit_ticket_booking"
+                                                    checked={data.ticket_booking}
+                                                    onCheckedChange={(v) =>
+                                                        setData('ticket_booking', v === true)
+                                                    }
+                                                />
+                                                <span>Ticket booking</span>
+                                            </label>
+                                            <label className="flex cursor-pointer items-center gap-3 text-sm leading-none">
+                                                <Checkbox
+                                                    id="edit_passport_request"
+                                                    checked={data.passport_request}
+                                                    onCheckedChange={(v) =>
+                                                        setData('passport_request', v === true)
+                                                    }
+                                                />
+                                                <span>Passport</span>
+                                            </label>
+                                            <label className="flex cursor-pointer items-center gap-3 text-sm leading-none">
+                                                <Checkbox
+                                                    id="edit_ticket_encashment"
+                                                    checked={data.ticket_encashment}
+                                                    onCheckedChange={(v) =>
+                                                        setData('ticket_encashment', v === true)
+                                                    }
+                                                />
+                                                <span>Ticket encashment</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col justify-end gap-3 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+                                        <p className="text-sm font-semibold text-foreground">Amount</p>
+                                        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-md border border-border/80 bg-background/80 px-4 py-3">
+                                            <label className="flex cursor-pointer items-center gap-2.5 text-sm tabular-nums">
+                                                <span className="min-w-[2.5rem] font-medium">2000</span>
+                                                <Checkbox
+                                                    id="edit_amount_2000"
+                                                    checked={data.amount_2000}
+                                                    onCheckedChange={(v) =>
+                                                        setData((prev) => ({
+                                                            ...prev,
+                                                            amount_2000: v === true,
+                                                            amount_1000: v === true ? false : prev.amount_1000,
+                                                        }))
+                                                    }
+                                                />
+                                            </label>
+                                            <label className="flex cursor-pointer items-center gap-2.5 text-sm tabular-nums">
+                                                <span className="min-w-[2.5rem] font-medium">1000</span>
+                                                <Checkbox
+                                                    id="edit_amount_1000"
+                                                    checked={data.amount_1000}
+                                                    onCheckedChange={(v) =>
+                                                        setData((prev) => ({
+                                                            ...prev,
+                                                            amount_1000: v === true,
+                                                            amount_2000: v === true ? false : prev.amount_2000,
+                                                        }))
+                                                    }
+                                                />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid min-w-0 gap-2">
                                 <Label htmlFor="departure_date" className="flex items-center gap-2">
-                                    <Calendar className="size-4" />
+                                    <Calendar className="size-4 shrink-0" />
                                     Departure date
                                 </Label>
-                                <div className="relative">
+                                <div className="relative w-full">
                                     <input
                                         id="departure_date"
                                         name="departure_date"
@@ -294,18 +381,18 @@ export default function Edit({
                                                 e.target.value
                                             )
                                         }
-                                        className={inputClassName + ' pr-9'}
+                                        className={inputClassName + ' w-full pr-9'}
                                     />
                                     <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                 </div>
                                 <InputError message={errors.departure_date} />
                             </div>
-                            <div className="grid gap-2">
+                            <div className="grid min-w-0 gap-2">
                                 <Label htmlFor="arrival_date" className="flex items-center gap-2">
-                                    <Calendar className="size-4" />
+                                    <Calendar className="size-4 shrink-0" />
                                     Arrival date
                                 </Label>
-                                <div className="relative">
+                                <div className="relative w-full">
                                     <input
                                         id="arrival_date"
                                         name="arrival_date"
@@ -317,13 +404,13 @@ export default function Edit({
                                                 e.target.value
                                             )
                                         }
-                                        className={inputClassName + ' pr-9'}
+                                        className={inputClassName + ' w-full pr-9'}
                                     />
                                     <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                 </div>
                                 <InputError message={errors.arrival_date} />
                             </div>
-                            <div className="grid gap-2">
+                            <div className="grid min-w-0 gap-2">
                                 <Label htmlFor="preferred_airlines">Preferred airlines</Label>
                                 <input
                                     id="preferred_airlines"
@@ -336,32 +423,17 @@ export default function Edit({
                                             e.target.value
                                         )
                                     }
-                                    className={inputClassName + ' placeholder:text-muted-foreground'}
+                                    className={inputClassName + ' w-full placeholder:text-muted-foreground'}
                                     placeholder="e.g. Qatar Airways, Emirates"
                                 />
                                 <InputError message={errors.preferred_airlines} />
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="bag_allowance">Bag allowance</Label>
-                                <input
-                                    id="bag_allowance"
-                                    name="bag_allowance"
-                                    type="text"
-                                    value={data.bag_allowance}
-                                    onChange={(e) =>
-                                        setData('bag_allowance', e.target.value)
-                                    }
-                                    placeholder="e.g. 30kg"
-                                    className={inputClassName + ' placeholder:text-muted-foreground'}
-                                />
-                                <InputError message={errors.bag_allowance} />
-                            </div>
-                            <div className="grid gap-2 sm:col-span-2">
+                            <div className="grid min-w-0 gap-2">
                                 <Label htmlFor="last_encashment_date" className="flex items-center gap-2">
-                                    <Calendar className="size-4" />
+                                    <Calendar className="size-4 shrink-0" />
                                     Last encashment date
                                 </Label>
-                                <div className="relative max-w-xs">
+                                <div className="relative w-full">
                                     <input
                                         id="last_encashment_date"
                                         name="last_encashment_date"
@@ -373,11 +445,109 @@ export default function Edit({
                                                 e.target.value
                                             )
                                         }
-                                        className={inputClassName + ' pr-9'}
+                                        className={inputClassName + ' w-full pr-9'}
                                     />
                                     <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                 </div>
                                 <InputError message={errors.last_encashment_date} />
+                            </div>
+                            <div className="grid min-w-0 gap-2">
+                                <Label htmlFor="bag_allowance">Bag allowance</Label>
+                                <input
+                                    id="bag_allowance"
+                                    name="bag_allowance"
+                                    type="text"
+                                    value={data.bag_allowance}
+                                    onChange={(e) =>
+                                        setData('bag_allowance', e.target.value)
+                                    }
+                                    placeholder="e.g. 30kg"
+                                    className={inputClassName + ' w-full placeholder:text-muted-foreground'}
+                                />
+                                <InputError message={errors.bag_allowance} />
+                            </div>
+                            <div className="grid min-w-0 gap-2">
+                                <Label htmlFor="leave_salary">Leave salary</Label>
+                                <input
+                                    id="leave_salary"
+                                    name="leave_salary"
+                                    type="text"
+                                    value={data.leave_salary}
+                                    onChange={(e) =>
+                                        setData('leave_salary', e.target.value)
+                                    }
+                                    placeholder="Amount or details (optional)"
+                                    className={inputClassName + ' w-full placeholder:text-muted-foreground'}
+                                />
+                                <InputError message={errors.leave_salary} />
+                            </div>
+                            <div className="grid gap-4 sm:col-span-2">
+                                <div className="rounded-lg border border-dashed border-muted-foreground/25 bg-muted/20 p-4">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        Passport acknowledgement / remarks / flight details
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        This is to acknowledge that I received my passport in good condition. Signed below with date.
+                                    </p>
+                                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="passport_ack_airline_name">Name of airlines</Label>
+                                            <input
+                                                id="passport_ack_airline_name"
+                                                name="passport_ack_airline_name"
+                                                type="text"
+                                                value={data.passport_ack_airline_name}
+                                                onChange={(e) =>
+                                                    setData('passport_ack_airline_name', e.target.value)
+                                                }
+                                                className={inputClassName + ' w-full placeholder:text-muted-foreground'}
+                                            />
+                                            <InputError message={errors.passport_ack_airline_name} />
+                                        </div>
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="passport_ack_home_country">Home country</Label>
+                                            <input
+                                                id="passport_ack_home_country"
+                                                name="passport_ack_home_country"
+                                                type="text"
+                                                value={data.passport_ack_home_country}
+                                                onChange={(e) =>
+                                                    setData('passport_ack_home_country', e.target.value)
+                                                }
+                                                className={inputClassName + ' w-full placeholder:text-muted-foreground'}
+                                            />
+                                            <InputError message={errors.passport_ack_home_country} />
+                                        </div>
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="passport_ack_departure_date_time">Departure date/time</Label>
+                                            <input
+                                                id="passport_ack_departure_date_time"
+                                                name="passport_ack_departure_date_time"
+                                                type="text"
+                                                value={data.passport_ack_departure_date_time}
+                                                onChange={(e) =>
+                                                    setData('passport_ack_departure_date_time', e.target.value)
+                                                }
+                                                className={inputClassName + ' w-full placeholder:text-muted-foreground'}
+                                            />
+                                            <InputError message={errors.passport_ack_departure_date_time} />
+                                        </div>
+                                        <div className="grid min-w-0 gap-2">
+                                            <Label htmlFor="passport_ack_home_country_departure_date_time">Home country departure date/time</Label>
+                                            <input
+                                                id="passport_ack_home_country_departure_date_time"
+                                                name="passport_ack_home_country_departure_date_time"
+                                                type="text"
+                                                value={data.passport_ack_home_country_departure_date_time}
+                                                onChange={(e) =>
+                                                    setData('passport_ack_home_country_departure_date_time', e.target.value)
+                                                }
+                                                className={inputClassName + ' w-full placeholder:text-muted-foreground'}
+                                            />
+                                            <InputError message={errors.passport_ack_home_country_departure_date_time} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                         <CardFooter className="flex flex-wrap gap-3 border-t pt-6">
@@ -403,6 +573,31 @@ export default function Edit({
                             </Link>
                         </CardFooter>
                     </Card>
+
+                    <RequestEmployeeSignatureCard
+                        signatureUrl={employeeRequest.employee_signature_url ?? null}
+                        signaturesUrl={signaturesUrl}
+                        visitOnly={employeeRequestEditSignatureVisitOnly}
+                        additionalSignatures={[
+                            {
+                                label: 'Dept Head signature',
+                                signatureUrl: employeeRequest.dept_head_signature_url ?? null,
+                                fieldName: 'dept_head_signature',
+                            },
+                            {
+                                label: 'CEO signature',
+                                signatureUrl: employeeRequest.ceo_signature_url ?? null,
+                                fieldName: 'ceo_signature',
+                            },
+                        ]}
+                        employeeName={
+                            employeeRequest.employee
+                                ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`
+                                : selectedEmployee
+                                  ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
+                                  : undefined
+                        }
+                    />
                 </form>
             </div>
         </AppLayout>

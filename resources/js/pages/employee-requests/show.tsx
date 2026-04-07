@@ -1,6 +1,5 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, Printer, Send } from 'lucide-react';
-import { useEffect } from 'react';
+import { ArrowLeft, Check, Printer, Send } from 'lucide-react';
 import {
     RequestEmployeeSignatureCard,
     employeeRequestShowSignatureVisitOnly,
@@ -42,10 +41,22 @@ type EmployeeRequest = {
     preferred_airlines: string | null;
     last_encashment_date: string | null;
     bag_allowance: string | null;
+    ticket_booking?: boolean;
+    passport_request?: boolean;
+    ticket_encashment?: boolean;
+    amount_2000?: boolean;
+    amount_1000?: boolean;
+    leave_salary?: string | null;
+    passport_ack_airline_name?: string | null;
+    passport_ack_home_country?: string | null;
+    passport_ack_departure_date_time?: string | null;
+    passport_ack_home_country_departure_date_time?: string | null;
     employee?: Employee;
     department?: Department;
     job_position?: JobPosition;
     employee_signature_url?: string | null;
+    dept_head_signature_url?: string | null;
+    ceo_signature_url?: string | null;
     approved_by_signature_url?: string | null;
 };
 
@@ -77,16 +88,6 @@ export default function Show({
         { title: requestLabel, href: '#' },
     ];
 
-    useEffect(() => {
-        if (new URLSearchParams(window.location.search).get('print') === '1') {
-            window.print();
-        }
-    }, []);
-
-    const handlePrint = () => {
-        window.print();
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Employee Request #${employeeRequest.id}`} />
@@ -117,9 +118,11 @@ export default function Show({
                                 )}
                             </Form>
                         ) : null}
-                        <Button onClick={handlePrint}>
-                            <Printer className="size-4" />
-                            Print
+                        <Button asChild variant="outline">
+                            <Link href={`/employee-requests/${employeeRequest.id}/print`}>
+                                <Printer className="mr-2 size-4" />
+                                Print
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -185,47 +188,139 @@ export default function Show({
                         </div>
 
                         <div>
+                            <div className="font-semibold">Request type</div>
+                            <ul className="mt-2 space-y-1.5 text-sm">
+                                {[
+                                    { on: employeeRequest.ticket_booking, label: 'Ticket booking' },
+                                    { on: employeeRequest.passport_request, label: 'Passport' },
+                                    { on: employeeRequest.ticket_encashment, label: 'Ticket encashment' },
+                                ].map(({ on, label }) => (
+                                    <li key={label} className="flex items-center gap-2">
+                                        {on ? (
+                                            <Check className="size-4 shrink-0 text-green-600" aria-hidden />
+                                        ) : (
+                                            <span className="inline-block size-4 shrink-0 rounded border border-muted-foreground/40" aria-hidden />
+                                        )}
+                                        <span className={on ? '' : 'text-muted-foreground'}>{label}</span>
+                                    </li>
+                                ))}
+                                <li className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1">
+                                    <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                                        Amount
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                        <span className="tabular-nums">2000</span>
+                                        {employeeRequest.amount_2000 ? (
+                                            <Check className="size-4 text-green-600" aria-hidden />
+                                        ) : (
+                                            <span className="inline-block size-4 rounded border border-muted-foreground/40" aria-hidden />
+                                        )}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                        <span className="tabular-nums">1000</span>
+                                        {employeeRequest.amount_1000 ? (
+                                            <Check className="size-4 text-green-600" aria-hidden />
+                                        ) : (
+                                            <span className="inline-block size-4 rounded border border-muted-foreground/40" aria-hidden />
+                                        )}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div>
                             <div className="font-semibold">Request details</div>
-                            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <div>
+                            <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+                                <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
                                         Departure date
                                     </div>
-                                    <div>
+                                    <div className="mt-0.5">
                                         {formatDateDdMmYyyy(employeeRequest.departure_date)}
                                     </div>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
                                         Arrival date
                                     </div>
-                                    <div>
+                                    <div className="mt-0.5">
                                         {formatDateDdMmYyyy(employeeRequest.arrival_date)}
                                     </div>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
                                         Preferred airlines
                                     </div>
-                                    <div>
+                                    <div className="mt-0.5 break-words">
                                         {employeeRequest.preferred_airlines ??
                                             '—'}
                                     </div>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
-                                        Last Encashment Date
+                                        Last encashment date
                                     </div>
-                                    <div>
+                                    <div className="mt-0.5">
                                         {formatDateDdMmYyyy(employeeRequest.last_encashment_date)}
                                     </div>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
-                                        Bag Allowance
+                                        Bag allowance
                                     </div>
-                                    <div>
+                                    <div className="mt-0.5">
                                         {employeeRequest.bag_allowance ?? '—'}
+                                    </div>
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">
+                                        Leave salary
+                                    </div>
+                                    <div className="mt-0.5 break-words">
+                                        {employeeRequest.leave_salary?.trim()
+                                            ? employeeRequest.leave_salary
+                                            : '—'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="font-semibold">Passport acknowledgement / remarks / flight details</div>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                                This is to acknowledge that I received my passport in good condition. Signed below with date.
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">Name of airlines</div>
+                                    <div className="mt-0.5 break-words">
+                                        {employeeRequest.passport_ack_airline_name?.trim()
+                                            ? employeeRequest.passport_ack_airline_name
+                                            : '—'}
+                                    </div>
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">Home country</div>
+                                    <div className="mt-0.5 break-words">
+                                        {employeeRequest.passport_ack_home_country?.trim()
+                                            ? employeeRequest.passport_ack_home_country
+                                            : '—'}
+                                    </div>
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">Departure date/time</div>
+                                    <div className="mt-0.5 break-words">
+                                        {employeeRequest.passport_ack_departure_date_time?.trim()
+                                            ? employeeRequest.passport_ack_departure_date_time
+                                            : '—'}
+                                    </div>
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">Home country departure date/time</div>
+                                    <div className="mt-0.5 break-words">
+                                        {employeeRequest.passport_ack_home_country_departure_date_time?.trim()
+                                            ? employeeRequest.passport_ack_home_country_departure_date_time
+                                            : '—'}
                                     </div>
                                 </div>
                             </div>
@@ -258,6 +353,18 @@ export default function Show({
                     signatureUrl={employeeRequest.employee_signature_url ?? null}
                     signaturesUrl={signaturesUrl}
                     visitOnly={employeeRequestShowSignatureVisitOnly}
+                    additionalSignatures={[
+                        {
+                            label: 'Dept Head signature',
+                            signatureUrl: employeeRequest.dept_head_signature_url ?? null,
+                            fieldName: 'dept_head_signature',
+                        },
+                        {
+                            label: 'CEO signature',
+                            signatureUrl: employeeRequest.ceo_signature_url ?? null,
+                            fieldName: 'ceo_signature',
+                        },
+                    ]}
                     employeeName={
                         employeeRequest.employee
                             ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`

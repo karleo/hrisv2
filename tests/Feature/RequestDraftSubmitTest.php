@@ -73,6 +73,34 @@ class RequestDraftSubmitTest extends TestCase
         $this->assertSame('submitted', $employeeRequest->fresh()->status);
     }
 
+    public function test_employee_request_print_renders_printable_page(): void
+    {
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+        $jobPosition = JobPosition::factory()->create();
+
+        $employeeRequest = EmployeeRequest::query()->create([
+            'employee_id' => $employee->id,
+            'job_position_id' => $jobPosition->id,
+            'department_id' => $department->id,
+            'date' => '2026-04-01',
+            'date_of_joining' => '2026-04-15',
+            'status' => 'draft',
+        ]);
+
+        $response = $this->get(route('employee-requests.print', $employeeRequest));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employee-requests/print')
+            ->has('employeeRequest')
+            ->has('companyLogoUrl')
+            ->where('employeeRequest.code', $employeeRequest->code)
+        );
+    }
+
     public function test_it_asset_request_store_creates_draft_and_redirects_to_show(): void
     {
         $department = Department::factory()->create();
