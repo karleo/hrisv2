@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+import type { ModulePermissionsMap } from '@/types/permissions';
 
 type Employee = { id: number; first_name: string; last_name: string };
 type Department = { id: number; name: string };
@@ -179,7 +180,12 @@ export default function LeaveRequestsIndex({
         Boolean(filters.status) ||
         Boolean(filters.date_preset);
 
-    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const { flash, modulePermissions } = usePage().props as {
+        flash?: { success?: string; error?: string };
+        modulePermissions?: ModulePermissionsMap;
+    };
+    const canUpdate = Boolean(modulePermissions?.leave_requests?.can_update);
+    const canDelete = Boolean(modulePermissions?.leave_requests?.can_delete);
 
     const clearAllFilters = () => {
         router.get(LeaveRequestController.index.url(), { page: 1 }, {
@@ -493,54 +499,58 @@ export default function LeaveRequestsIndex({
                                                                     <Eye className="size-4" />
                                                                 </Button>
                                                             </Link>
-                                                            <Link
-                                                                href={LeaveRequestController.edit.url(lr.id)}
-                                                                aria-label="Edit"
-                                                            >
-                                                                <Button variant="ghost" size="icon" className="size-8">
-                                                                    <Pencil className="size-4" />
-                                                                </Button>
-                                                            </Link>
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        aria-label="Delete"
-                                                                    >
-                                                                        <Trash2 className="size-4 text-destructive" />
+                                                            {canUpdate && (
+                                                                <Link
+                                                                    href={LeaveRequestController.edit.url(lr.id)}
+                                                                    aria-label="Edit"
+                                                                >
+                                                                    <Button variant="ghost" size="icon" className="size-8">
+                                                                        <Pencil className="size-4" />
                                                                     </Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent>
-                                                                    <DialogTitle>Delete leave request?</DialogTitle>
-                                                                    <DialogDescription>
-                                                                        This will permanently remove{' '}
-                                                                        <strong>{lr.code}</strong>
-                                                                        {lr.employee
-                                                                            ? ` for ${lr.employee.first_name} ${lr.employee.last_name}`
-                                                                            : ''}
-                                                                        . This cannot be undone.
-                                                                    </DialogDescription>
-                                                                    <DialogFooter>
-                                                                        <DialogClose asChild>
-                                                                            <Button variant="secondary">Cancel</Button>
-                                                                        </DialogClose>
+                                                                </Link>
+                                                            )}
+                                                            {canDelete && (
+                                                                <Dialog>
+                                                                    <DialogTrigger asChild>
                                                                         <Button
-                                                                            variant="destructive"
-                                                                            onClick={() =>
-                                                                                router.delete(
-                                                                                    LeaveRequestController.destroy.url(
-                                                                                        lr.id,
-                                                                                    ),
-                                                                                )
-                                                                            }
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="size-8"
+                                                                            aria-label="Delete"
                                                                         >
-                                                                            Delete
+                                                                            <Trash2 className="size-4 text-destructive" />
                                                                         </Button>
-                                                                    </DialogFooter>
-                                                                </DialogContent>
-                                                            </Dialog>
+                                                                    </DialogTrigger>
+                                                                    <DialogContent>
+                                                                        <DialogTitle>Delete leave request?</DialogTitle>
+                                                                        <DialogDescription>
+                                                                            This will permanently remove{' '}
+                                                                            <strong>{lr.code}</strong>
+                                                                            {lr.employee
+                                                                                ? ` for ${lr.employee.first_name} ${lr.employee.last_name}`
+                                                                                : ''}
+                                                                            . This cannot be undone.
+                                                                        </DialogDescription>
+                                                                        <DialogFooter>
+                                                                            <DialogClose asChild>
+                                                                                <Button variant="secondary">Cancel</Button>
+                                                                            </DialogClose>
+                                                                            <Button
+                                                                                variant="destructive"
+                                                                                onClick={() =>
+                                                                                    router.delete(
+                                                                                        LeaveRequestController.destroy.url(
+                                                                                            lr.id,
+                                                                                        ),
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Delete
+                                                                            </Button>
+                                                                        </DialogFooter>
+                                                                    </DialogContent>
+                                                                </Dialog>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

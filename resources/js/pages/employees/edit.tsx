@@ -1,11 +1,12 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, FileStack, ImagePlus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Eye, FileStack, ImagePlus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -62,6 +63,13 @@ type Employee = {
     documents: EmployeeDocument[];
     work_timetable_id: number | null;
     work_timetable?: WorkTimetable | null;
+    phone?: string | null;
+    mobile?: string | null;
+    date_of_birth?: string | null;
+    gender?: 'Male' | 'Female' | 'Other' | null;
+    marital_status?: 'Single' | 'Married' | 'Other' | null;
+    emergency_contact_name?: string | null;
+    emergency_contact_phone?: string | null;
 };
 
 export default function Edit({
@@ -70,12 +78,14 @@ export default function Edit({
     jobPositions,
     companyProfiles,
     workTimetables,
+    viewMode = false,
 }: {
     employee: Employee;
     departments: Department[];
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
     workTimetables: WorkTimetable[];
+    viewMode?: boolean;
 }) {
     const photoInputRef = useRef<HTMLInputElement>(null);
     const documentsInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +94,16 @@ export default function Edit({
     );
     const [documentFiles, setDocumentFiles] = useState<File[]>([]);
     const [documentLabels, setDocumentLabels] = useState<string[]>([]);
+    const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
+    const page = usePage();
+    const query = (page.props as { ziggy?: { query?: { tab?: string } } }).ziggy?.query;
+    const tabFromQuery = query?.tab;
+    const readOnlyView = viewMode;
+    const initialTab: 'employee_information' | 'private_information' | 'documents' =
+        tabFromQuery === 'documents' || tabFromQuery === 'private_information' || tabFromQuery === 'employee_information'
+            ? tabFromQuery
+            : 'employee_information';
+    const [tab, setTab] = useState<'employee_information' | 'private_information' | 'documents'>(initialTab);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employees', href: index().url },
@@ -137,6 +157,18 @@ export default function Edit({
         }
     }
 
+    function getDocumentViewUrl(documentId: number): string {
+        return `/employees/${employee.id}/documents/${documentId}/view`;
+    }
+
+    function isImageDocument(fileName: string): boolean {
+        return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(fileName);
+    }
+
+    function isPdfDocument(fileName: string): boolean {
+        return /\.pdf$/i.test(fileName);
+    }
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head
@@ -154,20 +186,45 @@ export default function Edit({
 
                 <Heading
                     title="Edit Employee"
-                    description="Update employee details"
+                    description={readOnlyView ? 'View employee details' : 'Update employee details'}
                 />
 
-                <Form
-                    {...EmployeeController.update.form(employee.id)}
-                    className="flex flex-1 flex-col gap-8"
-                    encType="multipart/form-data"
-                >
-                    {({ processing, errors }) => (
-                        <div className="grid flex-1 gap-8 lg:grid-cols-[1fr_1.2fr]">
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant={tab === 'employee_information' ? 'default' : 'outline'}
+                        onClick={() => setTab('employee_information')}
+                    >
+                        Employee Information
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={tab === 'documents' ? 'default' : 'outline'}
+                        onClick={() => setTab('documents')}
+                    >
+                        Documents
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={tab === 'private_information' ? 'default' : 'outline'}
+                        onClick={() => setTab('private_information')}
+                    >
+                        Personal Information
+                    </Button>
+                </div>
+
+                {tab !== 'private_information' ? (
+                    <Form
+                        {...EmployeeController.update.form(employee.id)}
+                        className="flex flex-1 flex-col gap-8"
+                        encType="multipart/form-data"
+                    >
+                        {({ processing, errors }) => (
+                            <div className="grid flex-1 gap-8 lg:grid-cols-[1fr_1.2fr]">
                             {/* Left column: Photo + Documents */}
                             <div className="flex flex-col gap-6">
                                 {/* Employee photo */}
-                                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                                <div className={`rounded-xl border border-border bg-card p-6 shadow-sm ${tab === 'employee_information' ? '' : 'hidden'}`}>
                                     <Label className="mb-3 block text-base font-medium">
                                         Employee Photo
                                     </Label>
@@ -213,7 +270,7 @@ export default function Edit({
                                 </div>
 
                                 {/* Documents */}
-                                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                                <div className={`rounded-xl border border-border bg-card p-6 shadow-sm ${tab === 'documents' ? '' : 'hidden'}`}>
                                     <Label className="mb-3 block text-base font-medium">
                                         Documents
                                     </Label>
@@ -229,18 +286,21 @@ export default function Edit({
                                         className="sr-only"
                                         onChange={handleDocumentsChange}
                                     />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="mb-3"
-                                        onClick={() =>
-                                            documentsInputRef.current?.click()
-                                        }
-                                    >
-                                        <FileStack className="mr-2 size-4" />
-                                        Add files
-                                    </Button>
+                                    <input type="hidden" name="tab" value="documents" />
+                                    {!readOnlyView ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="mb-3"
+                                            onClick={() =>
+                                                documentsInputRef.current?.click()
+                                            }
+                                        >
+                                            <FileStack className="mr-2 size-4" />
+                                            Add files
+                                        </Button>
+                                    ) : null}
                                     {(employee.documents?.length > 0 ||
                                         documentFiles.length > 0) && (
                                         <div className="space-y-2">
@@ -254,7 +314,7 @@ export default function Edit({
                                                             {doc.name}
                                                         </p>
                                                         <a
-                                                            href={doc.url}
+                                                            href={getDocumentViewUrl(doc.id)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="truncate text-primary underline underline-offset-2 hover:no-underline"
@@ -266,14 +326,26 @@ export default function Edit({
                                                         type="button"
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="size-7 shrink-0 text-destructive hover:text-destructive"
-                                                        onClick={() =>
-                                                            deleteDocument(doc)
-                                                        }
-                                                        aria-label="Remove document"
+                                                        className="size-7 shrink-0"
+                                                        onClick={() => setPreviewDocument(doc)}
+                                                        aria-label="Preview document"
                                                     >
-                                                        <Trash2 className="size-4" />
+                                                        <Eye className="size-4" />
                                                     </Button>
+                                                    {!readOnlyView ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="size-7 shrink-0 text-destructive hover:text-destructive"
+                                                            onClick={() =>
+                                                                deleteDocument(doc)
+                                                            }
+                                                            aria-label="Remove document"
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                        </Button>
+                                                    ) : null}
                                                 </div>
                                             ))}
                                             {documentFiles.map((file, i) => (
@@ -310,7 +382,7 @@ export default function Edit({
                                                     </div>
                                                 </div>
                                             ))}
-                                            {documentFiles.length > 0 && (
+                                            {!readOnlyView && documentFiles.length > 0 && (
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
@@ -330,12 +402,31 @@ export default function Edit({
                                             errors['document_labels.0']
                                         }
                                     />
+                                    {!readOnlyView ? (
+                                        <div className="flex gap-4 pt-4 border-t mt-4">
+                                            <Button
+                                                disabled={processing}
+                                                type="submit"
+                                            >
+                                                Upload Documents
+                                            </Button>
+                                            <Link href={index()}>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
 
                             {/* Right column: Form fields */}
-                            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                            <div className={`rounded-xl border border-border bg-card p-6 shadow-sm ${tab === 'employee_information' ? '' : 'hidden'}`}>
                                 <div className="space-y-6">
+                                    <input type="hidden" name="tab" value="employee_information" />
                                     <div className="grid gap-2">
                                         <Label htmlFor="employee_code">
                                             Employee Code
@@ -590,28 +681,145 @@ export default function Edit({
                                         </p>
                                     </div>
 
-                                    <div className="flex gap-4 pt-4 border-t">
-                                        <Button
-                                            disabled={processing}
-                                            type="submit"
-                                        >
-                                            Update Employee
-                                        </Button>
-                                        <Link href={index()}>
+                                    {!readOnlyView ? (
+                                        <div className="flex gap-4 pt-4 border-t">
                                             <Button
-                                                type="button"
-                                                variant="outline"
+                                                disabled={processing}
+                                                type="submit"
                                             >
-                                                Cancel
+                                                Update Employee
                                             </Button>
-                                        </Link>
-                                    </div>
+                                            <Link href={index()}>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
-                        </div>
-                    )}
-                </Form>
+                            </div>
+                        )}
+                    </Form>
+                ) : null}
+
+                {tab === 'private_information' ? (
+                    <Form
+                        action={`/employees/${employee.id}/private-information`}
+                        method="patch"
+                        className="rounded-xl border border-border bg-card p-6 shadow-sm"
+                    >
+                        {({ processing, errors }) => (
+                            <div className="space-y-6">
+                                <input type="hidden" name="tab" value="private_information" />
+                                <div className="grid gap-2">
+                                    <Label htmlFor="phone">Phone</Label>
+                                    <Input id="phone" name="phone" maxLength={50} defaultValue={employee.phone ?? ''} placeholder="e.g. +971 50 123 4567" />
+                                    <InputError message={errors.phone} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="mobile">Mobile</Label>
+                                    <Input id="mobile" name="mobile" maxLength={50} defaultValue={employee.mobile ?? ''} placeholder="e.g. +971 50 123 4567" />
+                                    <InputError message={errors.mobile} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="date_of_birth">Date of Birth</Label>
+                                    <Input id="date_of_birth" name="date_of_birth" type="date" defaultValue={employee.date_of_birth ?? ''} />
+                                    <InputError message={errors.date_of_birth} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="gender">Gender</Label>
+                                    <select id="gender" name="gender" defaultValue={employee.gender ?? ''} className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">
+                                        <option value="">Select</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <InputError message={errors.gender} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="marital_status">Marital Status</Label>
+                                    <select id="marital_status" name="marital_status" defaultValue={employee.marital_status ?? ''} className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">
+                                        <option value="">Select</option>
+                                        <option value="Single">Single</option>
+                                        <option value="Married">Married</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <InputError message={errors.marital_status} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="emergency_contact_name">Emergency Contact Name</Label>
+                                    <Input id="emergency_contact_name" name="emergency_contact_name" maxLength={255} defaultValue={employee.emergency_contact_name ?? ''} />
+                                    <InputError message={errors.emergency_contact_name} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="emergency_contact_phone">Emergency Contact Phone</Label>
+                                    <Input id="emergency_contact_phone" name="emergency_contact_phone" maxLength={50} defaultValue={employee.emergency_contact_phone ?? ''} />
+                                    <InputError message={errors.emergency_contact_phone} />
+                                </div>
+
+                                {!readOnlyView ? (
+                                    <div className="flex gap-4 pt-4 border-t">
+                                        <Button disabled={processing} type="submit">Update</Button>
+                                        <Link href={index()}>
+                                            <Button type="button" variant="outline">Cancel</Button>
+                                        </Link>
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+                    </Form>
+                ) : null}
             </div>
+
+            <Dialog open={previewDocument !== null} onOpenChange={(open) => !open && setPreviewDocument(null)}>
+                <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Document Preview</DialogTitle>
+                    </DialogHeader>
+                    {previewDocument ? (
+                        <div className="space-y-3">
+                            <p className="text-sm font-medium">{previewDocument.original_name}</p>
+                            <div className="max-h-[70vh] overflow-auto rounded-md border bg-muted/20 p-2">
+                                {isImageDocument(previewDocument.original_name) ? (
+                                    <img
+                                        src={getDocumentViewUrl(previewDocument.id)}
+                                        alt={previewDocument.original_name}
+                                        className="mx-auto h-auto max-w-full rounded"
+                                    />
+                                ) : isPdfDocument(previewDocument.original_name) ? (
+                                    <iframe
+                                        src={getDocumentViewUrl(previewDocument.id)}
+                                        title={previewDocument.original_name}
+                                        className="h-[70vh] w-full rounded border-0"
+                                    />
+                                ) : (
+                                    <div className="space-y-2 p-4 text-sm text-muted-foreground">
+                                        <p>Preview is not available for this file type.</p>
+                                        <a
+                                            href={getDocumentViewUrl(previewDocument.id)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary underline underline-offset-2"
+                                        >
+                                            Open in new tab
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

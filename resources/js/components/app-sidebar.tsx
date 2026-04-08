@@ -181,11 +181,29 @@ const mainNavItemsSource: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { modulePermissions } = usePage().props;
+    const { modulePermissions, auth } = usePage().props as {
+        modulePermissions: unknown;
+        auth?: { has_employee_profile?: boolean };
+    };
 
     const mainNavItems = useMemo(
-        () => filterNavByModuleAccess(mainNavItemsSource, modulePermissions),
-        [modulePermissions],
+        () => {
+            const items = filterNavByModuleAccess(mainNavItemsSource, modulePermissions);
+            if (auth?.has_employee_profile) {
+                return [
+                    ...items,
+                    {
+                        title: 'Profile',
+                        description: 'Your employee information',
+                        href: '/my-profile',
+                        icon: UserRound,
+                    },
+                ] as NavItem[];
+            }
+
+            return items;
+        },
+        [modulePermissions, auth?.has_employee_profile],
     );
 
     return (

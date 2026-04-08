@@ -40,6 +40,8 @@ type ItAssetRequest = {
     employee_signature_url?: string | null;
     issued_by_signature_url?: string | null;
     issued_by_employee_id?: number | null;
+    decision_remarks?: string | null;
+    decided_at?: string | null;
     employee?: Employee;
     department?: Department;
     issued_by_employee?: Employee;
@@ -61,12 +63,16 @@ export default function Show({
     employees = [],
     submitUrl,
     signaturesUrl,
+    decisionUrl,
+    canDecide,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
     employees?: Employee[];
     submitUrl: string;
     signaturesUrl: string;
+    decisionUrl: string;
+    canDecide: boolean;
 }) {
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
@@ -238,7 +244,54 @@ export default function Show({
                             employees={employees}
                             signaturesUrl={signaturesUrl}
                             visitOnly={itAssetRequestShowSignatureVisitOnly}
+                            allowEmployeeSignatureEdit={normalizeRequestStatus(itAssetRequest.status) === 'draft'}
+                            allowIssuedBySignatureEdit={normalizeRequestStatus(itAssetRequest.status) === 'submitted'}
                         />
+                        {canDecide && normalizeRequestStatus(itAssetRequest.status) === 'submitted' ? (
+                            <div className="rounded-xl border bg-background p-6 shadow-sm print:hidden">
+                                <h3 className="text-base font-semibold">Approval decision</h3>
+                                <Form action={decisionUrl} method="post" options={{ preserveScroll: true }} className="mt-4">
+                                    {({ processing, errors }) => (
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="mb-1 block text-sm font-medium">Remarks (required for rejection)</label>
+                                                <textarea
+                                                    name="remarks"
+                                                    rows={3}
+                                                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                                    placeholder="Add reason when rejecting"
+                                                />
+                                                {errors.remarks ? (
+                                                    <p className="mt-1 text-xs text-destructive">{errors.remarks}</p>
+                                                ) : null}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                                    Approve
+                                                </Button>
+                                                <Button
+                                                    type="submit"
+                                                    name="decision"
+                                                    value="rejected"
+                                                    variant="destructive"
+                                                    disabled={processing}
+                                                    onClick={(e) => {
+                                                        const form = e.currentTarget.form;
+                                                        const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
+                                                        if (remarks === '') {
+                                                            e.preventDefault();
+                                                            window.alert('Please fill reason before rejecting.');
+                                                        }
+                                                    }}
+                                                >
+                                                    Reject
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </Form>
+                            </div>
+                        ) : null}
                         <div className="hidden rounded-xl border bg-background p-6 shadow-sm print:block print:border-0 print:p-0 print:shadow-none">
                             <div className="print:grid print:grid-cols-2 print:gap-12">
                                 <div>

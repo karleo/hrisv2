@@ -1,8 +1,9 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 import {
     CreditCard,
     Download,
+    Eye,
     Key,
     Pencil,
     Plus,
@@ -22,6 +23,7 @@ import {
     DialogContent,
     DialogDescription,
     DialogFooter,
+    DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
@@ -96,6 +98,7 @@ export default function Index({
 }) {
     const { data: employeeList } = employees;
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const [businessCardEmployee, setBusinessCardEmployee] = useState<Employee | null>(null);
     const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({
         file: null,
     });
@@ -324,17 +327,28 @@ export default function Index({
                                                         <td className="px-4 py-3">
                                                             <div className="flex justify-end gap-0.5">
                                                                 <Link
-                                                                    href={`/employees/${employee.id}/business-card`}
-                                                                    aria-label="Business card"
+                                                                    href={`${edit({
+                                                                        employee: employee.id,
+                                                                    }).url}?mode=view`}
+                                                                    aria-label="View employee details"
                                                                 >
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
                                                                         className="size-8"
                                                                     >
-                                                                        <CreditCard className="size-4" />
+                                                                        <Eye className="size-4" />
                                                                     </Button>
                                                                 </Link>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    aria-label="View business card"
+                                                                    onClick={() => setBusinessCardEmployee(employee)}
+                                                                >
+                                                                    <CreditCard className="size-4" />
+                                                                </Button>
                                                                 <Link
                                                                     href={edit({
                                                                         employee:
@@ -415,6 +429,25 @@ export default function Index({
                     </div>
                 </div>
             </div>
+
+            <Dialog open={businessCardEmployee !== null} onOpenChange={(open) => !open && setBusinessCardEmployee(null)}>
+                <DialogContent className="sm:max-w-6xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {businessCardEmployee
+                                ? `${businessCardEmployee.first_name} ${businessCardEmployee.last_name} - Business Card`
+                                : 'Business Card'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {businessCardEmployee ? (
+                        <iframe
+                            src={`/employees/${businessCardEmployee.id}/business-card/embed`}
+                            title="Employee business card"
+                            className="h-[75vh] w-full rounded-md border"
+                        />
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

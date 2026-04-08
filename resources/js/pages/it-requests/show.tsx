@@ -7,7 +7,7 @@ import {
     itRequestShowSignatureVisitOnly,
 } from '@/components/request-employee-signature-card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/it-requests';
 import type { BreadcrumbItem } from '@/types';
@@ -47,16 +47,22 @@ type ItRequest = {
     hardware?: Hardware | null;
     employee_signature_url?: string | null;
     approved_by_signature_url?: string | null;
+    decision_remarks?: string | null;
+    decided_at?: string | null;
 };
 
 export default function Show({
     itRequest,
     signaturesUrl,
     submitUrl,
+    decisionUrl,
+    canDecide,
 }: {
     itRequest: ItRequest;
     signaturesUrl: string;
     submitUrl: string;
+    decisionUrl: string;
+    canDecide: boolean;
 }) {
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const isDraft = normalizeRequestStatus(itRequest.status) === 'draft';
@@ -202,6 +208,53 @@ export default function Show({
                     signatureUrl={itRequest.employee_signature_url ?? null}
                     signaturesUrl={signaturesUrl}
                     visitOnly={itRequestShowSignatureVisitOnly}
+                    allowEmployeeSignatureEdit={normalizeRequestStatus(itRequest.status) === 'draft'}
+                    additionalSignatures={[
+                        {
+                            label: 'Manager / HR signature',
+                            signatureUrl: itRequest.approved_by_signature_url ?? null,
+                            fieldName: 'approved_by_signature',
+                            editable: normalizeRequestStatus(itRequest.status) === 'submitted',
+                        },
+                    ]}
+                    managerDecisionSlot={
+                        canDecide && normalizeRequestStatus(itRequest.status) === 'submitted' ? (
+                            <Form action={decisionUrl} method="post" options={{ preserveScroll: true }}>
+                                {({ processing }) => (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            name="remarks"
+                                            rows={3}
+                                            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                            placeholder="Add reason when rejecting"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                name="decision"
+                                                value="rejected"
+                                                variant="destructive"
+                                                disabled={processing}
+                                                onClick={(e) => {
+                                                    const form = e.currentTarget.form;
+                                                    const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
+                                                    if (remarks === '') {
+                                                        e.preventDefault();
+                                                        window.alert('Please fill reason before rejecting.');
+                                                    }
+                                                }}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Form>
+                        ) : null
+                    }
                     employeeName={
                         itRequest.employee
                             ? `${itRequest.employee.first_name} ${itRequest.employee.last_name}`

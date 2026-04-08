@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRequestController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
@@ -29,20 +31,28 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('departments', DepartmentController::class);
     Route::get('employees/{employee}/business-card', [EmployeeController::class, 'businessCard'])
         ->name('employees.business-card');
+    Route::get('employees/{employee}/business-card/embed', [EmployeeController::class, 'businessCardEmbed'])
+        ->name('employees.business-card.embed');
     Route::get('employees-template/download', [EmployeeController::class, 'downloadTemplate'])
         ->name('employees.template.download');
     Route::get('employees/export', [EmployeeController::class, 'export'])
         ->name('employees.export');
     Route::post('employees/import', [EmployeeController::class, 'import'])
         ->name('employees.import');
+    Route::get('my-profile', [EmployeeController::class, 'profile'])->name('my-profile.show');
+    Route::patch('my-profile', [EmployeeController::class, 'updateProfile'])->name('my-profile.update');
+    Route::post('my-profile/documents', [EmployeeController::class, 'uploadProfileDocument'])->name('my-profile.documents.store');
+    Route::delete('my-profile/documents/{employee_document}', [EmployeeController::class, 'destroyProfileDocument'])->name('my-profile.documents.destroy');
     Route::resource('employees', EmployeeController::class);
+    Route::patch('employees/{employee}/private-information', [EmployeeController::class, 'updatePrivateInformation'])
+        ->name('employees.private-information.update');
+    Route::get('employees/{employee}/documents/{employee_document}/view', [EmployeeController::class, 'showDocument'])
+        ->name('employees.documents.show');
     Route::delete('employees/{employee}/documents/{employee_document}', [EmployeeController::class, 'destroyDocument'])
         ->name('employees.documents.destroy');
     Route::resource('job-positions', JobPositionController::class);
@@ -62,6 +72,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('leave-requests', LeaveRequestController::class);
     Route::post('leave-requests/{leave_request}/submit', [LeaveRequestController::class, 'submit'])
         ->name('leave-requests.submit');
+    Route::post('leave-requests/{leave_request}/decide', [LeaveRequestController::class, 'decide'])
+        ->name('leave-requests.decide');
     Route::get('leave-requests/{leave_request}/print', [LeaveRequestController::class, 'print'])
         ->name('leave-requests.print');
     Route::post('leave-requests/{leave_request}/signatures', [LeaveRequestController::class, 'updateSignatures'])
@@ -69,6 +81,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('it-requests', ItRequestController::class);
     Route::post('it-requests/{it_request}/submit', [ItRequestController::class, 'submit'])
         ->name('it-requests.submit');
+    Route::post('it-requests/{it_request}/decide', [ItRequestController::class, 'decide'])
+        ->name('it-requests.decide');
     Route::get('it-requests/{it_request}/print', [ItRequestController::class, 'print'])
         ->name('it-requests.print');
     Route::post('it-requests/{it_request}/signatures', [ItRequestController::class, 'updateSignatures'])
@@ -78,15 +92,23 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employee-requests.print');
     Route::post('employee-requests/{employee_request}/submit', [EmployeeRequestController::class, 'submit'])
         ->name('employee-requests.submit');
+    Route::post('employee-requests/{employee_request}/decide', [EmployeeRequestController::class, 'decide'])
+        ->name('employee-requests.decide');
     Route::post('employee-requests/{employee_request}/signatures', [EmployeeRequestController::class, 'updateSignatures'])
         ->name('employee-requests.signatures.update');
     Route::resource('it-asset-requests', ItAssetRequestController::class);
     Route::post('it-asset-requests/{it_asset_request}/submit', [ItAssetRequestController::class, 'submit'])
         ->name('it-asset-requests.submit');
+    Route::post('it-asset-requests/{it_asset_request}/decide', [ItAssetRequestController::class, 'decide'])
+        ->name('it-asset-requests.decide');
     Route::get('it-asset-requests/{it_asset_request}/print', [ItAssetRequestController::class, 'print'])
         ->name('it-asset-requests.print');
     Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])
         ->name('it-asset-requests.signatures.update');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])
+        ->name('notifications.read');
+    Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])
+        ->name('notifications.destroy');
 
     Route::get('user-roles', [UserRoleController::class, 'index'])->name('user-roles.index');
     Route::patch('user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');

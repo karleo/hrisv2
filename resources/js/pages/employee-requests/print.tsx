@@ -38,10 +38,23 @@ type EmployeeRequest = {
     ceo_signature_url?: string | null;
     approved_by_signature_url?: string | null;
     approved_by_name?: string;
+    decided_at?: string | null;
 };
 
 function formatUsDate(value: string | null | undefined): string {
     if (value == null || value === '') {
+        return '';
+    }
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) {
+        return '';
+    }
+    const [, y, m, d] = match;
+    return `${m}/${d}/${y}`;
+}
+
+function formatUsDateTime(value: string | null | undefined): string {
+    if (!value) {
         return '';
     }
     const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -108,6 +121,9 @@ export default function EmployeeRequestPrint({
     const handlePrint = () => window.print();
     const isApproved = Boolean(employeeRequest.approved_by_signature_url);
     const approverName = employeeRequest.approved_by_name?.trim() ?? '';
+    const approvedDate = isApproved
+        ? formatUsDateTime(employeeRequest.decided_at) || formatUsDate(employeeRequest.date)
+        : '';
     const ticketBooking = Boolean(employeeRequest.ticket_booking);
     const passportRequest = Boolean(employeeRequest.passport_request);
     const ticketEncashment = Boolean(employeeRequest.ticket_encashment);
@@ -378,7 +394,9 @@ export default function EmployeeRequestPrint({
                                         Date approved
                                     </p>
                                     <FormInputBox>
-                                        <span className="text-neutral-400 normal-case">&nbsp;</span>
+                                        {approvedDate || (
+                                            <span className="text-neutral-400 normal-case">&nbsp;</span>
+                                        )}
                                     </FormInputBox>
                                 </div>
                             </div>
@@ -406,19 +424,19 @@ export default function EmployeeRequestPrint({
                             </div>
 
                             <div className="mt-8 print:mt-3">
-                                <div className="border-b border-neutral-800 pb-1 print:pb-0" />
-                                <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
-                                    Signature
-                                </p>
-                                {employeeRequest.approved_by_signature_url ? (
-                                    <div className="mt-2 flex justify-center print:mt-0.5">
+                                <div className="flex min-h-20 items-end justify-center px-2 pb-2 print:min-h-10 print:pb-0.5">
+                                    {employeeRequest.approved_by_signature_url ? (
                                         <img
                                             src={employeeRequest.approved_by_signature_url}
                                             alt=""
-                                            className="h-16 max-w-xs object-contain object-bottom print:h-10"
+                                            className="max-h-20 w-auto max-w-full object-contain object-bottom"
                                         />
-                                    </div>
-                                ) : null}
+                                    ) : null}
+                                </div>
+                                <div className="border-b border-neutral-800" />
+                                <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
+                                    Signature
+                                </p>
                             </div>
 
                             <div className="mt-8 grid gap-5 sm:grid-cols-2 print:mt-4 print:gap-3">

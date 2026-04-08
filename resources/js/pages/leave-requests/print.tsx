@@ -19,10 +19,12 @@ type LeaveRequest = {
     remarks: string | null;
     status: string;
     created_at: string;
+    decided_at?: string | null;
     employee?: Employee;
     department?: Department;
     employee_signature_url?: string | null;
     approved_by_signature_url?: string | null;
+    approved_by_name?: string | null;
 };
 
 const ABSENCE_LABELS: { label: string; value: string }[] = [
@@ -43,6 +45,20 @@ function formatUsDate(ymd: string | null): string {
     if (!y || !m || !d) {
         return '';
     }
+    return `${m}/${d}/${y}`;
+}
+
+function formatUsDateTime(value: string | null | undefined): string {
+    if (!value) {
+        return '';
+    }
+
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) {
+        return '';
+    }
+
+    const [, y, m, d] = match;
     return `${m}/${d}/${y}`;
 }
 
@@ -121,6 +137,9 @@ export default function LeaveRequestPrint({
     const isOthers = selectedAbsence === 'Others';
     const remarksText = leaveRequest.remarks?.trim() || '';
     const isApproved = Boolean(leaveRequest.approved_by_signature_url);
+    const approvedDate = isApproved
+        ? formatUsDateTime(leaveRequest.decided_at) || formatUsDate(leaveRequest.date)
+        : '';
 
     return (
         <>
@@ -324,7 +343,9 @@ export default function LeaveRequestPrint({
                             <div className="min-w-0">
                                 <p className="mb-1 text-xs font-semibold text-[#00107f]">Date Approved</p>
                                 <FormInputBox>
-                                    <span className="text-neutral-400 normal-case">&nbsp;</span>
+                                    {approvedDate || (
+                                        <span className="text-neutral-400 normal-case">&nbsp;</span>
+                                    )}
                                 </FormInputBox>
                             </div>
                         </div>
@@ -341,18 +362,23 @@ export default function LeaveRequestPrint({
                         </div>
 
                         <div className="mt-8 print:mt-3">
-                            <div className="border-b border-neutral-800 pb-1 print:pb-0" />
-                            <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
-                                Signature
-                            </p>
-                            {leaveRequest.approved_by_signature_url ? (
-                                <div className="mt-2 flex justify-center print:mt-0.5">
+                            <div className="flex min-h-20 items-end justify-center px-2 pb-2 print:min-h-10 print:pb-0.5">
+                                {leaveRequest.approved_by_signature_url ? (
                                     <img
                                         src={leaveRequest.approved_by_signature_url}
                                         alt=""
-                                        className="h-16 max-w-xs object-contain object-bottom print:h-10"
+                                        className="max-h-20 w-auto max-w-full object-contain object-bottom"
                                     />
-                                </div>
+                                ) : null}
+                            </div>
+                            <div className="border-b border-neutral-800" />
+                            <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
+                                Signature
+                            </p>
+                            {leaveRequest.approved_by_name ? (
+                                <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
+                                    {leaveRequest.approved_by_name}
+                                </p>
                             ) : null}
                         </div>
                     </section>

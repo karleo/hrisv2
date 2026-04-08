@@ -18,6 +18,8 @@ type ItRequest = {
     hardware?: Hardware | null;
     employee_signature_url?: string | null;
     approved_by_signature_url?: string | null;
+    approved_by_name?: string | null;
+    decided_at?: string | null;
 };
 
 function formatUsDate(ymd: string | null): string {
@@ -28,6 +30,18 @@ function formatUsDate(ymd: string | null): string {
     if (!y || !m || !d) {
         return '';
     }
+    return `${m}/${d}/${y}`;
+}
+
+function formatUsDateTime(value: string | null | undefined): string {
+    if (!value) {
+        return '';
+    }
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) {
+        return '';
+    }
+    const [, y, m, d] = match;
     return `${m}/${d}/${y}`;
 }
 
@@ -101,6 +115,10 @@ export default function ItRequestPrint({
     const isApprovedStatus = statusNorm === 'approved';
     const isRejectedStatus = statusNorm === 'rejected';
     const isManagerApproved = Boolean(itRequest.approved_by_signature_url) || isApprovedStatus;
+    const approvedDate = isManagerApproved
+        ? formatUsDateTime(itRequest.decided_at) || formatUsDate(itRequest.date)
+        : '';
+    const approverName = itRequest.approved_by_name?.trim() ?? '';
 
     return (
         <>
@@ -268,10 +286,19 @@ export default function ItRequestPrint({
                                 <div className="min-w-0">
                                     <p className="mb-1 text-xs font-semibold text-[#00107f]">Date Approved</p>
                                     <FormInputBox>
-                                        <span className="text-neutral-400 normal-case">&nbsp;</span>
+                                        {approvedDate || (
+                                            <span className="text-neutral-400 normal-case">&nbsp;</span>
+                                        )}
                                     </FormInputBox>
                                 </div>
                             </div>
+
+                            {approverName ? (
+                                <div className="mb-4 min-w-0 print:mb-2">
+                                    <p className="mb-1 text-xs font-semibold text-[#00107f]">Approved by</p>
+                                    <FormInputBox>{approverName}</FormInputBox>
+                                </div>
+                            ) : null}
 
                             <div className="mb-6 flex flex-wrap gap-8 text-sm print:mb-2 print:gap-5 print:text-xs">
                                 <label className="flex cursor-default items-start gap-2">
@@ -285,19 +312,19 @@ export default function ItRequestPrint({
                             </div>
 
                             <div className="mt-8 print:mt-3">
-                                <div className="border-b border-neutral-800 pb-1 print:pb-0" />
-                                <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
-                                    Signature
-                                </p>
-                                {itRequest.approved_by_signature_url ? (
-                                    <div className="mt-2 flex justify-center print:mt-0.5">
+                                <div className="flex min-h-20 items-end justify-center px-2 pb-2 print:min-h-10 print:pb-0.5">
+                                    {itRequest.approved_by_signature_url ? (
                                         <img
                                             src={itRequest.approved_by_signature_url}
                                             alt=""
-                                            className="h-16 max-w-xs object-contain object-bottom print:h-10"
+                                            className="max-h-20 w-auto max-w-full object-contain object-bottom"
                                         />
-                                    </div>
-                                ) : null}
+                                    ) : null}
+                                </div>
+                                <div className="border-b border-neutral-800" />
+                                <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
+                                    Signature
+                                </p>
                             </div>
                         </section>
 

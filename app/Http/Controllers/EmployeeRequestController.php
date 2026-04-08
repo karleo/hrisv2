@@ -9,14 +9,23 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
 use App\Models\JobPosition;
+use App\Models\User;
+use App\Notifications\RequestDecisionNotification;
+use App\Notifications\RequestSubmittedNotification;
+use App\Support\RequestApprovalScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EmployeeRequestController extends Controller
 {
+    public function __construct(private readonly RequestApprovalScope $approvalScope)
+    {
+    }
+
     /**
      * Display a listing of the employee requests.
      */
@@ -24,6 +33,7 @@ class EmployeeRequestController extends Controller
     {
         $employeeRequests = EmployeeRequest::query()
             ->with(['employee', 'department', 'jobPosition'])
+            ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
             ->when(
                 $request->filled('search'),
                 fn ($query) => $query->whereHas('employee', function ($q) use ($request): void {
@@ -99,6 +109,7 @@ class EmployeeRequestController extends Controller
      */
     public function show(EmployeeRequest $employee_request): Response
     {
+        $this->assertCanView(request()->user(), $employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $employee_request->employee_signature
@@ -127,6 +138,8 @@ class EmployeeRequestController extends Controller
                 ->get(['id', 'first_name', 'last_name']),
             'signaturesUrl' => $this->employeeRequestSignaturesPostUrl($employee_request),
             'submitUrl' => route('employee-requests.submit', $employee_request, false),
+            'decisionUrl' => route('employee-requests.decide', $employee_request, false),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
         ]);
     }
 
@@ -135,15 +148,68 @@ class EmployeeRequestController extends Controller
      */
     public function submit(EmployeeRequest $employee_request): RedirectResponse
     {
+        $this->assertCanModify(request()->user(), $employee_request);
         if (strtolower((string) $employee_request->status) !== 'draft') {
             return redirect()->back()->with('error', 'Only draft employee requests can be submitted.');
         }
 
         $employee_request->update(['status' => 'submitted']);
+        $this->notifyApprovers(
+            request()->user(),
+            $employee_request->department_id,
+            [
+                'request_type' => 'employee_request',
+                'request_id' => $employee_request->id,
+                'request_code' => $employee_request->code,
+                'request_date' => (string) (optional($employee_request->date)->format('Y-m-d') ?? $employee_request->created_at?->format('Y-m-d') ?? ''),
+                'submitted_by' => $employee_request->employee
+                    ? trim($employee_request->employee->first_name.' '.$employee_request->employee->last_name)
+                    : 'Employee',
+                'route' => route('employee-requests.show', $employee_request),
+            ]
+        );
 
         return redirect()
             ->route('employee-requests.index')
             ->with('success', 'Employee request submitted.');
+    }
+
+    public function decide(Request $request, EmployeeRequest $employee_request): RedirectResponse
+    {
+        if (! $this->approvalScope->canDecide($request->user(), $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
+            'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
+        ]);
+
+        $approverEmployeeId = $request->user()?->employee?->id;
+        $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
+        $employee_request->update([
+            'status' => $validated['decision'],
+            'decision_remarks' => $remarks !== '' ? $remarks : null,
+            'decided_at' => now(),
+            'approved_by_employee_id' => $approverEmployeeId,
+        ]);
+
+        $employee_request->loadMissing('employee.user');
+        $requester = $employee_request->employee?->user;
+        if ($requester !== null && $requester->id !== $request->user()?->id) {
+            $requester->notify(new RequestDecisionNotification([
+                'request_type' => 'employee_request',
+                'request_id' => $employee_request->id,
+                'request_code' => $employee_request->code,
+                'request_date' => (string) (optional($employee_request->date)->format('Y-m-d') ?? $employee_request->created_at?->format('Y-m-d') ?? ''),
+                'decision' => $validated['decision'],
+                'remarks' => $employee_request->decision_remarks,
+                'decided_at' => optional($employee_request->decided_at)?->toDateTimeString(),
+                'route' => route('employee-requests.show', $employee_request),
+            ]));
+        }
+
+        return redirect()->back()->with('success', 'Decision submitted successfully.');
     }
 
     /**
@@ -151,6 +217,7 @@ class EmployeeRequestController extends Controller
      */
     public function edit(EmployeeRequest $employee_request): Response
     {
+        $this->assertCanModify(request()->user(), $employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $employee_request->employee_signature
@@ -192,6 +259,7 @@ class EmployeeRequestController extends Controller
      */
     public function update(UpdateEmployeeRequestRequest $request, EmployeeRequest $employee_request): RedirectResponse
     {
+        $this->assertCanModify($request->user(), $employee_request);
         $data = $request->validated();
 
         $status = $data['status'] ?? $employee_request->status;
@@ -228,6 +296,7 @@ class EmployeeRequestController extends Controller
      */
     public function print(EmployeeRequest $employee_request): Response
     {
+        $this->assertCanView(request()->user(), $employee_request);
         $employee_request->load(['employee.companyProfile', 'department', 'jobPosition', 'approvedByEmployee']);
 
         $company = $employee_request->employee?->companyProfile ?? CompanyProfile::query()->first();
@@ -260,6 +329,7 @@ class EmployeeRequestController extends Controller
      */
     public function destroy(EmployeeRequest $employee_request): RedirectResponse
     {
+        $this->assertCanModify(request()->user(), $employee_request);
         if ($employee_request->employee_signature) {
             Storage::disk('public')->delete($employee_request->employee_signature);
         }
@@ -283,6 +353,13 @@ class EmployeeRequestController extends Controller
      */
     public function updateSignatures(Request $request, EmployeeRequest $employee_request): RedirectResponse
     {
+        $this->assertCanModify($request->user(), $employee_request);
+        if (strtolower((string) $employee_request->status) !== 'draft' && $request->hasFile('employee_signature')) {
+            return redirect()->back()->with('error', 'Employee signature cannot be changed after submission.');
+        }
+        if (strtolower((string) $employee_request->status) !== 'submitted' && $request->hasFile('approved_by_signature')) {
+            return redirect()->back()->with('error', 'Manager/HR signature cannot be changed after decision.');
+        }
         $request->validate([
             'employee_signature' => ['nullable', 'image', 'max:2048'],
             'approved_by_signature' => ['nullable', 'image', 'max:2048'],
@@ -371,5 +448,40 @@ class EmployeeRequestController extends Controller
         }
 
         return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+    }
+
+    private function assertCanView(?User $user, EmployeeRequest $employeeRequest): void
+    {
+        if (! $this->approvalScope->canView($user, $employeeRequest->employee_id, $employeeRequest->department_id)) {
+            abort(403);
+        }
+    }
+
+    private function assertCanModify(?User $user, EmployeeRequest $employeeRequest): void
+    {
+        if (! $this->approvalScope->canModify($user, $employeeRequest->employee_id, $employeeRequest->department_id, (string) $employeeRequest->status)) {
+            abort(403);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function notifyApprovers(?User $actor, int $departmentId, array $payload): void
+    {
+        $recipients = collect($this->approvalScope->hrUsers());
+        $manager = $this->approvalScope->managerUserByDepartmentId($departmentId);
+        if ($manager !== null) {
+            $recipients->push($manager);
+        }
+
+        $uniqueRecipients = $recipients
+            ->filter(fn ($user) => $user instanceof User)
+            ->filter(fn (User $user) => $actor === null || $user->id !== $actor->id)
+            ->unique('id');
+
+        foreach ($uniqueRecipients as $recipient) {
+            $recipient->notify(new RequestSubmittedNotification($payload));
+        }
     }
 }

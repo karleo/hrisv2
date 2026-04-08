@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Employee\StoreEmployeeRequest;
+use App\Http\Requests\Employee\UpdateProfileRequest;
+use App\Http\Requests\Employee\UpdateEmployeePrivateInformationRequest;
+use App\Http\Requests\Employee\UploadProfileDocumentRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Http\Requests\Employee\ImportEmployeesRequest;
 use App\Models\CompanyProfile;
@@ -13,6 +16,8 @@ use App\Models\JobPosition;
 use App\Models\WorkTimetable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\View\View as ViewContract;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -22,6 +27,107 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
 {
+    public function profile(Request $request): Response
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $employee = Employee::query()
+            ->with(['department', 'jobPosition', 'companyProfile', 'workTimetable', 'documents'])
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($employee === null) {
+            abort(403);
+        }
+
+        $employee->photo_url = $employee->photo
+            ? '/storage/'.ltrim($employee->photo, '/')
+            : null;
+
+        return Inertia::render('employees/profile', [
+            'employee' => $employee,
+        ]);
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null) {
+            abort(403);
+        }
+
+        $data = $request->validated();
+        $employee->update($data);
+
+        return back()->with('success', 'Profile information updated.');
+    }
+
+    public function uploadProfileDocument(UploadProfileDocumentRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->with('documents')->where('user_id', $user->id)->first();
+        if ($employee === null) {
+            abort(403);
+        }
+
+        $file = $request->file('document');
+        if ($file === null) {
+            return back()->with('error', 'Please select a document.');
+        }
+
+        $baseName = trim((string) ($request->input('name') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)));
+        $documentName = $baseName !== '' ? $baseName : 'Document';
+
+        $existing = $employee->documents->firstWhere('name', $documentName);
+        $path = $file->store("employees/{$employee->id}/documents", 'public');
+
+        if ($existing !== null) {
+            Storage::disk('public')->delete($existing->path);
+            $existing->update([
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+        } else {
+            $employee->documents()->create([
+                'name' => $documentName,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+        }
+
+        return back()->with('success', 'Document uploaded successfully.');
+    }
+
+    public function destroyProfileDocument(Request $request, EmployeeDocument $employee_document): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null || $employee_document->employee_id !== $employee->id) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($employee_document->path);
+        $employee_document->delete();
+
+        return back()->with('success', 'Document deleted.');
+    }
+
     /**
      * Display a listing of the employees.
      */
@@ -389,13 +495,13 @@ class EmployeeController extends Controller
             ]);
         }
 
-        return to_route('employees.business-card', $employee);
+        return to_route('employees.edit', $employee)->with('success', 'Employee updated successfully.');
     }
 
     /**
      * Display the employee business card (printable).
      */
-    public function businessCard(Employee $employee): Response
+    public function businessCard(Request $request, Employee $employee): Response
     {
         $employee->load(['department', 'jobPosition', 'companyProfile']);
         $employee->photo_url = $employee->photo
@@ -410,13 +516,37 @@ class EmployeeController extends Controller
         return Inertia::render('employees/business-card', [
             'employee' => $employee,
             'appName' => config('app.name'),
+            'embedded' => $request->boolean('embed'),
+        ]);
+    }
+
+    public function businessCardEmbed(Employee $employee): ViewContract
+    {
+        $employee->load(['department', 'jobPosition', 'companyProfile']);
+        $employee->photo_url = $employee->photo
+            ? '/storage/'.ltrim($employee->photo, '/')
+            : null;
+        if ($employee->relationLoaded('companyProfile') && $employee->companyProfile) {
+            $employee->companyProfile->logo_url = $employee->companyProfile->logo
+                ? '/storage/'.ltrim($employee->companyProfile->logo, '/')
+                : null;
+        }
+
+        $appName = (string) config('app.name');
+        $vCard = $this->buildEmployeeVCard($employee, $appName);
+        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=52x52&data='.rawurlencode($vCard);
+
+        return view('employees.business-card-embed', [
+            'employee' => $employee,
+            'appName' => $appName,
+            'qrCodeUrl' => $qrCodeUrl,
         ]);
     }
 
     /**
      * Show the form for editing the specified employee.
      */
-    public function edit(Employee $employee): Response
+    public function edit(Request $request, Employee $employee): Response
     {
         $employee->load(['department', 'jobPosition', 'documents', 'companyProfile', 'workTimetable']);
         $employee->photo_url = $employee->photo
@@ -429,6 +559,7 @@ class EmployeeController extends Controller
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
+            'viewMode' => $request->query('mode') === 'view',
         ]);
     }
 
@@ -463,7 +594,22 @@ class EmployeeController extends Controller
             ]);
         }
 
-        return to_route('employees.business-card', $employee);
+        $tab = $request->input('tab');
+        if (! in_array($tab, ['employee_information', 'documents', 'private_information'], true)) {
+            $tab = 'employee_information';
+        }
+
+        return to_route('employees.edit', [
+            'employee' => $employee,
+            'tab' => $tab,
+        ])->with('success', 'Employee updated successfully.');
+    }
+
+    public function updatePrivateInformation(UpdateEmployeePrivateInformationRequest $request, Employee $employee): RedirectResponse
+    {
+        $employee->update($request->validated());
+
+        return to_route('employees.edit', $employee)->with('success', 'Private information updated.');
     }
 
     /**
@@ -499,6 +645,24 @@ class EmployeeController extends Controller
         return back();
     }
 
+    public function showDocument(Employee $employee, EmployeeDocument $employeeDocument): BinaryFileResponse
+    {
+        if ($employeeDocument->employee_id !== $employee->id) {
+            abort(404);
+        }
+
+        if (! Storage::disk('public')->exists($employeeDocument->path)) {
+            abort(404, 'Document file not found.');
+        }
+
+        return response()->file(
+            Storage::disk('public')->path($employeeDocument->path),
+            [
+                'Content-Disposition' => 'inline; filename="'.$employeeDocument->original_name.'"',
+            ]
+        );
+    }
+
     /**
      * @param  array<int, mixed>  $row
      */
@@ -516,5 +680,45 @@ class EmployeeController extends Controller
     private function normalizeHeader(string $header): string
     {
         return mb_strtolower(trim($header));
+    }
+
+    private function buildEmployeeVCard(Employee $employee, string $appName): string
+    {
+        $lines = [
+            'BEGIN:VCARD',
+            'VERSION:3.0',
+            'FN:'.$this->escapeVCard(trim($employee->first_name.' '.$employee->last_name)),
+            'N:'.$this->escapeVCard((string) $employee->last_name).';'.$this->escapeVCard((string) $employee->first_name).';;;',
+        ];
+
+        $org = $employee->companyProfile?->company_name ?: $appName;
+        if ($org !== '') {
+            $lines[] = 'ORG:'.$this->escapeVCard($org);
+        }
+
+        if ($employee->jobPosition?->name) {
+            $lines[] = 'TITLE:'.$this->escapeVCard($employee->jobPosition->name);
+        }
+
+        if ($employee->department?->name) {
+            $lines[] = 'NOTE:Department: '.$this->escapeVCard($employee->department->name);
+        }
+
+        if ($employee->email_address) {
+            $lines[] = 'EMAIL:'.$this->escapeVCard((string) $employee->email_address);
+        }
+
+        if ($employee->contact_number) {
+            $lines[] = 'TEL;TYPE=WORK,VOICE:'.$this->escapeVCard((string) $employee->contact_number);
+        }
+
+        $lines[] = 'END:VCARD';
+
+        return implode("\r\n", $lines);
+    }
+
+    private function escapeVCard(string $value): string
+    {
+        return str_replace(['\\', ';', ','], ['\\\\', '\;', '\,'], $value);
     }
 }

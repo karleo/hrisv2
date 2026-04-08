@@ -41,9 +41,27 @@ class HandleInertiaRequests extends Middleware
             'csrf_token' => csrf_token(),
             'auth' => [
                 'user' => $request->user(),
+                'has_employee_profile' => $request->user()?->employee()->exists() ?? false,
             ],
             'modulePermissions' => (object) ($request->user()?->modulePermissionsPayload() ?? []),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'notifications' => $request->user()
+                ? [
+                    'unread_count' => $request->user()->unreadNotifications()->count(),
+                    'items' => $request->user()
+                        ->notifications()
+                        ->latest()
+                        ->limit(10)
+                        ->get()
+                        ->map(fn ($notification) => [
+                            'id' => $notification->id,
+                            'type' => $notification->type,
+                            'data' => $notification->data,
+                            'read_at' => $notification->read_at?->toIso8601String(),
+                            'created_at' => $notification->created_at?->toIso8601String(),
+                        ]),
+                ]
+                : ['unread_count' => 0, 'items' => []],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),

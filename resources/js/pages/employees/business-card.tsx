@@ -101,9 +101,11 @@ function qrCodeDataUrl(data: string, size: number): string {
 export default function BusinessCard({
     employee,
     appName,
+    embedded = false,
 }: {
     employee: Employee;
     appName: string;
+    embedded?: boolean;
 }) {
     const fullName = `${employee.first_name} ${employee.last_name}`;
     const jobTitle = employee.job_position?.name ?? '';
@@ -132,11 +134,9 @@ export default function BusinessCard({
         URL.revokeObjectURL(url);
     }
 
-    return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Business card – ${fullName}`} />
-
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 print:p-0">
+    const content = (
+        <div className={`flex flex-1 flex-col ${embedded ? 'justify-center p-2' : 'gap-6 p-4 md:p-6 print:p-0'}`}>
+            {!embedded ? (
                 <div className="flex flex-wrap items-center gap-3 print:hidden">
                     <Link
                         href={index().url}
@@ -154,7 +154,9 @@ export default function BusinessCard({
                         Download as contact (.vcf)
                     </Button>
                 </div>
+            ) : null}
 
+            {!embedded ? (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 print:hidden">
                     <p className="text-sm font-medium text-muted-foreground">
                         Scan to add contact
@@ -172,102 +174,123 @@ export default function BusinessCard({
                         QR code contains contact details (vCard)
                     </p>
                 </div>
+            ) : null}
 
-                <div className="flex min-h-[50vh] items-start justify-center print:min-h-0 print:items-center print:justify-center">
-                    {/* Business card: 3.5" x 2" at 96dpi ≈ 336x192, we use aspect-[3.5/2] and fixed width for print */}
-                    <div
-                        id="business-card"
-                        className="w-[336px] overflow-hidden rounded-lg border border-border bg-card shadow-lg print:w-[3.5in] print:rounded-none print:border-2 print:border-foreground print:shadow-none"
-                        style={{ aspectRatio: '3.5 / 2' }}
-                    >
-                        <div className="flex h-full w-full flex-row gap-0">
-                            {/* Left: photo or placeholder */}
-                            <div className="flex w-[33%] shrink-0 items-center justify-center bg-muted/50 p-2 print:p-1">
-                                {employee.photo_url ? (
-                                    <img
-                                        src={employee.photo_url}
-                                        alt=""
-                                        className="size-20 rounded object-cover print:size-16"
-                                    />
-                                ) : (
-                                    <div className="flex size-20 items-center justify-center rounded-full bg-muted print:size-16">
-                                        <User className="size-10 text-muted-foreground print:size-8" />
-                                    </div>
+            <div className={`flex ${embedded ? 'min-h-0' : 'min-h-[50vh]'} items-start justify-center print:min-h-0 print:items-center print:justify-center`}>
+                <div
+                    id="business-card"
+                    className="w-[336px] overflow-hidden rounded-lg border border-border bg-card shadow-lg print:w-[3.5in] print:rounded-none print:border-2 print:border-foreground print:shadow-none"
+                    style={{ aspectRatio: '3.5 / 2' }}
+                >
+                    <div className="flex h-full w-full flex-row gap-0">
+                        <div className="flex w-[33%] shrink-0 items-center justify-center bg-muted/50 p-2 print:p-1">
+                            {employee.photo_url ? (
+                                <img
+                                    src={employee.photo_url}
+                                    alt=""
+                                    className="size-20 rounded object-cover print:size-16"
+                                />
+                            ) : (
+                                <div className="flex size-20 items-center justify-center rounded-full bg-muted print:size-16">
+                                    <User className="size-10 text-muted-foreground print:size-8" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex flex-1 flex-col justify-center gap-0.5 px-4 py-3 print:gap-0 print:px-3 print:py-2">
+                            <p className="text-lg font-semibold leading-tight text-foreground print:text-base">
+                                {fullName}
+                            </p>
+                            {jobTitle && (
+                                <p className="text-sm font-medium text-foreground/90 print:text-xs">
+                                    {jobTitle}
+                                </p>
+                            )}
+                            {department && (
+                                <p className="text-xs text-muted-foreground print:text-[10px]">
+                                    {department}
+                                </p>
+                            )}
+                            <div className="mt-1.5 space-y-0.5 border-t border-border/50 pt-1.5 print:mt-1 print:space-y-0 print:border-t print:pt-1">
+                                <p className="truncate text-xs text-muted-foreground print:text-[10px]">
+                                    {employee.email_address}
+                                </p>
+                                {employee.contact_number && (
+                                    <p className="text-xs text-muted-foreground print:text-[10px]">
+                                        {employee.contact_number}
+                                    </p>
                                 )}
                             </div>
-                            {/* Right: details */}
-                            <div className="flex flex-1 flex-col justify-center gap-0.5 px-4 py-3 print:gap-0 print:px-3 print:py-2">
-                                <p className="text-lg font-semibold leading-tight text-foreground print:text-base">
-                                    {fullName}
-                                </p>
-                                {jobTitle && (
-                                    <p className="text-sm font-medium text-foreground/90 print:text-xs">
-                                        {jobTitle}
-                                    </p>
-                                )}
-                                {department && (
-                                    <p className="text-xs text-muted-foreground print:text-[10px]">
-                                        {department}
-                                    </p>
-                                )}
-                                <div className="mt-1.5 space-y-0.5 border-t border-border/50 pt-1.5 print:mt-1 print:space-y-0 print:border-t print:pt-1">
-                                    <p className="truncate text-xs text-muted-foreground print:text-[10px]">
-                                        {employee.email_address}
-                                    </p>
-                                    {employee.contact_number && (
-                                        <p className="text-xs text-muted-foreground print:text-[10px]">
-                                            {employee.contact_number}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="mt-auto flex items-end justify-between gap-2 pt-1 print:pt-0.5">
-                                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                                        {employee.company_profile?.logo_url && (
-                                            <img
-                                                src={employee.company_profile.logo_url}
-                                                alt=""
-                                                className="size-8 shrink-0 object-contain print:size-7"
-                                            />
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            {(employee.company_profile?.company_name || appName) && (
-                                                <p className="text-[10px] font-medium text-muted-foreground print:text-[8px]">
-                                                    {employee.company_profile?.company_name || appName}
-                                                </p>
-                                            )}
-                                            {employee.company_profile?.website && (
-                                                <a
-                                                    href={employee.company_profile.website}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block truncate text-[9px] text-primary underline print:text-[8px]"
-                                                >
-                                                    {employee.company_profile.website.replace(/^https?:\/\//i, '')}
-                                                </a>
-                                            )}
-                                            {employee.company_profile && [employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).length > 0 && (
-                                                <p className="truncate text-[9px] text-muted-foreground print:text-[8px]">
-                                                    {[employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).join(', ')}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="shrink-0" aria-hidden>
+                            <div className="mt-auto flex items-end justify-between gap-2 pt-1 print:pt-0.5">
+                                <div className="flex min-w-0 flex-1 items-center gap-2">
+                                    {employee.company_profile?.logo_url && (
                                         <img
-                                            src={qrCodeDataUrl(vCard, 52)}
+                                            src={employee.company_profile.logo_url}
                                             alt=""
-                                            width={52}
-                                            height={52}
-                                            className="size-[52px]"
+                                            className="size-8 shrink-0 object-contain print:size-7"
                                         />
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        {(employee.company_profile?.company_name || appName) && (
+                                            <p className="text-[10px] font-medium text-muted-foreground print:text-[8px]">
+                                                {employee.company_profile?.company_name || appName}
+                                            </p>
+                                        )}
+                                        {employee.company_profile?.website && (
+                                            <a
+                                                href={employee.company_profile.website}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block truncate text-[9px] text-primary underline print:text-[8px]"
+                                            >
+                                                {employee.company_profile.website.replace(/^https?:\/\//i, '')}
+                                            </a>
+                                        )}
+                                        {employee.company_profile && [employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).length > 0 && (
+                                            <p className="truncate text-[9px] text-muted-foreground print:text-[8px]">
+                                                {[employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).join(', ')}
+                                            </p>
+                                        )}
                                     </div>
+                                </div>
+                                <div className="shrink-0" aria-hidden>
+                                    <img
+                                        src={qrCodeDataUrl(vCard, 52)}
+                                        alt=""
+                                        width={52}
+                                        height={52}
+                                        className="size-[52px]"
+                                    />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    );
 
+    return embedded ? (
+        <>
+            <Head title={`Business card – ${fullName}`} />
+            {content}
+            <style>{`@media print {
+                body * { visibility: hidden; }
+                #business-card, #business-card * { visibility: visible; }
+                #business-card {
+                    position: fixed;
+                    left: 0;
+                    top: 0;
+                    width: 3.5in;
+                    height: 2in;
+                    margin: 0;
+                    box-shadow: none;
+                }
+            }`}</style>
+        </>
+    ) : (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`Business card – ${fullName}`} />
+            {content}
             <style>{`@media print {
                 body * { visibility: hidden; }
                 #business-card, #business-card * { visibility: visible; }

@@ -29,11 +29,13 @@ function IssuedBySignatureBlock({
     employees,
     signaturesUrl,
     visitOnly,
+    allowIssuedBySignatureEdit,
 }: {
     itAssetRequest: ItAssetRequestSignatureProps;
     employees: SignatureEmployee[];
     signaturesUrl: string;
     visitOnly: string[];
+    allowIssuedBySignatureEdit: boolean;
 }) {
     const { errors } = usePage().props as { errors?: Record<string, string> };
     const [issuedByEmployeeId, setIssuedByEmployeeId] = useState<number | ''>(
@@ -62,22 +64,42 @@ function IssuedBySignatureBlock({
                 </select>
                 <InputError message={errors?.issued_by_employee_id} />
             </div>
-            <SignaturePad
-                label="Issued by signature"
-                signatureUrl={itAssetRequest.issued_by_signature_url ?? null}
-                submitUrl={signaturesUrl}
-                fieldName="issued_by_signature"
-                extraFormData={
-                    issuedByEmployeeId !== ''
-                        ? { issued_by_employee_id: String(issuedByEmployeeId) }
-                        : undefined
-                }
-                visitOptions={{
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: visitOnly,
-                }}
-            />
+            {allowIssuedBySignatureEdit ? (
+                <SignaturePad
+                    label="Issued by signature"
+                    signatureUrl={itAssetRequest.issued_by_signature_url ?? null}
+                    submitUrl={signaturesUrl}
+                    fieldName="issued_by_signature"
+                    extraFormData={
+                        issuedByEmployeeId !== ''
+                            ? { issued_by_employee_id: String(issuedByEmployeeId) }
+                            : undefined
+                    }
+                    visitOptions={{
+                        preserveScroll: true,
+                        preserveState: true,
+                        only: visitOnly,
+                    }}
+                />
+            ) : (
+                <div className="space-y-2">
+                    <p className="text-sm font-medium">Issued by signature</p>
+                    {itAssetRequest.issued_by_signature_url ? (
+                        <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                            <img
+                                src={itAssetRequest.issued_by_signature_url}
+                                alt="Issued by signature"
+                                className="absolute inset-0 h-full w-full object-contain object-left-top"
+                                loading="eager"
+                                decoding="async"
+                            />
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No signature on file.</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                </div>
+            )}
             <p className="text-xs text-muted-foreground">
                 {itAssetRequest.issued_by_employee
                     ? `${itAssetRequest.issued_by_employee.first_name} ${itAssetRequest.issued_by_employee.last_name}`
@@ -118,12 +140,16 @@ export function ItAssetRequestSignaturesCard({
     signaturesUrl,
     visitOnly,
     className,
+    allowEmployeeSignatureEdit = true,
+    allowIssuedBySignatureEdit = true,
 }: {
     itAssetRequest: ItAssetRequestSignatureProps;
     employees: SignatureEmployee[];
     signaturesUrl: string;
     visitOnly: readonly string[] | string[];
     className?: string;
+    allowEmployeeSignatureEdit?: boolean;
+    allowIssuedBySignatureEdit?: boolean;
 }) {
     const only = [...visitOnly];
 
@@ -138,17 +164,37 @@ export function ItAssetRequestSignaturesCard({
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-start md:gap-10">
                 <div className="space-y-2">
-                    <SignaturePad
-                        label="Employee signature"
-                        signatureUrl={itAssetRequest.employee_signature_url ?? null}
-                        submitUrl={signaturesUrl}
-                        fieldName="employee_signature"
-                        visitOptions={{
-                            preserveScroll: true,
-                            preserveState: true,
-                            only,
-                        }}
-                    />
+                    {allowEmployeeSignatureEdit ? (
+                        <SignaturePad
+                            label="Employee signature"
+                            signatureUrl={itAssetRequest.employee_signature_url ?? null}
+                            submitUrl={signaturesUrl}
+                            fieldName="employee_signature"
+                            visitOptions={{
+                                preserveScroll: true,
+                                preserveState: true,
+                                only,
+                            }}
+                        />
+                    ) : (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Employee signature</p>
+                            {itAssetRequest.employee_signature_url ? (
+                                <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                                    <img
+                                        src={itAssetRequest.employee_signature_url}
+                                        alt="Employee signature"
+                                        className="absolute inset-0 h-full w-full object-contain object-left-top"
+                                        loading="eager"
+                                        decoding="async"
+                                    />
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No employee signature on file.</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">Locked after submission.</p>
+                        </div>
+                    )}
                     <p className="text-xs text-muted-foreground">
                         {itAssetRequest.employee
                             ? `${itAssetRequest.employee.first_name} ${itAssetRequest.employee.last_name}`
@@ -161,6 +207,7 @@ export function ItAssetRequestSignaturesCard({
                     employees={employees}
                     signaturesUrl={signaturesUrl}
                     visitOnly={only}
+                    allowIssuedBySignatureEdit={allowIssuedBySignatureEdit}
                 />
             </CardContent>
         </Card>

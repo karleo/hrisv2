@@ -70,7 +70,14 @@ export function SignaturePad(props: SignaturePadProps) {
         ctx.stroke();
     };
 
-    const stopDrawing = () => setIsDrawing(false);
+    const stopDrawing = () => {
+        setIsDrawing(false);
+        if (!isAutoSubmitMode) {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            props.onChange(canvas.toDataURL('image/png', 0.9));
+        }
+    };
 
     const clear = () => {
         const canvas = canvasRef.current;
@@ -130,7 +137,7 @@ export function SignaturePad(props: SignaturePadProps) {
 
     return (
         <div className="space-y-2">
-            <Label>{props.label}</Label>
+            <Label className="block">{props.label}</Label>
             {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
             {displaySignatureUrl ? (
                 <div className="flex min-w-0 max-w-[12rem] flex-shrink-0 flex-col gap-1">

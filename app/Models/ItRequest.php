@@ -32,6 +32,8 @@ class ItRequest extends Model
         'hardware_id',
         'status',
         'date',
+        'decision_remarks',
+        'decided_at',
         'employee_signature',
         'approved_by_signature',
         'approved_by_employee_id',
@@ -47,6 +49,7 @@ class ItRequest extends Model
             'hardware_id' => 'integer',
             'status' => 'string',
             'date' => 'date:Y-m-d',
+            'decided_at' => 'datetime',
         ];
     }
 

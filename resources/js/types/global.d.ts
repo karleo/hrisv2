@@ -8,6 +8,16 @@ declare module '@inertiajs/core' {
             auth: Auth;
             modulePermissions: ModulePermissionsMap;
             sidebarOpen: boolean;
+            notifications: {
+                unread_count: number;
+                items: Array<{
+                    id: string;
+                    type: string;
+                    data: Record<string, unknown>;
+                    read_at: string | null;
+                    created_at: string | null;
+                }>;
+            };
             [key: string]: unknown;
         };
     }

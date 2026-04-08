@@ -5,7 +5,7 @@ import {
     employeeRequestShowSignatureVisitOnly,
 } from '@/components/request-employee-signature-card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Heading from '@/components/heading';
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import AppLayout from '@/layouts/app-layout';
@@ -58,6 +58,8 @@ type EmployeeRequest = {
     dept_head_signature_url?: string | null;
     ceo_signature_url?: string | null;
     approved_by_signature_url?: string | null;
+    decision_remarks?: string | null;
+    decided_at?: string | null;
 };
 
 function formatDateDdMmYyyy(value: string | null | undefined): string {
@@ -74,10 +76,14 @@ export default function Show({
     employeeRequest,
     signaturesUrl,
     submitUrl,
+    decisionUrl,
+    canDecide,
 }: {
     employeeRequest: EmployeeRequest;
     signaturesUrl: string;
     submitUrl: string;
+    decisionUrl: string;
+    canDecide: boolean;
 }) {
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const requestLabel = employeeRequest.code || `Request #${employeeRequest.id}`;
@@ -353,7 +359,14 @@ export default function Show({
                     signatureUrl={employeeRequest.employee_signature_url ?? null}
                     signaturesUrl={signaturesUrl}
                     visitOnly={employeeRequestShowSignatureVisitOnly}
+                    allowEmployeeSignatureEdit={normalizeRequestStatus(employeeRequest.status) === 'draft'}
                     additionalSignatures={[
+                        {
+                            label: 'Manager / HR signature',
+                            signatureUrl: employeeRequest.approved_by_signature_url ?? null,
+                            fieldName: 'approved_by_signature',
+                            editable: normalizeRequestStatus(employeeRequest.status) === 'submitted',
+                        },
                         {
                             label: 'Dept Head signature',
                             signatureUrl: employeeRequest.dept_head_signature_url ?? null,
@@ -365,6 +378,44 @@ export default function Show({
                             fieldName: 'ceo_signature',
                         },
                     ]}
+                    managerDecisionSlot={
+                        canDecide && normalizeRequestStatus(employeeRequest.status) === 'submitted' ? (
+                            <Form action={decisionUrl} method="post" options={{ preserveScroll: true }}>
+                                {({ processing }) => (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            name="remarks"
+                                            rows={3}
+                                            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                            placeholder="Add reason when rejecting"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                name="decision"
+                                                value="rejected"
+                                                variant="destructive"
+                                                disabled={processing}
+                                                onClick={(e) => {
+                                                    const form = e.currentTarget.form;
+                                                    const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
+                                                    if (remarks === '') {
+                                                        e.preventDefault();
+                                                        window.alert('Please fill reason before rejecting.');
+                                                    }
+                                                }}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Form>
+                        ) : null
+                    }
                     employeeName={
                         employeeRequest.employee
                             ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`

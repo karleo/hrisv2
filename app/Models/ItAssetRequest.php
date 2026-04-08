@@ -35,6 +35,8 @@ class ItAssetRequest extends Model
         'asset_type',
         'serial_number',
         'remarks',
+        'decision_remarks',
+        'decided_at',
         'status',
         'employee_signature',
         'issued_by_signature',
@@ -52,6 +54,7 @@ class ItAssetRequest extends Model
             'date_issued' => 'date:Y-m-d',
             'hardware_ids' => 'array',
             'status' => 'string',
+            'decided_at' => 'datetime',
         ];
     }
 

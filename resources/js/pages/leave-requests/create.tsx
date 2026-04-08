@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Calendar, ChevronLeft, ClipboardCheck, FileText, Send, User } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import InputError from '@/components/input-error';
+import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ export default function LeaveRequestsCreate({
 }) {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
     const [departmentId, setDepartmentId] = useState<string>('');
+    const [employeeSignatureDataUrl, setEmployeeSignatureDataUrl] = useState<string | null>(null);
 
     const selectedEmployee = employees.find((e) => e.id === Number(selectedEmployeeId));
     const departmentName = selectedEmployee?.department?.name ?? departments.find((d) => d.id === Number(departmentId))?.name ?? '';
@@ -91,6 +93,11 @@ export default function LeaveRequestsCreate({
                         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-3">
                             <input type="hidden" name="employee_id" value={selectedEmployeeId} />
                             <input type="hidden" name="department_id" value={departmentId} />
+                            <input
+                                type="hidden"
+                                name="employee_signature_data_url"
+                                value={employeeSignatureDataUrl ?? ''}
+                            />
 
                             <div className="space-y-6 lg:col-span-2">
                                 <Card>
@@ -219,6 +226,7 @@ export default function LeaveRequestsCreate({
                                         </div>
                                     </CardContent>
                                 </Card>
+
                             </div>
 
                             <div className="lg:col-span-1">
@@ -256,6 +264,23 @@ export default function LeaveRequestsCreate({
                                                     Cancel
                                                 </Button>
                                             </Link>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Employee signature</CardTitle>
+                                            <CardDescription>
+                                                Draw and save your signature while creating the request.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            <SignaturePad
+                                                label="Employee signature"
+                                                initialImageUrl={null}
+                                                onChange={setEmployeeSignatureDataUrl}
+                                            />
+                                            <InputError message={errors?.employee_signature_data_url} />
                                         </CardContent>
                                     </Card>
                                 </div>

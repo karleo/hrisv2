@@ -1,12 +1,12 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { Calendar, ChevronLeft, ClipboardCheck, FileText, Save, User } from 'lucide-react';
+import { Calendar, ChevronLeft, ClipboardCheck, FileText, Save, Send, User } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import InputError from '@/components/input-error';
 import {
     RequestEmployeeSignatureCard,
     leaveRequestEditSignatureVisitOnly,
 } from '@/components/request-employee-signature-card';
-import { RequestStatusBadge } from '@/components/request-status-badge';
+import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -56,11 +56,13 @@ export default function LeaveRequestsEdit({
     employees,
     departments,
     signaturesUrl,
+    submitUrl,
 }: {
     leaveRequest: LeaveRequest;
     employees: Employee[];
     departments: { id: number; name: string }[];
     signaturesUrl: string;
+    submitUrl: string;
 }) {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(String(leaveRequest.employee_id));
     const [departmentId, setDepartmentId] = useState<string>(String(leaveRequest.department_id));
@@ -80,6 +82,7 @@ export default function LeaveRequestsEdit({
     );
 
     const absenceType = leaveRequest.absence_types?.[0] ?? '';
+    const isDraft = normalizeRequestStatus(leaveRequest.status) === 'draft';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Leave Requests', href: '/leave-requests' },
@@ -118,9 +121,9 @@ export default function LeaveRequestsEdit({
                     className="px-4 py-8 md:px-8"
                     options={{ preserveScroll: true }}
                 >
-                    <input type="hidden" name="_method" value="PUT" />
                     {({ errors }) => (
                         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-3">
+                            <input type="hidden" name="_method" value="PUT" />
                             <input type="hidden" name="employee_id" value={selectedEmployeeId} />
                             <input type="hidden" name="department_id" value={departmentId} />
 
@@ -320,6 +323,14 @@ export default function LeaveRequestsEdit({
                                             <CardTitle>Actions</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
+                                            {isDraft ? (
+                                                <Link href={submitUrl} method="post" as="button" className="w-full">
+                                                    <Button type="button" variant="secondary" className="w-full">
+                                                        <Send className="mr-2 size-4" />
+                                                        Submit request
+                                                    </Button>
+                                                </Link>
+                                            ) : null}
                                             <Button type="submit" className="w-full">
                                                 <Save className="mr-2 size-4" />
                                                 Update leave request

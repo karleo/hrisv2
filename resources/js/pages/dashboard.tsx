@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import { Link } from '@inertiajs/react';
+import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Monitor, Package } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -11,24 +12,156 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+type PendingSummary = {
+    leave_requests: number;
+    employee_requests: number;
+    it_requests: number;
+    it_asset_requests: number;
+};
+
+type PendingItem = {
+    id: number;
+    code: string;
+    employee: string;
+};
+
+type RecentPending = {
+    leave_requests: PendingItem[];
+    employee_requests: PendingItem[];
+    it_requests: PendingItem[];
+    it_asset_requests: PendingItem[];
+};
+
+export default function Dashboard({
+    pending,
+    recentPending,
+}: {
+    pending: PendingSummary;
+    recentPending: RecentPending;
+}) {
+    const cards = [
+        {
+            title: 'Leave Requests',
+            value: pending.leave_requests,
+            href: '/leave-requests',
+            items: recentPending.leave_requests,
+            itemHref: (id: number) => `/leave-requests/${id}`,
+            icon: CalendarDays,
+            tone: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20',
+        },
+        {
+            title: 'Employee Requests',
+            value: pending.employee_requests,
+            href: '/employee-requests',
+            items: recentPending.employee_requests,
+            itemHref: (id: number) => `/employee-requests/${id}`,
+            icon: Briefcase,
+            tone: 'from-violet-500/10 to-indigo-500/10 border-violet-500/20',
+        },
+        {
+            title: 'IT Requests',
+            value: pending.it_requests,
+            href: '/it-requests',
+            items: recentPending.it_requests,
+            itemHref: (id: number) => `/it-requests/${id}`,
+            icon: Monitor,
+            tone: 'from-amber-500/10 to-orange-500/10 border-amber-500/20',
+        },
+        {
+            title: 'IT Asset Requests',
+            value: pending.it_asset_requests,
+            href: '/it-asset-requests',
+            items: recentPending.it_asset_requests,
+            itemHref: (id: number) => `/it-asset-requests/${id}`,
+            icon: Package,
+            tone: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20',
+        },
+    ];
+
+    const totalPending = cards.reduce((sum, card) => sum + card.value, 0);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+            <div className="flex h-full flex-1 flex-col gap-5 overflow-x-auto p-4 md:p-6">
+                <div className="rounded-2xl border border-sidebar-border/70 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <p className="text-muted-foreground text-sm">Approval workspace</p>
+                            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
+                                Pending requests overview
+                            </h1>
+                            <p className="text-muted-foreground mt-1 text-sm">
+                                Requests are filtered by your role and department access.
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-sidebar-border/70 bg-background/80 px-4 py-3 text-right">
+                            <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                                Total pending
+                            </p>
+                            <p className="text-2xl font-bold">{totalPending}</p>
+                        </div>
                     </div>
                 </div>
-                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {cards.map((card) => (
+                        <Link
+                            key={card.title}
+                            href={card.href}
+                            className={`group rounded-2xl border bg-gradient-to-br p-4 transition hover:-translate-y-0.5 hover:shadow-sm ${card.tone}`}
+                        >
+                            <div className="mb-4 flex items-center justify-between">
+                                <div className="bg-background/70 text-foreground rounded-lg border border-sidebar-border/60 p-2">
+                                    <card.icon className="size-4.5" />
+                                </div>
+                                <ArrowRight className="text-muted-foreground size-4 transition group-hover:translate-x-0.5" />
+                            </div>
+                            <p className="text-muted-foreground text-sm">{card.title}</p>
+                            <p className="mt-1 text-3xl leading-none font-bold">{card.value}</p>
+                            <p className="text-muted-foreground mt-2 text-xs">Pending approval</p>
+                        </Link>
+                    ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    {cards.map((card) => (
+                        <div
+                            key={`${card.title}-list`}
+                            className="rounded-2xl border border-sidebar-border/70 bg-card p-4 md:p-5"
+                        >
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <card.icon className="text-muted-foreground size-4" />
+                                    <h3 className="text-sm font-semibold md:text-base">{card.title}</h3>
+                                </div>
+                                <Link href={card.href} className="text-primary text-sm font-medium">
+                                    View all
+                                </Link>
+                            </div>
+                            <div className="space-y-2">
+                                {card.items.length === 0 ? (
+                                    <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed border-sidebar-border/70 px-3 py-3 text-sm">
+                                        <CircleCheckBig className="size-4" />
+                                        <span>No pending requests</span>
+                                    </div>
+                                ) : (
+                                    card.items.map((item) => (
+                                        <Link
+                                            key={`${card.title}-${item.id}`}
+                                            href={card.itemHref(item.id)}
+                                            className="hover:bg-accent/60 block rounded-lg border border-sidebar-border/60 px-3 py-2.5 transition"
+                                        >
+                                            <p className="text-sm font-semibold tracking-wide">{item.code}</p>
+                                            <p className="text-muted-foreground text-xs">
+                                                {item.employee || 'Employee'}
+                                            </p>
+                                        </Link>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </AppLayout>

@@ -16,9 +16,16 @@ type Department = {
     code: string;
     name: string;
     description: string | null;
+    manager_employee_id: number | null;
 };
 
-export default function Edit({ department }: { department: Department }) {
+type EmployeeOption = {
+    id: number;
+    first_name: string;
+    last_name: string;
+};
+
+export default function Edit({ department, employees }: { department: Department; employees: EmployeeOption[] }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Departments', href: index().url },
         {
@@ -95,6 +102,26 @@ export default function Edit({ department }: { department: Department }) {
                                         className="border-input focus-visible:ring-ring flex min-h-[80px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                     />
                                     <InputError message={errors.description} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="manager_employee_id">
+                                        Department manager
+                                    </Label>
+                                    <select
+                                        id="manager_employee_id"
+                                        name="manager_employee_id"
+                                        className="border-input focus-visible:ring-ring h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        defaultValue={department.manager_employee_id ?? ''}
+                                    >
+                                        <option value="">Select manager (optional)</option>
+                                        {employees.map((employee) => (
+                                            <option key={employee.id} value={employee.id}>
+                                                {employee.first_name} {employee.last_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.manager_employee_id} />
                                 </div>
 
                                 <div className="flex gap-4">

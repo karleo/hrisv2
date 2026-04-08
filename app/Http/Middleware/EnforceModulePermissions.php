@@ -5,8 +5,13 @@ namespace App\Http\Middleware;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\EmployeeTimeEntryController;
+use App\Http\Controllers\EmployeeRequestController;
+use App\Http\Controllers\ItAssetRequestController;
+use App\Http\Controllers\ItRequestController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Models\User;
 use App\Support\ModulePermissionRegistry;
+use App\Support\RequestApprovalScope;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -63,6 +68,10 @@ class EnforceModulePermissions
                 return $next($request);
             }
 
+            if (self::allowsScopedRequestWorkflowAccess($user, $controller, $method)) {
+                return $next($request);
+            }
+
             abort(403);
         }
 
@@ -96,5 +105,48 @@ class EnforceModulePermissions
         }
 
         return $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::View);
+    }
+
+    /**
+     * Allow request-workflow routes to proceed for manager/HR/employee scoped access.
+     * Record-level checks still run inside the controllers via RequestApprovalScope.
+     */
+    private static function allowsScopedRequestWorkflowAccess(User $user, string $controller, string $method): bool
+    {
+        $requestControllers = [
+            LeaveRequestController::class,
+            ItRequestController::class,
+            EmployeeRequestController::class,
+            ItAssetRequestController::class,
+        ];
+
+        if (! in_array($controller, $requestControllers, true)) {
+            return false;
+        }
+
+        $allowedMethods = [
+            'index',
+            'create',
+            'store',
+            'show',
+            'edit',
+            'update',
+            'print',
+            'submit',
+            'decide',
+            'updateSignatures',
+            'destroy',
+        ];
+
+        if (! in_array($method, $allowedMethods, true)) {
+            return false;
+        }
+
+        /** @var RequestApprovalScope $scope */
+        $scope = app(RequestApprovalScope::class);
+
+        return $scope->isAdministratorOrHr($user)
+            || $scope->managedDepartmentIds($user) !== []
+            || $user->employee !== null;
     }
 }

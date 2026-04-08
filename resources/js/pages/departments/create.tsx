@@ -18,7 +18,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Create', href: '/departments/create' },
 ];
 
-export default function Create() {
+type EmployeeOption = {
+    id: number;
+    first_name: string;
+    last_name: string;
+};
+
+export default function Create({ employees }: { employees: EmployeeOption[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Department" />
@@ -90,6 +96,26 @@ export default function Create() {
                                                 placeholder="Optional description"
                                             />
                                             <InputError message={errors.description} />
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="manager_employee_id">
+                                                Department manager
+                                            </Label>
+                                            <select
+                                                id="manager_employee_id"
+                                                name="manager_employee_id"
+                                                className="border-input focus-visible:ring-ring h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                defaultValue=""
+                                            >
+                                                <option value="">Select manager (optional)</option>
+                                                {employees.map((employee) => (
+                                                    <option key={employee.id} value={employee.id}>
+                                                        {employee.first_name} {employee.last_name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError message={errors.manager_employee_id} />
                                         </div>
                                     </CardContent>
                                     <CardFooter className="flex gap-3">

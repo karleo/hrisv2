@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Department;
 
 use App\Models\Department;
+use App\Models\Employee;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,7 @@ class StoreDepartmentRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'manager_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
         ];
     }
 }

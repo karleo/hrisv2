@@ -1,3 +1,4 @@
+import DashboardController from './DashboardController'
 import DepartmentController from './DepartmentController'
 import EmployeeController from './EmployeeController'
 import JobPositionController from './JobPositionController'
@@ -12,12 +13,14 @@ import LeaveRequestController from './LeaveRequestController'
 import ItRequestController from './ItRequestController'
 import EmployeeRequestController from './EmployeeRequestController'
 import ItAssetRequestController from './ItAssetRequestController'
+import NotificationController from './NotificationController'
 import UserRoleController from './UserRoleController'
 import RoleController from './RoleController'
 import UserController from './UserController'
 import Settings from './Settings'
 const Controllers = {
-    DepartmentController: Object.assign(DepartmentController, DepartmentController),
+    DashboardController: Object.assign(DashboardController, DashboardController),
+DepartmentController: Object.assign(DepartmentController, DepartmentController),
 EmployeeController: Object.assign(EmployeeController, EmployeeController),
 JobPositionController: Object.assign(JobPositionController, JobPositionController),
 LeaveTypeController: Object.assign(LeaveTypeController, LeaveTypeController),
@@ -31,6 +34,7 @@ LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestContro
 ItRequestController: Object.assign(ItRequestController, ItRequestController),
 EmployeeRequestController: Object.assign(EmployeeRequestController, EmployeeRequestController),
 ItAssetRequestController: Object.assign(ItAssetRequestController, ItAssetRequestController),
+NotificationController: Object.assign(NotificationController, NotificationController),
 UserRoleController: Object.assign(UserRoleController, UserRoleController),
 RoleController: Object.assign(RoleController, RoleController),
 UserController: Object.assign(UserController, UserController),

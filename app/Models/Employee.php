@@ -45,8 +45,17 @@ class Employee extends Model
         'last_name',
         'email_address',
         'contact_number',
+        'phone',
+        'mobile',
+        'date_of_birth',
+        'gender',
+        'marital_status',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'address_1',
         'address_2',
+        'profile_address_1',
+        'profile_address_2',
         'department_id',
         'job_position_id',
         'role',
@@ -63,6 +72,11 @@ class Employee extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function managedDepartments(): HasMany
+    {
+        return $this->hasMany(Department::class, 'manager_employee_id');
     }
 
     public function documents(): HasMany
@@ -83,6 +97,13 @@ class Employee extends Model
     public function workTimetable(): BelongsTo
     {
         return $this->belongsTo(WorkTimetable::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'date_of_birth' => 'date:Y-m-d',
+        ];
     }
 
     /**

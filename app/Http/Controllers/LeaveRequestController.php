@@ -8,6 +8,10 @@ use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\User;
+use App\Notifications\RequestDecisionNotification;
+use App\Notifications\RequestSubmittedNotification;
+use App\Support\RequestApprovalScope;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +23,10 @@ use Inertia\Response;
 
 class LeaveRequestController extends Controller
 {
+    public function __construct(private readonly RequestApprovalScope $approvalScope)
+    {
+    }
+
     /**
      * Display a listing of the leave requests.
      */
@@ -65,6 +73,7 @@ class LeaveRequestController extends Controller
         };
 
         $statusAggregation = LeaveRequest::query();
+        $this->approvalScope->scopeVisible($statusAggregation, $request->user());
         $applyFilters($statusAggregation);
 
         $statusRows = $statusAggregation
@@ -86,6 +95,7 @@ class LeaveRequestController extends Controller
         ];
 
         $leaveRequests = LeaveRequest::query();
+        $this->approvalScope->scopeVisible($leaveRequests, $request->user());
         $applyFilters($leaveRequests);
 
         $leaveRequests = $leaveRequests
@@ -152,6 +162,14 @@ class LeaveRequestController extends Controller
             'status' => 'draft',
         ]);
 
+        $signaturePath = $this->storeSignatureFromDataUrl(
+            $data['employee_signature_data_url'] ?? null,
+            "leave-requests/{$leaveRequest->id}/signatures"
+        );
+        if ($signaturePath !== null) {
+            $leaveRequest->update(['employee_signature' => $signaturePath]);
+        }
+
         return to_route('leave-requests.show', $leaveRequest);
     }
 
@@ -160,6 +178,7 @@ class LeaveRequestController extends Controller
      */
     public function show(LeaveRequest $leave_request): Response
     {
+        $this->assertCanView(request()->user(), $leave_request);
         $leave_request->load(['employee', 'department', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
@@ -176,6 +195,8 @@ class LeaveRequestController extends Controller
                 ->get(['id', 'first_name', 'last_name']),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
+            'decisionUrl' => route('leave-requests.decide', $leave_request, false),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
         ]);
     }
 
@@ -184,15 +205,68 @@ class LeaveRequestController extends Controller
      */
     public function submit(LeaveRequest $leave_request): RedirectResponse
     {
+        $this->assertCanModify(request()->user(), $leave_request);
         if (strtolower((string) $leave_request->status) !== 'draft') {
             return redirect()->back()->with('error', 'Only draft leave requests can be submitted.');
         }
 
         $leave_request->update(['status' => 'submitted']);
+        $this->notifyApprovers(
+            request()->user(),
+            $leave_request->department_id,
+            [
+                'request_type' => 'leave_request',
+                'request_id' => $leave_request->id,
+                'request_code' => $leave_request->code,
+                'request_date' => (string) ($leave_request->date ?? $leave_request->created_at?->format('Y-m-d') ?? ''),
+                'submitted_by' => $leave_request->employee
+                    ? trim($leave_request->employee->first_name.' '.$leave_request->employee->last_name)
+                    : 'Employee',
+                'route' => route('leave-requests.show', $leave_request),
+            ]
+        );
 
         return redirect()
             ->route('leave-requests.index')
             ->with('success', 'Leave request submitted.');
+    }
+
+    public function decide(Request $request, LeaveRequest $leave_request): RedirectResponse
+    {
+        if (! $this->approvalScope->canDecide($request->user(), $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
+            'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
+        ]);
+
+        $approverEmployeeId = $request->user()?->employee?->id;
+        $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
+        $leave_request->update([
+            'status' => $validated['decision'],
+            'decision_remarks' => $remarks !== '' ? $remarks : null,
+            'decided_at' => now(),
+            'approved_by_employee_id' => $approverEmployeeId,
+        ]);
+
+        $leave_request->loadMissing('employee.user');
+        $requester = $leave_request->employee?->user;
+        if ($requester !== null && $requester->id !== $request->user()?->id) {
+            $requester->notify(new RequestDecisionNotification([
+                'request_type' => 'leave_request',
+                'request_id' => $leave_request->id,
+                'request_code' => $leave_request->code,
+                'request_date' => (string) ($leave_request->date ?? $leave_request->created_at?->format('Y-m-d') ?? ''),
+                'decision' => $validated['decision'],
+                'remarks' => $leave_request->decision_remarks,
+                'decided_at' => optional($leave_request->decided_at)?->toDateTimeString(),
+                'route' => route('leave-requests.show', $leave_request),
+            ]));
+        }
+
+        return redirect()->back()->with('success', 'Decision submitted successfully.');
     }
 
     /**
@@ -200,6 +274,8 @@ class LeaveRequestController extends Controller
      */
     public function edit(LeaveRequest $leave_request): Response
     {
+        $this->assertCanModify(request()->user(), $leave_request);
+        $this->assertEditableByCurrentUser(request()->user(), $leave_request);
         $leave_request->load(['employee', 'department', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
@@ -219,6 +295,7 @@ class LeaveRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
+            'submitUrl' => route('leave-requests.submit', $leave_request, false),
         ]);
     }
 
@@ -227,6 +304,8 @@ class LeaveRequestController extends Controller
      */
     public function update(UpdateLeaveRequestRequest $request, LeaveRequest $leave_request): RedirectResponse
     {
+        $this->assertCanModify($request->user(), $leave_request);
+        $this->assertEditableByCurrentUser($request->user(), $leave_request);
         $data = $request->validated();
 
         $status = $data['status'] ?? $leave_request->status;
@@ -257,6 +336,8 @@ class LeaveRequestController extends Controller
      */
     public function destroy(LeaveRequest $leave_request): RedirectResponse
     {
+        $this->assertCanModify(request()->user(), $leave_request);
+        $this->assertEditableByCurrentUser(request()->user(), $leave_request);
         if ($leave_request->employee_signature) {
             Storage::disk('public')->delete($leave_request->employee_signature);
         }
@@ -274,18 +355,24 @@ class LeaveRequestController extends Controller
      */
     public function print(LeaveRequest $leave_request): Response
     {
-        $leave_request->load(['employee.companyProfile', 'department']);
+        $this->assertCanView(request()->user(), $leave_request);
+        $leave_request->load(['employee.companyProfile', 'department', 'approvedByEmployee']);
 
         $company = $leave_request->employee?->companyProfile ?? CompanyProfile::query()->first();
         $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
         $approvedBySignatureUrl = $this->publicStorageBrowserUrl($leave_request->approved_by_signature);
+        $approvedByName = '';
+        if ($leave_request->approvedByEmployee) {
+            $approvedByName = trim($leave_request->approvedByEmployee->first_name.' '.$leave_request->approvedByEmployee->last_name);
+        }
 
         return Inertia::render('leave-requests/print', [
             'leaveRequest' => array_merge($leave_request->toArray(), [
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
+                'approved_by_name' => $approvedByName,
             ]),
             'companyLogoUrl' => $companyLogoUrl,
         ]);
@@ -296,6 +383,13 @@ class LeaveRequestController extends Controller
      */
     public function updateSignatures(Request $request, LeaveRequest $leave_request): RedirectResponse
     {
+        $this->assertCanModify($request->user(), $leave_request);
+        if (strtolower((string) $leave_request->status) !== 'draft' && $request->hasFile('employee_signature')) {
+            return redirect()->back()->with('error', 'Employee signature cannot be changed after submission.');
+        }
+        if (strtolower((string) $leave_request->status) !== 'submitted' && $request->hasFile('approved_by_signature')) {
+            return redirect()->back()->with('error', 'Manager/HR signature cannot be changed after decision.');
+        }
         $imageRule = ['nullable', File::types(['png', 'jpeg', 'jpg', 'gif', 'webp'])->max(2048)];
 
         $request->validate([
@@ -378,5 +472,73 @@ class LeaveRequestController extends Controller
         }
 
         return '/leave-requests/'.$key.'/signatures';
+    }
+
+    private function storeSignatureFromDataUrl(?string $dataUrl, string $directory): ?string
+    {
+        if ($dataUrl === null || $dataUrl === '') {
+            return null;
+        }
+
+        if (! preg_match('/^data:image\/png;base64,(.+)$/', $dataUrl, $matches)) {
+            return null;
+        }
+
+        $binary = base64_decode($matches[1], true);
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        $path = $directory.'/signature-'.uniqid().'.png';
+        Storage::disk('public')->put($path, $binary);
+
+        return $path;
+    }
+
+    private function assertCanView(?User $user, LeaveRequest $leaveRequest): void
+    {
+        if (! $this->approvalScope->canView($user, $leaveRequest->employee_id, $leaveRequest->department_id)) {
+            abort(403);
+        }
+    }
+
+    private function assertCanModify(?User $user, LeaveRequest $leaveRequest): void
+    {
+        if (! $this->approvalScope->canModify($user, $leaveRequest->employee_id, $leaveRequest->department_id, (string) $leaveRequest->status)) {
+            abort(403);
+        }
+    }
+
+    private function assertEditableByCurrentUser(?User $user, LeaveRequest $leaveRequest): void
+    {
+        // HR/Admin can still perform corrections when needed.
+        if ($user !== null && $this->approvalScope->isAdministratorOrHr($user)) {
+            return;
+        }
+
+        if (strtolower((string) $leaveRequest->status) !== 'draft') {
+            abort(403);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function notifyApprovers(?User $actor, int $departmentId, array $payload): void
+    {
+        $recipients = collect($this->approvalScope->hrUsers());
+        $manager = $this->approvalScope->managerUserByDepartmentId($departmentId);
+        if ($manager !== null) {
+            $recipients->push($manager);
+        }
+
+        $uniqueRecipients = $recipients
+            ->filter(fn ($user) => $user instanceof User)
+            ->filter(fn (User $user) => $actor === null || $user->id !== $actor->id)
+            ->unique('id');
+
+        foreach ($uniqueRecipients as $recipient) {
+            $recipient->notify(new RequestSubmittedNotification($payload));
+        }
     }
 }

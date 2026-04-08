@@ -29,6 +29,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { create, index } from '@/routes/it-asset-requests';
 import type { BreadcrumbItem } from '@/types';
+import type { ModulePermissionsMap } from '@/types/permissions';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -86,7 +87,12 @@ export default function Index({
     filters?: { search?: string };
 }) {
     const { data: requestList } = itAssetRequests;
-    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const { flash, modulePermissions } = usePage().props as {
+        flash?: { success?: string; error?: string };
+        modulePermissions?: ModulePermissionsMap;
+    };
+    const canUpdate = Boolean(modulePermissions?.it_asset_requests?.can_update);
+    const canDelete = Boolean(modulePermissions?.it_asset_requests?.can_delete);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -246,7 +252,7 @@ export default function Index({
                                                                     <Printer className="size-4" />
                                                                 </Button>
                                                             </Link>
-                                                            {request.status === 'draft' && (
+                                                            {canUpdate && request.status === 'draft' && (
                                                                 <Link
                                                                     href={ItAssetRequestController.edit.url(request.id)}
                                                                     aria-label="Edit"
@@ -260,46 +266,48 @@ export default function Index({
                                                                     </Button>
                                                                 </Link>
                                                             )}
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        aria-label="Delete"
-                                                                    >
-                                                                        <Trash2 className="size-4 text-destructive" />
-                                                                    </Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent>
-                                                                    <DialogTitle>
-                                                                        Delete IT asset request?
-                                                                    </DialogTitle>
-                                                                    <DialogDescription>
-                                                                        Are you sure you want to delete this request?
-                                                                        This action cannot be undone.
-                                                                    </DialogDescription>
-                                                                    <DialogFooter>
-                                                                        <DialogClose asChild>
-                                                                            <Button variant="secondary">
-                                                                                Cancel
-                                                                            </Button>
-                                                                        </DialogClose>
+                                                            {canDelete && (
+                                                                <Dialog>
+                                                                    <DialogTrigger asChild>
                                                                         <Button
-                                                                            variant="destructive"
-                                                                            onClick={() =>
-                                                                                router.delete(
-                                                                                    ItAssetRequestController.destroy.url(
-                                                                                        request.id,
-                                                                                    ),
-                                                                                )
-                                                                            }
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="size-8"
+                                                                            aria-label="Delete"
                                                                         >
-                                                                            Delete
+                                                                            <Trash2 className="size-4 text-destructive" />
                                                                         </Button>
-                                                                    </DialogFooter>
-                                                                </DialogContent>
-                                                            </Dialog>
+                                                                    </DialogTrigger>
+                                                                    <DialogContent>
+                                                                        <DialogTitle>
+                                                                            Delete IT asset request?
+                                                                        </DialogTitle>
+                                                                        <DialogDescription>
+                                                                            Are you sure you want to delete this request?
+                                                                            This action cannot be undone.
+                                                                        </DialogDescription>
+                                                                        <DialogFooter>
+                                                                            <DialogClose asChild>
+                                                                                <Button variant="secondary">
+                                                                                    Cancel
+                                                                                </Button>
+                                                                            </DialogClose>
+                                                                            <Button
+                                                                                variant="destructive"
+                                                                                onClick={() =>
+                                                                                    router.delete(
+                                                                                        ItAssetRequestController.destroy.url(
+                                                                                            request.id,
+                                                                                        ),
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Delete
+                                                                            </Button>
+                                                                        </DialogFooter>
+                                                                    </DialogContent>
+                                                                </Dialog>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

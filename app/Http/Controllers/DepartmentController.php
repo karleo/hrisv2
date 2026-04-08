@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Department\StoreDepartmentRequest;
 use App\Http\Requests\Department\UpdateDepartmentRequest;
 use App\Models\Department;
+use App\Models\Employee;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,6 +19,7 @@ class DepartmentController extends Controller
     public function index(Request $request): Response
     {
         $departments = Department::query()
+            ->with('managerEmployee:id,first_name,last_name')
             ->when(
                 $request->filled('search'),
                 fn ($query) => $query->where(
@@ -41,7 +43,12 @@ class DepartmentController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('departments/create');
+        return Inertia::render('departments/create', [
+            'employees' => Employee::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
+        ]);
     }
 
     /**
@@ -61,6 +68,10 @@ class DepartmentController extends Controller
     {
         return Inertia::render('departments/edit', [
             'department' => $department,
+            'employees' => Employee::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
         ]);
     }
 

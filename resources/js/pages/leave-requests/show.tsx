@@ -30,16 +30,22 @@ type LeaveRequest = {
     department?: Department;
     employee_signature_url?: string | null;
     approved_by_signature_url?: string | null;
+    decision_remarks?: string | null;
+    decided_at?: string | null;
 };
 
 export default function LeaveRequestsShow({
     leaveRequest,
     signaturesUrl,
     submitUrl,
+    decisionUrl,
+    canDecide,
 }: {
     leaveRequest: LeaveRequest;
     signaturesUrl: string;
     submitUrl: string;
+    decisionUrl: string;
+    canDecide: boolean;
 }) {
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const normalizedStatus = normalizeRequestStatus(leaveRequest.status);
@@ -86,12 +92,14 @@ export default function LeaveRequestsShow({
                                 Print
                             </Link>
                         </Button>
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href={`/leave-requests/${leaveRequest.id}/edit`}>
-                                <PenLine className="mr-2 size-4" />
-                                Edit
-                            </Link>
-                        </Button>
+                        {isDraft ? (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/leave-requests/${leaveRequest.id}/edit`}>
+                                    <PenLine className="mr-2 size-4" />
+                                    Edit
+                                </Link>
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
 
@@ -161,6 +169,53 @@ export default function LeaveRequestsShow({
                     signatureUrl={leaveRequest.employee_signature_url ?? null}
                     signaturesUrl={signaturesUrl}
                     visitOnly={leaveRequestShowSignatureVisitOnly}
+                    allowEmployeeSignatureEdit={normalizedStatus === 'draft'}
+                    additionalSignatures={[
+                        {
+                            label: 'Manager / HR signature',
+                            signatureUrl: leaveRequest.approved_by_signature_url ?? null,
+                            fieldName: 'approved_by_signature',
+                            editable: normalizedStatus === 'submitted',
+                        },
+                    ]}
+                    managerDecisionSlot={
+                        canDecide && normalizedStatus === 'submitted' ? (
+                            <Form action={decisionUrl} method="post" options={{ preserveScroll: true }}>
+                                {({ processing }) => (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            name="remarks"
+                                            rows={3}
+                                            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                            placeholder="Add reason when rejecting"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                name="decision"
+                                                value="rejected"
+                                                variant="destructive"
+                                                disabled={processing}
+                                                onClick={(e) => {
+                                                    const form = e.currentTarget.form;
+                                                    const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
+                                                    if (remarks === '') {
+                                                        e.preventDefault();
+                                                        window.alert('Please fill reason before rejecting.');
+                                                    }
+                                                }}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Form>
+                        ) : null
+                    }
                     employeeName={
                         leaveRequest.employee
                             ? `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`

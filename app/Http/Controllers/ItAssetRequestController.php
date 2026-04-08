@@ -9,14 +9,23 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
 use App\Models\ItAssetRequest;
+use App\Models\User;
+use App\Notifications\RequestDecisionNotification;
+use App\Notifications\RequestSubmittedNotification;
+use App\Support\RequestApprovalScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ItAssetRequestController extends Controller
 {
+    public function __construct(private readonly RequestApprovalScope $approvalScope)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -24,6 +33,7 @@ class ItAssetRequestController extends Controller
     {
         $itAssetRequests = ItAssetRequest::query()
             ->with(['employee', 'department'])
+            ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
             ->when(
                 $request->filled('search'),
                 fn ($query) => $query->whereHas('employee', function ($q) use ($request): void {
@@ -86,6 +96,7 @@ class ItAssetRequestController extends Controller
      */
     public function show(ItAssetRequest $it_asset_request): Response
     {
+        $this->assertCanView(request()->user(), $it_asset_request);
         $it_asset_request->load(['employee', 'department', 'issuedByEmployee']);
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
@@ -113,6 +124,8 @@ class ItAssetRequestController extends Controller
                 ->get(['id', 'first_name', 'last_name', 'department_id']),
             'submitUrl' => route('it-asset-requests.submit', $it_asset_request, false),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
+            'decisionUrl' => route('it-asset-requests.decide', $it_asset_request, false),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status),
         ]);
     }
 
@@ -121,15 +134,68 @@ class ItAssetRequestController extends Controller
      */
     public function submit(ItAssetRequest $it_asset_request): RedirectResponse
     {
+        $this->assertCanModify(request()->user(), $it_asset_request);
         if (strtolower((string) $it_asset_request->status) !== 'draft') {
             return redirect()->back()->with('error', 'Only draft IT asset requests can be submitted.');
         }
 
         $it_asset_request->update(['status' => 'submitted']);
+        $this->notifyApprovers(
+            request()->user(),
+            $it_asset_request->department_id,
+            [
+                'request_type' => 'it_asset_request',
+                'request_id' => $it_asset_request->id,
+                'request_code' => $it_asset_request->code,
+                'request_date' => (string) (optional($it_asset_request->date)->format('Y-m-d') ?? $it_asset_request->created_at?->format('Y-m-d') ?? ''),
+                'submitted_by' => $it_asset_request->employee
+                    ? trim($it_asset_request->employee->first_name.' '.$it_asset_request->employee->last_name)
+                    : 'Employee',
+                'route' => route('it-asset-requests.show', $it_asset_request),
+            ]
+        );
 
         return redirect()
             ->route('it-asset-requests.index')
             ->with('success', 'IT asset request submitted.');
+    }
+
+    public function decide(Request $request, ItAssetRequest $it_asset_request): RedirectResponse
+    {
+        if (! $this->approvalScope->canDecide($request->user(), $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
+            'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
+        ]);
+
+        $approverEmployeeId = $request->user()?->employee?->id;
+        $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
+        $it_asset_request->update([
+            'status' => $validated['decision'],
+            'decision_remarks' => $remarks !== '' ? $remarks : null,
+            'decided_at' => now(),
+            'issued_by_employee_id' => $approverEmployeeId,
+        ]);
+
+        $it_asset_request->loadMissing('employee.user');
+        $requester = $it_asset_request->employee?->user;
+        if ($requester !== null && $requester->id !== $request->user()?->id) {
+            $requester->notify(new RequestDecisionNotification([
+                'request_type' => 'it_asset_request',
+                'request_id' => $it_asset_request->id,
+                'request_code' => $it_asset_request->code,
+                'request_date' => (string) (optional($it_asset_request->date)->format('Y-m-d') ?? $it_asset_request->created_at?->format('Y-m-d') ?? ''),
+                'decision' => $validated['decision'],
+                'remarks' => $it_asset_request->decision_remarks,
+                'decided_at' => optional($it_asset_request->decided_at)?->toDateTimeString(),
+                'route' => route('it-asset-requests.show', $it_asset_request),
+            ]));
+        }
+
+        return redirect()->back()->with('success', 'Decision submitted successfully.');
     }
 
     /**
@@ -137,6 +203,7 @@ class ItAssetRequestController extends Controller
      */
     public function print(ItAssetRequest $it_asset_request): Response
     {
+        $this->assertCanView(request()->user(), $it_asset_request);
         $it_asset_request->load(['employee.companyProfile', 'department', 'issuedByEmployee']);
 
         $hardware = [];
@@ -165,6 +232,7 @@ class ItAssetRequestController extends Controller
      */
     public function edit(ItAssetRequest $it_asset_request): Response
     {
+        $this->assertCanModify(request()->user(), $it_asset_request);
         $it_asset_request->load(['employee', 'department', 'issuedByEmployee']);
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
@@ -195,6 +263,7 @@ class ItAssetRequestController extends Controller
      */
     public function update(UpdateItAssetRequestRequest $request, ItAssetRequest $it_asset_request): RedirectResponse
     {
+        $this->assertCanModify($request->user(), $it_asset_request);
         $data = $request->validated();
 
         $status = $data['status'] ?? $it_asset_request->status;
@@ -218,6 +287,13 @@ class ItAssetRequestController extends Controller
      */
     public function updateSignatures(Request $request, ItAssetRequest $it_asset_request): RedirectResponse
     {
+        $this->assertCanModify($request->user(), $it_asset_request);
+        if (strtolower((string) $it_asset_request->status) !== 'draft' && $request->hasFile('employee_signature')) {
+            return redirect()->back()->with('error', 'Employee signature cannot be changed after submission.');
+        }
+        if (strtolower((string) $it_asset_request->status) !== 'submitted' && $request->hasFile('issued_by_signature')) {
+            return redirect()->back()->with('error', 'Manager/HR signature cannot be changed after decision.');
+        }
         $request->validate([
             'employee_signature' => ['nullable', 'image', 'max:2048'],
             'issued_by_signature' => ['nullable', 'image', 'max:2048'],
@@ -264,6 +340,7 @@ class ItAssetRequestController extends Controller
      */
     public function destroy(ItAssetRequest $it_asset_request): RedirectResponse
     {
+        $this->assertCanModify(request()->user(), $it_asset_request);
         if ($it_asset_request->employee_signature) {
             Storage::disk('public')->delete($it_asset_request->employee_signature);
         }
@@ -300,5 +377,40 @@ class ItAssetRequestController extends Controller
         }
 
         return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+    }
+
+    private function assertCanView(?User $user, ItAssetRequest $itAssetRequest): void
+    {
+        if (! $this->approvalScope->canView($user, $itAssetRequest->employee_id, $itAssetRequest->department_id)) {
+            abort(403);
+        }
+    }
+
+    private function assertCanModify(?User $user, ItAssetRequest $itAssetRequest): void
+    {
+        if (! $this->approvalScope->canModify($user, $itAssetRequest->employee_id, $itAssetRequest->department_id, (string) $itAssetRequest->status)) {
+            abort(403);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function notifyApprovers(?User $actor, int $departmentId, array $payload): void
+    {
+        $recipients = collect($this->approvalScope->hrUsers());
+        $manager = $this->approvalScope->managerUserByDepartmentId($departmentId);
+        if ($manager !== null) {
+            $recipients->push($manager);
+        }
+
+        $uniqueRecipients = $recipients
+            ->filter(fn ($user) => $user instanceof User)
+            ->filter(fn (User $user) => $actor === null || $user->id !== $actor->id)
+            ->unique('id');
+
+        foreach ($uniqueRecipients as $recipient) {
+            $recipient->notify(new RequestSubmittedNotification($payload));
+        }
     }
 }

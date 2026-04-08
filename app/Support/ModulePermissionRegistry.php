@@ -45,9 +45,12 @@ final class ModulePermissionRegistry
             'export' => [PermissionModule::Employees, ModuleAbility::View],
             'import' => [PermissionModule::Employees, ModuleAbility::Create],
             'businessCard' => [PermissionModule::Employees, ModuleAbility::View],
+            'businessCardEmbed' => [PermissionModule::Employees, ModuleAbility::View],
             'show' => [PermissionModule::Employees, ModuleAbility::View],
             'edit' => [PermissionModule::Employees, ModuleAbility::Update],
             'update' => [PermissionModule::Employees, ModuleAbility::Update],
+            'updatePrivateInformation' => [PermissionModule::Employees, ModuleAbility::Update],
+            'showDocument' => [PermissionModule::Employees, ModuleAbility::View],
             'destroy' => [PermissionModule::Employees, ModuleAbility::Delete],
             'destroyDocument' => [PermissionModule::Employees, ModuleAbility::Delete],
         ],
@@ -115,6 +118,7 @@ final class ModulePermissionRegistry
             'destroy' => [PermissionModule::LeaveRequests, ModuleAbility::Delete],
             'print' => [PermissionModule::LeaveRequests, ModuleAbility::View],
             'submit' => [PermissionModule::LeaveRequests, ModuleAbility::Create],
+            'decide' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
             'updateSignatures' => [PermissionModule::LeaveRequests, ModuleAbility::View],
         ],
         ItRequestController::class => [
@@ -126,6 +130,7 @@ final class ModulePermissionRegistry
             'update' => [PermissionModule::ItRequests, ModuleAbility::Update],
             'destroy' => [PermissionModule::ItRequests, ModuleAbility::Delete],
             'submit' => [PermissionModule::ItRequests, ModuleAbility::Create],
+            'decide' => [PermissionModule::ItRequests, ModuleAbility::Update],
             'updateSignatures' => [PermissionModule::ItRequests, ModuleAbility::Update],
         ],
         EmployeeRequestController::class => [
@@ -138,6 +143,7 @@ final class ModulePermissionRegistry
             'destroy' => [PermissionModule::EmployeeRequests, ModuleAbility::Delete],
             'print' => [PermissionModule::EmployeeRequests, ModuleAbility::View],
             'submit' => [PermissionModule::EmployeeRequests, ModuleAbility::Create],
+            'decide' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
             'updateSignatures' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
         ],
         ItAssetRequestController::class => [
@@ -149,6 +155,7 @@ final class ModulePermissionRegistry
             'update' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
             'destroy' => [PermissionModule::ItAssetRequests, ModuleAbility::Delete],
             'submit' => [PermissionModule::ItAssetRequests, ModuleAbility::Create],
+            'decide' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
             'updateSignatures' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
         ],
         RoleController::class => [

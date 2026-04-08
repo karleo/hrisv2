@@ -36,6 +36,7 @@ class StoreLeaveRequestRequest extends FormRequest
             'period_from' => ['nullable', 'date'],
             'period_to' => ['nullable', 'date', 'after_or_equal:period_from'],
             'remarks' => ['nullable', 'string', 'max:65535'],
+            'employee_signature_data_url' => ['nullable', 'string'],
         ];
     }
 

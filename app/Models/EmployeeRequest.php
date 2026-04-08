@@ -77,6 +77,8 @@ class EmployeeRequest extends Model
         'passport_ack_home_country',
         'passport_ack_departure_date_time',
         'passport_ack_home_country_departure_date_time',
+        'decision_remarks',
+        'decided_at',
         'dept_head_signature',
         'ceo_signature',
         'employee_signature',
@@ -102,6 +104,7 @@ class EmployeeRequest extends Model
             'ticket_encashment' => 'boolean',
             'amount_2000' => 'boolean',
             'amount_1000' => 'boolean',
+            'decided_at' => 'datetime',
         ];
     }
 

@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $period_to
  * @property int|null $days
  * @property string|null $remarks
+ * @property string|null $decision_remarks
+ * @property \Illuminate\Support\Carbon|null $decided_at
  * @property string $status
  * @property string|null $employee_signature
  * @property string|null $approved_by_signature
@@ -57,6 +59,8 @@ class LeaveRequest extends Model
         'period_to',
         'days',
         'remarks',
+        'decision_remarks',
+        'decided_at',
         'status',
         'employee_signature',
         'approved_by_signature',
@@ -72,6 +76,7 @@ class LeaveRequest extends Model
             'absence_types' => 'array',
             'code' => 'string',
             'status' => 'string',
+            'decided_at' => 'datetime',
         ];
     }
 
