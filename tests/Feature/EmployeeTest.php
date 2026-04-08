@@ -52,6 +52,39 @@ class EmployeeTest extends TestCase
         );
     }
 
+    public function test_template_download_returns_csv(): void
+    {
+        $response = $this->get(route('employees.template.download'));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $response->assertHeader('content-disposition');
+        $response->assertSee('employee_code,first_name,last_name,email_address', false);
+    }
+
+    public function test_export_download_returns_csv_with_employee_rows(): void
+    {
+        $department = Department::factory()->create(['code' => 'ENG', 'name' => 'Engineering']);
+        $jobPosition = JobPosition::factory()->create(['code' => 'DEV', 'name' => 'Developer']);
+        $timetable = WorkTimetable::factory()->create(['name' => 'General Shift']);
+        Employee::factory()->create([
+            'employee_code' => 'EMP-9001',
+            'first_name' => 'Export',
+            'last_name' => 'User',
+            'email_address' => 'export.user@example.com',
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
+        ]);
+
+        $response = $this->get(route('employees.export'));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $response->assertSee('employee_code,first_name,last_name,email_address', false);
+        $response->assertSee('EMP-9001,Export,User,export.user@example.com', false);
+    }
+
     public function test_store_creates_employee(): void
     {
         $department = Department::factory()->create();
@@ -84,6 +117,70 @@ class EmployeeTest extends TestCase
             'email_address' => 'john.doe@example.com',
             'work_timetable_id' => $timetable->id,
             'role' => 'Employee',
+        ]);
+    }
+
+    public function test_import_creates_employees_from_valid_csv_rows(): void
+    {
+        $department = Department::factory()->create(['code' => 'ENG']);
+        $jobPosition = JobPosition::factory()->create(['code' => 'DEV']);
+        $timetable = WorkTimetable::factory()->create(['name' => 'General Shift']);
+
+        $csv = implode("\n", [
+            'employee_code,first_name,last_name,email_address,contact_number,address_1,address_2,department_code,job_position_code,work_timetable_name,company_profile_name',
+            'EMP-1001,Jane,Doe,jane.doe@example.com,+971500000001,Street 1,,ENG,DEV,General Shift,',
+            'EMP-1002,Mark,Stone,mark.stone@example.com,+971500000002,Street 2,,ENG,DEV,General Shift,',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
+
+        $response = $this->post(route('employees.import'), [
+            'file' => $file,
+        ]);
+
+        $response->assertRedirect(route('employees.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('employees', [
+            'employee_code' => 'EMP-1001',
+            'email_address' => 'jane.doe@example.com',
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
+        ]);
+        $this->assertDatabaseHas('employees', [
+            'employee_code' => 'EMP-1002',
+            'email_address' => 'mark.stone@example.com',
+        ]);
+    }
+
+    public function test_import_skips_invalid_rows_and_keeps_valid_ones(): void
+    {
+        Department::factory()->create(['code' => 'ENG']);
+        JobPosition::factory()->create(['code' => 'DEV']);
+        WorkTimetable::factory()->create(['name' => 'General Shift']);
+        Employee::factory()->create([
+            'employee_code' => 'EMP-EXIST',
+            'email_address' => 'exists@example.com',
+        ]);
+
+        $csv = implode("\n", [
+            'employee_code,first_name,last_name,email_address,contact_number,address_1,address_2,department_code,job_position_code,work_timetable_name,company_profile_name',
+            'EMP-EXIST,Already,Used,exists@example.com,+971500000003,Street 3,,ENG,DEV,General Shift,',
+            'EMP-1003,Valid,User,valid.user@example.com,+971500000004,Street 4,,ENG,DEV,General Shift,',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
+
+        $response = $this->post(route('employees.import'), [
+            'file' => $file,
+        ]);
+
+        $response->assertRedirect(route('employees.index'));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('employees', [
+            'employee_code' => 'EMP-1003',
+            'email_address' => 'valid.user@example.com',
         ]);
     }
 

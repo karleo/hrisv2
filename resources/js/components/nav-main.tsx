@@ -38,11 +38,13 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <SidebarMenuSubButton
                         asChild
                         isActive={isActive}
-                        className="h-9 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2.5 text-[13px] font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words [&>span:last-child]:leading-tight"
+                        className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2 text-xs font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
                     >
                         <Link href={item.href ?? '#'} prefetch>
                             {item.icon && <item.icon />}
-                            <span>{item.title}</span>
+                            <span className="min-w-0 flex-1 whitespace-nowrap">
+                                {item.title}
+                            </span>
                         </Link>
                     </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
@@ -55,10 +57,12 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <CollapsibleTrigger asChild>
                         <SidebarMenuSubButton
                             isActive={isActive}
-                            className="h-9 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2.5 text-[13px] font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words [&>span:last-child]:leading-tight"
+                            className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2 text-xs font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
                         >
                             {item.icon && <item.icon />}
-                            <span>{item.title}</span>
+                            <span className="min-w-0 flex-1 whitespace-nowrap">
+                                {item.title}
+                            </span>
                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90" />
                         </SidebarMenuSubButton>
                     </CollapsibleTrigger>
@@ -93,9 +97,9 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
                                             isActive={isAnyChildActive}
-                                            className="h-auto min-h-14 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
+                                            className="h-auto min-h-11 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-2.5 py-1.5 text-[13px] transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
                                         >
-                                            {item.icon && <item.icon className="mt-0.5" />}
+                                            {item.icon && <item.icon className="mt-0.5 size-4.5" />}
                                             <div className="flex min-w-0 flex-1 items-center">
                                                 <span className="font-medium whitespace-normal break-words leading-tight">
                                                     {item.title}
@@ -121,10 +125,10 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 asChild
                                 isActive={!!item.href && isCurrentUrl(item.href)}
                                 tooltip={{ children: item.title }}
-                                className="h-auto min-h-14 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
+                                className="h-auto min-h-11 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-2.5 py-1.5 text-[13px] transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
                             >
                                 <Link href={item.href ?? '#'} prefetch>
-                                    {item.icon && <item.icon className="mt-0.5" />}
+                                    {item.icon && <item.icon className="mt-0.5 size-4.5" />}
                                     <div className="flex min-w-0 flex-1 items-center">
                                         <span className="font-medium whitespace-normal break-words leading-tight">
                                             {item.title}

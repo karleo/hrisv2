@@ -125,7 +125,7 @@ export default function LeaveRequestPrint({
     return (
         <>
             <Head title={`Leave Request ${leaveRequest.code} – Print`} />
-            <div className="leave-print-root min-h-screen bg-[#d9d9d9] p-4 text-[#111a6b] print:min-h-screen print:flex print:flex-col print:bg-[#d9d9d9] print:p-1">
+            <div className="leave-print-root min-h-screen bg-white p-4 text-[#111a6b] print:min-h-screen print:flex print:flex-col print:bg-white print:p-1">
                 <div className="no-print mb-6 flex items-center justify-between gap-4 border-b border-neutral-300 pb-4">
                     <Link
                         href={`/leave-requests/${leaveRequest.id}`}
@@ -144,7 +144,7 @@ export default function LeaveRequestPrint({
                     </button>
                 </div>
 
-                <article className="leave-print-article mx-auto w-full max-w-[920px] border border-neutral-400 bg-[#e6e6e6] p-10 print:mx-0 print:flex print:min-h-0 print:max-w-none print:flex-1 print:flex-col print:p-5">
+                <article className="leave-print-article mx-auto w-full max-w-[920px] border border-neutral-400 bg-white p-10 print:mx-0 print:flex print:min-h-0 print:max-w-none print:flex-1 print:flex-col print:p-5">
                     {/* Header */}
                     <header className="-mx-10 -mt-10 mb-6 shrink-0 border-b border-neutral-300 bg-white px-10 py-6 print:-mx-5 print:-mt-5 print:mb-3 print:px-5 print:py-3">
                         <div className="flex min-h-24 flex-row items-center justify-between gap-4 print:min-h-[6rem]">

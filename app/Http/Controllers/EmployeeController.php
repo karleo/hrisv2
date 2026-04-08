@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Employee\StoreEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
+use App\Http\Requests\Employee\ImportEmployeesRequest;
 use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
@@ -12,9 +13,12 @@ use App\Models\JobPosition;
 use App\Models\WorkTimetable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
 {
@@ -56,6 +60,303 @@ class EmployeeController extends Controller
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
         ]);
+    }
+
+    public function downloadTemplate(): StreamedResponse
+    {
+        $headers = [
+            'employee_code',
+            'first_name',
+            'last_name',
+            'email_address',
+            'contact_number',
+            'address_1',
+            'address_2',
+            'department_code',
+            'job_position_code',
+            'work_timetable_name',
+            'company_profile_name',
+        ];
+
+        $sampleRow = [
+            'EMP-0001',
+            'John',
+            'Doe',
+            'john.doe@example.com',
+            '+971500000000',
+            'Building 10, Street 5',
+            '',
+            'ENG',
+            'DEV',
+            'General Shift',
+            '',
+        ];
+
+        $callback = static function () use ($headers, $sampleRow): void {
+            $stream = fopen('php://output', 'w');
+            if ($stream === false) {
+                return;
+            }
+
+            fputcsv($stream, $headers);
+            fputcsv($stream, $sampleRow);
+            fclose($stream);
+        };
+
+        return response()->streamDownload($callback, 'employee-import-template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function export(): StreamedResponse
+    {
+        $callback = static function (): void {
+            $stream = fopen('php://output', 'w');
+            if ($stream === false) {
+                return;
+            }
+
+            fputcsv($stream, [
+                'employee_code',
+                'first_name',
+                'last_name',
+                'email_address',
+                'contact_number',
+                'address_1',
+                'address_2',
+                'department_code',
+                'department_name',
+                'job_position_code',
+                'job_position_name',
+                'work_timetable_name',
+                'company_profile_name',
+                'role',
+            ]);
+
+            Employee::query()
+                ->with(['department:id,code,name', 'jobPosition:id,code,name', 'workTimetable:id,name', 'companyProfile:id,company_name'])
+                ->orderBy('employee_code')
+                ->chunk(500, static function ($employees) use ($stream): void {
+                    foreach ($employees as $employee) {
+                        fputcsv($stream, [
+                            $employee->employee_code,
+                            $employee->first_name,
+                            $employee->last_name,
+                            $employee->email_address,
+                            $employee->contact_number,
+                            $employee->address_1,
+                            $employee->address_2,
+                            $employee->department?->code,
+                            $employee->department?->name,
+                            $employee->jobPosition?->code,
+                            $employee->jobPosition?->name,
+                            $employee->workTimetable?->name,
+                            $employee->companyProfile?->company_name,
+                            $employee->role,
+                        ]);
+                    }
+                });
+
+            fclose($stream);
+        };
+
+        return response()->streamDownload($callback, 'employees-export.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function import(ImportEmployeesRequest $request): RedirectResponse
+    {
+        $file = $request->file('file');
+        if ($file === null) {
+            return back()->with('error', 'Please upload a CSV file.');
+        }
+
+        $handle = fopen($file->getRealPath(), 'rb');
+        if ($handle === false) {
+            return back()->with('error', 'Unable to read the uploaded file.');
+        }
+
+        $headerRow = fgetcsv($handle);
+        if (! is_array($headerRow)) {
+            fclose($handle);
+
+            return back()->with('error', 'The uploaded file is empty.');
+        }
+
+        $headers = array_map(fn ($value) => $this->normalizeHeader((string) $value), $headerRow);
+        $requiredHeaders = [
+            'employee_code',
+            'first_name',
+            'last_name',
+            'email_address',
+            'department_code',
+            'job_position_code',
+            'work_timetable_name',
+        ];
+        $missingHeaders = array_values(array_diff($requiredHeaders, $headers));
+        if ($missingHeaders !== []) {
+            fclose($handle);
+
+            return back()->with('error', 'Template headers are missing: '.implode(', ', $missingHeaders));
+        }
+
+        $departmentMap = Department::query()
+            ->get(['id', 'code'])
+            ->mapWithKeys(fn (Department $department) => [strtoupper(trim($department->code)) => $department->id])
+            ->all();
+        $jobPositionMap = JobPosition::query()
+            ->get(['id', 'code'])
+            ->mapWithKeys(fn (JobPosition $jobPosition) => [strtoupper(trim($jobPosition->code)) => $jobPosition->id])
+            ->all();
+        $workTimetableMap = WorkTimetable::query()
+            ->withCount('days')
+            ->get(['id', 'name'])
+            ->keyBy(fn (WorkTimetable $workTimetable) => mb_strtolower(trim($workTimetable->name)))
+            ->all();
+        $companyProfileMap = CompanyProfile::query()
+            ->get(['id', 'company_name'])
+            ->keyBy(fn (CompanyProfile $companyProfile) => mb_strtolower(trim($companyProfile->company_name)))
+            ->all();
+
+        $existingCodes = Employee::query()
+            ->pluck('employee_code')
+            ->map(fn (string $value) => strtoupper(trim($value)))
+            ->all();
+        $existingEmails = Employee::query()
+            ->pluck('email_address')
+            ->map(fn (string $value) => mb_strtolower(trim($value)))
+            ->all();
+
+        $seenCodes = array_fill_keys($existingCodes, true);
+        $seenEmails = array_fill_keys($existingEmails, true);
+        $rowsToCreate = [];
+        $errors = [];
+        $lineNumber = 1;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $lineNumber++;
+            $row = is_array($row) ? $row : [];
+            if ($this->rowIsEmpty($row)) {
+                continue;
+            }
+
+            $entry = [];
+            foreach ($headers as $index => $header) {
+                $entry[$header] = isset($row[$index]) ? trim((string) $row[$index]) : '';
+            }
+
+            $validation = Validator::make($entry, [
+                'employee_code' => ['required', 'string', 'max:50'],
+                'first_name' => ['required', 'string', 'max:255'],
+                'last_name' => ['required', 'string', 'max:255'],
+                'email_address' => ['required', 'email', 'max:255'],
+                'contact_number' => ['nullable', 'string', 'max:50'],
+                'address_1' => ['nullable', 'string', 'max:255'],
+                'address_2' => ['nullable', 'string', 'max:255'],
+                'department_code' => ['required', 'string', 'max:50'],
+                'job_position_code' => ['required', 'string', 'max:50'],
+                'work_timetable_name' => ['required', 'string', 'max:255'],
+                'company_profile_name' => ['nullable', 'string', 'max:255'],
+            ]);
+
+            if ($validation->fails()) {
+                $errors[] = "Row {$lineNumber}: ".implode(', ', $validation->errors()->all());
+                continue;
+            }
+
+            $employeeCodeKey = strtoupper($entry['employee_code']);
+            $emailKey = mb_strtolower($entry['email_address']);
+            $departmentCodeKey = strtoupper($entry['department_code']);
+            $jobPositionCodeKey = strtoupper($entry['job_position_code']);
+            $workTimetableNameKey = mb_strtolower($entry['work_timetable_name']);
+            $companyNameKey = mb_strtolower($entry['company_profile_name'] ?? '');
+
+            if (isset($seenCodes[$employeeCodeKey])) {
+                $errors[] = "Row {$lineNumber}: employee_code '{$entry['employee_code']}' is duplicate.";
+                continue;
+            }
+            if (isset($seenEmails[$emailKey])) {
+                $errors[] = "Row {$lineNumber}: email_address '{$entry['email_address']}' is duplicate.";
+                continue;
+            }
+            if (! isset($departmentMap[$departmentCodeKey])) {
+                $errors[] = "Row {$lineNumber}: department_code '{$entry['department_code']}' not found.";
+                continue;
+            }
+            if (! isset($jobPositionMap[$jobPositionCodeKey])) {
+                $errors[] = "Row {$lineNumber}: job_position_code '{$entry['job_position_code']}' not found.";
+                continue;
+            }
+            if (! isset($workTimetableMap[$workTimetableNameKey])) {
+                $errors[] = "Row {$lineNumber}: work_timetable_name '{$entry['work_timetable_name']}' not found.";
+                continue;
+            }
+
+            /** @var WorkTimetable $workTimetable */
+            $workTimetable = $workTimetableMap[$workTimetableNameKey];
+            if ((int) $workTimetable->days_count !== 7) {
+                $errors[] = "Row {$lineNumber}: work_timetable_name '{$entry['work_timetable_name']}' must include all 7 weekdays.";
+                continue;
+            }
+
+            $companyProfileId = null;
+            if ($companyNameKey !== '') {
+                if (! isset($companyProfileMap[$companyNameKey])) {
+                    $errors[] = "Row {$lineNumber}: company_profile_name '{$entry['company_profile_name']}' not found.";
+                    continue;
+                }
+                /** @var CompanyProfile $companyProfile */
+                $companyProfile = $companyProfileMap[$companyNameKey];
+                $companyProfileId = $companyProfile->id;
+            }
+
+            $rowsToCreate[] = [
+                'employee_code' => $entry['employee_code'],
+                'first_name' => $entry['first_name'],
+                'last_name' => $entry['last_name'],
+                'email_address' => $entry['email_address'],
+                'contact_number' => $entry['contact_number'] ?: null,
+                'address_1' => $entry['address_1'] ?: null,
+                'address_2' => $entry['address_2'] ?: null,
+                'department_id' => $departmentMap[$departmentCodeKey],
+                'job_position_id' => $jobPositionMap[$jobPositionCodeKey],
+                'work_timetable_id' => $workTimetable->id,
+                'company_profile_id' => $companyProfileId,
+                'role' => 'Employee',
+            ];
+
+            $seenCodes[$employeeCodeKey] = true;
+            $seenEmails[$emailKey] = true;
+        }
+
+        fclose($handle);
+
+        if ($rowsToCreate !== []) {
+            DB::transaction(function () use ($rowsToCreate): void {
+                foreach ($rowsToCreate as $row) {
+                    Employee::query()->create($row);
+                }
+            });
+        }
+
+        if ($rowsToCreate === [] && $errors !== []) {
+            return back()->with('error', 'Import failed. '.implode(' | ', array_slice($errors, 0, 5)));
+        }
+
+        if ($errors !== []) {
+            return to_route('employees.index')->with(
+                'success',
+                sprintf(
+                    'Imported %d employee(s). Skipped %d invalid row(s): %s',
+                    count($rowsToCreate),
+                    count($errors),
+                    implode(' | ', array_slice($errors, 0, 3))
+                )
+            );
+        }
+
+        return to_route('employees.index')->with('success', sprintf('Imported %d employee(s) successfully.', count($rowsToCreate)));
     }
 
     /**
@@ -196,5 +497,24 @@ class EmployeeController extends Controller
         $employeeDocument->delete();
 
         return back();
+    }
+
+    /**
+     * @param  array<int, mixed>  $row
+     */
+    private function rowIsEmpty(array $row): bool
+    {
+        foreach ($row as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function normalizeHeader(string $header): string
+    {
+        return mb_strtolower(trim($header));
     }
 }

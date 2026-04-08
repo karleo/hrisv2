@@ -36,6 +36,12 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('departments', DepartmentController::class);
     Route::get('employees/{employee}/business-card', [EmployeeController::class, 'businessCard'])
         ->name('employees.business-card');
+    Route::get('employees-template/download', [EmployeeController::class, 'downloadTemplate'])
+        ->name('employees.template.download');
+    Route::get('employees/export', [EmployeeController::class, 'export'])
+        ->name('employees.export');
+    Route::post('employees/import', [EmployeeController::class, 'import'])
+        ->name('employees.import');
     Route::resource('employees', EmployeeController::class);
     Route::delete('employees/{employee}/documents/{employee_document}', [EmployeeController::class, 'destroyDocument'])
         ->name('employees.documents.destroy');

@@ -1,11 +1,14 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import type { FormEvent } from 'react';
 import {
     CreditCard,
+    Download,
     Key,
     Pencil,
     Plus,
     Search,
     Trash2,
+    Upload,
     Users,
 } from 'lucide-react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
@@ -92,6 +95,19 @@ export default function Index({
     filters?: { search?: string };
 }) {
     const { data: employeeList } = employees;
+    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({
+        file: null,
+    });
+
+    function submitImport(e: FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        post('/employees/import', {
+            forceFormData: true,
+            onSuccess: () => reset('file'),
+        });
+    }
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Employees" />
@@ -100,6 +116,20 @@ export default function Index({
                 {/* Page header */}
                 <div className="border-b bg-card px-4 py-6 sm:px-6 lg:px-8">
                     <div className="w-full">
+                        {(flash?.success || flash?.error) && (
+                            <div className="mb-4 space-y-2">
+                                {flash?.success && (
+                                    <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                        {flash.success}
+                                    </div>
+                                )}
+                                {flash?.error && (
+                                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                                        {flash.error}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -115,6 +145,43 @@ export default function Index({
                                 </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
+                                <a href="/employees-template/download">
+                                    <Button size="sm" variant="outline" className="gap-2">
+                                        <Download className="size-4" />
+                                        Download Template
+                                    </Button>
+                                </a>
+                                <a href="/employees/export">
+                                    <Button size="sm" variant="outline" className="gap-2">
+                                        <Download className="size-4" />
+                                        Download Employees
+                                    </Button>
+                                </a>
+                                <form
+                                    onSubmit={submitImport}
+                                    className="flex flex-wrap items-center gap-2"
+                                >
+                                    <input
+                                        type="file"
+                                        accept=".csv,text/csv"
+                                        onChange={(e) =>
+                                            setData(
+                                                'file',
+                                                e.currentTarget.files?.[0] ?? null,
+                                            )
+                                        }
+                                        className="block w-[220px] cursor-pointer rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground file:mr-2 file:rounded-sm file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
+                                    />
+                                    <Button
+                                        size="sm"
+                                        type="submit"
+                                        disabled={processing || !data.file}
+                                        className="gap-2"
+                                    >
+                                        <Upload className="size-4" />
+                                        Upload
+                                    </Button>
+                                </form>
                                 <DataTableToolbar
                                     searchUrl={index().url}
                                     searchPlaceholder="Search code, name, email..."
@@ -130,6 +197,9 @@ export default function Index({
                                 </Link>
                             </div>
                         </div>
+                        {errors.file && (
+                            <p className="mt-2 text-xs text-destructive">{errors.file}</p>
+                        )}
                     </div>
                 </div>
 
