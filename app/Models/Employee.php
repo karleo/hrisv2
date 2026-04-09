@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $photo
  * @property int|null $company_profile_id
  * @property int|null $work_timetable_id
+ * @property \Illuminate\Support\Carbon|null $joining_date
+ * @property \Illuminate\Support\Carbon|null $first_contract_date
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -62,6 +64,8 @@ class Employee extends Model
         'photo',
         'company_profile_id',
         'work_timetable_id',
+        'joining_date',
+        'first_contract_date',
     ];
 
     public function user(): BelongsTo
@@ -103,6 +107,8 @@ class Employee extends Model
     {
         return [
             'date_of_birth' => 'date:Y-m-d',
+            'joining_date' => 'date:Y-m-d',
+            'first_contract_date' => 'date:Y-m-d',
         ];
     }
 

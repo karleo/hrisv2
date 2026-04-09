@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import {
+    CircleAlert,
     CreditCard,
     Download,
     Eye,
@@ -62,19 +63,27 @@ type Employee = {
     department_id: number;
     job_position_id: number;
     user_id?: number | null;
+    user_active?: boolean | null;
+    photo_url?: string | null;
     department?: Department;
     job_position?: JobPosition;
 };
 
-function AvatarInitial({ name }: { name: string }) {
+function AvatarInitial({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
     const initial = name.trim().slice(0, 1).toUpperCase() || '?';
     return (
-        <span
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
-            aria-hidden
-        >
-            {initial}
-        </span>
+        <div className="size-8 shrink-0 overflow-hidden rounded-full border border-border/60 bg-muted">
+            {photoUrl ? (
+                <img src={photoUrl} alt={name} className="size-full object-cover" />
+            ) : (
+                <span
+                    className="flex size-full items-center justify-center bg-primary/10 text-sm font-medium text-primary"
+                    aria-hidden
+                >
+                    {initial}
+                </span>
+            )}
+        </div>
     );
 }
 
@@ -91,10 +100,12 @@ type PaginatedEmployees = {
 
 export default function Index({
     employees,
+    departments,
     filters = {},
 }: {
     employees: PaginatedEmployees;
-    filters?: { search?: string };
+    departments: Department[];
+    filters?: { search?: string; department_id?: string | number };
 }) {
     const { data: employeeList } = employees;
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
@@ -111,13 +122,29 @@ export default function Index({
         });
     }
 
+    function handleDepartmentFilterChange(value: string) {
+        const params: Record<string, string | number> = { page: 1 };
+        if (filters.search) {
+            params.search = filters.search;
+        }
+        if (value) {
+            params.department_id = value;
+        }
+
+        router.get(index().url, params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Employees" />
 
-            <div className="flex min-h-screen flex-1 flex-col bg-muted/30">
+            <div className="flex min-h-screen flex-1 flex-col bg-background">
                 {/* Page header */}
-                <div className="border-b bg-card px-4 py-6 sm:px-6 lg:px-8">
+                <div className="border-b bg-gradient-to-b from-muted/40 to-background px-4 py-6 sm:px-6 lg:px-8">
                     <div className="w-full">
                         {(flash?.success || flash?.error) && (
                             <div className="mb-4 space-y-2">
@@ -133,71 +160,52 @@ export default function Index({
                                 )}
                             </div>
                         )}
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                    <Users className="size-6" />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                                        Employee Master List
-                                    </h1>
-                                    <p className="text-muted-foreground text-sm">
-                                        Manage employee records, departments, and job positions
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <a href="/employees-template/download">
-                                    <Button size="sm" variant="outline" className="gap-2">
-                                        <Download className="size-4" />
-                                        Download Template
-                                    </Button>
-                                </a>
-                                <a href="/employees/export">
-                                    <Button size="sm" variant="outline" className="gap-2">
-                                        <Download className="size-4" />
-                                        Download Employees
-                                    </Button>
-                                </a>
-                                <form
-                                    onSubmit={submitImport}
-                                    className="flex flex-wrap items-center gap-2"
-                                >
-                                    <input
-                                        type="file"
-                                        accept=".csv,text/csv"
-                                        onChange={(e) =>
-                                            setData(
-                                                'file',
-                                                e.currentTarget.files?.[0] ?? null,
-                                            )
-                                        }
-                                        className="block w-[220px] cursor-pointer rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground file:mr-2 file:rounded-sm file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
-                                    />
-                                    <Button
-                                        size="sm"
-                                        type="submit"
-                                        disabled={processing || !data.file}
-                                        className="gap-2"
-                                    >
-                                        <Upload className="size-4" />
-                                        Upload
-                                    </Button>
-                                </form>
-                                <DataTableToolbar
-                                    searchUrl={index().url}
-                                    searchPlaceholder="Search code, name, email..."
-                                    filters={filters}
-                                    autoSearch
-                                    showSearchButton={false}
-                                />
-                                <Link href={create().url}>
-                                    <Button size="sm" className="gap-2">
-                                        <Plus className="size-4" />
-                                        Add Employee
-                                    </Button>
-                                </Link>
+                        <div className="flex flex-col gap-5">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <Card className="rounded-2xl border bg-card shadow-sm">
+                                    <CardContent className="space-y-2 p-4">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>Total Employee</span>
+                                            <CircleAlert className="size-3.5" />
+                                        </div>
+                                        <p className="text-3xl font-semibold leading-none">{employees.total}</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">+2 increase from last month</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="rounded-2xl border bg-card shadow-sm">
+                                    <CardContent className="space-y-2 p-4">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>Active Employee</span>
+                                            <CircleAlert className="size-3.5" />
+                                        </div>
+                                        <p className="text-3xl font-semibold leading-none">
+                                            {employeeList.filter((emp) => emp.user_id).length}
+                                        </p>
+                                        <p className="text-xs text-rose-500">-2 decrease from yesterday</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="rounded-2xl border bg-card shadow-sm">
+                                    <CardContent className="space-y-2 p-4">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>Total Department</span>
+                                            <CircleAlert className="size-3.5" />
+                                        </div>
+                                        <p className="text-3xl font-semibold leading-none">
+                                            {new Set(employeeList.map((emp) => emp.department?.id).filter(Boolean)).size}
+                                        </p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">+1 increase from last year</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="rounded-2xl border bg-card shadow-sm">
+                                    <CardContent className="space-y-2 p-4">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>This Page</span>
+                                            <CircleAlert className="size-3.5" />
+                                        </div>
+                                        <p className="text-3xl font-semibold leading-none">{employeeList.length}</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Current visible records</p>
+                                    </CardContent>
+                                </Card>
                             </div>
                         </div>
                         {errors.file && (
@@ -206,224 +214,296 @@ export default function Index({
                     </div>
                 </div>
 
-                {/* Table */}
-                <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+                {/* Employee list table */}
+                <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
                     <div className="w-full">
-                        <Card className="overflow-hidden border shadow-sm">
+                        <Card className="overflow-hidden rounded-2xl border shadow-sm">
                             <CardContent className="p-0">
+                                <div className="border-b px-4 py-4 sm:px-5">
+                                    <h2 className="text-lg font-semibold tracking-tight">Employee List</h2>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:px-5">
+                                    <DataTableToolbar
+                                        searchUrl={index().url}
+                                        searchPlaceholder="Search employee..."
+                                        filters={filters}
+                                        persistQuery={{ department_id: filters.department_id }}
+                                        autoSearch
+                                        showSearchButton={false}
+                                    />
+                                    <select
+                                        value={String(filters.department_id ?? '')}
+                                        onChange={(e) => handleDepartmentFilterChange(e.target.value)}
+                                        className="h-9 rounded-full border border-input bg-background px-3 text-sm text-foreground shadow-sm"
+                                    >
+                                        <option value="">All Departments</option>
+                                        {departments.map((department) => (
+                                            <option key={department.id} value={department.id}>
+                                                {department.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                                        <a href="/employees-template/download">
+                                            <Button size="sm" variant="outline" className="h-9 gap-2 rounded-full px-3">
+                                                <Download className="size-4" />
+                                                Template
+                                            </Button>
+                                        </a>
+                                        <a href="/employees/export">
+                                            <Button size="sm" variant="outline" className="h-9 gap-2 rounded-full px-3">
+                                                <Download className="size-4" />
+                                                Export
+                                            </Button>
+                                        </a>
+                                        <form
+                                            onSubmit={submitImport}
+                                            className="flex flex-wrap items-center gap-2"
+                                        >
+                                            <input
+                                                type="file"
+                                                accept=".csv,text/csv"
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'file',
+                                                        e.currentTarget.files?.[0] ?? null,
+                                                    )
+                                                }
+                                                className="block w-[170px] cursor-pointer rounded-full border border-input bg-background px-2.5 py-1.5 text-xs text-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs file:font-medium"
+                                            />
+                                            <Button
+                                                size="sm"
+                                                type="submit"
+                                                disabled={processing || !data.file}
+                                                className="h-9 gap-2 rounded-full px-3"
+                                            >
+                                                <Upload className="size-4" />
+                                                Upload
+                                            </Button>
+                                        </form>
+                                        <Link href={create().url}>
+                                            <Button size="sm" className="h-9 gap-2 rounded-full px-3">
+                                                <Plus className="size-4" />
+                                                Add Employee
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </div>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
+                                    <table className="w-full min-w-[980px] text-sm">
                                         <thead>
-                                            <tr className="border-b bg-muted/40">
-                                                <th className="px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                                    Code
+                                            <tr className="border-b bg-muted/50">
+                                                <th className="w-14 px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground sm:px-5">
+                                                    #
                                                 </th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground sm:px-5">
                                                     Name
                                                 </th>
-                                                <th className="hidden px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground lg:table-cell">
-                                                    Email
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Mail
                                                 </th>
-                                                <th className="hidden px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground xl:table-cell">
-                                                    Contact
-                                                </th>
-                                                <th className="hidden px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                     Department
                                                 </th>
-                                                <th className="hidden px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                                                    Job
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Role
                                                 </th>
-                                                <th className="w-32 px-4 py-3.5 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Status
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Contact
+                                                </th>
+                                                <th className="w-40 px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground sm:pr-5">
                                                     Actions
                                                 </th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {employeeList.length === 0 ? (
-                                                <tr>
-                                                    <td
-                                                        colSpan={7}
-                                                        className="px-4 py-16 text-center"
-                                                    >
-                                                        <div className="mx-auto flex max-w-sm flex-col items-center gap-4">
-                                                            <div className="flex size-16 items-center justify-center rounded-full bg-muted">
-                                                                {filters.search ? (
-                                                                    <Search className="size-8 text-muted-foreground" />
-                                                                ) : (
-                                                                    <Users className="size-8 text-muted-foreground" />
-                                                                )}
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <p className="font-medium text-foreground">
-                                                                    {filters.search
-                                                                        ? 'No employees match your search'
-                                                                        : 'No employees yet'}
-                                                                </p>
-                                                                <p className="text-muted-foreground text-sm">
-                                                                    {filters.search
-                                                                        ? 'Try a different search term or clear the filter.'
-                                                                        : 'Add your first employee to get started.'}
-                                                                </p>
-                                                            </div>
-                                                            {!filters.search && (
-                                                                <Link href={create().url}>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="gap-2"
-                                                                    >
-                                                                        <Plus className="size-4" />
-                                                                        Add Employee
-                                                                    </Button>
-                                                                </Link>
+                                {employeeList.length === 0 ? (
+                                            <tr>
+                                                <td
+                                                    colSpan={8}
+                                                    className="px-4 py-16 text-center sm:px-5"
+                                                >
+                                                    <div className="mx-auto flex max-w-sm flex-col items-center gap-4 text-center">
+                                                        <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+                                                            {filters.search ? (
+                                                                <Search className="size-8 text-muted-foreground" />
+                                                            ) : (
+                                                                <Users className="size-8 text-muted-foreground" />
                                                             )}
                                                         </div>
+                                                        <div className="space-y-1">
+                                                            <p className="font-medium text-foreground">
+                                                                {filters.search
+                                                                    ? 'No employees match your search'
+                                                                    : 'No employees yet'}
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {filters.search
+                                                                    ? 'Try a different search term or clear the filter.'
+                                                                    : 'Add your first employee to get started.'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                ) : (
+                                            employeeList.map((employee, indexOnPage) => (
+                                                <tr
+                                                key={employee.id}
+                                                    className="border-b transition-colors hover:bg-muted/25"
+                                            >
+                                                    <td className="px-4 py-3 text-xs font-medium text-muted-foreground sm:px-5">
+                                                        {Math.max((employees.from ?? 1) + indexOnPage, 1)}
                                                     </td>
-                                                </tr>
-                                            ) : (
-                                                employeeList.map((employee) => (
-                                                    <tr
-                                                        key={employee.id}
-                                                        className="border-b border-border/50 transition-colors hover:bg-muted/40 last:border-0"
-                                                    >
-                                                        <td className="px-4 py-3 font-mono text-xs font-medium text-foreground">
-                                                            {employee.employee_code}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <AvatarInitial
-                                                                    name={
-                                                                        employee.first_name
-                                                                    }
-                                                                />
-                                                                <span className="font-medium">
-                                                                    {employee.first_name}{' '}
-                                                                    {employee.last_name}
-                                                                </span>
-                                                                {employee.user_id && (
-                                                                    <span
-                                                                        className="inline-flex size-5 items-center justify-center rounded text-muted-foreground"
-                                                                        title="Has system login"
-                                                                    >
-                                                                        <Key className="size-3.5" />
-                                                                    </span>
-                                                                )}
+                                                    <td className="px-4 py-3 sm:px-5">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <AvatarInitial
+                                                                name={employee.first_name}
+                                                                photoUrl={employee.photo_url}
+                                                            />
+                                                            <div className="min-w-0">
+                                                                <p className="truncate font-medium">
+                                                                    {employee.first_name} {employee.last_name}
+                                                                </p>
+                                                                <p className="font-mono text-[11px] text-muted-foreground">
+                                                                    {employee.employee_code}
+                                                                </p>
                                                             </div>
-                                                        </td>
-                                                        <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
-                                                            {employee.email_address}
-                                                        </td>
-                                                        <td className="hidden px-4 py-3 text-muted-foreground xl:table-cell">
-                                                            {employee.contact_number ??
-                                                                '—'}
-                                                        </td>
-                                                        <td className="hidden px-4 py-3 md:table-cell">
-                                                            {employee.department
-                                                                ?.name ?? '—'}
-                                                        </td>
-                                                        <td className="hidden px-4 py-3 md:table-cell">
-                                                            {employee.job_position
-                                                                ?.name ?? '—'}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex justify-end gap-0.5">
-                                                                <Link
-                                                                    href={`${edit({
-                                                                        employee: employee.id,
-                                                                    }).url}?mode=view`}
-                                                                    aria-label="View employee details"
-                                                                >
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                    >
-                                                                        <Eye className="size-4" />
-                                                                    </Button>
-                                                                </Link>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                        <p className="max-w-[220px] truncate">{employee.email_address}</p>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs text-orange-700 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300">
+                                                            {employee.department?.name ?? '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                        {employee.job_position?.name ?? '—'}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {employee.user_id && employee.user_active !== false ? (
+                                                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
+                                                                <Key className="size-3" />
+                                                                Active
+                                                            </span>
+                                                        ) : employee.user_id && employee.user_active === false ? (
+                                                            <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300">
+                                                                Inactive
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+                                                                Pending
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                        {employee.contact_number ?? '—'}
+                                                    </td>
+                                                    <td className="px-4 py-3 sm:pr-5">
+                                                        <div className="flex justify-end gap-0.5 rounded-lg border bg-background p-0.5">
+                                                            <Link
+                                                                href={`${edit({
+                                                                    employee: employee.id,
+                                                                }).url}?mode=view`}
+                                                                aria-label="View employee details"
+                                                            >
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="size-8"
-                                                                    aria-label="View business card"
-                                                                    onClick={() => setBusinessCardEmployee(employee)}
+                                                                    className="size-8 rounded-md"
                                                                 >
-                                                                    <CreditCard className="size-4" />
+                                                                    <Eye className="size-4" />
                                                                 </Button>
-                                                                <Link
-                                                                    href={edit({
-                                                                        employee:
-                                                                            employee.id,
-                                                                    }).url}
-                                                                    aria-label="Edit"
+                                                            </Link>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="size-8 rounded-md"
+                                                                aria-label="View business card"
+                                                                onClick={() => setBusinessCardEmployee(employee)}
+                                                            >
+                                                                <CreditCard className="size-4" />
+                                                            </Button>
+                                                            <Link
+                                                                href={edit({
+                                                                    employee: employee.id,
+                                                                }).url}
+                                                                aria-label="Edit"
+                                                            >
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8 rounded-md"
                                                                 >
+                                                                    <Pencil className="size-4" />
+                                                                </Button>
+                                                            </Link>
+                                                            <Dialog>
+                                                                <DialogTrigger asChild>
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        className="size-8"
+                                                                        className="size-8 rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                        aria-label="Delete"
                                                                     >
-                                                                        <Pencil className="size-4" />
+                                                                        <Trash2 className="size-4" />
                                                                     </Button>
-                                                                </Link>
-                                                                <div className="ml-0.5 border-l border-border pl-0.5">
-                                                                    <Dialog>
-                                                                        <DialogTrigger asChild>
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                                aria-label="Delete"
-                                                                            >
-                                                                                <Trash2 className="size-4" />
+                                                                </DialogTrigger>
+                                                                <DialogContent>
+                                                                    <DialogTitle>
+                                                                        Delete employee?
+                                                                    </DialogTitle>
+                                                                    <DialogDescription>
+                                                                        Are you sure you want to delete{' '}
+                                                                        <strong>
+                                                                            {employee.first_name}{' '}
+                                                                            {employee.last_name}
+                                                                        </strong>{' '}
+                                                                        ({employee.employee_code})? This action cannot be undone.
+                                                                    </DialogDescription>
+                                                                    <DialogFooter>
+                                                                        <DialogClose asChild>
+                                                                            <Button variant="secondary">
+                                                                                Cancel
                                                                             </Button>
-                                                                        </DialogTrigger>
-                                                                        <DialogContent>
-                                                                            <DialogTitle>
-                                                                                Delete employee?
-                                                                            </DialogTitle>
-                                                                            <DialogDescription>
-                                                                                Are you sure you want to delete{' '}
-                                                                                <strong>
-                                                                                    {employee.first_name}{' '}
-                                                                                    {employee.last_name}
-                                                                                </strong>{' '}
-                                                                                ({employee.employee_code})? This action cannot be undone.
-                                                                            </DialogDescription>
-                                                                            <DialogFooter>
-                                                                                <DialogClose asChild>
-                                                                                    <Button variant="secondary">
-                                                                                        Cancel
-                                                                                    </Button>
-                                                                                </DialogClose>
-                                                                                <Button
-                                                                                    variant="destructive"
-                                                                                    onClick={() =>
-                                                                                        router.delete(
-                                                                                            EmployeeController.destroy.url(
-                                                                                                employee.id,
-                                                                                            ),
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    Delete
-                                                                                </Button>
-                                                                            </DialogFooter>
-                                                                        </DialogContent>
-                                                                    </Dialog>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
+                                                                        </DialogClose>
+                                                                        <Button
+                                                                            variant="destructive"
+                                                                            onClick={() =>
+                                                                                router.delete(
+                                                                                    EmployeeController.destroy.url(
+                                                                                        employee.id,
+                                                                                    ),
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            Delete
+                                                                        </Button>
+                                                                    </DialogFooter>
+                                                                </DialogContent>
+                                                            </Dialog>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                         </tbody>
                                     </table>
                                 </div>
-                                <DataTablePagination
-                                    links={employees.links}
-                                    from={employees.from}
-                                    to={employees.to}
-                                    total={employees.total}
-                                />
+
+                                <div className="border-t">
+                                    <DataTablePagination
+                                        links={employees.links}
+                                        from={employees.from}
+                                        to={employees.to}
+                                        total={employees.total}
+                                    />
+                                </div>
                             </CardContent>
                         </Card>
                     </div>

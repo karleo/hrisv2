@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View as ViewContract;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -133,8 +134,20 @@ class EmployeeController extends Controller
      */
     public function index(Request $request): Response
     {
+        $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
+
         $employees = Employee::query()
-            ->with(['department', 'jobPosition'])
+            ->with([
+                'department',
+                'jobPosition',
+                'user' => function ($query) use ($hasUserActiveColumn): void {
+                    $query->select($hasUserActiveColumn ? ['id', 'is_active'] : ['id']);
+                },
+            ])
+            ->when(
+                $request->filled('department_id'),
+                fn ($query) => $query->where('department_id', (int) $request->department_id)
+            )
             ->when(
                 $request->filled('search'),
                 fn ($query) => $query->where(
@@ -147,11 +160,20 @@ class EmployeeController extends Controller
             )
             ->orderBy('employee_code')
             ->paginate(15)
+            ->through(function (Employee $employee) {
+                $employee->photo_url = $employee->photo
+                    ? '/storage/'.ltrim($employee->photo, '/')
+                    : null;
+                $employee->user_active = $employee->user?->is_active ?? null;
+
+                return $employee;
+            })
             ->withQueryString();
 
         return Inertia::render('employees/index', [
             'employees' => $employees,
-            'filters' => $request->only('search'),
+            'filters' => $request->only('search', 'department_id'),
+            'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -548,7 +570,18 @@ class EmployeeController extends Controller
      */
     public function edit(Request $request, Employee $employee): Response
     {
-        $employee->load(['department', 'jobPosition', 'documents', 'companyProfile', 'workTimetable']);
+        $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
+
+        $employee->load([
+            'department',
+            'jobPosition',
+            'documents',
+            'companyProfile',
+            'workTimetable',
+            'user' => function ($query) use ($hasUserActiveColumn): void {
+                $query->select($hasUserActiveColumn ? ['id', 'is_active'] : ['id']);
+            },
+        ]);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
@@ -560,6 +593,7 @@ class EmployeeController extends Controller
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
             'viewMode' => $request->query('mode') === 'view',
+            'employeeLoginActive' => $employee->user?->is_active ?? null,
         ]);
     }
 
@@ -569,10 +603,11 @@ class EmployeeController extends Controller
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
         $data = $request->validated();
+        $userActive = $data['user_active'] ?? null;
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
         $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels']);
+        unset($data['photo'], $data['documents'], $data['document_labels'], $data['user_active']);
 
         $employee->update($data);
 
@@ -594,8 +629,12 @@ class EmployeeController extends Controller
             ]);
         }
 
+        if (Schema::hasColumn('users', 'is_active') && $employee->user_id !== null && $userActive !== null) {
+            $employee->user()->update(['is_active' => (bool) $userActive]);
+        }
+
         $tab = $request->input('tab');
-        if (! in_array($tab, ['employee_information', 'documents', 'private_information'], true)) {
+        if (! in_array($tab, ['employee_information', 'work_information', 'documents', 'private_information'], true)) {
             $tab = 'employee_information';
         }
 
@@ -721,4 +760,5 @@ class EmployeeController extends Controller
     {
         return str_replace(['\\', ';', ','], ['\\\\', '\;', '\,'], $value);
     }
+
 }
