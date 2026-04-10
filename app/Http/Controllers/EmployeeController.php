@@ -2,28 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Employee\StoreEmployeeRequest;
-use App\Http\Requests\Employee\UpdateProfileRequest;
-use App\Http\Requests\Employee\UpdateEmployeePrivateInformationRequest;
-use App\Http\Requests\Employee\UploadProfileDocumentRequest;
-use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Http\Requests\Employee\ImportEmployeesRequest;
+use App\Http\Requests\Employee\StoreEmployeeRequest;
+use App\Http\Requests\Employee\UpdateEmployeePrivateInformationRequest;
+use App\Http\Requests\Employee\UpdateEmployeeRequest;
+use App\Http\Requests\Employee\UpdateProfileRequest;
+use App\Http\Requests\Employee\UploadProfileDocumentRequest;
 use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
 use App\Models\WorkTimetable;
+use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Contracts\View\View as ViewContract;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
@@ -138,7 +138,7 @@ class EmployeeController extends Controller
 
         $employees = Employee::query()
             ->with([
-                'department',
+                'department.managerEmployee:id,first_name,last_name',
                 'jobPosition',
                 'user' => function ($query) use ($hasUserActiveColumn): void {
                     $query->select($hasUserActiveColumn ? ['id', 'is_active'] : ['id']);
@@ -158,6 +158,19 @@ class EmployeeController extends Controller
                         ->orWhere('contact_number', 'like', '%'.$request->search.'%')
                 )
             )
+            ->when(
+                $request->filled('employee_status'),
+                function ($query) use ($request): void {
+                    $status = (string) $request->input('employee_status');
+                    if ($status === 'Employed') {
+                        $query->whereIn('employee_status', ['Employed', 'Active']);
+
+                        return;
+                    }
+
+                    $query->where('employee_status', $status);
+                }
+            )
             ->orderBy('employee_code')
             ->paginate(15)
             ->through(function (Employee $employee) {
@@ -172,7 +185,7 @@ class EmployeeController extends Controller
 
         return Inertia::render('employees/index', [
             'employees' => $employees,
-            'filters' => $request->only('search', 'department_id'),
+            'filters' => $request->only('search', 'department_id', 'employee_status'),
             'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -390,6 +403,7 @@ class EmployeeController extends Controller
 
             if ($validation->fails()) {
                 $errors[] = "Row {$lineNumber}: ".implode(', ', $validation->errors()->all());
+
                 continue;
             }
 
@@ -402,22 +416,27 @@ class EmployeeController extends Controller
 
             if (isset($seenCodes[$employeeCodeKey])) {
                 $errors[] = "Row {$lineNumber}: employee_code '{$entry['employee_code']}' is duplicate.";
+
                 continue;
             }
             if (isset($seenEmails[$emailKey])) {
                 $errors[] = "Row {$lineNumber}: email_address '{$entry['email_address']}' is duplicate.";
+
                 continue;
             }
             if (! isset($departmentMap[$departmentCodeKey])) {
                 $errors[] = "Row {$lineNumber}: department_code '{$entry['department_code']}' not found.";
+
                 continue;
             }
             if (! isset($jobPositionMap[$jobPositionCodeKey])) {
                 $errors[] = "Row {$lineNumber}: job_position_code '{$entry['job_position_code']}' not found.";
+
                 continue;
             }
             if (! isset($workTimetableMap[$workTimetableNameKey])) {
                 $errors[] = "Row {$lineNumber}: work_timetable_name '{$entry['work_timetable_name']}' not found.";
+
                 continue;
             }
 
@@ -425,6 +444,7 @@ class EmployeeController extends Controller
             $workTimetable = $workTimetableMap[$workTimetableNameKey];
             if ((int) $workTimetable->days_count !== 7) {
                 $errors[] = "Row {$lineNumber}: work_timetable_name '{$entry['work_timetable_name']}' must include all 7 weekdays.";
+
                 continue;
             }
 
@@ -432,6 +452,7 @@ class EmployeeController extends Controller
             if ($companyNameKey !== '') {
                 if (! isset($companyProfileMap[$companyNameKey])) {
                     $errors[] = "Row {$lineNumber}: company_profile_name '{$entry['company_profile_name']}' not found.";
+
                     continue;
                 }
                 /** @var CompanyProfile $companyProfile */
@@ -568,6 +589,17 @@ class EmployeeController extends Controller
     /**
      * Show the form for editing the specified employee.
      */
+    public function show(Employee $employee): RedirectResponse
+    {
+        return to_route('employees.edit', [
+            'employee' => $employee,
+            'mode' => 'view',
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified employee.
+     */
     public function edit(Request $request, Employee $employee): Response
     {
         $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
@@ -641,6 +673,7 @@ class EmployeeController extends Controller
         return to_route('employees.edit', [
             'employee' => $employee,
             'tab' => $tab,
+            'mode' => 'view',
         ])->with('success', 'Employee updated successfully.');
     }
 
@@ -648,7 +681,16 @@ class EmployeeController extends Controller
     {
         $employee->update($request->validated());
 
-        return to_route('employees.edit', $employee)->with('success', 'Private information updated.');
+        $tab = $request->input('tab');
+        if (! in_array($tab, ['employee_information', 'work_information', 'documents', 'private_information'], true)) {
+            $tab = 'private_information';
+        }
+
+        return to_route('employees.edit', [
+            'employee' => $employee,
+            'tab' => $tab,
+            'mode' => 'view',
+        ])->with('success', 'Private information updated.');
     }
 
     /**
@@ -760,5 +802,4 @@ class EmployeeController extends Controller
     {
         return str_replace(['\\', ';', ','], ['\\\\', '\;', '\,'], $value);
     }
-
 }

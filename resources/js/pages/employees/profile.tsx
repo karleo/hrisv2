@@ -53,7 +53,7 @@ type Employee = {
     phone?: string | null;
     mobile?: string | null;
     date_of_birth?: string | null;
-    gender?: 'Male' | 'Female' | 'Other' | null;
+    gender?: 'Male' | 'Female' | null;
     marital_status?: 'Single' | 'Married' | 'Other' | null;
     emergency_contact_name?: string | null;
     emergency_contact_phone?: string | null;

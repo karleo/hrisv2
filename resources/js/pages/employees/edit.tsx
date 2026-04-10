@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, Eye, ImagePlus, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Download, Eye, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import Heading from '@/components/heading';
@@ -44,6 +44,43 @@ type WorkTimetable = {
     name: string;
 };
 
+const employeeStatuses = [
+    'Employed',
+    'On Probation',
+    'Resigned',
+    'Serving Notice Period',
+    'Terminated',
+    'Absconded',
+    'Suspended',
+    'Employment Cancelled',
+] as const;
+
+const employeeStatusStyleMap: Record<(typeof employeeStatuses)[number], string> = {
+    Employed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300',
+    'On Probation': 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300',
+    Resigned: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300',
+    'Serving Notice Period': 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800/60 dark:bg-orange-950/50 dark:text-orange-300',
+    Terminated: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/50 dark:text-rose-300',
+    Absconded: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800/60 dark:bg-red-950/50 dark:text-red-300',
+    Suspended: 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800/60 dark:bg-purple-950/50 dark:text-purple-300',
+    'Employment Cancelled': 'border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300',
+};
+
+const employeeStatusDotStyleMap: Record<(typeof employeeStatuses)[number], string> = {
+    Employed: 'bg-emerald-500',
+    'On Probation': 'bg-amber-500',
+    Resigned: 'bg-slate-500',
+    'Serving Notice Period': 'bg-orange-500',
+    Terminated: 'bg-rose-500',
+    Absconded: 'bg-red-500',
+    Suspended: 'bg-purple-500',
+    'Employment Cancelled': 'bg-zinc-500',
+};
+
+const MAX_PREVIEW_PARSE_BYTES = 3 * 1024 * 1024;
+const MAX_PREVIEW_ROWS = 200;
+const MAX_PREVIEW_COLUMNS = 20;
+
 type Employee = {
     id: number;
     user_id: number | null;
@@ -62,13 +99,25 @@ type Employee = {
     photo_url: string | null;
     documents: EmployeeDocument[];
     work_timetable_id: number | null;
+    employee_status:
+        | 'Employed'
+        | 'Active'
+        | 'On Probation'
+        | 'Resigned'
+        | 'Serving Notice Period'
+        | 'Terminated'
+        | 'Absconded'
+        | 'Suspended'
+        | 'Employment Cancelled';
     work_timetable?: WorkTimetable | null;
     joining_date?: string | null;
     first_contract_date?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
     phone?: string | null;
     mobile?: string | null;
     date_of_birth?: string | null;
-    gender?: 'Male' | 'Female' | 'Other' | null;
+    gender?: 'Male' | 'Female' | null;
     marital_status?: 'Single' | 'Married' | 'Other' | null;
     emergency_contact_name?: string | null;
     emergency_contact_phone?: string | null;
@@ -112,6 +161,7 @@ export default function Edit({
     const [previewCsvRows, setPreviewCsvRows] = useState<string[][] | null>(null);
     const [joiningDate, setJoiningDate] = useState(employee.joining_date ?? '');
     const page = usePage();
+    const flash = (page.props as { flash?: { success?: string; error?: string } }).flash;
     const query = (page.props as { ziggy?: { query?: { tab?: string } } }).ziggy?.query;
     const tabFromQuery = query?.tab;
     const readOnlyView = viewMode;
@@ -124,6 +174,8 @@ export default function Edit({
             ? tabFromQuery
             : 'employee_information';
     const [tab, setTab] = useState<'employee_information' | 'work_information' | 'private_information' | 'documents'>(initialTab);
+    const normalizedEmployeeStatus =
+        employee.employee_status === 'Active' ? 'Employed' : employee.employee_status;
     const employeeDesignation =
         jobPositions.find((job) => job.id === employee.job_position_id)?.name ??
         '';
@@ -261,7 +313,7 @@ export default function Edit({
     }
 
     function isOfficeDocument(fileName: string): boolean {
-        return /\.(doc|docx|xls|xlsx)$/i.test(fileName);
+        return /\.(doc|docx|xls|xlsx|xslx)$/i.test(fileName);
     }
 
     function parseCsvText(text: string): string[][] {
@@ -360,7 +412,15 @@ export default function Edit({
                 return;
             }
 
-            if (/\.xlsx?$/i.test(file.name)) {
+            if (/\.(xls|xlsx|xslx)$/i.test(file.name)) {
+                if (file.size > MAX_PREVIEW_PARSE_BYTES) {
+                    setPreviewLocalDocument({
+                        ...basePreview,
+                        note: 'This Excel file is too large for in-app preview. Please open it in a new tab.',
+                    });
+                    return;
+                }
+
                 const XLSX = await import('xlsx');
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -374,13 +434,16 @@ export default function Edit({
                           raw: false,
                       })
                     : [];
+                const limitedRows = rows.slice(0, MAX_PREVIEW_ROWS);
                 setPreviewLocalDocument({
                     ...basePreview,
-                    excelRows: rows.map((r) =>
-                        r.map((cell) => (cell ?? '').toString())
+                    excelRows: limitedRows.map((r) =>
+                        r
+                            .slice(0, MAX_PREVIEW_COLUMNS)
+                            .map((cell) => (cell ?? '').toString())
                     ),
                     note: firstSheetName
-                        ? `Rendered from sheet: ${firstSheetName}`
+                        ? `Rendered from sheet: ${firstSheetName}${rows.length > MAX_PREVIEW_ROWS ? ` (showing first ${MAX_PREVIEW_ROWS} rows)` : ''}`
                         : 'Excel file has no sheets.',
                 });
                 return;
@@ -422,18 +485,58 @@ export default function Edit({
                     Back to Employees
                 </Link>
 
-                <Heading
-                    title={readOnlyView ? 'View Employee' : 'Edit Employee'}
-                    description={readOnlyView ? 'View employee details' : 'Update employee details'}
-                />
-
-                {readOnlyView ? (
-                    <div className="flex justify-end">
-                        <Link
-                            href={`${edit({ employee: employee.id }).url}?tab=${tab}`}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-start gap-3">
+                        <Heading
+                            title={readOnlyView ? 'View Employee' : 'Edit Employee'}
+                            description={readOnlyView ? 'View employee details' : 'Update employee details'}
+                        />
+                        <div
+                            className={`mt-0.5 inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium shadow-sm ${employeeStatusStyleMap[normalizedEmployeeStatus]}`}
                         >
-                            <Button type="button">Edit</Button>
-                        </Link>
+                            <span
+                                className={`size-2.5 rounded-full ${employeeStatusDotStyleMap[normalizedEmployeeStatus]}`}
+                            />
+                            <span className="text-[11px] uppercase tracking-wide opacity-80">
+                                Employment Status
+                            </span>
+                            <span className="font-semibold">
+                                {normalizedEmployeeStatus}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                        {readOnlyView ? (
+                            <Link
+                                href={`${edit({ employee: employee.id }).url}?tab=${tab}`}
+                            >
+                                <Button type="button">Edit</Button>
+                            </Link>
+                        ) : (
+                            <div className="flex flex-wrap items-center gap-3">
+                                <Button
+                                    type="submit"
+                                    form={tab === 'private_information' ? 'employee-private-form' : 'employee-main-form'}
+                                >
+                                    Save
+                                </Button>
+                                <Link href={index()}>
+                                    <Button type="button" variant="outline">
+                                        Cancel
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {flash?.success ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300">
+                        {flash.success}
+                    </div>
+                ) : null}
+                {flash?.error ? (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        {flash.error}
                     </div>
                 ) : null}
 
@@ -471,6 +574,7 @@ export default function Edit({
                 {tab !== 'private_information' ? (
                     <Form
                         {...EmployeeController.update.form(employee.id)}
+                        id="employee-main-form"
                         className="flex flex-1 flex-col gap-8"
                         encType="multipart/form-data"
                         onSuccess={() => {
@@ -487,7 +591,8 @@ export default function Edit({
                             }
                         }}
                     >
-                        {({ processing, errors }) => (
+                        {({ errors }) => (
+                            <>
                             <div className="grid flex-1 gap-6 lg:grid-cols-[280px_1fr] lg:items-start">
                             {/* Left column: Photo + Documents */}
                             <div className="flex flex-col gap-6">
@@ -818,24 +923,6 @@ export default function Edit({
                                         </div>
                                     </div>
 
-                                    {!readOnlyView ? (
-                                        <div className="flex gap-4 pt-4 border-t">
-                                            <Button
-                                                disabled={processing}
-                                                type="submit"
-                                            >
-                                                Save
-                                            </Button>
-                                            <Link href={index()}>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </Link>
-                                        </div>
-                                    ) : null}
                                 </fieldset>
                             </div>
 
@@ -882,52 +969,84 @@ export default function Edit({
                                             />
                                         </div>
                                     </div>
-
-                                    <div className="grid gap-2 md:max-w-sm">
-                                        <Label htmlFor="user_active">
-                                            Login Access
-                                        </Label>
-                                        <select
-                                            id="user_active"
-                                            name="user_active"
-                                            defaultValue={
-                                                hasLinkedUser
-                                                    ? employeeLoginActive === false
-                                                        ? '0'
-                                                        : '1'
-                                                    : ''
-                                            }
-                                            disabled={!hasLinkedUser}
-                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            <option value="1">Active (can login)</option>
-                                            <option value="0">Inactive (blocked from login)</option>
-                                        </select>
-                                        <InputError message={errors.user_active} />
-                                        {!hasLinkedUser ? (
-                                            <p className="text-xs text-muted-foreground">
-                                                This employee has no linked user account yet.
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                    {!readOnlyView ? (
-                                        <div className="flex gap-4 pt-4 border-t">
-                                            <Button
-                                                disabled={processing}
-                                                type="submit"
-                                            >
-                                                Save
-                                            </Button>
-                                            <Link href={index()}>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </Link>
+                                    <div className="grid gap-2 md:grid-cols-2 md:gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="start_date">
+                                                Start Date
+                                            </Label>
+                                            <Input
+                                                id="start_date"
+                                                name="start_date"
+                                                type="date"
+                                                defaultValue={employee.start_date ?? ''}
+                                            />
+                                            <InputError
+                                                message={errors.start_date}
+                                            />
                                         </div>
-                                    ) : null}
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="end_date">
+                                                End Date
+                                            </Label>
+                                            <Input
+                                                id="end_date"
+                                                name="end_date"
+                                                type="date"
+                                                defaultValue={employee.end_date ?? ''}
+                                            />
+                                            <InputError
+                                                message={errors.end_date}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user_active">
+                                                Login Access
+                                            </Label>
+                                            <select
+                                                id="user_active"
+                                                name="user_active"
+                                                defaultValue={
+                                                    hasLinkedUser
+                                                        ? employeeLoginActive === false
+                                                            ? '0'
+                                                            : '1'
+                                                        : ''
+                                                }
+                                                disabled={!hasLinkedUser}
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                <option value="1">Active (can login)</option>
+                                                <option value="0">Inactive (blocked from login)</option>
+                                            </select>
+                                            <InputError message={errors.user_active} />
+                                            {!hasLinkedUser ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    This employee has no linked user account yet.
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="employee_status">
+                                                Employee Status
+                                            </Label>
+                                            <select
+                                                id="employee_status"
+                                                name="employee_status"
+                                                defaultValue={normalizedEmployeeStatus}
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {employeeStatuses.map((status) => (
+                                                    <option key={status} value={status}>
+                                                        {status}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError message={errors.employee_status} />
+                                        </div>
+                                    </div>
                                 </fieldset>
                             </div>
 
@@ -986,6 +1105,20 @@ export default function Edit({
                                                 >
                                                     <Eye className="size-4" />
                                                 </Button>
+                                                <a
+                                                    href={getDocumentViewUrl(doc.id)}
+                                                    download={doc.original_name}
+                                                >
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-7 shrink-0"
+                                                        aria-label="Download document"
+                                                    >
+                                                        <Download className="size-4" />
+                                                    </Button>
+                                                </a>
                                                 {!readOnlyView ? (
                                                     <Button
                                                         type="button"
@@ -1114,6 +1247,30 @@ export default function Edit({
                                                                 >
                                                                     <Eye className="size-4" />
                                                                 </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-7"
+                                                                    aria-label="Download document"
+                                                                    onClick={() => {
+                                                                        const file = documentFiles[i];
+                                                                        if (!file) {
+                                                                            return;
+                                                                        }
+
+                                                                        const url = URL.createObjectURL(file);
+                                                                        const link = document.createElement('a');
+                                                                        link.href = url;
+                                                                        link.download = file.name;
+                                                                        document.body.appendChild(link);
+                                                                        link.click();
+                                                                        document.body.removeChild(link);
+                                                                        URL.revokeObjectURL(url);
+                                                                    }}
+                                                                >
+                                                                    <Download className="size-4" />
+                                                                </Button>
                                                             </div>
                                                         ) : null}
                                                     </div>
@@ -1129,37 +1286,21 @@ export default function Edit({
                                         errors['document_labels.0']
                                     }
                                 />
-                                {!readOnlyView ? (
-                                    <div className="mt-4 flex gap-4 border-t pt-4">
-                                        <Button
-                                            disabled={processing}
-                                            type="submit"
-                                        >
-                                            Save
-                                        </Button>
-                                        <Link href={index()}>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </Link>
-                                    </div>
-                                ) : null}
                             </div>
                             </div>
+                            </>
                         )}
                     </Form>
                 ) : null}
 
                 {tab === 'private_information' ? (
                     <Form
+                        id="employee-private-form"
                         action={`/employees/${employee.id}/private-information`}
                         method="patch"
                         className="grid flex-1 gap-6 lg:grid-cols-[280px_1fr] lg:items-start"
                     >
-                        {({ processing, errors }) => (
+                        {({ errors }) => (
                             <>
                             <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm lg:sticky lg:top-6">
                                 <div className="h-1.5 bg-gradient-to-r from-primary/80 via-primary/50 to-transparent" />
@@ -1253,7 +1394,6 @@ export default function Edit({
                                             <option value="">Select</option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
-                                            <option value="Other">Other</option>
                                         </select>
                                         <InputError message={errors.gender} />
                                     </div>
@@ -1278,20 +1418,12 @@ export default function Edit({
                                     </div>
                                 </div>
 
-                                <div className="grid gap-2">
+                                <div className="grid gap-2 md:max-w-sm">
                                     <Label htmlFor="emergency_contact_phone">Emergency Contact Phone</Label>
                                     <Input id="emergency_contact_phone" name="emergency_contact_phone" maxLength={50} defaultValue={employee.emergency_contact_phone ?? ''} />
                                     <InputError message={errors.emergency_contact_phone} />
                                 </div>
 
-                                {!readOnlyView ? (
-                                    <div className="flex gap-4 pt-4 border-t">
-                                        <Button disabled={processing} type="submit">Update</Button>
-                                        <Link href={index()}>
-                                            <Button type="button" variant="outline">Cancel</Button>
-                                        </Link>
-                                    </div>
-                                ) : null}
                             </fieldset>
                             </div>
                             </>

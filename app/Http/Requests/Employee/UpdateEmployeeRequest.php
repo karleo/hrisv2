@@ -10,6 +10,18 @@ use Illuminate\Validation\Rule;
 
 class UpdateEmployeeRequest extends FormRequest
 {
+    private const EMPLOYEE_STATUSES = [
+        'Employed',
+        'Active',
+        'On Probation',
+        'Resigned',
+        'Serving Notice Period',
+        'Terminated',
+        'Absconded',
+        'Suspended',
+        'Employment Cancelled',
+    ];
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -45,6 +57,9 @@ class UpdateEmployeeRequest extends FormRequest
             'work_timetable_id' => ['required', 'integer', 'exists:work_timetables,id'],
             'joining_date' => ['nullable', 'date'],
             'first_contract_date' => ['nullable', 'date'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'employee_status' => ['nullable', 'string', Rule::in(self::EMPLOYEE_STATUSES)],
             'user_active' => ['nullable', 'boolean'],
             'photo' => ['nullable', 'image', 'max:5120'],
             'documents' => ['nullable', 'array'],

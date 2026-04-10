@@ -14,11 +14,10 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
             'mobile' => ['required', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
             'date_of_birth' => ['required', 'date', 'before:today'],
-            'gender' => ['required', 'in:Male,Female,Other'],
+            'gender' => ['required', 'in:Male,Female'],
             'marital_status' => ['required', 'in:Single,Married,Other'],
             'emergency_contact_name' => ['required', 'string', 'max:255'],
             'emergency_contact_phone' => ['required', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
         ];
     }
 }
-

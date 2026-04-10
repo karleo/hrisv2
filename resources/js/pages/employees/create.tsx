@@ -41,6 +41,17 @@ type WorkTimetable = {
     name: string;
 };
 
+const employeeStatuses = [
+    'Employed',
+    'On Probation',
+    'Resigned',
+    'Serving Notice Period',
+    'Terminated',
+    'Absconded',
+    'Suspended',
+    'Employment Cancelled',
+] as const;
+
 export default function Create({
     departments,
     jobPositions,
@@ -677,6 +688,52 @@ export default function Create({
                                             />
                                         </div>
                                     </div>
+                                    <div className="grid gap-2 md:grid-cols-2 md:gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="start_date">
+                                                Start Date
+                                            </Label>
+                                            <Input
+                                                id="start_date"
+                                                name="start_date"
+                                                type="date"
+                                            />
+                                            <InputError
+                                                message={errors.start_date}
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="end_date">
+                                                End Date
+                                            </Label>
+                                            <Input
+                                                id="end_date"
+                                                name="end_date"
+                                                type="date"
+                                            />
+                                            <InputError
+                                                message={errors.end_date}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2 md:max-w-sm">
+                                        <Label htmlFor="employee_status">
+                                            Employee Status
+                                        </Label>
+                                        <select
+                                            id="employee_status"
+                                            name="employee_status"
+                                            defaultValue="Employed"
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {employeeStatuses.map((status) => (
+                                                <option key={status} value={status}>
+                                                    {status}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError message={errors.employee_status} />
+                                    </div>
                                 </CardContent>
                             </Card>
 
@@ -899,7 +956,6 @@ export default function Create({
                                                 <option value="">Select</option>
                                                 <option value="Male">Male</option>
                                                 <option value="Female">Female</option>
-                                                <option value="Other">Other</option>
                                             </select>
                                             <InputError message={errors.gender} />
                                         </div>
@@ -927,7 +983,7 @@ export default function Create({
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-2">
+                                    <div className="grid gap-2 md:max-w-sm">
                                         <Label htmlFor="emergency_contact_phone">Emergency Contact Phone</Label>
                                         <Input id="emergency_contact_phone" name="emergency_contact_phone" maxLength={50} />
                                         <InputError message={errors.emergency_contact_phone} />

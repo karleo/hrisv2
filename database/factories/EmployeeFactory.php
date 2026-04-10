@@ -38,6 +38,7 @@ class EmployeeFactory extends Factory
             'department_id' => Department::factory(),
             'job_position_id' => JobPosition::factory(),
             'work_timetable_id' => WorkTimetable::factory(),
+            'employee_status' => 'Employed',
         ];
     }
 }

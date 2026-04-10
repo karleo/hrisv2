@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use DateTimeInterface;
 use Illuminate\Support\Carbon;
 
 /**
@@ -27,6 +27,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $work_timetable_id
  * @property \Illuminate\Support\Carbon|null $joining_date
  * @property \Illuminate\Support\Carbon|null $first_contract_date
+ * @property \Illuminate\Support\Carbon|null $start_date
+ * @property \Illuminate\Support\Carbon|null $end_date
+ * @property string $employee_status
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -66,6 +69,9 @@ class Employee extends Model
         'work_timetable_id',
         'joining_date',
         'first_contract_date',
+        'start_date',
+        'end_date',
+        'employee_status',
     ];
 
     public function user(): BelongsTo
@@ -109,6 +115,8 @@ class Employee extends Model
             'date_of_birth' => 'date:Y-m-d',
             'joining_date' => 'date:Y-m-d',
             'first_contract_date' => 'date:Y-m-d',
+            'start_date' => 'date:Y-m-d',
+            'end_date' => 'date:Y-m-d',
         ];
     }
 

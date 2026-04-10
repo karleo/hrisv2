@@ -10,6 +10,18 @@ use Illuminate\Validation\Rule;
 
 class StoreEmployeeRequest extends FormRequest
 {
+    private const EMPLOYEE_STATUSES = [
+        'Employed',
+        'Active',
+        'On Probation',
+        'Resigned',
+        'Serving Notice Period',
+        'Terminated',
+        'Absconded',
+        'Suspended',
+        'Employment Cancelled',
+    ];
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -39,7 +51,7 @@ class StoreEmployeeRequest extends FormRequest
             'phone' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
             'mobile' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'gender' => ['nullable', 'in:Male,Female,Other'],
+            'gender' => ['nullable', 'in:Male,Female'],
             'marital_status' => ['nullable', 'in:Single,Married,Other'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_phone' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
@@ -49,6 +61,9 @@ class StoreEmployeeRequest extends FormRequest
             'work_timetable_id' => ['required', 'integer', 'exists:work_timetables,id'],
             'joining_date' => ['nullable', 'date'],
             'first_contract_date' => ['nullable', 'date'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'employee_status' => ['nullable', 'string', Rule::in(self::EMPLOYEE_STATUSES)],
             'photo' => ['nullable', 'image', 'max:5120'],
             'documents' => ['nullable', 'array'],
             'documents.*' => ['file', 'max:10240'],

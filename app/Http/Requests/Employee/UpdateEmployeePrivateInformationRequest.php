@@ -12,11 +12,10 @@ class UpdateEmployeePrivateInformationRequest extends FormRequest
             'phone' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
             'mobile' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'gender' => ['nullable', 'in:Male,Female,Other'],
+            'gender' => ['nullable', 'in:Male,Female'],
             'marital_status' => ['nullable', 'in:Single,Married,Other'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_phone' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],
         ];
     }
 }
-

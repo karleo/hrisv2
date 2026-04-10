@@ -102,6 +102,7 @@ class EmployeeTest extends TestCase
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
             'work_timetable_id' => $timetable->id,
+            'employee_status' => 'On Probation',
         ];
 
         $response = $this->post(route('employees.store'), $data);
@@ -117,6 +118,7 @@ class EmployeeTest extends TestCase
             'email_address' => 'john.doe@example.com',
             'work_timetable_id' => $timetable->id,
             'role' => 'Employee',
+            'employee_status' => 'On Probation',
         ]);
     }
 
@@ -282,6 +284,7 @@ class EmployeeTest extends TestCase
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
             'work_timetable_id' => $timetable->id,
+            'employee_status' => 'Serving Notice Period',
         ];
 
         $response = $this->patch(route('employees.update', $employee), $data);
