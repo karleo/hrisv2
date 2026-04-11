@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +21,11 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $users = User::query()
-            ->with(['role:id,name', 'employee:id,employee_code,first_name,last_name'])
+            ->with([
+                'role:id,name',
+                // user_id is required when constraining columns; omitting it breaks hydration.
+                'employee:id,user_id,employee_code,first_name,last_name',
+            ])
             ->when(
                 $request->filled('search'),
                 fn ($query) => $query->where(
@@ -60,6 +65,8 @@ class UserController extends Controller
         $employeeId = isset($data['employee_id']) ? (int) $data['employee_id'] : null;
         unset($data['employee_id']);
 
+        $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
+
         $user = User::query()->create($data);
 
         $this->syncEmployeeLink($user, $employeeId);
@@ -72,7 +79,10 @@ class UserController extends Controller
      */
     public function edit(User $user): Response
     {
-        $user->load(['role:id,name', 'employee:id,employee_code,first_name,last_name']);
+        $user->load([
+            'role:id,name',
+            'employee:id,user_id,employee_code,first_name,last_name',
+        ]);
 
         return Inertia::render('users/edit', [
             'user' => [
@@ -94,20 +104,30 @@ class UserController extends Controller
      */
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $data = $request->validated();
-        $employeeId = $data['employee_id'] ?? null;
-        $employeeId = $employeeId !== null ? (int) $employeeId : null;
+        $validated = $request->validated();
+
+        $employeeId = array_key_exists('employee_id', $validated)
+            ? $validated['employee_id']
+            : null;
+        $employeeId = $employeeId !== null && $employeeId !== ''
+            ? (int) $employeeId
+            : null;
+
+        $data = $validated;
         unset($data['employee_id']);
 
         if (empty($data['password'])) {
             unset($data['password']);
         }
 
-        $user->update($data);
+        $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
-        $this->syncEmployeeLink($user, $employeeId);
+        DB::transaction(function () use ($user, $data, $employeeId): void {
+            $user->update($data);
+            $this->syncEmployeeLink($user, $employeeId);
+        });
 
-        return back()->with('success', 'User updated.');
+        return to_route('users.edit', $user)->with('success', 'User updated.');
     }
 
     /**
@@ -135,5 +155,26 @@ class UserController extends Controller
         }
 
         Employee::query()->where('id', $employeeId)->update(['user_id' => $user->id]);
+    }
+
+    /**
+     * After login, Fortify sends users to the dashboard, which requires Dashboard module view.
+     * Users with no role cannot pass {@see User::hasModuleAbility()}; assign the seeded "basic" role instead.
+     */
+    private function resolvedRoleId(int|string|null $roleId): int
+    {
+        if ($roleId !== null && $roleId !== '') {
+            return (int) $roleId;
+        }
+
+        $id = Role::query()->where('slug', 'basic')->value('id');
+
+        if ($id === null) {
+            throw new \RuntimeException(
+                'The system role "basic" is missing. Run: php artisan db:seed --class=RoleSeeder'
+            );
+        }
+
+        return (int) $id;
     }
 }

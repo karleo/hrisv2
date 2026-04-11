@@ -43,6 +43,7 @@ class StoreEmployeeRequestRequest extends FormRequest
             'passport_ack_home_country' => ['nullable', 'string', 'max:255'],
             'passport_ack_departure_date_time' => ['nullable', 'string', 'max:255'],
             'passport_ack_home_country_departure_date_time' => ['nullable', 'string', 'max:255'],
+            'employee_signature_data_url' => ['nullable', 'string'],
         ];
     }
 }

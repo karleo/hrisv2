@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
-use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\EmployeeRequestController;
+use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\LeaveRequestController;
@@ -36,46 +36,48 @@ class EnforceModulePermissions
         }
 
         if ($route->getName() === 'dashboard') {
-            $requirement = [PermissionModule::Dashboard, ModuleAbility::View];
+            if ($user->hasModuleAbility(PermissionModule::Dashboard, ModuleAbility::View)) {
+                return $next($request);
+            }
+
+            if ($user->employee()->exists()) {
+                return redirect()->route('my-profile.show');
+            }
+
+            return redirect()->route('profile.edit');
+        }
+
+        $action = $route->getAction('controller');
+
+        if (is_array($action) && count($action) === 2) {
+            [$controller, $method] = $action;
+        } elseif (is_string($action)) {
+            $parts = explode('@', $action, 2);
+            $controller = $parts[0];
+            $method = $parts[1] ?? '__invoke';
         } else {
-            $action = $route->getAction('controller');
+            return $next($request);
+        }
 
-            if (is_array($action) && count($action) === 2) {
-                [$controller, $method] = $action;
-            } elseif (is_string($action)) {
-                $parts = explode('@', $action, 2);
-                $controller = $parts[0];
-                $method = $parts[1] ?? '__invoke';
-            } else {
-                return $next($request);
-            }
+        if (! is_string($controller) || ! is_string($method)) {
+            return $next($request);
+        }
 
-            if (! is_string($controller) || ! is_string($method)) {
-                return $next($request);
-            }
+        $requirement = ModulePermissionRegistry::forControllerAction($controller, $method);
 
-            $requirement = ModulePermissionRegistry::forControllerAction($controller, $method);
-
-            if ($requirement === null) {
-                return $next($request);
-            }
-
-            if ($user->hasModuleAbility($requirement[0], $requirement[1])) {
-                return $next($request);
-            }
-
-            if (self::allowsEmployeeSelfServiceTimeAttendance($user, $controller, $method)) {
-                return $next($request);
-            }
-
-            if (self::allowsScopedRequestWorkflowAccess($user, $controller, $method)) {
-                return $next($request);
-            }
-
-            abort(403);
+        if ($requirement === null) {
+            return $next($request);
         }
 
         if ($user->hasModuleAbility($requirement[0], $requirement[1])) {
+            return $next($request);
+        }
+
+        if (self::allowsEmployeeSelfServiceTimeAttendance($user, $controller, $method)) {
+            return $next($request);
+        }
+
+        if (self::allowsScopedRequestWorkflowAccess($user, $controller, $method)) {
             return $next($request);
         }
 

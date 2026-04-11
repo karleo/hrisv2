@@ -1,11 +1,19 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Printer, Send } from 'lucide-react';
+import { useState } from 'react';
 import {
     ItAssetRequestSignaturesCard,
     itAssetRequestShowSignatureVisitOnly,
 } from '@/components/it-asset-request-signatures-card';
+import {
+    approveRequiresIssuedBySignatureMessage,
+    rejectRequiresRemarksMessage,
+    RequestDecisionClientMessage,
+    visibleRequestDecisionMessage,
+} from '@/components/request-decision-client-message';
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -74,9 +82,23 @@ export default function Show({
     decisionUrl: string;
     canDecide: boolean;
 }) {
+    useRequestStatusPoll(['itAssetRequest', 'canDecide']);
+
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
-    const isDraft = normalizeRequestStatus(itAssetRequest.status) === 'draft';
+    const statusNorm = normalizeRequestStatus(itAssetRequest.status);
+    const isDraft = statusNorm === 'draft';
+    const [decisionClientMessage, setDecisionClientMessage] = useState<string | null>(null);
+    const visibleDecisionMessage = visibleRequestDecisionMessage(decisionClientMessage, {
+        hasIssuedBySignature: Boolean(itAssetRequest.issued_by_signature_url),
+    });
+    const issuedByReadonlyEmptyMessage = canDecide
+        ? undefined
+        : statusNorm === 'draft'
+          ? 'Available after the request is submitted.'
+          : statusNorm === 'submitted'
+            ? 'Awaiting IT or manager signature.'
+            : undefined;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Asset Requests', href: '/it-asset-requests' },
@@ -244,8 +266,9 @@ export default function Show({
                             employees={employees}
                             signaturesUrl={signaturesUrl}
                             visitOnly={itAssetRequestShowSignatureVisitOnly}
-                            allowEmployeeSignatureEdit={normalizeRequestStatus(itAssetRequest.status) === 'draft'}
-                            allowIssuedBySignatureEdit={normalizeRequestStatus(itAssetRequest.status) === 'submitted'}
+                            allowEmployeeSignatureEdit={statusNorm === 'draft'}
+                            allowIssuedBySignatureEdit={statusNorm === 'submitted' && canDecide}
+                            issuedByReadonlyEmptyMessage={issuedByReadonlyEmptyMessage}
                         />
                         {canDecide && normalizeRequestStatus(itAssetRequest.status) === 'submitted' ? (
                             <div className="rounded-xl border bg-background p-6 shadow-sm print:hidden">
@@ -260,13 +283,26 @@ export default function Show({
                                                     rows={3}
                                                     className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                                                     placeholder="Add reason when rejecting"
+                                                    onChange={() => setDecisionClientMessage(null)}
                                                 />
                                                 {errors.remarks ? (
                                                     <p className="mt-1 text-xs text-destructive">{errors.remarks}</p>
                                                 ) : null}
                                             </div>
+                                            <RequestDecisionClientMessage message={visibleDecisionMessage} />
                                             <div className="flex gap-2">
-                                                <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                                <Button
+                                                    type="submit"
+                                                    name="decision"
+                                                    value="approved"
+                                                    disabled={processing}
+                                                    onClick={(e) => {
+                                                        if (!itAssetRequest.issued_by_signature_url) {
+                                                            e.preventDefault();
+                                                            setDecisionClientMessage(approveRequiresIssuedBySignatureMessage);
+                                                        }
+                                                    }}
+                                                >
                                                     Approve
                                                 </Button>
                                                 <Button
@@ -280,7 +316,7 @@ export default function Show({
                                                         const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
                                                         if (remarks === '') {
                                                             e.preventDefault();
-                                                            window.alert('Please fill reason before rejecting.');
+                                                            setDecisionClientMessage(rejectRequiresRemarksMessage);
                                                         }
                                                     }}
                                                 >

@@ -103,6 +103,23 @@ class LeaveRequestTest extends TestCase
             ->component('leave-requests/create')
             ->has('employees')
             ->has('departments')
+            ->where('defaultEmployeeId', null)
+        );
+    }
+
+    public function test_create_includes_default_employee_id_when_user_is_linked_to_employee(): void
+    {
+        [$employee] = $this->createEmployeeAndDepartment();
+        $user = User::factory()->create();
+        $employee->update(['user_id' => $user->id]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('leave-requests.create'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('leave-requests/create')
+            ->where('defaultEmployeeId', $employee->id)
         );
     }
 

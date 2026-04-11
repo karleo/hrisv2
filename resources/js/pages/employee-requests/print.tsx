@@ -34,7 +34,6 @@ type EmployeeRequest = {
     department?: Department;
     job_position?: JobPosition;
     employee_signature_url?: string | null;
-    dept_head_signature_url?: string | null;
     ceo_signature_url?: string | null;
     approved_by_signature_url?: string | null;
     approved_by_name?: string;
@@ -439,23 +438,8 @@ export default function EmployeeRequestPrint({
                                 </p>
                             </div>
 
-                            <div className="mt-8 grid gap-5 sm:grid-cols-2 print:mt-4 print:gap-3">
-                                <div className="min-w-0">
-                                    <div className="flex min-h-16 items-end justify-center px-2 pb-1 print:min-h-10 print:pb-0">
-                                        {employeeRequest.dept_head_signature_url ? (
-                                            <img
-                                                src={employeeRequest.dept_head_signature_url}
-                                                alt=""
-                                                className="h-14 max-w-xs object-contain object-bottom print:h-9"
-                                            />
-                                        ) : null}
-                                    </div>
-                                    <div className="border-b border-neutral-800" />
-                                    <p className="mt-1 text-center text-xs font-medium text-[#3c4295] print:text-[10px]">
-                                        Dept Head signature
-                                    </p>
-                                </div>
-                                <div className="min-w-0">
+                            <div className="mt-8 print:mt-4">
+                                <div className="mx-auto max-w-xs">
                                     <div className="flex min-h-16 items-end justify-center px-2 pb-1 print:min-h-10 print:pb-0">
                                         {employeeRequest.ceo_signature_url ? (
                                             <img

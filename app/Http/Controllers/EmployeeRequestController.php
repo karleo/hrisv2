@@ -12,7 +12,9 @@ use App\Models\JobPosition;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
+use App\Support\RequestDecisionNotificationPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,9 +24,7 @@ use Inertia\Response;
 
 class EmployeeRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope)
-    {
-    }
+    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
 
     /**
      * Display a listing of the employee requests.
@@ -54,7 +54,7 @@ class EmployeeRequestController extends Controller
     /**
      * Show the form for creating a new employee request.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('employee-requests/create', [
             'employees' => Employee::query()
@@ -67,6 +67,7 @@ class EmployeeRequestController extends Controller
             'jobPositions' => JobPosition::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'defaultEmployeeId' => $request->user()?->employee?->id,
         ]);
     }
 
@@ -101,6 +102,14 @@ class EmployeeRequestController extends Controller
             'status' => 'draft',
         ]);
 
+        $signaturePath = $this->storeSignatureFromDataUrl(
+            $data['employee_signature_data_url'] ?? null,
+            "employee-requests/{$employeeRequest->id}/signatures"
+        );
+        if ($signaturePath !== null) {
+            $employeeRequest->update(['employee_signature' => $signaturePath]);
+        }
+
         return to_route('employee-requests.show', $employeeRequest);
     }
 
@@ -115,9 +124,6 @@ class EmployeeRequestController extends Controller
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
             : null;
-        $deptHeadSignatureUrl = $employee_request->dept_head_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->dept_head_signature, '/'))
-            : null;
         $ceoSignatureUrl = $employee_request->ceo_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->ceo_signature, '/'))
             : null;
@@ -128,7 +134,6 @@ class EmployeeRequestController extends Controller
         return Inertia::render('employee-requests/show', [
             'employeeRequest' => array_merge($employee_request->toArray(), [
                 'employee_signature_url' => $employeeSignatureUrl,
-                'dept_head_signature_url' => $deptHeadSignatureUrl,
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
@@ -154,6 +159,7 @@ class EmployeeRequestController extends Controller
         }
 
         $employee_request->update(['status' => 'submitted']);
+        $employee_request->loadMissing('employee');
         $this->notifyApprovers(
             request()->user(),
             $employee_request->department_id,
@@ -166,6 +172,7 @@ class EmployeeRequestController extends Controller
                     ? trim($employee_request->employee->first_name.' '.$employee_request->employee->last_name)
                     : 'Employee',
                 'route' => route('employee-requests.show', $employee_request),
+                'employee_photo_url' => EmployeePhotoUrl::forPublicDisk($employee_request->employee),
             ]
         );
 
@@ -185,6 +192,10 @@ class EmployeeRequestController extends Controller
             'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
         ]);
 
+        if ($validated['decision'] === 'approved' && blank($employee_request->approved_by_signature)) {
+            return redirect()->back()->with('error', 'Please save your manager or HR signature before approving this request.');
+        }
+
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
         $employee_request->update([
@@ -197,16 +208,19 @@ class EmployeeRequestController extends Controller
         $employee_request->loadMissing('employee.user');
         $requester = $employee_request->employee?->user;
         if ($requester !== null && $requester->id !== $request->user()?->id) {
-            $requester->notify(new RequestDecisionNotification([
-                'request_type' => 'employee_request',
-                'request_id' => $employee_request->id,
-                'request_code' => $employee_request->code,
-                'request_date' => (string) (optional($employee_request->date)->format('Y-m-d') ?? $employee_request->created_at?->format('Y-m-d') ?? ''),
-                'decision' => $validated['decision'],
-                'remarks' => $employee_request->decision_remarks,
-                'decided_at' => optional($employee_request->decided_at)?->toDateTimeString(),
-                'route' => route('employee-requests.show', $employee_request),
-            ]));
+            $requester->notify(new RequestDecisionNotification(
+                RequestDecisionNotificationPayload::make(
+                    'employee_request',
+                    $employee_request->id,
+                    $employee_request->code,
+                    (string) (optional($employee_request->date)->format('Y-m-d') ?? $employee_request->created_at?->format('Y-m-d') ?? ''),
+                    $validated['decision'],
+                    $employee_request->decision_remarks,
+                    $employee_request->decided_at,
+                    route('employee-requests.show', $employee_request),
+                    EmployeePhotoUrl::forPublicDisk($request->user()?->employee),
+                )
+            ));
         }
 
         return redirect()->back()->with('success', 'Decision submitted successfully.');
@@ -223,9 +237,6 @@ class EmployeeRequestController extends Controller
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
             : null;
-        $deptHeadSignatureUrl = $employee_request->dept_head_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->dept_head_signature, '/'))
-            : null;
         $ceoSignatureUrl = $employee_request->ceo_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->ceo_signature, '/'))
             : null;
@@ -236,7 +247,6 @@ class EmployeeRequestController extends Controller
         return Inertia::render('employee-requests/edit', [
             'employeeRequest' => array_merge($employee_request->toArray(), [
                 'employee_signature_url' => $employeeSignatureUrl,
-                'dept_head_signature_url' => $deptHeadSignatureUrl,
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
@@ -251,6 +261,7 @@ class EmployeeRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'signaturesUrl' => $this->employeeRequestSignaturesPostUrl($employee_request),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
         ]);
     }
 
@@ -303,7 +314,6 @@ class EmployeeRequestController extends Controller
         $companyLogoUrl = $this->publicStorageBrowserUrl($company?->logo);
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($employee_request->employee_signature);
-        $deptHeadSignatureUrl = $this->publicStorageBrowserUrl($employee_request->dept_head_signature);
         $ceoSignatureUrl = $this->publicStorageBrowserUrl($employee_request->ceo_signature);
         $approvedBySignatureUrl = $this->publicStorageBrowserUrl($employee_request->approved_by_signature);
 
@@ -315,7 +325,6 @@ class EmployeeRequestController extends Controller
         return Inertia::render('employee-requests/print', [
             'employeeRequest' => array_merge($employee_request->toArray(), [
                 'employee_signature_url' => $employeeSignatureUrl,
-                'dept_head_signature_url' => $deptHeadSignatureUrl,
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
                 'approved_by_name' => $approvedByName,
@@ -363,7 +372,6 @@ class EmployeeRequestController extends Controller
         $request->validate([
             'employee_signature' => ['nullable', 'image', 'max:2048'],
             'approved_by_signature' => ['nullable', 'image', 'max:2048'],
-            'dept_head_signature' => ['nullable', 'image', 'max:2048'],
             'ceo_signature' => ['nullable', 'image', 'max:2048'],
             'approved_by_employee_id' => ['nullable', 'integer', 'exists:'.Employee::class.',id'],
         ]);
@@ -392,17 +400,6 @@ class EmployeeRequestController extends Controller
             $updateData['approved_by_signature'] = $path;
         }
 
-        if ($request->hasFile('dept_head_signature')) {
-            if ($employee_request->dept_head_signature) {
-                Storage::disk('public')->delete($employee_request->dept_head_signature);
-            }
-            $path = $request->file('dept_head_signature')->store(
-                "employee-requests/{$employee_request->id}/signatures",
-                'public',
-            );
-            $updateData['dept_head_signature'] = $path;
-        }
-
         if ($request->hasFile('ceo_signature')) {
             if ($employee_request->ceo_signature) {
                 Storage::disk('public')->delete($employee_request->ceo_signature);
@@ -423,6 +420,27 @@ class EmployeeRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Signatures updated successfully.');
+    }
+
+    private function storeSignatureFromDataUrl(?string $dataUrl, string $directory): ?string
+    {
+        if ($dataUrl === null || $dataUrl === '') {
+            return null;
+        }
+
+        if (! preg_match('/^data:image\/png;base64,(.+)$/', $dataUrl, $matches)) {
+            return null;
+        }
+
+        $binary = base64_decode($matches[1], true);
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        $path = $directory.'/signature-'.uniqid().'.png';
+        Storage::disk('public')->put($path, $binary);
+
+        return $path;
     }
 
     /**

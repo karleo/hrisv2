@@ -12,7 +12,9 @@ use App\Models\ItAssetRequest;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
+use App\Support\RequestDecisionNotificationPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,9 +24,7 @@ use Inertia\Response;
 
 class ItAssetRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope)
-    {
-    }
+    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
 
     /**
      * Display a listing of the resource.
@@ -54,7 +54,7 @@ class ItAssetRequestController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('it-asset-requests/create', [
             'employees' => Employee::query()
@@ -67,6 +67,7 @@ class ItAssetRequestController extends Controller
             'hardware' => Hardware::query()
                 ->orderBy('name')
                 ->get(['id', 'code', 'name']),
+            'defaultEmployeeId' => $request->user()?->employee?->id,
         ]);
     }
 
@@ -140,6 +141,7 @@ class ItAssetRequestController extends Controller
         }
 
         $it_asset_request->update(['status' => 'submitted']);
+        $it_asset_request->loadMissing('employee');
         $this->notifyApprovers(
             request()->user(),
             $it_asset_request->department_id,
@@ -152,6 +154,7 @@ class ItAssetRequestController extends Controller
                     ? trim($it_asset_request->employee->first_name.' '.$it_asset_request->employee->last_name)
                     : 'Employee',
                 'route' => route('it-asset-requests.show', $it_asset_request),
+                'employee_photo_url' => EmployeePhotoUrl::forPublicDisk($it_asset_request->employee),
             ]
         );
 
@@ -171,6 +174,10 @@ class ItAssetRequestController extends Controller
             'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
         ]);
 
+        if ($validated['decision'] === 'approved' && blank($it_asset_request->issued_by_signature)) {
+            return redirect()->back()->with('error', 'Please save your issued-by signature before approving this request.');
+        }
+
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
         $it_asset_request->update([
@@ -183,16 +190,19 @@ class ItAssetRequestController extends Controller
         $it_asset_request->loadMissing('employee.user');
         $requester = $it_asset_request->employee?->user;
         if ($requester !== null && $requester->id !== $request->user()?->id) {
-            $requester->notify(new RequestDecisionNotification([
-                'request_type' => 'it_asset_request',
-                'request_id' => $it_asset_request->id,
-                'request_code' => $it_asset_request->code,
-                'request_date' => (string) (optional($it_asset_request->date)->format('Y-m-d') ?? $it_asset_request->created_at?->format('Y-m-d') ?? ''),
-                'decision' => $validated['decision'],
-                'remarks' => $it_asset_request->decision_remarks,
-                'decided_at' => optional($it_asset_request->decided_at)?->toDateTimeString(),
-                'route' => route('it-asset-requests.show', $it_asset_request),
-            ]));
+            $requester->notify(new RequestDecisionNotification(
+                RequestDecisionNotificationPayload::make(
+                    'it_asset_request',
+                    $it_asset_request->id,
+                    $it_asset_request->code,
+                    (string) (optional($it_asset_request->date)->format('Y-m-d') ?? $it_asset_request->created_at?->format('Y-m-d') ?? ''),
+                    $validated['decision'],
+                    $it_asset_request->decision_remarks,
+                    $it_asset_request->decided_at,
+                    route('it-asset-requests.show', $it_asset_request),
+                    EmployeePhotoUrl::forPublicDisk($request->user()?->employee),
+                )
+            ));
         }
 
         return redirect()->back()->with('success', 'Decision submitted successfully.');
@@ -255,6 +265,7 @@ class ItAssetRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'code', 'name']),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status),
         ]);
     }
 

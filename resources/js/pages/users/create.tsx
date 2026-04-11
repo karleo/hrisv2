@@ -24,6 +24,20 @@ type EmployeeOption = {
     user_id: number | null;
 };
 
+function toOptionalPositiveInt(value: unknown): number | null {
+    if (value === '' || value === null || value === undefined) {
+        return null;
+    }
+
+    const n = Number(value);
+
+    if (!Number.isInteger(n) || n < 1) {
+        return null;
+    }
+
+    return n;
+}
+
 function employeeLabel(
     e: EmployeeOption,
     options?: { forUserId?: number | null },
@@ -61,13 +75,12 @@ export default function Create({
     });
 
     transform((payload) => ({
-        ...payload,
-        role_id:
-            payload.role_id === '' ? null : Number(payload.role_id),
-        employee_id:
-            payload.employee_id === ''
-                ? null
-                : Number(payload.employee_id),
+        name: payload.name,
+        email: payload.email,
+        password: payload.password,
+        password_confirmation: payload.password_confirmation,
+        role_id: toOptionalPositiveInt(payload.role_id),
+        employee_id: toOptionalPositiveInt(payload.employee_id),
     }));
 
     return (
@@ -278,7 +291,9 @@ export default function Create({
                                     }
                                     className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">No role</option>
+                                    <option value="">
+                                        Basic access (dashboard — default)
+                                    </option>
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.id}>
                                             {r.name}

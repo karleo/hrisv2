@@ -1,13 +1,14 @@
+import type { ReactNode } from 'react';
 import { SignaturePad } from '@/components/signature-pad';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { ReactNode } from 'react';
 
 /** Partial reload after signature save on leave request show. */
 export const leaveRequestShowSignatureVisitOnly = [
     'leaveRequest',
     'submitUrl',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
     'employees',
@@ -18,6 +19,7 @@ export const itRequestShowSignatureVisitOnly = [
     'itRequest',
     'submitUrl',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
     'employees',
@@ -28,6 +30,7 @@ export const employeeRequestShowSignatureVisitOnly = [
     'employeeRequest',
     'submitUrl',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
     'employees',
@@ -39,6 +42,7 @@ export const leaveRequestEditSignatureVisitOnly = [
     'employees',
     'departments',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
 ] as const;
@@ -51,6 +55,7 @@ export const itRequestEditSignatureVisitOnly = [
     'software',
     'hardware',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
 ] as const;
@@ -62,6 +67,7 @@ export const employeeRequestEditSignatureVisitOnly = [
     'departments',
     'jobPositions',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
 ] as const;
@@ -88,8 +94,12 @@ export function RequestEmployeeSignatureCard({
     additionalSignatures?: Array<{
         label: string;
         signatureUrl: string | null;
-        fieldName: 'approved_by_signature' | 'dept_head_signature' | 'ceo_signature';
+        fieldName: 'approved_by_signature' | 'ceo_signature';
         editable?: boolean;
+        /** When not editable and there is no image yet (e.g. employee view while pending manager sign). */
+        emptyReadonlyMessage?: string;
+        /** Shown under this pad (e.g. approver name after decision). */
+        signerName?: string | null;
     }>;
     managerDecisionSlot?: ReactNode;
     allowEmployeeSignatureEdit?: boolean;
@@ -108,39 +118,44 @@ export function RequestEmployeeSignatureCard({
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
-                    {allowEmployeeSignatureEdit ? (
-                        <SignaturePad
-                            label="Employee signature"
-                            signatureUrl={signatureUrl}
-                            submitUrl={signaturesUrl}
-                            fieldName="employee_signature"
-                            visitOptions={{
-                                preserveScroll: true,
-                                preserveState: true,
-                                only,
-                            }}
-                        />
-                    ) : (
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium">Employee signature</p>
-                            {signatureUrl ? (
-                                <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
-                                    <img
-                                        src={signatureUrl}
-                                        alt="Employee signature"
-                                        className="absolute inset-0 h-full w-full object-contain object-left-top"
-                                        loading="eager"
-                                        decoding="async"
-                                    />
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">No employee signature on file.</p>
-                            )}
-                            <p className="text-xs text-muted-foreground">Locked after submission.</p>
-                        </div>
-                    )}
+                    <div className="min-w-0 space-y-2">
+                        {allowEmployeeSignatureEdit ? (
+                            <SignaturePad
+                                label="Employee signature"
+                                signatureUrl={signatureUrl}
+                                submitUrl={signaturesUrl}
+                                fieldName="employee_signature"
+                                visitOptions={{
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    only,
+                                }}
+                            />
+                        ) : (
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Employee signature</p>
+                                {signatureUrl ? (
+                                    <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                                        <img
+                                            src={signatureUrl}
+                                            alt="Employee signature"
+                                            className="absolute inset-0 h-full w-full object-contain object-left-top"
+                                            loading="eager"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No employee signature on file.</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">Locked after submission.</p>
+                            </div>
+                        )}
+                        {employeeName ? (
+                            <p className="text-xs text-muted-foreground">{employeeName}</p>
+                        ) : null}
+                    </div>
                     {managerSignature ? (
-                        <div className="space-y-3">
+                        <div className="min-w-0 space-y-3">
                             {managerSignature.editable === false ? (
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium">{managerSignature.label}</p>
@@ -155,22 +170,36 @@ export function RequestEmployeeSignatureCard({
                                             />
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">No signature on file.</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {managerSignature.emptyReadonlyMessage ?? 'No signature on file.'}
+                                        </p>
                                     )}
-                                    <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                                    {managerSignature.signatureUrl ? (
+                                        <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                                    ) : managerSignature.emptyReadonlyMessage ? null : (
+                                        <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                                    )}
+                                    {managerSignature.signerName ? (
+                                        <p className="text-xs text-muted-foreground">{managerSignature.signerName}</p>
+                                    ) : null}
                                 </div>
                             ) : (
-                                <SignaturePad
-                                    label={managerSignature.label}
-                                    signatureUrl={managerSignature.signatureUrl}
-                                    submitUrl={signaturesUrl}
-                                    fieldName={managerSignature.fieldName}
-                                    visitOptions={{
-                                        preserveScroll: true,
-                                        preserveState: true,
-                                        only,
-                                    }}
-                                />
+                                <>
+                                    <SignaturePad
+                                        label={managerSignature.label}
+                                        signatureUrl={managerSignature.signatureUrl}
+                                        submitUrl={signaturesUrl}
+                                        fieldName={managerSignature.fieldName}
+                                        visitOptions={{
+                                            preserveScroll: true,
+                                            preserveState: true,
+                                            only,
+                                        }}
+                                    />
+                                    {managerSignature.signerName ? (
+                                        <p className="text-xs text-muted-foreground">{managerSignature.signerName}</p>
+                                    ) : null}
+                                </>
                             )}
                             {managerDecisionSlot}
                         </div>
@@ -193,26 +222,38 @@ export function RequestEmployeeSignatureCard({
                                     />
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">No signature on file.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {signature.emptyReadonlyMessage ?? 'No signature on file.'}
+                                </p>
                             )}
-                            <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                            {signature.signatureUrl ? (
+                                <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                            ) : signature.emptyReadonlyMessage ? null : (
+                                <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                            )}
+                            {signature.signerName ? (
+                                <p className="text-xs text-muted-foreground">{signature.signerName}</p>
+                            ) : null}
                         </div>
                     ) : (
-                        <SignaturePad
-                            key={signature.fieldName}
-                            label={signature.label}
-                            signatureUrl={signature.signatureUrl}
-                            submitUrl={signaturesUrl}
-                            fieldName={signature.fieldName}
-                            visitOptions={{
-                                preserveScroll: true,
-                                preserveState: true,
-                                only,
-                            }}
-                        />
+                        <div key={signature.fieldName} className="space-y-2">
+                            <SignaturePad
+                                label={signature.label}
+                                signatureUrl={signature.signatureUrl}
+                                submitUrl={signaturesUrl}
+                                fieldName={signature.fieldName}
+                                visitOptions={{
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    only,
+                                }}
+                            />
+                            {signature.signerName ? (
+                                <p className="text-xs text-muted-foreground">{signature.signerName}</p>
+                            ) : null}
+                        </div>
                     )
                 ))}
-                {employeeName ? <p className="text-xs text-muted-foreground">{employeeName}</p> : null}
             </CardContent>
         </Card>
     );

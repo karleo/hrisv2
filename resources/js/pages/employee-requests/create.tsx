@@ -1,19 +1,19 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Briefcase, Calendar, Plane, Send, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
+import InputError from '@/components/input-error';
+import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/employee-requests';
@@ -88,11 +88,16 @@ export default function Create({
     employees,
     departments,
     jobPositions,
+    defaultEmployeeId = null,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     jobPositions: JobPositionOption[];
+    defaultEmployeeId?: number | null;
 }) {
+    const initialEmployee =
+        defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
+
     const { data, setData, post, processing, errors } = useForm<{
         employee_id: number | '';
         job_position_id: number | '';
@@ -114,10 +119,11 @@ export default function Create({
         passport_ack_home_country: string;
         passport_ack_departure_date_time: string;
         passport_ack_home_country_departure_date_time: string;
+        employee_signature_data_url: string;
     }>({
-        employee_id: '',
-        job_position_id: '',
-        department_id: '',
+        employee_id: initialEmployee?.id ?? '',
+        job_position_id: initialEmployee?.job_position_id ?? '',
+        department_id: initialEmployee?.department_id ?? '',
         date: getTodayYmd(),
         date_of_joining: getTodayYmd(),
         departure_date: '',
@@ -135,6 +141,7 @@ export default function Create({
         passport_ack_home_country: '',
         passport_ack_departure_date_time: '',
         passport_ack_home_country_departure_date_time: '',
+        employee_signature_data_url: '',
     });
 
     const saveDraft = (e: React.FormEvent) => {
@@ -236,6 +243,9 @@ export default function Create({
                         onSubmit={(e) => e.preventDefault()}
                     >
                         <div className="grid gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-3">
+                                <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
+                            </div>
                             {/* Left Column - Main Form */}
                             <div className="lg:col-span-2 space-y-6">
                                 <Card>
@@ -845,6 +855,25 @@ export default function Create({
                                                     </div>
                                                 </div>
                                             )}
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Employee signature</CardTitle>
+                                            <CardDescription>
+                                                Draw and click Save signature; it is stored when you save the draft.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            <SignaturePad
+                                                label="Employee signature"
+                                                initialImageUrl={null}
+                                                onChange={(dataUrl) =>
+                                                    setData('employee_signature_data_url', dataUrl ?? '')
+                                                }
+                                            />
+                                            <InputError message={errors.employee_signature_data_url} />
                                         </CardContent>
                                     </Card>
 

@@ -1,14 +1,66 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, CircleAlert, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+
+const userEditFieldLabels: Record<string, string> = {
+    name: 'Name',
+    email: 'Email',
+    password: 'New password',
+    password_confirmation: 'Confirm new password',
+    role_id: 'Role',
+    employee_id: 'Employee',
+};
+
+type FormErrors = Record<string, string | string[] | undefined>;
+
+function flattenFormErrors(errors: FormErrors): { field: string; message: string }[] {
+    return Object.entries(errors).flatMap(([field, value]) => {
+        if (value === undefined || value === '') {
+            return [];
+        }
+
+        const messages = Array.isArray(value) ? value : [value];
+
+        return messages.map((message) => ({
+            field,
+            message,
+        }));
+    });
+}
+
+/**
+ * Coerce select values for optional FK ids. Avoids Number(null) => 0 and keeps
+ * keys present in the JSON payload so the server always receives employee_id / role_id.
+ */
+function toOptionalPositiveInt(value: unknown): number | null {
+    if (value === '' || value === null || value === undefined) {
+        return null;
+    }
+
+    const n = Number(value);
+
+    if (!Number.isInteger(n) || n < 1) {
+        return null;
+    }
+
+    return n;
+}
 
 type RoleOption = {
     id: number;
@@ -43,7 +95,7 @@ function employeeLabel(
     return `${base} (linked)`;
 }
 
-export default function Edit({
+function UserEditForm({
     user,
     roles,
     employees,
@@ -55,14 +107,13 @@ export default function Edit({
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] =
         useState(false);
-
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Users', href: '/users' },
-        {
-            title: user.name,
-            href: `/users/${user.id}/edit`,
-        },
-    ];
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+    const [dialogErrorLines, setDialogErrorLines] = useState<
+        { field: string; message: string }[]
+    >([]);
+    const { flash } = usePage().props as {
+        flash?: { success?: string; error?: string };
+    };
 
     const { data, setData, put, processing, errors, transform } = useForm({
         name: user.name,
@@ -73,9 +124,82 @@ export default function Edit({
         employee_id: user.employee_id?.toString() ?? '',
     });
 
+    transform((payload) => {
+        const base = {
+            name: payload.name,
+            email: payload.email,
+            role_id: toOptionalPositiveInt(payload.role_id),
+            employee_id: toOptionalPositiveInt(payload.employee_id),
+        };
+
+        if (payload.password === '') {
+            return base;
+        }
+
+        return {
+            ...base,
+            password: payload.password,
+            password_confirmation: payload.password_confirmation,
+        };
+    });
+
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Edit ${user.name}`} />
+        <>
+            <Dialog
+                open={validationDialogOpen}
+                onOpenChange={setValidationDialogOpen}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <CircleAlert
+                                className="text-destructive size-5 shrink-0"
+                                aria-hidden
+                            />
+                            Could not save changes
+                        </DialogTitle>
+                        <DialogDescription asChild>
+                            <div className="text-muted-foreground space-y-3 text-sm">
+                                <p>
+                                    Please fix the following and try again.
+                                </p>
+                                <ul className="border-border list-inside list-disc space-y-1.5 border-l-2 pl-3">
+                                    {dialogErrorLines.length > 0 ? (
+                                        dialogErrorLines.map(
+                                            ({ field, message }) => (
+                                                <li
+                                                    key={`${field}-${message}`}
+                                                >
+                                                    <span className="font-medium text-foreground">
+                                                        {userEditFieldLabels[
+                                                            field
+                                                        ] ?? field}
+                                                        :{' '}
+                                                    </span>
+                                                    {message}
+                                                </li>
+                                            ),
+                                        )
+                                    ) : (
+                                        <li>
+                                            Check the highlighted fields below
+                                            for details.
+                                        </li>
+                                    )}
+                                </ul>
+                            </div>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() => setValidationDialogOpen(false)}
+                        >
+                            OK
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex min-h-[calc(100vh-8rem)] w-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6 lg:p-8">
                 <Link
@@ -91,41 +215,44 @@ export default function Edit({
                     description="Update account details or change the linked employee."
                 />
 
+                {flash?.success ? (
+                    <p
+                        role="status"
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200"
+                    >
+                        {flash.success}
+                    </p>
+                ) : null}
+                {flash?.error ? (
+                    <p
+                        role="alert"
+                        className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                    >
+                        {flash.error}
+                    </p>
+                ) : null}
+
                 <form
                     className="flex w-full min-w-0 flex-1 flex-col"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        transform((payload) => {
-                            const roleId =
-                                payload.role_id === ''
-                                    ? null
-                                    : Number(payload.role_id);
-                            const employeeId =
-                                payload.employee_id === ''
-                                    ? null
-                                    : Number(payload.employee_id);
-
-                            if (payload.password === '') {
-                                const {
-                                    password: _p,
-                                    password_confirmation: _c,
-                                    ...rest
-                                } = payload;
-
-                                return {
-                                    ...rest,
-                                    role_id: roleId,
-                                    employee_id: employeeId,
-                                };
-                            }
-
-                            return {
-                                ...payload,
-                                role_id: roleId,
-                                employee_id: employeeId,
-                            };
+                        put(`/users/${user.id}`, {
+                            preserveScroll: true,
+                            onError: (pageErrors) => {
+                                setDialogErrorLines(
+                                    flattenFormErrors(
+                                        pageErrors as FormErrors,
+                                    ),
+                                );
+                                setValidationDialogOpen(true);
+                            },
+                            onSuccess: () => {
+                                setValidationDialogOpen(false);
+                                setDialogErrorLines([]);
+                                setData('password', '');
+                                setData('password_confirmation', '');
+                            },
                         });
-                        put(`/users/${user.id}`, { preserveScroll: true });
                     }}
                 >
                     <Card className="min-h-0 w-full flex-1">
@@ -147,7 +274,7 @@ export default function Edit({
                                         onChange={(e) =>
                                             setData('name', e.target.value)
                                         }
-                                        required
+                                        aria-invalid={Boolean(errors.name)}
                                         maxLength={255}
                                         autoComplete="name"
                                     />
@@ -168,7 +295,7 @@ export default function Edit({
                                         onChange={(e) =>
                                             setData('email', e.target.value)
                                         }
-                                        required
+                                        aria-invalid={Boolean(errors.email)}
                                         maxLength={255}
                                         autoComplete="email"
                                     />
@@ -196,6 +323,9 @@ export default function Edit({
                                                     e.target.value,
                                                 )
                                             }
+                                            aria-invalid={Boolean(
+                                                errors.password,
+                                            )}
                                             autoComplete="new-password"
                                             className="pr-10"
                                         />
@@ -247,6 +377,9 @@ export default function Edit({
                                                     e.target.value,
                                                 )
                                             }
+                                            aria-invalid={Boolean(
+                                                errors.password_confirmation,
+                                            )}
                                             autoComplete="new-password"
                                             className="pr-10"
                                         />
@@ -301,9 +434,12 @@ export default function Edit({
                                     onChange={(e) =>
                                         setData('role_id', e.target.value)
                                     }
+                                    aria-invalid={Boolean(errors.role_id)}
                                     className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">No role</option>
+                                    <option value="">
+                                        Basic access (dashboard — default)
+                                    </option>
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.id}>
                                             {r.name}
@@ -326,6 +462,7 @@ export default function Edit({
                                     onChange={(e) =>
                                         setData('employee_id', e.target.value)
                                     }
+                                    aria-invalid={Boolean(errors.employee_id)}
                                     className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     <option value="">None</option>
@@ -356,6 +493,39 @@ export default function Edit({
                     </Card>
                 </form>
             </div>
+        </>
+    );
+}
+
+export default function Edit({
+    user,
+    roles,
+    employees,
+}: {
+    user: UserEdit;
+    roles: RoleOption[];
+    employees: EmployeeOption[];
+}) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Users', href: '/users' },
+        {
+            title: user.name,
+            href: `/users/${user.id}/edit`,
+        },
+    ];
+
+    const formVersionKey = `${user.id}-${user.employee_id ?? 'none'}-${user.role_id ?? 'none'}-${user.name}-${user.email}`;
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`Edit ${user.name}`} />
+
+            <UserEditForm
+                key={formVersionKey}
+                user={user}
+                roles={roles}
+                employees={employees}
+            />
         </AppLayout>
     );
 }

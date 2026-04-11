@@ -62,6 +62,10 @@ class UserCrudTest extends TestCase
         $user = User::query()->where('email', 'new.user@example.com')->first();
         $this->assertNotNull($user);
         $this->assertTrue(Hash::check('Password123!', $user->password));
+        $this->assertSame(
+            Role::query()->where('slug', 'basic')->value('id'),
+            $user->role_id,
+        );
 
         $employee->refresh();
         $this->assertSame($user->id, $employee->user_id);
@@ -81,6 +85,28 @@ class UserCrudTest extends TestCase
         $user = User::query()->where('email', 'solo@example.com')->first();
         $this->assertNotNull($user);
         $this->assertNull($user->employee);
+        $this->assertSame(
+            Role::query()->where('slug', 'basic')->value('id'),
+            $user->role_id,
+        );
+    }
+
+    public function test_user_created_without_role_can_open_dashboard_after_login(): void
+    {
+        $this->post(route('users.store'), [
+            'name' => 'Dashboard User',
+            'email' => 'dash.user@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role_id' => null,
+            'employee_id' => null,
+        ])->assertSessionHasNoErrors();
+
+        $user = User::query()->where('email', 'dash.user@example.com')->firstOrFail();
+
+        $this->actingAs($user);
+
+        $this->get(route('dashboard'))->assertOk();
     }
 
     public function test_create_user_rejects_common_password(): void
@@ -131,6 +157,65 @@ class UserCrudTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $actor->id]);
     }
 
+    public function test_update_user_shows_validation_errors_for_invalid_payload(): void
+    {
+        $targetUser = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $this->from(route('users.edit', $targetUser))
+            ->put(route('users.update', $targetUser), [
+                'name' => '',
+                'email' => 'not-valid-email',
+                'password' => '',
+                'password_confirmation' => '',
+                'role_id' => null,
+                'employee_id' => null,
+            ])
+            ->assertRedirect(route('users.edit', $targetUser))
+            ->assertSessionHasErrors(['name', 'email']);
+    }
+
+    public function test_update_user_persists_employee_link(): void
+    {
+        $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
+
+        $targetUser = User::factory()->create([
+            'email_verified_at' => now(),
+            'email' => 'linkme@example.com',
+            'name' => 'Link Me',
+        ]);
+
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'user_id' => null,
+        ]);
+
+        $this->from(route('users.edit', $targetUser))
+            ->put(route('users.update', $targetUser), [
+                'name' => 'Link Me',
+                'email' => 'linkme@example.com',
+                'password' => '',
+                'password_confirmation' => '',
+                'role_id' => null,
+                'employee_id' => $employee->id,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('users.edit', $targetUser));
+
+        $employee->refresh();
+        $this->assertSame($targetUser->id, $employee->user_id);
+
+        $targetUser->refresh();
+        $targetUser->load([
+            'employee:id,user_id,employee_code,first_name,last_name',
+        ]);
+        $this->assertNotNull($targetUser->employee);
+        $this->assertSame($employee->id, $targetUser->employee->id);
+    }
+
     public function test_administrator_can_update_user_linked_employee(): void
     {
         $department = Department::factory()->create();
@@ -163,6 +248,7 @@ class UserCrudTest extends TestCase
         ]);
 
         $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('users.edit', $targetUser));
 
         $employeeA->refresh();
         $employeeB->refresh();

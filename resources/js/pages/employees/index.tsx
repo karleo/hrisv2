@@ -113,11 +113,14 @@ function AvatarInitial({
     photoUrl,
     sizeClass = 'size-8',
     roundedClass = 'rounded-full',
+    initialTextClassName = 'text-sm',
 }: {
     name: string;
     photoUrl?: string | null;
     sizeClass?: string;
     roundedClass?: string;
+    /** Typography for the letter fallback (match larger `sizeClass` on grid cards). */
+    initialTextClassName?: string;
 }) {
     const initial = name.trim().slice(0, 1).toUpperCase() || '?';
     return (
@@ -126,7 +129,7 @@ function AvatarInitial({
                 <img src={photoUrl} alt={name} className="size-full object-cover" />
             ) : (
                 <span
-                    className="flex size-full items-center justify-center bg-primary/10 text-sm font-medium text-primary"
+                    className={`flex size-full items-center justify-center bg-primary/10 font-medium text-primary ${initialTextClassName}`}
                     aria-hidden
                 >
                     {initial}
@@ -158,7 +161,7 @@ export default function Index({
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const [businessCardEmployee, setBusinessCardEmployee] = useState<Employee | null>(null);
     const [groupMode, setGroupMode] = useState<'none' | 'department' | 'manager'>('none');
-    const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+    const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({
         file: null,
@@ -207,6 +210,10 @@ export default function Index({
             preserveScroll: true,
             replace: true,
         });
+    }
+
+    function openEmployeeView(employeeId: number) {
+        router.visit(`${edit({ employee: employeeId }).url}?mode=view`);
     }
 
     return (
@@ -777,24 +784,37 @@ export default function Index({
                                             const departmentName = employee.department?.name ?? 'Undefined';
 
                                             return (
-                                                <Card key={employee.id} className="overflow-hidden rounded-2xl border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                                                    <div className="relative h-14 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent">
+                                                <Card
+                                                    key={employee.id}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => openEmployeeView(employee.id)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            openEmployeeView(employee.id);
+                                                        }
+                                                    }}
+                                                    className="cursor-pointer overflow-hidden rounded-2xl border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                >
+                                                    <div className="relative h-14 bg-gradient-to-r from-primary/38 via-primary/18 to-transparent dark:from-primary/44 dark:via-primary/24">
                                                         <span className="absolute right-3 top-2 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                                                             {employee.employee_code}
                                                         </span>
                                                     </div>
                                                     <CardContent className="relative pt-0">
-                                                        <div className="-mt-8 flex justify-center">
-                                                            <div className="rounded-full border-2 border-background shadow-sm">
+                                                        <div className="-mt-10 flex justify-center">
+                                                            <div className="rounded-lg border-2 border-background shadow-sm">
                                                                 <AvatarInitial
                                                                     name={`${employee.first_name} ${employee.last_name}`}
                                                                     photoUrl={employee.photo_url}
-                                                                    sizeClass="h-16 w-14"
+                                                                    sizeClass="h-24 w-20"
                                                                     roundedClass="rounded-lg"
+                                                                    initialTextClassName="text-lg"
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="mt-2 space-y-2 text-center">
+                                                        <div className="mt-1.5 space-y-2 text-center">
                                                             <p className="text-base font-semibold leading-none">
                                                                 {employee.first_name} {employee.last_name}
                                                             </p>
@@ -811,7 +831,11 @@ export default function Index({
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-4 flex justify-center gap-1 border-t pt-3">
+                                                        <div
+                                                            className="mt-4 flex justify-center gap-1 border-t pt-3"
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            onKeyDown={(event) => event.stopPropagation()}
+                                                        >
                                                             <Link href={`${edit({ employee: employee.id }).url}?mode=view`}>
                                                                 <Button variant="ghost" size="icon" className="size-8 rounded-md">
                                                                     <Eye className="size-4" />

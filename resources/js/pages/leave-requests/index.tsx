@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import {
     CalendarDays,
     CheckCircle2,
@@ -150,6 +151,8 @@ export default function LeaveRequestsIndex({
     departments: Department[];
     stats: LeaveStats;
 }) {
+    useRequestStatusPoll(['leaveRequests', 'stats']);
+
     const { data: items } = leaveRequests;
 
     const persistQuery = useMemo(() => {

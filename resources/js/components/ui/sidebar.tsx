@@ -138,7 +138,9 @@ function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+            "group/sidebar-wrapper flex min-h-svh w-full",
+            "has-data-[variant=inset]:bg-gradient-to-br has-data-[variant=inset]:from-slate-50 has-data-[variant=inset]:via-background has-data-[variant=inset]:to-violet-100/50",
+            "dark:has-data-[variant=inset]:from-slate-950 dark:has-data-[variant=inset]:via-background dark:has-data-[variant=inset]:to-violet-950/25",
             className
           )}
           {...props}
@@ -190,7 +192,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="w-(--sidebar-width) border-white/30 bg-white/75 p-0 text-sidebar-foreground shadow-2xl backdrop-blur-2xl dark:border-white/15 dark:bg-white/12 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -240,7 +242,12 @@ function Sidebar({
       >
         <div
           data-sidebar="sidebar"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className={cn(
+            "flex h-full w-full flex-col",
+            "group-data-[variant=sidebar]:bg-sidebar",
+            "group-data-[variant=floating]:rounded-xl group-data-[variant=floating]:border group-data-[variant=floating]:border-white/40 group-data-[variant=floating]:bg-white/60 group-data-[variant=floating]:shadow-xl group-data-[variant=floating]:backdrop-blur-2xl dark:group-data-[variant=floating]:border-white/15 dark:group-data-[variant=floating]:bg-white/10 dark:group-data-[variant=floating]:shadow-black/30",
+            "group-data-[variant=inset]:rounded-2xl group-data-[variant=inset]:border group-data-[variant=inset]:border-white/45 group-data-[variant=inset]:bg-white/65 group-data-[variant=inset]:shadow-xl group-data-[variant=inset]:shadow-slate-900/10 group-data-[variant=inset]:backdrop-blur-2xl dark:group-data-[variant=inset]:border-white/15 dark:group-data-[variant=inset]:bg-white/12 dark:group-data-[variant=inset]:shadow-black/40",
+          )}
         >
           {children}
         </div>

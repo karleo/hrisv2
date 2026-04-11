@@ -11,7 +11,9 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
+use App\Support\RequestDecisionNotificationPayload;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,9 +25,7 @@ use Inertia\Response;
 
 class LeaveRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope)
-    {
-    }
+    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
 
     /**
      * Display a listing of the leave requests.
@@ -122,7 +122,7 @@ class LeaveRequestController extends Controller
     /**
      * Show the form for creating a new leave request.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('leave-requests/create', [
             'employees' => Employee::query()
@@ -133,6 +133,7 @@ class LeaveRequestController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'defaultEmployeeId' => $request->user()?->employee?->id,
         ]);
     }
 
@@ -211,6 +212,7 @@ class LeaveRequestController extends Controller
         }
 
         $leave_request->update(['status' => 'submitted']);
+        $leave_request->loadMissing('employee');
         $this->notifyApprovers(
             request()->user(),
             $leave_request->department_id,
@@ -223,6 +225,7 @@ class LeaveRequestController extends Controller
                     ? trim($leave_request->employee->first_name.' '.$leave_request->employee->last_name)
                     : 'Employee',
                 'route' => route('leave-requests.show', $leave_request),
+                'employee_photo_url' => EmployeePhotoUrl::forPublicDisk($leave_request->employee),
             ]
         );
 
@@ -242,6 +245,10 @@ class LeaveRequestController extends Controller
             'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
         ]);
 
+        if ($validated['decision'] === 'approved' && blank($leave_request->approved_by_signature)) {
+            return redirect()->back()->with('error', 'Please save your manager or HR signature before approving this request.');
+        }
+
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
         $leave_request->update([
@@ -254,16 +261,19 @@ class LeaveRequestController extends Controller
         $leave_request->loadMissing('employee.user');
         $requester = $leave_request->employee?->user;
         if ($requester !== null && $requester->id !== $request->user()?->id) {
-            $requester->notify(new RequestDecisionNotification([
-                'request_type' => 'leave_request',
-                'request_id' => $leave_request->id,
-                'request_code' => $leave_request->code,
-                'request_date' => (string) ($leave_request->date ?? $leave_request->created_at?->format('Y-m-d') ?? ''),
-                'decision' => $validated['decision'],
-                'remarks' => $leave_request->decision_remarks,
-                'decided_at' => optional($leave_request->decided_at)?->toDateTimeString(),
-                'route' => route('leave-requests.show', $leave_request),
-            ]));
+            $requester->notify(new RequestDecisionNotification(
+                RequestDecisionNotificationPayload::make(
+                    'leave_request',
+                    $leave_request->id,
+                    $leave_request->code,
+                    (string) ($leave_request->date ?? $leave_request->created_at?->format('Y-m-d') ?? ''),
+                    $validated['decision'],
+                    $leave_request->decision_remarks,
+                    $leave_request->decided_at,
+                    route('leave-requests.show', $leave_request),
+                    EmployeePhotoUrl::forPublicDisk($request->user()?->employee),
+                )
+            ));
         }
 
         return redirect()->back()->with('success', 'Decision submitted successfully.');
@@ -296,6 +306,7 @@ class LeaveRequestController extends Controller
                 ->get(['id', 'name']),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
         ]);
     }
 

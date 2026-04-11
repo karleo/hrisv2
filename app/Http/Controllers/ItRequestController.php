@@ -13,7 +13,9 @@ use App\Models\Software;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
+use App\Support\RequestDecisionNotificationPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -23,9 +25,7 @@ use Inertia\Response;
 
 class ItRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope)
-    {
-    }
+    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
 
     /**
      * Display a listing of the IT requests.
@@ -55,7 +55,7 @@ class ItRequestController extends Controller
     /**
      * Show the form for creating a new IT request.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('it-requests/create', [
             'employees' => Employee::query()
@@ -71,6 +71,7 @@ class ItRequestController extends Controller
             'hardware' => Hardware::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
+            'defaultEmployeeId' => $request->user()?->employee?->id,
         ]);
     }
 
@@ -137,6 +138,7 @@ class ItRequestController extends Controller
         }
 
         $it_request->update(['status' => 'submitted']);
+        $it_request->loadMissing('employee');
         $this->notifyApprovers(
             request()->user(),
             $it_request->department_id,
@@ -149,6 +151,7 @@ class ItRequestController extends Controller
                     ? trim($it_request->employee->first_name.' '.$it_request->employee->last_name)
                     : 'Employee',
                 'route' => route('it-requests.show', $it_request),
+                'employee_photo_url' => EmployeePhotoUrl::forPublicDisk($it_request->employee),
             ]
         );
 
@@ -168,6 +171,10 @@ class ItRequestController extends Controller
             'remarks' => ['nullable', 'string', 'max:2000', 'required_if:decision,rejected'],
         ]);
 
+        if ($validated['decision'] === 'approved' && blank($it_request->approved_by_signature)) {
+            return redirect()->back()->with('error', 'Please save your manager or HR signature before approving this request.');
+        }
+
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
         $it_request->update([
@@ -180,16 +187,19 @@ class ItRequestController extends Controller
         $it_request->loadMissing('employee.user');
         $requester = $it_request->employee?->user;
         if ($requester !== null && $requester->id !== $request->user()?->id) {
-            $requester->notify(new RequestDecisionNotification([
-                'request_type' => 'it_request',
-                'request_id' => $it_request->id,
-                'request_code' => (string) $it_request->id,
-                'request_date' => (string) (optional($it_request->date)->format('Y-m-d') ?? $it_request->created_at?->format('Y-m-d') ?? ''),
-                'decision' => $validated['decision'],
-                'remarks' => $it_request->decision_remarks,
-                'decided_at' => optional($it_request->decided_at)?->toDateTimeString(),
-                'route' => route('it-requests.show', $it_request),
-            ]));
+            $requester->notify(new RequestDecisionNotification(
+                RequestDecisionNotificationPayload::make(
+                    'it_request',
+                    $it_request->id,
+                    (string) $it_request->id,
+                    (string) (optional($it_request->date)->format('Y-m-d') ?? $it_request->created_at?->format('Y-m-d') ?? ''),
+                    $validated['decision'],
+                    $it_request->decision_remarks,
+                    $it_request->decided_at,
+                    route('it-requests.show', $it_request),
+                    EmployeePhotoUrl::forPublicDisk($request->user()?->employee),
+                )
+            ));
         }
 
         return redirect()->back()->with('success', 'Decision submitted successfully.');
@@ -257,6 +267,7 @@ class ItRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
             'signaturesUrl' => $this->itRequestSignaturesPostUrl($it_request),
+            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
         ]);
     }
 

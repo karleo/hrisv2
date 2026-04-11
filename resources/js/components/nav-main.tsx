@@ -38,7 +38,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <SidebarMenuSubButton
                         asChild
                         isActive={isActive}
-                        className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2 text-xs font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                        className="h-8 rounded-lg border border-white/40 bg-white/35 px-2 text-xs font-medium backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                     >
                         <Link href={item.href ?? '#'} prefetch>
                             {item.icon && <item.icon />}
@@ -57,7 +57,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <CollapsibleTrigger asChild>
                         <SidebarMenuSubButton
                             isActive={isActive}
-                            className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 px-2 text-xs font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                            className="h-8 rounded-lg border border-white/40 bg-white/35 px-2 text-xs font-medium backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                         >
                             {item.icon && <item.icon />}
                             <span className="min-w-0 flex-1 whitespace-nowrap">
@@ -97,7 +97,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
                                             isActive={isAnyChildActive}
-                                            className="h-auto min-h-11 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-2.5 py-1.5 text-[13px] transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
+                                            className="h-auto min-h-11 overflow-visible rounded-xl border border-white/45 bg-white/30 px-2.5 py-1.5 text-[13px] backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                                         >
                                             {item.icon && <item.icon className="mt-0.5 size-4.5" />}
                                             <div className="flex min-w-0 flex-1 items-center">
@@ -125,7 +125,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 asChild
                                 isActive={!!item.href && isCurrentUrl(item.href)}
                                 tooltip={{ children: item.title }}
-                                className="h-auto min-h-11 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-2.5 py-1.5 text-[13px] transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary overflow-visible"
+                                className="h-auto min-h-11 overflow-visible rounded-xl border border-white/45 bg-white/30 px-2.5 py-1.5 text-[13px] backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                             >
                                 <Link href={item.href ?? '#'} prefetch>
                                     {item.icon && <item.icon className="mt-0.5 size-4.5" />}

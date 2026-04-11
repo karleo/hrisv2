@@ -1,6 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, Send, User } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
+import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -10,8 +13,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,12 +66,17 @@ export default function Create({
     employees,
     departments,
     hardware,
+    defaultEmployeeId = null,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     hardware: HardwareOption[];
+    defaultEmployeeId?: number | null;
 }) {
     const initialDate = getTodayYmd();
+
+    const initialEmployee =
+        defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
     const { data, setData, post, processing, errors } = useForm<{
         date: string;
@@ -83,8 +89,8 @@ export default function Create({
     }>({
         date: initialDate,
         date_issued: '',
-        employee_id: '',
-        department_id: '',
+        employee_id: initialEmployee?.id ?? '',
+        department_id: initialEmployee?.department_id ?? '',
         hardware_ids: [],
         serial_number: '',
         remarks: '',
@@ -187,6 +193,9 @@ export default function Create({
                         onSubmit={(e) => e.preventDefault()}
                     >
                         <div className="grid gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-3">
+                                <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
+                            </div>
                             {/* Left Column - Main Form */}
                             <div className="lg:col-span-2 space-y-6">
                                 <Card>

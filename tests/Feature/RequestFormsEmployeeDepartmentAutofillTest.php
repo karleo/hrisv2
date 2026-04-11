@@ -42,6 +42,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
                 ->component('it-requests/create')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
+                ->where('defaultEmployeeId', null)
             );
 
         $this->get(route('it-asset-requests.create'))
@@ -50,6 +51,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
                 ->component('it-asset-requests/create')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
+                ->where('defaultEmployeeId', null)
             );
 
         $this->get(route('employee-requests.create'))
@@ -59,6 +61,44 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
                 ->where('employees.0.job_position_id', $jobPosition->id)
+                ->where('defaultEmployeeId', null)
+            );
+    }
+
+    public function test_create_forms_pass_default_employee_id_when_user_is_linked_to_employee(): void
+    {
+        $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+        ]);
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $employee->update(['user_id' => $user->id]);
+
+        $this->actingAs($user);
+
+        $this->get(route('it-requests.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('it-requests/create')
+                ->where('defaultEmployeeId', $employee->id)
+            );
+
+        $this->get(route('it-asset-requests.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('it-asset-requests/create')
+                ->where('defaultEmployeeId', $employee->id)
+            );
+
+        $this->get(route('employee-requests.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('employee-requests/create')
+                ->where('defaultEmployeeId', $employee->id)
             );
     }
 
@@ -99,6 +139,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('it-requests/edit')
                 ->has('signaturesUrl')
+                ->has('canDecide')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
             );
@@ -107,6 +148,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('it-asset-requests/edit')
+                ->has('canDecide')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
             );
@@ -116,6 +158,7 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('employee-requests/edit')
                 ->has('signaturesUrl')
+                ->has('canDecide')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
                 ->where('employees.0.job_position_id', $jobPosition->id)

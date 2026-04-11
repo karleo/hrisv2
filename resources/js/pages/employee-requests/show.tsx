@@ -1,14 +1,23 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check, Printer, Send } from 'lucide-react';
+import { useState } from 'react';
+import Heading from '@/components/heading';
+import {
+    approveRequiresManagerSignatureMessage,
+    rejectRequiresRemarksMessage,
+    RequestDecisionClientMessage,
+    visibleRequestDecisionMessage,
+} from '@/components/request-decision-client-message';
 import {
     RequestEmployeeSignatureCard,
     employeeRequestShowSignatureVisitOnly,
 } from '@/components/request-employee-signature-card';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Heading from '@/components/heading';
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { employeeFullName } from '@/lib/format-employee-name';
 import type { BreadcrumbItem } from '@/types';
 
 type Employee = {
@@ -52,10 +61,10 @@ type EmployeeRequest = {
     passport_ack_departure_date_time?: string | null;
     passport_ack_home_country_departure_date_time?: string | null;
     employee?: Employee;
+    approved_by_employee?: Employee | null;
     department?: Department;
     job_position?: JobPosition;
     employee_signature_url?: string | null;
-    dept_head_signature_url?: string | null;
     ceo_signature_url?: string | null;
     approved_by_signature_url?: string | null;
     decision_remarks?: string | null;
@@ -85,9 +94,15 @@ export default function Show({
     decisionUrl: string;
     canDecide: boolean;
 }) {
+    useRequestStatusPoll(['employeeRequest', 'canDecide']);
+
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const requestLabel = employeeRequest.code || `Request #${employeeRequest.id}`;
     const isDraft = normalizeRequestStatus(employeeRequest.status) === 'draft';
+    const [decisionClientMessage, setDecisionClientMessage] = useState<string | null>(null);
+    const visibleDecisionMessage = visibleRequestDecisionMessage(decisionClientMessage, {
+        hasManagerSignature: Boolean(employeeRequest.approved_by_signature_url),
+    });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
@@ -365,17 +380,26 @@ export default function Show({
                             label: 'Manager / HR signature',
                             signatureUrl: employeeRequest.approved_by_signature_url ?? null,
                             fieldName: 'approved_by_signature',
-                            editable: normalizeRequestStatus(employeeRequest.status) === 'submitted',
-                        },
-                        {
-                            label: 'Dept Head signature',
-                            signatureUrl: employeeRequest.dept_head_signature_url ?? null,
-                            fieldName: 'dept_head_signature',
+                            editable:
+                                normalizeRequestStatus(employeeRequest.status) === 'submitted' && canDecide,
+                            emptyReadonlyMessage: canDecide
+                                ? undefined
+                                : normalizeRequestStatus(employeeRequest.status) === 'draft'
+                                  ? 'Available after the request is submitted.'
+                                  : 'Awaiting manager or HR signature.',
+                            signerName: employeeFullName(employeeRequest.approved_by_employee),
                         },
                         {
                             label: 'CEO signature',
                             signatureUrl: employeeRequest.ceo_signature_url ?? null,
                             fieldName: 'ceo_signature',
+                            editable:
+                                normalizeRequestStatus(employeeRequest.status) === 'submitted' && canDecide,
+                            emptyReadonlyMessage: canDecide
+                                ? undefined
+                                : normalizeRequestStatus(employeeRequest.status) === 'draft'
+                                  ? 'Available after the request is submitted.'
+                                  : 'Awaiting CEO signature.',
                         },
                     ]}
                     managerDecisionSlot={
@@ -388,9 +412,22 @@ export default function Show({
                                             rows={3}
                                             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                                             placeholder="Add reason when rejecting"
+                                            onChange={() => setDecisionClientMessage(null)}
                                         />
+                                        <RequestDecisionClientMessage message={visibleDecisionMessage} />
                                         <div className="flex gap-2">
-                                            <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                            <Button
+                                                type="submit"
+                                                name="decision"
+                                                value="approved"
+                                                disabled={processing}
+                                                onClick={(e) => {
+                                                    if (!employeeRequest.approved_by_signature_url) {
+                                                        e.preventDefault();
+                                                        setDecisionClientMessage(approveRequiresManagerSignatureMessage);
+                                                    }
+                                                }}
+                                            >
                                                 Approve
                                             </Button>
                                             <Button
@@ -404,7 +441,7 @@ export default function Show({
                                                     const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
                                                     if (remarks === '') {
                                                         e.preventDefault();
-                                                        window.alert('Please fill reason before rejecting.');
+                                                        setDecisionClientMessage(rejectRequiresRemarksMessage);
                                                     }
                                                 }}
                                             >
@@ -416,11 +453,7 @@ export default function Show({
                             </Form>
                         ) : null
                     }
-                    employeeName={
-                        employeeRequest.employee
-                            ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`
-                            : undefined
-                    }
+                    employeeName={employeeFullName(employeeRequest.employee)}
                 />
                 </div>
             </div>

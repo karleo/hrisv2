@@ -30,12 +30,15 @@ function IssuedBySignatureBlock({
     signaturesUrl,
     visitOnly,
     allowIssuedBySignatureEdit,
+    issuedByReadonlyEmptyMessage,
 }: {
     itAssetRequest: ItAssetRequestSignatureProps;
     employees: SignatureEmployee[];
     signaturesUrl: string;
     visitOnly: string[];
     allowIssuedBySignatureEdit: boolean;
+    /** Shown when the pad is readonly and there is no signature image yet. */
+    issuedByReadonlyEmptyMessage?: string;
 }) {
     const { errors } = usePage().props as { errors?: Record<string, string> };
     const [issuedByEmployeeId, setIssuedByEmployeeId] = useState<number | ''>(
@@ -53,6 +56,7 @@ function IssuedBySignatureBlock({
                     onChange={(e) =>
                         setIssuedByEmployeeId(e.target.value ? Number(e.target.value) : '')
                     }
+                    disabled={!allowIssuedBySignatureEdit}
                     className={selectClassName}
                 >
                     <option value="">Select employee</option>
@@ -95,9 +99,15 @@ function IssuedBySignatureBlock({
                             />
                         </div>
                     ) : (
-                        <p className="text-sm text-muted-foreground">No signature on file.</p>
+                        <p className="text-sm text-muted-foreground">
+                            {issuedByReadonlyEmptyMessage ?? 'No signature on file.'}
+                        </p>
                     )}
-                    <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                    {itAssetRequest.issued_by_signature_url ? (
+                        <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                    ) : issuedByReadonlyEmptyMessage ? null : (
+                        <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                    )}
                 </div>
             )}
             <p className="text-xs text-muted-foreground">
@@ -119,6 +129,7 @@ export const itAssetRequestShowSignatureVisitOnly = [
     'itAssetRequest',
     'submitUrl',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
 ] as const;
@@ -130,6 +141,7 @@ export const itAssetRequestEditSignatureVisitOnly = [
     'departments',
     'hardware',
     'signaturesUrl',
+    'canDecide',
     'flash',
     'errors',
 ] as const;
@@ -142,6 +154,7 @@ export function ItAssetRequestSignaturesCard({
     className,
     allowEmployeeSignatureEdit = true,
     allowIssuedBySignatureEdit = true,
+    issuedByReadonlyEmptyMessage,
 }: {
     itAssetRequest: ItAssetRequestSignatureProps;
     employees: SignatureEmployee[];
@@ -150,6 +163,7 @@ export function ItAssetRequestSignaturesCard({
     className?: string;
     allowEmployeeSignatureEdit?: boolean;
     allowIssuedBySignatureEdit?: boolean;
+    issuedByReadonlyEmptyMessage?: string;
 }) {
     const only = [...visitOnly];
 
@@ -208,6 +222,7 @@ export function ItAssetRequestSignaturesCard({
                     signaturesUrl={signaturesUrl}
                     visitOnly={only}
                     allowIssuedBySignatureEdit={allowIssuedBySignatureEdit}
+                    issuedByReadonlyEmptyMessage={issuedByReadonlyEmptyMessage}
                 />
             </CardContent>
         </Card>

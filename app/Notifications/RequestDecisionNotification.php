@@ -10,11 +10,9 @@ class RequestDecisionNotification extends Notification
     use Queueable;
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $payload  Prefer {@see \App\Support\RequestDecisionNotificationPayload::make()}
      */
-    public function __construct(private readonly array $payload)
-    {
-    }
+    public function __construct(private readonly array $payload) {}
 
     /**
      * @return list<string>
@@ -32,4 +30,3 @@ class RequestDecisionNotification extends Notification
         return $this->payload;
     }
 }
-

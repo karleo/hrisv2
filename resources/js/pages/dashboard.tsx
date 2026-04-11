@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Monitor, Package } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
@@ -39,6 +39,8 @@ export default function Dashboard({
     pending: PendingSummary;
     recentPending: RecentPending;
 }) {
+    useRequestStatusPoll(['pending', 'recentPending']);
+
     const cards = [
         {
             title: 'Leave Requests',
@@ -47,7 +49,7 @@ export default function Dashboard({
             items: recentPending.leave_requests,
             itemHref: (id: number) => `/leave-requests/${id}`,
             icon: CalendarDays,
-            tone: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20',
+            tone: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20 dark:from-blue-500/25 dark:to-cyan-500/18 dark:border-blue-400/40',
         },
         {
             title: 'Employee Requests',
@@ -56,7 +58,7 @@ export default function Dashboard({
             items: recentPending.employee_requests,
             itemHref: (id: number) => `/employee-requests/${id}`,
             icon: Briefcase,
-            tone: 'from-violet-500/10 to-indigo-500/10 border-violet-500/20',
+            tone: 'from-violet-500/10 to-indigo-500/10 border-violet-500/20 dark:from-violet-500/25 dark:to-indigo-500/18 dark:border-violet-400/40',
         },
         {
             title: 'IT Requests',
@@ -65,7 +67,7 @@ export default function Dashboard({
             items: recentPending.it_requests,
             itemHref: (id: number) => `/it-requests/${id}`,
             icon: Monitor,
-            tone: 'from-amber-500/10 to-orange-500/10 border-amber-500/20',
+            tone: 'from-amber-500/10 to-orange-500/10 border-amber-500/20 dark:from-amber-500/25 dark:to-orange-500/18 dark:border-amber-400/40',
         },
         {
             title: 'IT Asset Requests',
@@ -74,7 +76,7 @@ export default function Dashboard({
             items: recentPending.it_asset_requests,
             itemHref: (id: number) => `/it-asset-requests/${id}`,
             icon: Package,
-            tone: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20',
+            tone: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20 dark:from-emerald-500/25 dark:to-green-500/18 dark:border-emerald-400/40',
         },
     ];
 
@@ -84,7 +86,7 @@ export default function Dashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-5 overflow-x-auto p-4 md:p-6">
-                <div className="rounded-2xl border border-sidebar-border/70 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5">
+                <div className="rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 dark:from-primary/22 dark:via-primary/12 dark:to-transparent">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <p className="text-muted-foreground text-sm">Approval workspace</p>
@@ -95,7 +97,7 @@ export default function Dashboard({
                                 Requests are filtered by your role and department access.
                             </p>
                         </div>
-                        <div className="rounded-xl border border-sidebar-border/70 bg-background/80 px-4 py-3 text-right">
+                        <div className="rounded-xl border border-border bg-card/90 px-4 py-3 text-right backdrop-blur-sm">
                             <p className="text-muted-foreground text-xs uppercase tracking-wide">
                                 Total pending
                             </p>
@@ -112,7 +114,7 @@ export default function Dashboard({
                             className={`group rounded-2xl border bg-gradient-to-br p-4 transition hover:-translate-y-0.5 hover:shadow-sm ${card.tone}`}
                         >
                             <div className="mb-4 flex items-center justify-between">
-                                <div className="bg-background/70 text-foreground rounded-lg border border-sidebar-border/60 p-2">
+                                <div className="rounded-lg border border-border bg-card/80 p-2 text-foreground backdrop-blur-sm">
                                     <card.icon className="size-4.5" />
                                 </div>
                                 <ArrowRight className="text-muted-foreground size-4 transition group-hover:translate-x-0.5" />
@@ -128,7 +130,7 @@ export default function Dashboard({
                     {cards.map((card) => (
                         <div
                             key={`${card.title}-list`}
-                            className="rounded-2xl border border-sidebar-border/70 bg-card p-4 md:p-5"
+                            className="rounded-2xl border border-border bg-card p-4 md:p-5"
                         >
                             <div className="mb-3 flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
@@ -141,7 +143,7 @@ export default function Dashboard({
                             </div>
                             <div className="space-y-2">
                                 {card.items.length === 0 ? (
-                                    <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed border-sidebar-border/70 px-3 py-3 text-sm">
+                                    <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-sm">
                                         <CircleCheckBig className="size-4" />
                                         <span>No pending requests</span>
                                     </div>
@@ -150,7 +152,7 @@ export default function Dashboard({
                                         <Link
                                             key={`${card.title}-${item.id}`}
                                             href={card.itemHref(item.id)}
-                                            className="hover:bg-accent/60 block rounded-lg border border-sidebar-border/60 px-3 py-2.5 transition"
+                                            className="hover:bg-accent/60 block rounded-lg border border-border px-3 py-2.5 transition"
                                         >
                                             <p className="text-sm font-semibold tracking-wide">{item.code}</p>
                                             <p className="text-muted-foreground text-xs">

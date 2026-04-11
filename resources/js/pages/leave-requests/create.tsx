@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Calendar, ChevronLeft, ClipboardCheck, FileText, Send, User } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
@@ -39,12 +40,20 @@ const DETAILS_OPTIONS = ['W/ medical Report', 'W/ Out medical Report'] as const;
 export default function LeaveRequestsCreate({
     employees,
     departments,
+    defaultEmployeeId = null,
 }: {
     employees: Employee[];
     departments: { id: number; name: string }[];
+    defaultEmployeeId?: number | null;
 }) {
-    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-    const [departmentId, setDepartmentId] = useState<string>('');
+    const initialEmployee = defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
+
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
+        initialEmployee ? String(initialEmployee.id) : '',
+    );
+    const [departmentId, setDepartmentId] = useState<string>(
+        initialEmployee ? String(initialEmployee.department_id) : '',
+    );
     const [employeeSignatureDataUrl, setEmployeeSignatureDataUrl] = useState<string | null>(null);
 
     const selectedEmployee = employees.find((e) => e.id === Number(selectedEmployeeId));
@@ -91,6 +100,9 @@ export default function LeaveRequestsCreate({
                 >
                     {({ errors }) => (
                         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-3">
+                                <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
+                            </div>
                             <input type="hidden" name="employee_id" value={selectedEmployeeId} />
                             <input type="hidden" name="department_id" value={departmentId} />
                             <input

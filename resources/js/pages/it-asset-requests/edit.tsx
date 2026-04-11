@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, Save, Send, User } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import {
     ItAssetRequestSignaturesCard,
@@ -75,15 +76,25 @@ export default function Edit({
     departments,
     hardware,
     signaturesUrl,
+    canDecide,
 }: {
     itAssetRequest: ItAssetRequest;
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     hardware: HardwareOption[];
     signaturesUrl: string;
+    canDecide: boolean;
 }) {
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
     const showHref = `/it-asset-requests/${itAssetRequest.id}`;
+    const statusNorm = normalizeRequestStatus(itAssetRequest.status);
+    const issuedByReadonlyEmptyMessage = canDecide
+        ? undefined
+        : statusNorm === 'draft'
+          ? 'Available after the request is submitted.'
+          : statusNorm === 'submitted'
+            ? 'Awaiting IT or manager signature.'
+            : undefined;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Asset Requests', href: '/it-asset-requests' },
@@ -200,6 +211,9 @@ export default function Edit({
                         onSubmit={(e) => e.preventDefault()}
                     >
                         <div className="grid gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-3">
+                                <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
+                            </div>
                             <div className="space-y-6 lg:col-span-2">
                                 <Card>
                                     <CardHeader>
@@ -478,6 +492,9 @@ export default function Edit({
                                     employees={employees}
                                     signaturesUrl={signaturesUrl}
                                     visitOnly={itAssetRequestEditSignatureVisitOnly}
+                                    allowEmployeeSignatureEdit={statusNorm === 'draft'}
+                                    allowIssuedBySignatureEdit={statusNorm === 'submitted' && canDecide}
+                                    issuedByReadonlyEmptyMessage={issuedByReadonlyEmptyMessage}
                                 />
                             </div>
 

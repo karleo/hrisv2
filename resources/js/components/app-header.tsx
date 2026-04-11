@@ -1,7 +1,9 @@
-import { Link, router, usePage, usePoll } from '@inertiajs/react';
-import { Bell, BookOpen, Folder, LayoutGrid, Menu, Search, Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { Link, usePage, usePoll } from '@inertiajs/react';
+import { Bell, BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
+import { NotificationBellListItem } from '@/components/notification-bell-list-item';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +35,7 @@ import {
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
+import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -70,6 +73,9 @@ const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
 export function AppHeader({ breadcrumbs = [] }: Props) {
+    const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
+    const notificationListRef = useNotificationListPointerGuard(notificationsMenuOpen);
+
     usePoll(
         10000,
         {
@@ -93,56 +99,11 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                     request_date?: string;
                     route?: string;
                     request_id?: number;
+                    decision?: string;
+                    employee_photo_url?: string | null;
                 };
             }>;
         };
-    };
-
-    const notificationHref = (item: {
-        data?: {
-            request_type?: string;
-            request_date?: string;
-            request_id?: number;
-            route?: string;
-        };
-    }): string => {
-        const direct = item.data?.route;
-        if (direct) return direct;
-
-        const requestId = item.data?.request_id;
-        if (!requestId) return '#';
-
-        switch (item.data?.request_type) {
-            case 'leave_request':
-                return `/leave-requests/${requestId}`;
-            case 'employee_request':
-                return `/employee-requests/${requestId}`;
-            case 'it_request':
-                return `/it-requests/${requestId}`;
-            case 'it_asset_request':
-                return `/it-asset-requests/${requestId}`;
-            default:
-                return '#';
-        }
-    };
-
-    const formatRequestDate = (value?: string): string => {
-        if (!value) return '';
-        const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (!match) return value;
-        const [, y, m, d] = match;
-        return `${d}/${m}/${y}`;
-    };
-
-    const formatRequestType = (value?: string): string => {
-        if (!value) return 'Request';
-        const labels: Record<string, string> = {
-            leave_request: 'Leave Request Form',
-            employee_request: 'Employee Request Form',
-            it_request: 'IT Request Form',
-            it_asset_request: 'IT Asset Request Form',
-        };
-        return labels[value] ?? 'Request Form';
     };
 
     const mainNavItems = useMemo(
@@ -259,20 +220,28 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                     </div>
 
                     <div className="ml-auto flex items-center space-x-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                                    <Bell className="size-5 opacity-80" />
-                                    {(notifications?.unread_count ?? 0) > 0 ? (
-                                        <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-red-600 px-1 text-[11px] leading-none font-bold text-white">
-                                            {(notifications?.unread_count ?? 0) > 99
-                                                ? '99+'
-                                                : notifications?.unread_count}
-                                        </span>
-                                    ) : null}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-96 rounded-xl p-0">
+                        <NotificationArrivalToastShell notifications={notifications}>
+                            <DropdownMenu
+                                open={notificationsMenuOpen}
+                                onOpenChange={setNotificationsMenuOpen}
+                            >
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                                        <Bell className="size-5 opacity-80" />
+                                        {(notifications?.unread_count ?? 0) > 0 ? (
+                                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-red-600 px-1 text-[11px] leading-none font-bold text-white">
+                                                {(notifications?.unread_count ?? 0) > 99
+                                                    ? '99+'
+                                                    : notifications?.unread_count}
+                                            </span>
+                                        ) : null}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                align="end"
+                                className="w-[min(24rem,calc(100vw-2rem))] max-w-[min(24rem,calc(100vw-2rem))] rounded-xl p-0"
+                                onOpenAutoFocus={(e) => e.preventDefault()}
+                            >
                                 <DropdownMenuLabel className="flex items-center justify-between px-3 py-2.5">
                                     <span className="text-sm font-semibold">Notifications</span>
                                     <span className="text-muted-foreground text-xs">
@@ -280,86 +249,23 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                     </span>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <div className="max-h-96 space-y-1.5 overflow-y-auto p-2.5">
+                                <div
+                                    ref={notificationListRef}
+                                    className="max-h-96 space-y-2 overflow-y-auto p-2.5"
+                                >
                                     {(notifications?.items?.length ?? 0) === 0 ? (
                                         <p className="text-muted-foreground px-2 py-4 text-center text-sm">
                                             No notifications
                                         </p>
                                     ) : (
                                         notifications?.items?.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                className={`rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${!item.read_at ? 'border-primary/30 bg-primary/[0.07]' : 'border-border/60 bg-background hover:bg-accent/40'}`}
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const href = notificationHref(item);
-                                                            router.post(
-                                                                `/notifications/${item.id}/read`,
-                                                                {},
-                                                                {
-                                                                    preserveScroll: true,
-                                                                    preserveState: true,
-                                                                    onSuccess: () => {
-                                                                        if (href !== '#') {
-                                                                            router.visit(href);
-                                                                        }
-                                                                    },
-                                                                }
-                                                            );
-                                                        }}
-                                                        className="min-w-0 flex-1 text-left"
-                                                    >
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <p className="truncate font-semibold">
-                                                                {item.data?.request_code ?? 'Request submitted'}
-                                                            </p>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-muted-foreground text-xs">
-                                                                    {formatRequestDate(
-                                                                        item.data?.request_date ??
-                                                                            item.created_at ??
-                                                                            undefined
-                                                                    )}
-                                                                </span>
-                                                                {!item.read_at ? (
-                                                                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                                                                        NEW
-                                                                    </span>
-                                                                ) : null}
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-muted-foreground mt-1 text-xs">
-                                                            {formatRequestType(item.data?.request_type)}
-                                                            {' • '}
-                                                            Tap to open request
-                                                        </p>
-                                                    </button>
-                                                    {item.read_at ? (
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                                            onClick={() => {
-                                                                router.delete(`/notifications/${item.id}`, {
-                                                                    preserveScroll: true,
-                                                                    preserveState: true,
-                                                                });
-                                                            }}
-                                                        >
-                                                            <Trash2 className="size-4" />
-                                                        </Button>
-                                                    ) : null}
-                                                </div>
-                                            </div>
+                                            <NotificationBellListItem key={item.id} item={item} />
                                         ))
                                     )}
                                 </div>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        </NotificationArrivalToastShell>
                         <div className="relative flex items-center space-x-1">
                             <Button
                                 variant="ghost"

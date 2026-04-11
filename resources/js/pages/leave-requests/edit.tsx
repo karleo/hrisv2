@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Calendar, ChevronLeft, ClipboardCheck, FileText, Save, Send, User } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import {
     RequestEmployeeSignatureCard,
@@ -19,6 +20,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { employeeFullName } from '@/lib/format-employee-name';
 import type { BreadcrumbItem } from '@/types';
 
 type Department = { id: number; name: string };
@@ -37,7 +39,9 @@ type LeaveRequest = {
     remarks: string | null;
     status: string;
     employee_signature_url?: string | null;
+    approved_by_signature_url?: string | null;
     employee?: { first_name: string; last_name: string };
+    approved_by_employee?: { first_name: string; last_name: string } | null;
 };
 
 const ABSENCE_TYPES = [
@@ -57,12 +61,14 @@ export default function LeaveRequestsEdit({
     departments,
     signaturesUrl,
     submitUrl,
+    canDecide,
 }: {
     leaveRequest: LeaveRequest;
     employees: Employee[];
     departments: { id: number; name: string }[];
     signaturesUrl: string;
     submitUrl: string;
+    canDecide: boolean;
 }) {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(String(leaveRequest.employee_id));
     const [departmentId, setDepartmentId] = useState<string>(String(leaveRequest.department_id));
@@ -82,7 +88,8 @@ export default function LeaveRequestsEdit({
     );
 
     const absenceType = leaveRequest.absence_types?.[0] ?? '';
-    const isDraft = normalizeRequestStatus(leaveRequest.status) === 'draft';
+    const statusNorm = normalizeRequestStatus(leaveRequest.status);
+    const isDraft = statusNorm === 'draft';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Leave Requests', href: '/leave-requests' },
@@ -123,6 +130,9 @@ export default function LeaveRequestsEdit({
                 >
                     {({ errors }) => (
                         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-3">
+                                <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
+                            </div>
                             <input type="hidden" name="_method" value="PUT" />
                             <input type="hidden" name="employee_id" value={selectedEmployeeId} />
                             <input type="hidden" name="department_id" value={departmentId} />
@@ -283,12 +293,24 @@ export default function LeaveRequestsEdit({
                                     signatureUrl={leaveRequest.employee_signature_url ?? null}
                                     signaturesUrl={signaturesUrl}
                                     visitOnly={leaveRequestEditSignatureVisitOnly}
+                                    allowEmployeeSignatureEdit={statusNorm === 'draft'}
+                                    additionalSignatures={[
+                                        {
+                                            label: 'Manager / HR signature',
+                                            signatureUrl: leaveRequest.approved_by_signature_url ?? null,
+                                            fieldName: 'approved_by_signature',
+                                            editable: statusNorm === 'submitted' && canDecide,
+                                            emptyReadonlyMessage: canDecide
+                                                ? undefined
+                                                : statusNorm === 'draft'
+                                                  ? 'Available after the request is submitted.'
+                                                  : 'Awaiting manager or HR signature.',
+                                            signerName: employeeFullName(leaveRequest.approved_by_employee),
+                                        },
+                                    ]}
                                     employeeName={
-                                        leaveRequest.employee
-                                            ? `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`
-                                            : selectedEmployee
-                                              ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-                                              : undefined
+                                        employeeFullName(leaveRequest.employee) ??
+                                        employeeFullName(selectedEmployee)
                                     }
                                 />
                             </div>

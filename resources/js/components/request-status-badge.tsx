@@ -12,11 +12,17 @@ export function requestStatusLabel(status: string | null | undefined): string {
 
 export function requestStatusBadgeColors(status: string | null | undefined): string {
     const n = normalizeRequestStatus(status);
+    if (n === 'draft') {
+        return 'border-amber-200/80 bg-amber-100 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-200';
+    }
     if (n === 'submitted') {
         return 'border-emerald-200/80 bg-emerald-100 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300';
     }
-    if (n === 'draft') {
-        return 'border-amber-200/80 bg-amber-100 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-200';
+    if (n === 'approved') {
+        return 'border-sky-200/80 bg-sky-100 text-sky-900 dark:border-sky-800/60 dark:bg-sky-950/50 dark:text-sky-200';
+    }
+    if (n === 'rejected') {
+        return 'border-rose-200/80 bg-rose-100 text-rose-900 dark:border-rose-800/60 dark:bg-rose-950/50 dark:text-rose-200';
     }
     return 'border-muted-foreground/20 bg-muted text-muted-foreground';
 }

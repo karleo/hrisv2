@@ -10,6 +10,7 @@ use App\Models\JobPosition;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RequestDraftSubmitTest extends TestCase
@@ -22,6 +23,20 @@ class RequestDraftSubmitTest extends TestCase
 
         $this->withoutMiddleware(ValidateCsrfToken::class);
         $this->actingAs(User::factory()->create());
+    }
+
+    public function test_employee_request_store_returns_validation_errors_when_mandatory_fields_missing(): void
+    {
+        $response = $this->from(route('employee-requests.create'))
+            ->post(route('employee-requests.store'), []);
+
+        $response->assertSessionHasErrors([
+            'employee_id',
+            'job_position_id',
+            'department_id',
+            'date',
+            'date_of_joining',
+        ]);
     }
 
     public function test_employee_request_store_creates_draft_and_redirects_to_show(): void
@@ -46,6 +61,36 @@ class RequestDraftSubmitTest extends TestCase
 
         $response->assertRedirect(route('employee-requests.show', $employeeRequest));
         $this->assertSame('draft', $employeeRequest->status);
+    }
+
+    public function test_employee_request_store_persists_employee_signature_from_data_url(): void
+    {
+        Storage::fake('public');
+
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+        $jobPosition = JobPosition::factory()->create();
+
+        $onePixelPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+        $payload = [
+            'employee_id' => $employee->id,
+            'job_position_id' => $jobPosition->id,
+            'department_id' => $department->id,
+            'date' => '2026-04-01',
+            'date_of_joining' => '2026-04-15',
+            'employee_signature_data_url' => 'data:image/png;base64,'.$onePixelPngBase64,
+        ];
+
+        $response = $this->post(route('employee-requests.store'), $payload);
+
+        $employeeRequest = EmployeeRequest::firstOrFail();
+
+        $response->assertRedirect(route('employee-requests.show', $employeeRequest));
+        $this->assertNotNull($employeeRequest->fresh()->employee_signature);
+        Storage::disk('public')->assertExists($employeeRequest->fresh()->employee_signature);
     }
 
     public function test_employee_request_submit_sets_submitted_when_draft(): void

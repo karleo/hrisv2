@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -23,5 +24,23 @@ class DashboardTest extends TestCase
 
         $response = $this->get(route('dashboard'));
         $response->assertOk();
+    }
+
+    public function test_users_without_dashboard_permission_are_redirected_from_dashboard(): void
+    {
+        $role = Role::factory()->create([
+            'name' => 'No dashboard',
+            'slug' => 'no-dashboard',
+        ]);
+
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($user);
+
+        $this->get(route('dashboard'))
+            ->assertRedirect(route('profile.edit'));
     }
 }

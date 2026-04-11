@@ -1,5 +1,13 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Calendar } from 'lucide-react';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
+import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
+import {
+    RequestEmployeeSignatureCard,
+    employeeRequestEditSignatureVisitOnly,
+} from '@/components/request-employee-signature-card';
+import { normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -9,15 +17,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    RequestEmployeeSignatureCard,
-    employeeRequestEditSignatureVisitOnly,
-} from '@/components/request-employee-signature-card';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { employeeFullName } from '@/lib/format-employee-name';
 import type { BreadcrumbItem } from '@/types';
 
 const inputClassName =
@@ -65,9 +68,10 @@ type EmployeeRequest = {
     passport_ack_departure_date_time?: string | null;
     passport_ack_home_country_departure_date_time?: string | null;
     employee_signature_url?: string | null;
-    dept_head_signature_url?: string | null;
+    approved_by_signature_url?: string | null;
     ceo_signature_url?: string | null;
     employee?: { first_name: string; last_name: string };
+    approved_by_employee?: { first_name: string; last_name: string } | null;
 };
 
 export default function Edit({
@@ -76,12 +80,14 @@ export default function Edit({
     departments,
     jobPositions,
     signaturesUrl,
+    canDecide,
 }: {
     employeeRequest: EmployeeRequest;
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     jobPositions: JobPositionOption[];
     signaturesUrl: string;
+    canDecide: boolean;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
@@ -163,6 +169,7 @@ export default function Edit({
                     className="flex w-full max-w-4xl flex-col gap-6"
                     onSubmit={(e) => e.preventDefault()}
                 >
+                    <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
                     <Card>
                         <CardHeader>
                             <CardTitle>Employee information</CardTitle>
@@ -578,24 +585,37 @@ export default function Edit({
                         signatureUrl={employeeRequest.employee_signature_url ?? null}
                         signaturesUrl={signaturesUrl}
                         visitOnly={employeeRequestEditSignatureVisitOnly}
+                        allowEmployeeSignatureEdit={normalizeRequestStatus(employeeRequest.status) === 'draft'}
                         additionalSignatures={[
                             {
-                                label: 'Dept Head signature',
-                                signatureUrl: employeeRequest.dept_head_signature_url ?? null,
-                                fieldName: 'dept_head_signature',
+                                label: 'Manager / HR signature',
+                                signatureUrl: employeeRequest.approved_by_signature_url ?? null,
+                                fieldName: 'approved_by_signature',
+                                editable:
+                                    normalizeRequestStatus(employeeRequest.status) === 'submitted' && canDecide,
+                                emptyReadonlyMessage: canDecide
+                                    ? undefined
+                                    : normalizeRequestStatus(employeeRequest.status) === 'draft'
+                                      ? 'Available after the request is submitted.'
+                                      : 'Awaiting manager or HR signature.',
+                                signerName: employeeFullName(employeeRequest.approved_by_employee),
                             },
                             {
                                 label: 'CEO signature',
                                 signatureUrl: employeeRequest.ceo_signature_url ?? null,
                                 fieldName: 'ceo_signature',
+                                editable:
+                                    normalizeRequestStatus(employeeRequest.status) === 'submitted' && canDecide,
+                                emptyReadonlyMessage: canDecide
+                                    ? undefined
+                                    : normalizeRequestStatus(employeeRequest.status) === 'draft'
+                                      ? 'Available after the request is submitted.'
+                                      : 'Awaiting CEO signature.',
                             },
                         ]}
                         employeeName={
-                            employeeRequest.employee
-                                ? `${employeeRequest.employee.first_name} ${employeeRequest.employee.last_name}`
-                                : selectedEmployee
-                                  ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-                                  : undefined
+                            employeeFullName(employeeRequest.employee) ??
+                            employeeFullName(selectedEmployee)
                         }
                     />
                 </form>

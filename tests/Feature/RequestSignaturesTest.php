@@ -87,7 +87,7 @@ class RequestSignaturesTest extends TestCase
         Storage::disk('public')->assertExists($employeeRequest->employee_signature);
     }
 
-    public function test_user_can_update_dept_head_and_ceo_signatures_on_employee_request(): void
+    public function test_user_can_update_ceo_signature_on_employee_request(): void
     {
         Storage::fake('public');
 
@@ -109,16 +109,13 @@ class RequestSignaturesTest extends TestCase
         ]);
 
         $response = $this->post(route('employee-requests.signatures.update', $employeeRequest), [
-            'dept_head_signature' => UploadedFile::fake()->create('dept-head-signature.png', 50, 'image/png'),
             'ceo_signature' => UploadedFile::fake()->create('ceo-signature.png', 50, 'image/png'),
         ]);
 
         $response->assertRedirect();
 
         $employeeRequest->refresh();
-        $this->assertNotNull($employeeRequest->dept_head_signature);
         $this->assertNotNull($employeeRequest->ceo_signature);
-        Storage::disk('public')->assertExists($employeeRequest->dept_head_signature);
         Storage::disk('public')->assertExists($employeeRequest->ceo_signature);
     }
 

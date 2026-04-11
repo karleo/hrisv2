@@ -1,6 +1,10 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building2, Calendar, Cpu, Laptop, Send, User } from 'lucide-react';
 import ItRequestController from '@/actions/App/Http/Controllers/ItRequestController';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
+import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -8,9 +12,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/it-requests';
@@ -59,12 +60,17 @@ export default function Create({
     departments,
     software,
     hardware,
+    defaultEmployeeId = null,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     software: SoftwareOption[];
     hardware: HardwareOption[];
+    defaultEmployeeId?: number | null;
 }) {
+    const initialEmployee =
+        defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
+
     const { data, setData, post, processing, errors } = useForm<{
         employee_id: number | '';
         department_id: number | '';
@@ -72,8 +78,8 @@ export default function Create({
         software_id: number | '';
         hardware_id: number | '';
     }>({
-        employee_id: '',
-        department_id: '',
+        employee_id: initialEmployee?.id ?? '',
+        department_id: initialEmployee?.department_id ?? '',
         date: getTodayYmd(),
         software_id: '',
         hardware_id: '',
@@ -116,6 +122,9 @@ export default function Create({
                         className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-3"
                         onSubmit={(e) => e.preventDefault()}
                     >
+                        <div className="lg:col-span-3">
+                            <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
+                        </div>
                         <div className="space-y-6 lg:col-span-2">
                             <Card>
                                 <CardHeader>

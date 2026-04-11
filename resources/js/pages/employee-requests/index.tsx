@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import {
     Eye,
     FileText,
@@ -96,6 +97,8 @@ export default function Index({
     employeeRequests: PaginatedEmployeeRequests;
     filters?: { search?: string };
 }) {
+    useRequestStatusPoll(['employeeRequests']);
+
     const { data: requestList } = employeeRequests;
     const { flash, modulePermissions } = usePage().props as {
         flash?: { success?: string; error?: string };

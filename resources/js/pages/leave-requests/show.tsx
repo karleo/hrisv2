@@ -1,14 +1,22 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ChevronLeft, PenLine, Printer, Send } from 'lucide-react';
-import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
+import { useState } from 'react';
+import {
+    approveRequiresManagerSignatureMessage,
+    rejectRequiresRemarksMessage,
+    RequestDecisionClientMessage,
+    visibleRequestDecisionMessage,
+} from '@/components/request-decision-client-message';
 import {
     RequestEmployeeSignatureCard,
     leaveRequestShowSignatureVisitOnly,
 } from '@/components/request-employee-signature-card';
+import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import { employeeFullName } from '@/lib/format-employee-name';
 
 type Employee = { id: number; first_name: string; last_name: string };
 type Department = { id: number; name: string };
@@ -28,6 +36,7 @@ type LeaveRequest = {
     status: string;
     employee?: Employee;
     department?: Department;
+    approved_by_employee?: Employee | null;
     employee_signature_url?: string | null;
     approved_by_signature_url?: string | null;
     decision_remarks?: string | null;
@@ -47,9 +56,15 @@ export default function LeaveRequestsShow({
     decisionUrl: string;
     canDecide: boolean;
 }) {
+    useRequestStatusPoll(['leaveRequest', 'canDecide']);
+
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const normalizedStatus = normalizeRequestStatus(leaveRequest.status);
     const isDraft = normalizedStatus === 'draft';
+    const [decisionClientMessage, setDecisionClientMessage] = useState<string | null>(null);
+    const visibleDecisionMessage = visibleRequestDecisionMessage(decisionClientMessage, {
+        hasManagerSignature: Boolean(leaveRequest.approved_by_signature_url),
+    });
 
     return (
         <AppLayout
@@ -175,7 +190,13 @@ export default function LeaveRequestsShow({
                             label: 'Manager / HR signature',
                             signatureUrl: leaveRequest.approved_by_signature_url ?? null,
                             fieldName: 'approved_by_signature',
-                            editable: normalizedStatus === 'submitted',
+                            editable: normalizedStatus === 'submitted' && canDecide,
+                            emptyReadonlyMessage: canDecide
+                                ? undefined
+                                : normalizedStatus === 'draft'
+                                  ? 'Available after the request is submitted.'
+                                  : 'Awaiting manager or HR signature.',
+                            signerName: employeeFullName(leaveRequest.approved_by_employee),
                         },
                     ]}
                     managerDecisionSlot={
@@ -188,9 +209,22 @@ export default function LeaveRequestsShow({
                                             rows={3}
                                             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                                             placeholder="Add reason when rejecting"
+                                            onChange={() => setDecisionClientMessage(null)}
                                         />
+                                        <RequestDecisionClientMessage message={visibleDecisionMessage} />
                                         <div className="flex gap-2">
-                                            <Button type="submit" name="decision" value="approved" disabled={processing}>
+                                            <Button
+                                                type="submit"
+                                                name="decision"
+                                                value="approved"
+                                                disabled={processing}
+                                                onClick={(e) => {
+                                                    if (!leaveRequest.approved_by_signature_url) {
+                                                        e.preventDefault();
+                                                        setDecisionClientMessage(approveRequiresManagerSignatureMessage);
+                                                    }
+                                                }}
+                                            >
                                                 Approve
                                             </Button>
                                             <Button
@@ -204,7 +238,7 @@ export default function LeaveRequestsShow({
                                                     const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
                                                     if (remarks === '') {
                                                         e.preventDefault();
-                                                        window.alert('Please fill reason before rejecting.');
+                                                        setDecisionClientMessage(rejectRequiresRemarksMessage);
                                                     }
                                                 }}
                                             >
@@ -216,11 +250,7 @@ export default function LeaveRequestsShow({
                             </Form>
                         ) : null
                     }
-                    employeeName={
-                        leaveRequest.employee
-                            ? `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`
-                            : undefined
-                    }
+                    employeeName={employeeFullName(leaveRequest.employee)}
                 />
                 </div>
             </div>

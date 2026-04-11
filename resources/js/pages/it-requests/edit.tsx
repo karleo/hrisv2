@@ -1,15 +1,18 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import ItRequestController from '@/actions/App/Http/Controllers/ItRequestController';
+import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import {
     RequestEmployeeSignatureCard,
     itRequestEditSignatureVisitOnly,
 } from '@/components/request-employee-signature-card';
+import { normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { employeeFullName } from '@/lib/format-employee-name';
 import { index } from '@/routes/it-requests';
 import type { BreadcrumbItem } from '@/types';
 
@@ -34,7 +37,9 @@ type ItRequest = {
     date: string;
     status: string;
     employee_signature_url?: string | null;
+    approved_by_signature_url?: string | null;
     employee?: { first_name: string; last_name: string };
+    approved_by_employee?: { first_name: string; last_name: string } | null;
 };
 
 type SoftwareOption = {
@@ -56,6 +61,7 @@ export default function Edit({
     software,
     hardware,
     signaturesUrl,
+    canDecide,
 }: {
     itRequest: ItRequest;
     employees: EmployeeOption[];
@@ -63,6 +69,7 @@ export default function Edit({
     software: SoftwareOption[];
     hardware: HardwareOption[];
     signaturesUrl: string;
+    canDecide: boolean;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Requests', href: index().url },
@@ -86,6 +93,7 @@ export default function Edit({
     });
 
     const selectedEmployee = employees.find((employee) => employee.id === data.employee_id);
+    const statusNorm = normalizeRequestStatus(data.status || itRequest.status);
 
     const submitAs = (status: 'draft' | 'submitted') => (e: React.FormEvent) => {
         e.preventDefault();
@@ -110,6 +118,8 @@ export default function Edit({
                     title={`Edit IT Request #${itRequest.id}`}
                     description="Update the IT request details and employee signature."
                 />
+
+                <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
 
                 <form
                     className="space-y-6 max-w-xl"
@@ -241,12 +251,23 @@ export default function Edit({
                         signatureUrl={itRequest.employee_signature_url ?? null}
                         signaturesUrl={signaturesUrl}
                         visitOnly={itRequestEditSignatureVisitOnly}
+                        allowEmployeeSignatureEdit={statusNorm === 'draft'}
+                        additionalSignatures={[
+                            {
+                                label: 'Manager / HR signature',
+                                signatureUrl: itRequest.approved_by_signature_url ?? null,
+                                fieldName: 'approved_by_signature',
+                                editable: statusNorm === 'submitted' && canDecide,
+                                emptyReadonlyMessage: canDecide
+                                    ? undefined
+                                    : statusNorm === 'draft'
+                                      ? 'Available after the request is submitted.'
+                                      : 'Awaiting manager or HR signature.',
+                                signerName: employeeFullName(itRequest.approved_by_employee),
+                            },
+                        ]}
                         employeeName={
-                            itRequest.employee
-                                ? `${itRequest.employee.first_name} ${itRequest.employee.last_name}`
-                                : selectedEmployee
-                                  ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-                                  : undefined
+                            employeeFullName(itRequest.employee) ?? employeeFullName(selectedEmployee)
                         }
                     />
 

@@ -12,7 +12,6 @@ type AutoSubmitSignaturePadProps = {
         | 'employee_signature'
         | 'approved_by_signature'
         | 'issued_by_signature'
-        | 'dept_head_signature'
         | 'ceo_signature';
     /** Appended to the multipart POST (e.g. `issued_by_employee_id` on IT asset requests). */
     extraFormData?: Record<string, string>;
@@ -42,7 +41,7 @@ export function SignaturePad(props: SignaturePadProps) {
     const { errors, csrf_token: csrfFromPage } = page.props as {
         errors?: Partial<
             Record<
-                'employee_signature' | 'approved_by_signature' | 'issued_by_signature' | 'dept_head_signature' | 'ceo_signature',
+                'employee_signature' | 'approved_by_signature' | 'issued_by_signature' | 'ceo_signature',
                 string
             >
         >;
