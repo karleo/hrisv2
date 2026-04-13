@@ -40,6 +40,7 @@ type UserRow = {
     id: number;
     name: string;
     email: string;
+    face_enrolled: boolean;
     role_id: number | null;
     role: RoleRef | null;
     employee: EmployeeRef | null;
@@ -112,6 +113,9 @@ export default function Index({
                                             Role
                                         </th>
                                         <th className="px-4 py-3 text-left font-medium">
+                                            Face Login
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium">
                                             Employee
                                         </th>
                                         <th className="w-24 px-4 py-3 text-right font-medium">
@@ -123,7 +127,7 @@ export default function Index({
                                     {userList.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={5}
+                                                colSpan={6}
                                                 className="px-4 py-8 text-center text-muted-foreground"
                                             >
                                                 {filters.search
@@ -145,6 +149,19 @@ export default function Index({
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {user.role?.name ?? '—'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                            user.face_enrolled
+                                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+                                                                : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                                                        }`}
+                                                    >
+                                                        {user.face_enrolled
+                                                            ? 'Enrolled'
+                                                            : 'Not enrolled'}
+                                                    </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-muted-foreground">
                                                     {user.employee

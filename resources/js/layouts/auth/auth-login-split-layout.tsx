@@ -2,7 +2,8 @@ import type { PropsWithChildren } from 'react';
 
 import { cn } from '@/lib/utils';
 
-const LOGIN_ILLUSTRATION = '/images/login-illustration.png';
+const LOGIN_ILLUSTRATION = '/images/login-illustration-city.png';
+const LOGIN_FORM_PATTERN = '/images/login-form-pattern.png';
 
 export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
     return (
@@ -53,7 +54,18 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                             'border-zinc-200/90 lg:border-r dark:border-zinc-800/90',
                         )}
                     >
-                        {children}
+                        <div
+                            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-45 dark:opacity-20"
+                            style={{ backgroundImage: `url(${LOGIN_FORM_PATTERN})` }}
+                            aria-hidden
+                        />
+                        <div
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/60 via-white/45 to-white/70 dark:from-[#0b0d0c]/85 dark:via-[#0b0d0c]/78 dark:to-[#0b0d0c]/88"
+                            aria-hidden
+                        />
+                        <div className="relative z-10">
+                            {children}
+                        </div>
                     </div>
 
                     <div
@@ -76,8 +88,8 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                             alt=""
                             className={cn(
                                 'relative h-full min-h-[320px] w-full object-cover object-center',
-                                'opacity-95 mix-blend-multiply',
-                                'dark:min-h-0 dark:opacity-65 dark:mix-blend-normal',
+                                'opacity-100',
+                                'dark:min-h-0 dark:opacity-90 dark:mix-blend-normal',
                             )}
                         />
                     </div>

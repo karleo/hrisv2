@@ -50,6 +50,9 @@ class UpdateUserRequest extends FormRequest
             ],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'face_capture_front' => ['nullable', 'image', 'max:128'],
+            'face_capture_left' => ['nullable', 'image', 'max:128'],
+            'face_capture_right' => ['nullable', 'image', 'max:128'],
         ];
     }
 }

@@ -85,6 +85,80 @@ class EmployeeTest extends TestCase
         $response->assertSee('EMP-9001,Export,User,export.user@example.com', false);
     }
 
+    public function test_export_download_respects_active_filters(): void
+    {
+        $department = Department::factory()->create(['code' => 'OPS', 'name' => 'Operations']);
+        $jobPosition = JobPosition::factory()->create(['code' => 'MKT', 'name' => 'Marketing Specialist']);
+        $timetable = WorkTimetable::factory()->create(['name' => 'General Shift']);
+
+        Employee::factory()->create([
+            'employee_code' => 'EMP-9101',
+            'first_name' => 'Target',
+            'last_name' => 'Person',
+            'email_address' => 'target.person@example.com',
+            'employee_status' => 'On Probation',
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
+        ]);
+
+        Employee::factory()->create([
+            'employee_code' => 'EMP-9102',
+            'first_name' => 'Other',
+            'last_name' => 'Person',
+            'email_address' => 'other.person@example.com',
+            'employee_status' => 'Employed',
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
+        ]);
+
+        $response = $this->get(route('employees.export', [
+            'search' => 'Target',
+            'employee_status' => 'On Probation',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('EMP-9101,Target,Person,target.person@example.com', false);
+        $response->assertDontSee('EMP-9102,Other,Person,other.person@example.com', false);
+    }
+
+    public function test_export_download_includes_group_column_when_grouped_by_department(): void
+    {
+        $engineering = Department::factory()->create(['code' => 'ENG', 'name' => 'Engineering']);
+        $operations = Department::factory()->create(['code' => 'OPS', 'name' => 'Operations']);
+        $jobPosition = JobPosition::factory()->create(['code' => 'DEV', 'name' => 'Developer']);
+        $timetable = WorkTimetable::factory()->create(['name' => 'General Shift']);
+
+        Employee::factory()->create([
+            'employee_code' => 'EMP-9201',
+            'first_name' => 'Alice',
+            'last_name' => 'Eng',
+            'email_address' => 'alice.eng@example.com',
+            'department_id' => $engineering->id,
+            'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
+        ]);
+        Employee::factory()->create([
+            'employee_code' => 'EMP-9202',
+            'first_name' => 'Oscar',
+            'last_name' => 'Ops',
+            'email_address' => 'oscar.ops@example.com',
+            'department_id' => $operations->id,
+            'job_position_id' => $jobPosition->id,
+            'work_timetable_id' => $timetable->id,
+        ]);
+
+        $response = $this->get(route('employees.export', [
+            'group_by' => 'department',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('group,employee_code,first_name,last_name,email_address', false);
+        $response->assertSee('Engineering,EMP-9201,Alice,Eng,alice.eng@example.com', false);
+        $response->assertSee('Operations,EMP-9202,Oscar,Ops,oscar.ops@example.com', false);
+    }
+
     public function test_store_creates_employee(): void
     {
         $department = Department::factory()->create();
@@ -414,6 +488,37 @@ class EmployeeTest extends TestCase
             ->where('employee.id', $employee->id)
             ->where('employee.photo_url', '/storage/'.$photoPath)
             ->where('employee.company_logo_url', '/storage/'.$logoPath)
+        );
+    }
+
+    public function test_my_profile_documents_use_relative_storage_urls(): void
+    {
+        Storage::fake('public');
+
+        /** @var User $user */
+        $user = auth()->user();
+        $this->assertInstanceOf(User::class, $user);
+
+        $employee = Employee::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $path = UploadedFile::fake()
+            ->create('profile-doc.csv', 64, 'text/csv')
+            ->store("employees/{$employee->id}/documents", 'public');
+
+        $employee->documents()->create([
+            'name' => 'Profile Document',
+            'path' => $path,
+            'original_name' => 'profile-doc.csv',
+        ]);
+
+        $response = $this->get(route('my-profile.show'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/profile')
+            ->where('employee.documents.0.url', '/storage/'.$path)
         );
     }
 }

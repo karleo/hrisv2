@@ -25,7 +25,7 @@ export default function LoginBrandHeader({ appName }: Props) {
                     alt=""
                     width={56}
                     height={56}
-                    className="size-14 rounded-2xl object-cover shadow-md ring-1 ring-black/5 transition group-hover:shadow-lg dark:ring-white/10 md:size-16"
+                    className="size-14 rounded-2xl object-contain shadow-md ring-1 ring-black/5 transition group-hover:shadow-lg dark:ring-white/10 md:size-16"
                     loading="eager"
                     decoding="async"
                     onError={() => setCustomMarkFailed(true)}

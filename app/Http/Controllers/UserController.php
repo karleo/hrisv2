@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\FaceVerificationContract;
+use App\Enums\FaceProfileAngle;
 use App\Http\Requests\User\StoreUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Models\Employee;
@@ -10,11 +12,17 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private readonly FaceVerificationContract $faceVerification,
+    ) {}
+
     /**
      * Display a listing of users.
      */
@@ -35,6 +43,11 @@ class UserController extends Controller
             )
             ->orderBy('name')
             ->paginate(15)
+            ->through(function (User $user): User {
+                $user->face_enrolled = $user->face_enrolled_at !== null || (is_array($user->face_profile) && $user->face_profile !== []);
+
+                return $user;
+            })
             ->withQueryString();
 
         return Inertia::render('users/index', [
@@ -61,15 +74,45 @@ class UserController extends Controller
      */
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $data = $request->validated();
-        $employeeId = isset($data['employee_id']) ? (int) $data['employee_id'] : null;
-        unset($data['employee_id']);
+        $validated = $request->validated();
 
+        $imagesByAngle = [];
+        foreach (FaceProfileAngle::ordered() as $angle) {
+            $field = 'face_capture_'.$angle->value;
+            $file = $request->file($field);
+            if ($file === null || ! $file->isValid()) {
+                throw ValidationException::withMessages([
+                    $field => __('A valid face capture is required for this angle.'),
+                ]);
+            }
+            $imagesByAngle[$angle->value] = $file;
+        }
+
+        $employeeId = isset($validated['employee_id']) ? (int) $validated['employee_id'] : null;
+
+        $faceFields = array_map(
+            static fn (FaceProfileAngle $a): string => 'face_capture_'.$a->value,
+            FaceProfileAngle::ordered(),
+        );
+
+        $data = collect($validated)
+            ->except(array_merge(['employee_id'], $faceFields))
+            ->all();
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
-        $user = User::query()->create($data);
+        try {
+            DB::transaction(function () use ($data, $employeeId, $imagesByAngle): void {
+                $user = User::query()->create($data);
+                $this->syncEmployeeLink($user, $employeeId);
+                $this->faceVerification->enrollProfile($user, $imagesByAngle);
+            });
+        } catch (Throwable $e) {
+            report($e);
 
-        $this->syncEmployeeLink($user, $employeeId);
+            throw ValidationException::withMessages([
+                'face_capture_front' => __('Face enrollment failed. Try again with new captures for each angle.'),
+            ]);
+        }
 
         return to_route('users.index')->with('success', 'User created.');
     }
@@ -85,12 +128,25 @@ class UserController extends Controller
         ]);
 
         return Inertia::render('users/edit', [
+            'userFace' => [
+                'enrolled' => $user->face_enrolled_at !== null || (is_array($user->face_profile) && $user->face_profile !== []),
+                'enrolled_at' => $user->face_enrolled_at?->toIso8601String(),
+                'provider' => $user->face_provider,
+                'angles' => array_values(array_filter(
+                    array_keys(is_array($user->face_profile) ? $user->face_profile : []),
+                    static fn (mixed $value): bool => in_array($value, array_map(
+                        static fn (FaceProfileAngle $angle): string => $angle->value,
+                        FaceProfileAngle::ordered(),
+                    ), true),
+                )),
+            ],
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role_id' => $user->role_id,
                 'employee_id' => $user->employee?->id,
+                'face_enrolled' => $user->face_enrolled_at !== null,
             ],
             'roles' => Role::query()->orderBy('name')->get(['id', 'name', 'slug']),
             'employees' => Employee::query()
@@ -106,6 +162,24 @@ class UserController extends Controller
     {
         $validated = $request->validated();
 
+        $imagesByAngle = [];
+        $anyFaceFile = false;
+        foreach (FaceProfileAngle::ordered() as $angle) {
+            $field = 'face_capture_'.$angle->value;
+            $file = $request->file($field);
+            if ($file !== null && $file->isValid()) {
+                $imagesByAngle[$angle->value] = $file;
+                $anyFaceFile = true;
+            }
+        }
+
+        $attemptFaceEnroll = $anyFaceFile;
+        if ($attemptFaceEnroll && count($imagesByAngle) !== count(FaceProfileAngle::ordered())) {
+            throw ValidationException::withMessages([
+                'face_capture_front' => __('Updating face sign-in requires front, left, and right captures together.'),
+            ]);
+        }
+
         $employeeId = array_key_exists('employee_id', $validated)
             ? $validated['employee_id']
             : null;
@@ -115,6 +189,9 @@ class UserController extends Controller
 
         $data = $validated;
         unset($data['employee_id']);
+        foreach (FaceProfileAngle::ordered() as $angle) {
+            unset($data['face_capture_'.$angle->value]);
+        }
 
         if (empty($data['password'])) {
             unset($data['password']);
@@ -122,10 +199,25 @@ class UserController extends Controller
 
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
-        DB::transaction(function () use ($user, $data, $employeeId): void {
-            $user->update($data);
-            $this->syncEmployeeLink($user, $employeeId);
-        });
+        try {
+            DB::transaction(function () use ($user, $data, $employeeId, $imagesByAngle, $attemptFaceEnroll): void {
+                $user->update($data);
+                $this->syncEmployeeLink($user, $employeeId);
+                if ($attemptFaceEnroll) {
+                    $this->faceVerification->enrollProfile($user->fresh(), $imagesByAngle);
+                }
+            });
+        } catch (Throwable $e) {
+            report($e);
+
+            if ($attemptFaceEnroll) {
+                throw ValidationException::withMessages([
+                    'face_capture_front' => __('Face enrollment failed. Try again with new captures for each angle.'),
+                ]);
+            }
+
+            throw $e;
+        }
 
         return to_route('users.edit', $user)->with('success', 'User updated.');
     }
@@ -141,9 +233,25 @@ class UserController extends Controller
 
         Employee::query()->where('user_id', $user->id)->update(['user_id' => null]);
 
+        if ($user->face_enrolled_at !== null || (is_array($user->face_profile) && $user->face_profile !== [])) {
+            $this->faceVerification->deleteReference($user);
+        }
+
         $user->delete();
 
         return to_route('users.index')->with('success', 'User deleted.');
+    }
+
+    public function destroyFaceLogin(Request $request, User $user): RedirectResponse
+    {
+        $actor = $request->user();
+        if ($actor === null || ! $actor->isAdministrator()) {
+            abort(403);
+        }
+
+        $this->faceVerification->deleteReference($user);
+
+        return to_route('users.edit', $user)->with('success', 'Face login disabled for this user.');
     }
 
     private function syncEmployeeLink(User $user, ?int $employeeId): void

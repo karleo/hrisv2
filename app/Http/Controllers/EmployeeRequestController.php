@@ -15,6 +15,8 @@ use App\Notifications\RequestSubmittedNotification;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -31,24 +33,88 @@ class EmployeeRequestController extends Controller
      */
     public function index(Request $request): Response
     {
-        $employeeRequests = EmployeeRequest::query()
+        $visibleRequests = EmployeeRequest::query()
             ->with(['employee', 'department', 'jobPosition'])
             ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = (string) $request->input('search');
+                $query->whereHas('employee', function ($q) use ($search): void {
+                    $q->where('first_name', 'like', '%'.$search.'%')
+                        ->orWhere('last_name', 'like', '%'.$search.'%');
+                });
+            })
             ->when(
-                $request->filled('search'),
-                fn ($query) => $query->whereHas('employee', function ($q) use ($request): void {
-                    $q->where('first_name', 'like', '%'.$request->search.'%')
-                        ->orWhere('last_name', 'like', '%'.$request->search.'%');
-                })
+                $request->filled('department_id'),
+                fn ($query) => $query->where('department_id', (int) $request->input('department_id'))
             )
+            ->when(
+                $request->filled('status'),
+                fn ($query) => $query->where('status', (string) $request->input('status'))
+            );
+
+        $this->applyDatePresetFilter($visibleRequests, $request->input('date_preset'));
+
+        $statusCounts = (clone $visibleRequests)
+            ->select('status')
+            ->get()
+            ->countBy(fn (EmployeeRequest $row): string => strtolower((string) $row->status));
+
+        $employeeRequests = (clone $visibleRequests)
             ->orderByDesc('date')
             ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('employee-requests/index', [
             'employeeRequests' => $employeeRequests,
-            'filters' => $request->only('search'),
+            'filters' => $request->only(['search', 'department_id', 'status', 'date_preset']),
+            'departments' => Department::query()
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'stats' => [
+                'total' => $statusCounts->sum(),
+                'draft' => (int) $statusCounts->get('draft', 0),
+                'submitted' => (int) $statusCounts->get('submitted', 0),
+                'approved' => (int) $statusCounts->get('approved', 0),
+                'rejected' => (int) $statusCounts->get('rejected', 0),
+            ],
         ]);
+    }
+
+    private function applyDatePresetFilter(Builder $query, mixed $datePreset): void
+    {
+        if (! is_string($datePreset) || $datePreset === '') {
+            return;
+        }
+
+        $today = Carbon::today();
+
+        if ($datePreset === 'today') {
+            $query->whereDate('date', $today);
+
+            return;
+        }
+
+        if ($datePreset === 'yesterday') {
+            $query->whereDate('date', $today->copy()->subDay());
+
+            return;
+        }
+
+        if ($datePreset === 'last_7_days') {
+            $query->whereBetween('date', [
+                $today->copy()->subDays(6)->startOfDay(),
+                $today->copy()->endOfDay(),
+            ]);
+
+            return;
+        }
+
+        if ($datePreset === 'this_month') {
+            $query->whereBetween('date', [
+                $today->copy()->startOfMonth(),
+                $today->copy()->endOfMonth(),
+            ]);
+        }
     }
 
     /**

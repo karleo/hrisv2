@@ -40,6 +40,9 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
+        'face_reference_path',
+        'face_profile',
+        'face_provider',
     ];
 
     /**
@@ -54,6 +57,9 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
+            'face_enrolled_at' => 'datetime',
+            /** @var array<string, string>|null */
+            'face_profile' => 'array',
         ];
     }
 

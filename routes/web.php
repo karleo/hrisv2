@@ -21,14 +21,8 @@ use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\WorkTimetableController;
 use App\Http\Middleware\EnforceModulePermissions;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
-Route::get('/', function () {
-    return Inertia::render('welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
-})->name('home');
+Route::redirect('/', '/login')->name('home');
 
 Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -46,8 +40,11 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employees.import');
     Route::get('my-profile', [EmployeeController::class, 'profile'])->name('my-profile.show');
     Route::patch('my-profile', [EmployeeController::class, 'updateProfile'])->name('my-profile.update');
+    Route::post('my-profile/face-login', [EmployeeController::class, 'updateProfileFaceLogin'])->name('my-profile.face-login.update');
+    Route::delete('my-profile/face-login', [EmployeeController::class, 'destroyProfileFaceLogin'])->name('my-profile.face-login.destroy');
     Route::post('my-profile/documents', [EmployeeController::class, 'uploadProfileDocument'])->name('my-profile.documents.store');
     Route::delete('my-profile/documents/{employee_document}', [EmployeeController::class, 'destroyProfileDocument'])->name('my-profile.documents.destroy');
+    Route::get('my-profile/documents/{employee_document}/view', [EmployeeController::class, 'showProfileDocument'])->name('my-profile.documents.show');
     Route::resource('employees', EmployeeController::class);
     Route::patch('employees/{employee}/private-information', [EmployeeController::class, 'updatePrivateInformation'])
         ->name('employees.private-information.update');
@@ -114,6 +111,7 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::patch('user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');
     Route::resource('roles', RoleController::class)->except(['show']);
     Route::resource('users', UserController::class)->except(['show']);
+    Route::delete('users/{user}/face-login', [UserController::class, 'destroyFaceLogin'])->name('users.face-login.destroy');
 });
 
 require __DIR__.'/settings.php';

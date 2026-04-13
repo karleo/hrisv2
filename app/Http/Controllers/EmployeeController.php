@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\FaceVerificationContract;
+use App\Enums\FaceProfileAngle;
 use App\Http\Requests\Employee\ImportEmployeesRequest;
 use App\Http\Requests\Employee\StoreEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeePrivateInformationRequest;
@@ -15,12 +17,14 @@ use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
 use App\Models\WorkTimetable;
 use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -28,6 +32,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
 {
+    public function __construct(
+        private readonly FaceVerificationContract $faceVerification,
+    ) {}
+
     public function profile(Request $request): Response
     {
         $user = $request->user();
@@ -50,7 +58,69 @@ class EmployeeController extends Controller
 
         return Inertia::render('employees/profile', [
             'employee' => $employee,
+            'faceLogin' => [
+                'enabled' => $user->face_enrolled_at !== null || (is_array($user->face_profile) && $user->face_profile !== []),
+                'enrolled_at' => $user->face_enrolled_at?->toIso8601String(),
+                'provider' => $user->face_provider,
+                'angles' => array_values(array_filter(
+                    array_keys(is_array($user->face_profile) ? $user->face_profile : []),
+                    static fn (mixed $value): bool => in_array($value, array_map(
+                        static fn (FaceProfileAngle $angle): string => $angle->value,
+                        FaceProfileAngle::ordered(),
+                    ), true),
+                )),
+            ],
         ]);
+    }
+
+    public function updateProfileFaceLogin(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null) {
+            abort(403);
+        }
+
+        $imagesByAngle = [];
+        foreach (FaceProfileAngle::ordered() as $angle) {
+            $field = 'face_capture_'.$angle->value;
+            $file = $request->file($field);
+            if ($file === null || ! $file->isValid()) {
+                throw ValidationException::withMessages([
+                    $field => __('Please capture :angle angle before saving.', ['angle' => $angle->value]),
+                ]);
+            }
+            $imagesByAngle[$angle->value] = $file;
+        }
+
+        $this->faceVerification->enrollProfile($user, $imagesByAngle);
+
+        return back()->with('success', 'Face login enabled for your profile.');
+    }
+
+    public function destroyProfileFaceLogin(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        if (! $user->isAdministrator()) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null) {
+            abort(403);
+        }
+
+        $this->faceVerification->deleteReference($user);
+
+        return back()->with('success', 'Face login disabled for your profile.');
     }
 
     public function updateProfile(UpdateProfileRequest $request): RedirectResponse
@@ -129,6 +199,30 @@ class EmployeeController extends Controller
         return back()->with('success', 'Document deleted.');
     }
 
+    public function showProfileDocument(Request $request, EmployeeDocument $employeeDocument): BinaryFileResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null || $employeeDocument->employee_id !== $employee->id) {
+            abort(404);
+        }
+
+        if (! Storage::disk('public')->exists($employeeDocument->path)) {
+            abort(404, 'Document file not found.');
+        }
+
+        return response()->file(
+            Storage::disk('public')->path($employeeDocument->path),
+            [
+                'Content-Disposition' => 'inline; filename="'.$employeeDocument->original_name.'"',
+            ]
+        );
+    }
+
     /**
      * Display a listing of the employees.
      */
@@ -143,34 +237,11 @@ class EmployeeController extends Controller
                 'user' => function ($query) use ($hasUserActiveColumn): void {
                     $query->select($hasUserActiveColumn ? ['id', 'is_active'] : ['id']);
                 },
-            ])
-            ->when(
-                $request->filled('department_id'),
-                fn ($query) => $query->where('department_id', (int) $request->department_id)
-            )
-            ->when(
-                $request->filled('search'),
-                fn ($query) => $query->where(
-                    fn ($q) => $q->where('employee_code', 'like', '%'.$request->search.'%')
-                        ->orWhere('first_name', 'like', '%'.$request->search.'%')
-                        ->orWhere('last_name', 'like', '%'.$request->search.'%')
-                        ->orWhere('email_address', 'like', '%'.$request->search.'%')
-                        ->orWhere('contact_number', 'like', '%'.$request->search.'%')
-                )
-            )
-            ->when(
-                $request->filled('employee_status'),
-                function ($query) use ($request): void {
-                    $status = (string) $request->input('employee_status');
-                    if ($status === 'Employed') {
-                        $query->whereIn('employee_status', ['Employed', 'Active']);
+            ]);
 
-                        return;
-                    }
+        $this->applyEmployeeFilters($employees, $request);
 
-                    $query->where('employee_status', $status);
-                }
-            )
+        $employees = $employees
             ->orderBy('employee_code')
             ->paginate(15)
             ->through(function (Employee $employee) {
@@ -249,15 +320,31 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function export(): StreamedResponse
+    public function export(Request $request): StreamedResponse
     {
-        $callback = static function (): void {
+        $groupBy = in_array($request->input('group_by'), ['department', 'manager'], true)
+            ? (string) $request->input('group_by')
+            : null;
+
+        $exportQuery = Employee::query()
+            ->with(['department:id,code,name,manager_employee_id', 'department.managerEmployee:id,first_name,last_name', 'jobPosition:id,code,name', 'workTimetable:id,name', 'companyProfile:id,company_name']);
+        $this->applyEmployeeFilters($exportQuery, $request);
+
+        if ($groupBy === 'department') {
+            $exportQuery->orderBy('department_id');
+        }
+
+        if ($groupBy === 'manager') {
+            $exportQuery->orderBy('department_id');
+        }
+
+        $callback = function () use ($exportQuery, $groupBy): void {
             $stream = fopen('php://output', 'w');
             if ($stream === false) {
                 return;
             }
 
-            fputcsv($stream, [
+            $headers = [
                 'employee_code',
                 'first_name',
                 'last_name',
@@ -272,14 +359,19 @@ class EmployeeController extends Controller
                 'work_timetable_name',
                 'company_profile_name',
                 'role',
-            ]);
+            ];
 
-            Employee::query()
-                ->with(['department:id,code,name', 'jobPosition:id,code,name', 'workTimetable:id,name', 'companyProfile:id,company_name'])
+            if ($groupBy !== null) {
+                array_unshift($headers, 'group');
+            }
+
+            fputcsv($stream, $headers);
+
+            $exportQuery
                 ->orderBy('employee_code')
-                ->chunk(500, static function ($employees) use ($stream): void {
+                ->chunk(500, function ($employees) use ($stream, $groupBy): void {
                     foreach ($employees as $employee) {
-                        fputcsv($stream, [
+                        $row = [
                             $employee->employee_code,
                             $employee->first_name,
                             $employee->last_name,
@@ -294,7 +386,13 @@ class EmployeeController extends Controller
                             $employee->workTimetable?->name,
                             $employee->companyProfile?->company_name,
                             $employee->role,
-                        ]);
+                        ];
+
+                        if ($groupBy !== null) {
+                            array_unshift($row, $this->resolveEmployeeExportGroup($employee, $groupBy));
+                        }
+
+                        fputcsv($stream, $row);
                     }
                 });
 
@@ -304,6 +402,58 @@ class EmployeeController extends Controller
         return response()->streamDownload($callback, 'employees-export.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    private function resolveEmployeeExportGroup(Employee $employee, string $groupBy): string
+    {
+        if ($groupBy === 'department') {
+            return $employee->department?->name ?? 'Undefined';
+        }
+
+        if ($groupBy === 'manager') {
+            if ($employee->department?->managerEmployee) {
+                return trim($employee->department->managerEmployee->first_name.' '.$employee->department->managerEmployee->last_name);
+            }
+
+            return 'No Manager Assigned';
+        }
+
+        return '';
+    }
+
+    private function applyEmployeeFilters(Builder $query, Request $request): void
+    {
+        $query
+            ->when(
+                $request->filled('department_id'),
+                fn (Builder $innerQuery) => $innerQuery->where('department_id', (int) $request->input('department_id'))
+            )
+            ->when(
+                $request->filled('search'),
+                function (Builder $innerQuery) use ($request): void {
+                    $search = (string) $request->input('search');
+                    $innerQuery->where(function (Builder $searchQuery) use ($search): void {
+                        $searchQuery->where('employee_code', 'like', '%'.$search.'%')
+                            ->orWhere('first_name', 'like', '%'.$search.'%')
+                            ->orWhere('last_name', 'like', '%'.$search.'%')
+                            ->orWhere('email_address', 'like', '%'.$search.'%')
+                            ->orWhere('contact_number', 'like', '%'.$search.'%');
+                    });
+                }
+            )
+            ->when(
+                $request->filled('employee_status'),
+                function (Builder $innerQuery) use ($request): void {
+                    $status = (string) $request->input('employee_status');
+                    if ($status === 'Employed') {
+                        $innerQuery->whereIn('employee_status', ['Employed', 'Active']);
+
+                        return;
+                    }
+
+                    $innerQuery->where('employee_status', $status);
+                }
+            );
     }
 
     public function import(ImportEmployeesRequest $request): RedirectResponse

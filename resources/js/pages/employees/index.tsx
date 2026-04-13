@@ -1,5 +1,4 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Fragment, type FormEvent, useState } from 'react';
 import {
     ChevronRight,
     CircleAlert,
@@ -12,9 +11,9 @@ import {
     Search,
     Trash2,
     Upload,
-    User,
     Users,
 } from 'lucide-react';
+import { Fragment, type FormEvent, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
@@ -180,6 +179,20 @@ export default function Index({
         return groups;
     }, {});
     const sortedGroupNames = Object.keys(groupedEmployees).sort((a, b) => a.localeCompare(b));
+    const exportQuery = new URLSearchParams();
+    if (filters.search) {
+        exportQuery.set('search', String(filters.search));
+    }
+    if (filters.employee_status) {
+        exportQuery.set('employee_status', String(filters.employee_status));
+    }
+    if (filters.department_id) {
+        exportQuery.set('department_id', String(filters.department_id));
+    }
+    if (groupMode !== 'none') {
+        exportQuery.set('group_by', groupMode);
+    }
+    const exportHref = `/employees/export${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ''}`;
 
     function toggleGroup(groupName: string) {
         setExpandedGroups((previous) => ({
@@ -389,7 +402,7 @@ export default function Index({
                                                 Template
                                             </Button>
                                         </a>
-                                        <a href="/employees/export">
+                                        <a href={exportHref}>
                                             <Button size="sm" variant="outline" className="h-9 gap-2 rounded-full px-3">
                                                 <Download className="size-4" />
                                                 Export
@@ -695,7 +708,7 @@ export default function Index({
                                                                             ?? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300';
 
                                                                         return (
-                                                                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${departmentStyleMap[groupName] ?? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300'}`}>
+                                                                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${departmentStyle}`}>
                                                                         {departmentName}
                                                                     </span>
                                                                         );

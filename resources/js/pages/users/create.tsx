@@ -1,8 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import MultiAngleFaceProfileField, {
+    type FaceProfileFiles,
+} from '@/components/multi-angle-face-profile-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,6 +52,12 @@ function employeeLabel(
     return `${base} (linked)`;
 }
 
+const emptyFaceProfile = (): FaceProfileFiles => ({
+    front: null,
+    left: null,
+    right: null,
+});
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Users', href: '/users' },
     { title: 'Create', href: '/users/create' },
@@ -64,6 +73,9 @@ export default function Create({
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] =
         useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [faceGrabError, setFaceGrabError] = useState<string | null>(null);
+    const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
 
     const { data, setData, post, processing, errors, transform } = useForm({
         name: '',
@@ -74,14 +86,25 @@ export default function Create({
         employee_id: '',
     });
 
+    const faceComplete =
+        Boolean(faceProfile.front) &&
+        Boolean(faceProfile.left) &&
+        Boolean(faceProfile.right);
+
     transform((payload) => ({
-        name: payload.name,
-        email: payload.email,
-        password: payload.password,
-        password_confirmation: payload.password_confirmation,
+        ...payload,
         role_id: toOptionalPositiveInt(payload.role_id),
         employee_id: toOptionalPositiveInt(payload.employee_id),
+        ...(faceComplete && faceProfile.front && faceProfile.left && faceProfile.right
+            ? {
+                  face_capture_front: faceProfile.front,
+                  face_capture_left: faceProfile.left,
+                  face_capture_right: faceProfile.right,
+              }
+            : {}),
     }));
+
+    const busy = processing || submitting;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -98,14 +121,31 @@ export default function Create({
 
                 <Heading
                     title="Create user"
-                    description="Add a system login. Linking an employee is optional."
+                    description="Add a system login. Face sign-in enrolls three angles (front, left, right) for a stronger profile. Complete those steps, then create the account. Linking an employee is optional."
                 />
 
                 <form
                     className="flex w-full min-w-0 flex-1 flex-col"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        post('/users');
+                        setFaceGrabError(null);
+                        if (!faceComplete) {
+                            setFaceGrabError(
+                                'Lock all three face angles (front, left, right) before creating the user.',
+                            );
+                            return;
+                        }
+                        setSubmitting(true);
+                        post('/users', {
+                            forceFormData: true,
+                            onFinish: () => {
+                                setFaceProfile(emptyFaceProfile());
+                                setSubmitting(false);
+                            },
+                            onError: () => {
+                                setFaceGrabError(null);
+                            },
+                        });
                     }}
                 >
                     <Card className="min-h-0 w-full flex-1">
@@ -332,9 +372,38 @@ export default function Create({
                                     moves the link to this user.
                                 </p>
                             </div>
+
+                            <MultiAngleFaceProfileField
+                                value={faceProfile}
+                                onChange={setFaceProfile}
+                                disabled={busy}
+                                errors={{
+                                    face_capture_front: errors.face_capture_front,
+                                    face_capture_left: errors.face_capture_left,
+                                    face_capture_right: errors.face_capture_right,
+                                }}
+                            />
+                            <div
+                                className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100"
+                                role="status"
+                            >
+                                <p className="inline-flex items-center gap-2 font-medium">
+                                    <AlertCircle className="size-4" aria-hidden />
+                                    Face profile is not enrolled yet for this new user.
+                                </p>
+                                <p className="mt-1 text-xs opacity-90">
+                                    Complete front, left, and right captures, then create the user to save
+                                    face login enrollment.
+                                </p>
+                            </div>
+                            {faceGrabError ? (
+                                <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                                    {faceGrabError}
+                                </p>
+                            ) : null}
                         </CardContent>
                         <CardFooter className="mt-auto flex flex-wrap gap-3 border-t pt-6">
-                            <Button disabled={processing} type="submit">
+                            <Button disabled={busy || !faceComplete} type="submit">
                                 Create user
                             </Button>
                             <Link href="/users">

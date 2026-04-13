@@ -155,10 +155,30 @@
     }
 }
 
+@keyframes login-face-scanline {
+    0% {
+        top: 8%;
+        opacity: 0.45;
+    }
+
+    50% {
+        opacity: 0.95;
+    }
+
+    100% {
+        top: calc(92% - 2px);
+        opacity: 0.45;
+    }
+}
+
 @layer utilities {
     .notification-toast-timer-bar {
         animation-name: notification-toast-timer;
         animation-timing-function: linear;
         animation-fill-mode: forwards;
+    }
+
+    .login-face-scanline {
+        animation: login-face-scanline 2.6s ease-in-out infinite alternate;
     }
 }

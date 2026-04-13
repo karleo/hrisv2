@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Contracts\FaceVerificationContract;
 use App\Http\Responses\Fortify\LoginResponse as FortifyLoginResponse;
 use App\Http\Responses\Fortify\TwoFactorLoginResponse as FortifyTwoFactorLoginResponse;
 use App\Models\User;
@@ -23,6 +24,8 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    private const FACE_ONLY_EMAIL_PLACEHOLDER = '__face_only_login__';
+
     /**
      * Register any application services.
      */
@@ -52,11 +55,58 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::createUsersUsing(CreateNewUser::class);
 
         Fortify::authenticateUsing(function (Request $request): ?User {
+            $email = trim((string) $request->input('email', ''));
+            $faceFile = $request->file('face_capture');
+            $hasValidFaceFile = $faceFile !== null && $faceFile->isValid();
+            $isFaceOnlyAttempt = $email === '' || $email === self::FACE_ONLY_EMAIL_PLACEHOLDER;
+
+            if ($isFaceOnlyAttempt) {
+                if (! $hasValidFaceFile) {
+                    throw ValidationException::withMessages([
+                        'face_capture' => __('Face verification is required.'),
+                    ]);
+                }
+
+                $identifyRateKey = 'face-login:identify:'.$request->ip();
+                if (RateLimiter::tooManyAttempts($identifyRateKey, 20)) {
+                    throw ValidationException::withMessages([
+                        'face_capture' => __('Too many face verification attempts. Try again later.'),
+                    ]);
+                }
+
+                RateLimiter::hit($identifyRateKey, decaySeconds: 120);
+
+                $verifier = app(FaceVerificationContract::class);
+                $candidates = User::query()
+                    ->where(function ($query) {
+                        $query->whereNotNull('face_enrolled_at')
+                            ->orWhereNotNull('face_reference_path')
+                            ->orWhereNotNull('face_profile');
+                    })
+                    ->get();
+
+                foreach ($candidates as $candidate) {
+                    if (Schema::hasColumn('users', 'is_active') && ! $candidate->is_active) {
+                        continue;
+                    }
+
+                    if ($verifier->verify($candidate, $faceFile)) {
+                        RateLimiter::clear($identifyRateKey);
+
+                        return $candidate;
+                    }
+                }
+
+                throw ValidationException::withMessages([
+                    'face_capture' => __('Face verification failed.'),
+                ]);
+            }
+
             $user = User::query()
-                ->where('email', $request->input('email'))
+                ->where('email', $email)
                 ->first();
 
-            if (! $user || ! Hash::check($request->input('password'), $user->password)) {
+            if (! $user) {
                 return null;
             }
 
@@ -64,6 +114,44 @@ class FortifyServiceProvider extends ServiceProvider
                 throw ValidationException::withMessages([
                     'email' => 'Your account is inactive. Please contact HR.',
                 ]);
+            }
+
+            $hasFaceEnrollment =
+                $user->face_enrolled_at !== null ||
+                (is_array($user->face_profile) && $user->face_profile !== []) ||
+                (is_string($user->face_reference_path) && $user->face_reference_path !== '');
+
+            if ($hasFaceEnrollment) {
+                if (! $hasValidFaceFile) {
+                    throw ValidationException::withMessages([
+                        'face_capture' => __('Face verification is required.'),
+                    ]);
+                }
+
+                $rateKey = 'face-login:'.$user->id.':'.$request->ip();
+                if (RateLimiter::tooManyAttempts($rateKey, 20)) {
+                    throw ValidationException::withMessages([
+                        'email' => __('Too many face verification attempts. Try again later.'),
+                    ]);
+                }
+
+                RateLimiter::hit($rateKey, decaySeconds: 120);
+
+                $verified = app(FaceVerificationContract::class)->verify($user, $faceFile);
+
+                if (! $verified) {
+                    throw ValidationException::withMessages([
+                        'face_capture' => __('Face verification failed.'),
+                    ]);
+                }
+
+                RateLimiter::clear($rateKey);
+
+                return $user;
+            }
+
+            if (! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
             }
 
             return $user;
@@ -112,6 +200,10 @@ class FortifyServiceProvider extends ServiceProvider
 
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+
+            if ($request->hasFile('face_capture')) {
+                return Limit::perMinute(20)->by($throttleKey);
+            }
 
             return Limit::perMinute(5)->by($throttleKey);
         });

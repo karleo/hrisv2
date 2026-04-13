@@ -89,6 +89,36 @@ function buildVCard(
     return lines.join('\r\n');
 }
 
+function buildCompactVCard(
+    employee: Employee,
+    appName: string,
+): string {
+    const fullName = `${employee.first_name} ${employee.last_name}`;
+    const lines = [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `FN:${escapeVCard(fullName)}`,
+        `N:${escapeVCard(employee.last_name)};${escapeVCard(employee.first_name)};;;`,
+    ];
+
+    const org = employee.company_profile?.company_name || appName;
+    if (org) {
+        lines.push(`ORG:${escapeVCard(org)}`);
+    }
+    if (employee.job_position?.name) {
+        lines.push(`TITLE:${escapeVCard(employee.job_position.name)}`);
+    }
+    if (employee.contact_number) {
+        lines.push(`TEL;TYPE=CELL:${escapeVCard(employee.contact_number)}`);
+    }
+    if (employee.email_address) {
+        lines.push(`EMAIL:${escapeVCard(employee.email_address)}`);
+    }
+    lines.push('END:VCARD');
+
+    return lines.join('\r\n');
+}
+
 function escapeVCard(value: string): string {
     return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
 }
@@ -114,6 +144,10 @@ export default function BusinessCard({
         () => buildVCard(employee, appName),
         [employee, appName]
     );
+    const compactVCard = useMemo(
+        () => buildCompactVCard(employee, appName),
+        [employee, appName],
+    );
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employees', href: index().url },
         { title: fullName, href: '#' },
@@ -135,7 +169,7 @@ export default function BusinessCard({
     }
 
     const content = (
-        <div className={`flex flex-1 flex-col ${embedded ? 'justify-center p-2' : 'gap-6 p-4 md:p-6 print:p-0'}`}>
+        <div className={`flex flex-1 flex-col ${embedded ? 'justify-center p-4' : 'gap-6 p-4 md:p-6 print:p-0'}`}>
             {!embedded ? (
                 <div className="flex flex-wrap items-center gap-3 print:hidden">
                     <Link
@@ -179,7 +213,7 @@ export default function BusinessCard({
             <div className={`flex ${embedded ? 'min-h-0' : 'min-h-[50vh]'} items-start justify-center print:min-h-0 print:items-center print:justify-center`}>
                 <div
                     id="business-card"
-                    className="w-[336px] overflow-hidden rounded-lg border border-border bg-card shadow-lg print:w-[3.5in] print:rounded-none print:border-2 print:border-foreground print:shadow-none"
+                    className={`${embedded ? 'w-[400px] max-w-full' : 'w-[336px]'} overflow-hidden rounded-lg border border-border bg-card shadow-lg print:w-[3.5in] print:rounded-none print:border-2 print:border-foreground print:shadow-none`}
                     style={{ aspectRatio: '3.5 / 2' }}
                 >
                     <div className="flex h-full w-full flex-row gap-0">
@@ -254,11 +288,11 @@ export default function BusinessCard({
                                 </div>
                                 <div className="shrink-0" aria-hidden>
                                     <img
-                                        src={qrCodeDataUrl(vCard, 52)}
+                                        src={qrCodeDataUrl(compactVCard, 72)}
                                         alt=""
-                                        width={52}
-                                        height={52}
-                                        className="size-[52px]"
+                                        width={72}
+                                        height={72}
+                                        className="size-[72px] rounded bg-white p-1"
                                     />
                                 </div>
                             </div>

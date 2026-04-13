@@ -16,6 +16,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
+import { index as workTimetablesIndex } from '@/actions/App/Http/Controllers/WorkTimetableController';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -27,7 +28,6 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { index as workTimetablesIndex } from '@/actions/App/Http/Controllers/WorkTimetableController';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { dashboard } from '@/routes';
 import { index as companyProfilesIndex } from '@/routes/company-profiles';
@@ -66,13 +66,6 @@ const mainNavItemsSource: NavItem[] = [
         module: 'leave_requests',
     },
     {
-        title: 'Time & attendance',
-        description: 'Daily logs and attendance actions',
-        href: '/time-attendance',
-        icon: Clock,
-        module: 'time_attendance',
-    },
-    {
         title: 'IT Requests',
         description: 'Software and hardware request forms',
         href: itRequestsIndex(),
@@ -92,6 +85,13 @@ const mainNavItemsSource: NavItem[] = [
         href: '/employee-requests',
         icon: Briefcase,
         module: 'employee_requests',
+    },
+    {
+        title: 'Time & attendance',
+        description: 'Daily logs and attendance actions',
+        href: '/time-attendance',
+        icon: Clock,
+        module: 'time_attendance',
     },
     {
         title: 'Settings',
@@ -166,12 +166,6 @@ const mainNavItemsSource: NavItem[] = [
                         title: 'Roles',
                         href: '/roles',
                         icon: Shield,
-                        module: 'role_management',
-                    },
-                    {
-                        title: 'User roles',
-                        href: '/user-roles',
-                        icon: UserCog,
                         module: 'role_management',
                     },
                 ],
