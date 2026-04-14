@@ -2,7 +2,7 @@ import type { PropsWithChildren } from 'react';
 
 import { cn } from '@/lib/utils';
 
-const LOGIN_ILLUSTRATION = '/images/login-illustration-city.png';
+const LOGIN_ILLUSTRATION = '/images/login-illustration-dubai.png';
 const LOGIN_FORM_PATTERN = '/images/login-form-pattern.png';
 
 export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {

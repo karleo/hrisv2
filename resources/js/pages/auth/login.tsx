@@ -13,13 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLoginSplitLayout from '@/layouts/auth/auth-login-split-layout';
 import { cn } from '@/lib/utils';
-import { register } from '@/routes';
-import { request } from '@/routes/password';
 
 type Props = {
     status?: string;
-    canResetPassword: boolean;
-    canRegister: boolean;
 };
 
 const fieldShell = cn(
@@ -35,7 +31,7 @@ const fieldInput = cn(
     'focus-visible:ring-0 dark:text-zinc-50 dark:placeholder:text-zinc-500',
 );
 
-export default function Login({ status, canResetPassword, canRegister }: Props) {
+export default function Login({ status }: Props) {
     const [showPassword, setShowPassword] = useState(false);
     const [useFaceLogin, setUseFaceLogin] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -385,15 +381,6 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                                     </Label>
                                 </div>
                             </div>
-                            {canResetPassword && (
-                                <TextLink
-                                    href={request()}
-                                    className="text-sm font-medium text-zinc-600 underline-offset-4 hover:text-[#2d8f84] dark:text-zinc-300 dark:hover:text-[#5ec4b6] sm:text-right"
-                                    tabIndex={5}
-                                >
-                                    Forgot password?
-                                </TextLink>
-                            )}
                         </div>
 
                         <Button
@@ -420,19 +407,6 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                             )}
                         </Button>
                     </div>
-
-                    {canRegister && (
-                        <div className="pb-1 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                            New here?{' '}
-                            <TextLink
-                                href={register()}
-                                tabIndex={5}
-                                className="font-semibold text-[#3CA99B] underline-offset-4 hover:text-[#2a8f84] dark:text-[#5ec4b6] dark:hover:text-[#7ad4c7]"
-                            >
-                                Create an account
-                            </TextLink>
-                        </div>
-                    )}
                 </form>
             </main>
         </AuthLoginSplitLayout>
