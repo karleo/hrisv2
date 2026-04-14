@@ -114,7 +114,7 @@ class FaceLoginTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_login_succeeds_with_face_only_placeholder_email_when_enrolled(): void
+    public function test_login_fails_with_face_only_placeholder_email_when_enrolled(): void
     {
         $bytes = $this->canonicalFaceBytes();
         $this->assertNotSame('', $bytes);
@@ -131,13 +131,13 @@ class FaceLoginTest extends TestCase
             'face_provider' => 'local',
         ])->save();
 
-        $this->post('/login', [
+        $this->from('/login')->post('/login', [
             'email' => '__face_only_login__',
             'password' => 'face-only-login',
             'face_capture' => $this->faceUpload(),
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors('email');
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertGuest();
     }
 
     public function test_login_fails_with_wrong_face_when_enrolled(): void
@@ -160,7 +160,9 @@ class FaceLoginTest extends TestCase
             'email' => $user->email,
             'password' => 'Password123!',
             'face_capture' => $wrong,
-        ])->assertSessionHasErrors('face_capture');
+        ])->assertSessionHasErrors([
+            'face_capture' => 'Face does not match this email account.',
+        ]);
 
         $this->assertGuest();
     }
@@ -252,7 +254,18 @@ class FaceLoginTest extends TestCase
         $this->from('/login')->post('/login', [
             'email' => '__face_only_login__',
             'password' => 'face-only-login',
-        ])->assertSessionHasErrors('face_capture');
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_login_fails_with_empty_email_when_face_capture_is_provided(): void
+    {
+        $this->from('/login')->post('/login', [
+            'email' => '',
+            'password' => 'face-only-login',
+            'face_capture' => $this->faceUpload(),
+        ])->assertSessionHasErrors('email');
 
         $this->assertGuest();
     }

@@ -22,8 +22,6 @@ type Props = {
     canRegister: boolean;
 };
 
-const FACE_ONLY_EMAIL_PLACEHOLDER = '__face_only_login__';
-
 const fieldShell = cn(
     'relative flex items-stretch rounded-2xl border transition-[border-color,box-shadow,background-color] duration-200',
     'border-zinc-200/95 bg-zinc-50/90 shadow-sm',
@@ -64,6 +62,7 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
     });
 
     const errors = pageErrors ?? {};
+    const hasEmailIdentifier = data.email.trim().length > 0;
 
     const performLogin = useCallback(async (): Promise<void> => {
         if (loginInFlightRef.current) {
@@ -78,7 +77,7 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
         setSubmitting(true);
 
         const payload: Record<string, string | File> = {
-            email: data.email.trim() || FACE_ONLY_EMAIL_PLACEHOLDER,
+            email: data.email.trim(),
             password: data.password || 'face-only-login',
         };
         if (data.remember) {
@@ -114,15 +113,20 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
     }
 
     const processing = submitting;
-    const faceCaptureError = errors.face_capture ?? '';
+    const faceCaptureErrorMessage =
+        typeof errors.face_capture === 'string' ? errors.face_capture : '';
     const isFaceRateLimited =
-        typeof faceCaptureError === 'string' &&
-        faceCaptureError.toLowerCase().includes('too many face verification attempts');
+        faceCaptureErrorMessage.toLowerCase().includes('too many face verification attempts');
     const hasFaceVerificationError = Boolean(errors.face_capture);
-    const readyToAutoSignIn = useFaceLogin && hasFaceSample && !processing && !isFaceRateLimited;
+    const readyToAutoSignIn =
+        useFaceLogin && hasEmailIdentifier && hasFaceSample && !processing && !isFaceRateLimited;
 
     useEffect(() => {
         if (!useFaceLogin || loginInFlightRef.current || isFaceRateLimited) {
+            return;
+        }
+
+        if (!hasEmailIdentifier) {
             return;
         }
 
@@ -145,6 +149,7 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
     }, [
         data.email,
         faceSampleVersion,
+        hasEmailIdentifier,
         hasFaceSample,
         isFaceRateLimited,
         performLogin,
@@ -214,7 +219,7 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                                     name="email"
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
-                                    required={!useFaceLogin}
+                                    required
                                     autoFocus
                                     tabIndex={1}
                                     autoComplete="email"
@@ -293,6 +298,11 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                                     type="button"
                                     variant={useFaceLogin ? 'secondary' : 'outline'}
                                     size="sm"
+                                    className={cn(
+                                        'text-zinc-700',
+                                        'hover:text-zinc-900',
+                                        'dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:hover:bg-zinc-700 dark:hover:text-white',
+                                    )}
                                     onClick={() => {
                                         setUseFaceLogin((value) => {
                                             const next = !value;
@@ -322,7 +332,7 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                                         previewCaptureIntervalMs={5000}
                                         onPreviewCapture={onPreviewFaceCapture}
                                         error={errors.face_capture}
-                                        helperText="Keep your face inside the oval guide."
+                                        helperText="Enter your email, then keep your face inside the oval guide."
                                     />
                                     <div
                                         className={cn(
@@ -339,8 +349,10 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                                                 ? 'Face verified. Attempting sign-in...'
                                                 : isFaceRateLimited
                                                   ? 'Face login paused due rate limit. Please wait and try again.'
+                                                  : !hasEmailIdentifier
+                                                    ? 'Enter your email to continue face login.'
                                                   : hasFaceVerificationError
-                                                    ? 'Face did not match. Keep centered and we will retry.'
+                                                    ? faceCaptureErrorMessage
                                                     : hasFaceSample
                                                   ? 'Face sample captured. Waiting for server verification.'
                                                   : 'Waiting for a valid face sample.'}

@@ -104,6 +104,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('it-asset-requests.signatures.update');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])
         ->name('notifications.read');
+    Route::delete('notifications', [NotificationController::class, 'destroyAll'])
+        ->name('notifications.destroy-all');
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])
         ->name('notifications.destroy');
 

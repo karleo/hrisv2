@@ -42,5 +42,16 @@ class NotificationController extends Controller
 
         return back();
     }
-}
 
+    public function destroyAll(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        $user->notifications()->delete();
+
+        return back();
+    }
+}

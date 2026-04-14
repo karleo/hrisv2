@@ -151,9 +151,16 @@ type PaginatedEmployees = {
 
 export default function Index({
     employees,
+    stats,
     filters = {},
 }: {
     employees: PaginatedEmployees;
+    stats: {
+        totalEmployees: number;
+        activeEmployees: number;
+        totalDepartments: number;
+        visibleEmployees: number;
+    };
     filters?: { search?: string; department_id?: string | number; employee_status?: string };
 }) {
     const { data: employeeList } = employees;
@@ -259,8 +266,12 @@ export default function Index({
                                             <span>Total Employee</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">{employees.total}</p>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">+2 increase from last month</p>
+                                        <p className="text-3xl font-semibold leading-none">{stats.totalEmployees}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.totalEmployees === 0
+                                                ? 'No employees yet'
+                                                : 'Current total employee records'}
+                                        </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
@@ -269,10 +280,12 @@ export default function Index({
                                             <span>Active Employee</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">
-                                            {employeeList.filter((emp) => emp.user_id).length}
+                                        <p className="text-3xl font-semibold leading-none">{stats.activeEmployees}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.activeEmployees === 0
+                                                ? 'No active employee accounts'
+                                                : 'Employees with active login access'}
                                         </p>
-                                        <p className="text-xs text-rose-500">-2 decrease from yesterday</p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
@@ -281,10 +294,12 @@ export default function Index({
                                             <span>Total Department</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">
-                                            {new Set(employeeList.map((emp) => emp.department?.id).filter(Boolean)).size}
+                                        <p className="text-3xl font-semibold leading-none">{stats.totalDepartments}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.totalDepartments === 0
+                                                ? 'No departments configured'
+                                                : 'Configured departments in the system'}
                                         </p>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">+1 increase from last year</p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
@@ -293,7 +308,7 @@ export default function Index({
                                             <span>This Page</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">{employeeList.length}</p>
+                                        <p className="text-3xl font-semibold leading-none">{stats.visibleEmployees}</p>
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">Current visible records</p>
                                     </CardContent>
                                 </Card>

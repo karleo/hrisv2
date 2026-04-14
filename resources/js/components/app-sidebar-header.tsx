@@ -1,5 +1,5 @@
-import { usePage, usePoll } from '@inertiajs/react';
-import { Bell } from 'lucide-react';
+import { router, usePage, usePoll } from '@inertiajs/react';
+import { Bell, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
@@ -13,6 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useAppearance } from '@/hooks/use-appearance';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -23,6 +24,7 @@ export function AppSidebarHeader({
 }) {
     const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
     const notificationListRef = useNotificationListPointerGuard(notificationsMenuOpen);
+    const { resolvedAppearance, updateAppearance } = useAppearance();
 
     usePoll(
         10000,
@@ -59,7 +61,32 @@ export function AppSidebarHeader({
                 <SidebarTrigger className="-ml-1" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-1">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() =>
+                        updateAppearance(resolvedAppearance === 'dark' ? 'light' : 'dark')
+                    }
+                    aria-label={
+                        resolvedAppearance === 'dark'
+                            ? 'Switch to light mode'
+                            : 'Switch to dark mode'
+                    }
+                    title={
+                        resolvedAppearance === 'dark'
+                            ? 'Switch to light mode'
+                            : 'Switch to dark mode'
+                    }
+                >
+                    {resolvedAppearance === 'dark' ? (
+                        <Sun className="size-5 opacity-80" />
+                    ) : (
+                        <Moon className="size-5 opacity-80" />
+                    )}
+                </Button>
                 <NotificationArrivalToastShell notifications={notifications}>
                     <DropdownMenu
                         open={notificationsMenuOpen}
@@ -84,9 +111,27 @@ export function AppSidebarHeader({
                     >
                         <DropdownMenuLabel className="flex items-center justify-between px-3 py-2.5">
                             <span className="text-sm font-semibold">Notifications</span>
-                            <span className="text-muted-foreground text-xs">
-                                {notifications?.unread_count ?? 0} unread
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {(notifications?.items?.length ?? 0) > 0 ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                        onClick={() => {
+                                            router.delete('/notifications', {
+                                                preserveScroll: true,
+                                                preserveState: true,
+                                            });
+                                        }}
+                                    >
+                                        Clear all
+                                    </Button>
+                                ) : null}
+                                <span className="text-muted-foreground text-xs">
+                                    {notifications?.unread_count ?? 0} unread
+                                </span>
+                            </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <div

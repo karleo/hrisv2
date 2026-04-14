@@ -36,6 +36,24 @@ class EmployeeTest extends TestCase
             ->component('employees/index')
             ->has('employees')
             ->has('employees.data', 3)
+            ->where('stats.totalEmployees', 3)
+            ->where('stats.activeEmployees', 0)
+            ->where('stats.totalDepartments', Department::query()->count())
+            ->where('stats.visibleEmployees', 3)
+        );
+    }
+
+    public function test_index_returns_zero_stats_when_no_employees_exist(): void
+    {
+        $response = $this->get(route('employees.index'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/index')
+            ->where('stats.totalEmployees', 0)
+            ->where('stats.activeEmployees', 0)
+            ->where('stats.totalDepartments', Department::query()->count())
+            ->where('stats.visibleEmployees', 0)
         );
     }
 

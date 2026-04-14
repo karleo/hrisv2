@@ -24,8 +24,6 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
-    private const FACE_ONLY_EMAIL_PLACEHOLDER = '__face_only_login__';
-
     /**
      * Register any application services.
      */
@@ -58,47 +56,9 @@ class FortifyServiceProvider extends ServiceProvider
             $email = trim((string) $request->input('email', ''));
             $faceFile = $request->file('face_capture');
             $hasValidFaceFile = $faceFile !== null && $faceFile->isValid();
-            $isFaceOnlyAttempt = $email === '' || $email === self::FACE_ONLY_EMAIL_PLACEHOLDER;
-
-            if ($isFaceOnlyAttempt) {
-                if (! $hasValidFaceFile) {
-                    throw ValidationException::withMessages([
-                        'face_capture' => __('Face verification is required.'),
-                    ]);
-                }
-
-                $identifyRateKey = 'face-login:identify:'.$request->ip();
-                if (RateLimiter::tooManyAttempts($identifyRateKey, 20)) {
-                    throw ValidationException::withMessages([
-                        'face_capture' => __('Too many face verification attempts. Try again later.'),
-                    ]);
-                }
-
-                RateLimiter::hit($identifyRateKey, decaySeconds: 120);
-
-                $verifier = app(FaceVerificationContract::class);
-                $candidates = User::query()
-                    ->where(function ($query) {
-                        $query->whereNotNull('face_enrolled_at')
-                            ->orWhereNotNull('face_reference_path')
-                            ->orWhereNotNull('face_profile');
-                    })
-                    ->get();
-
-                foreach ($candidates as $candidate) {
-                    if (Schema::hasColumn('users', 'is_active') && ! $candidate->is_active) {
-                        continue;
-                    }
-
-                    if ($verifier->verify($candidate, $faceFile)) {
-                        RateLimiter::clear($identifyRateKey);
-
-                        return $candidate;
-                    }
-                }
-
+            if ($email === '') {
                 throw ValidationException::withMessages([
-                    'face_capture' => __('Face verification failed.'),
+                    'email' => __('Email is required.'),
                 ]);
             }
 
@@ -141,7 +101,7 @@ class FortifyServiceProvider extends ServiceProvider
 
                 if (! $verified) {
                     throw ValidationException::withMessages([
-                        'face_capture' => __('Face verification failed.'),
+                        'face_capture' => __('Face does not match this email account.'),
                     ]);
                 }
 
