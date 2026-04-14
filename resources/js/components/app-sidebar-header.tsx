@@ -1,4 +1,5 @@
 import { router, usePage, usePoll } from '@inertiajs/react';
+import { ChevronsUpDown } from 'lucide-react';
 import { Bell, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -13,6 +14,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { UserInfo } from '@/components/user-info';
+import { UserMenuContent } from '@/components/user-menu-content';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -36,7 +39,7 @@ export function AppSidebarHeader({
         { keepAlive: true },
     );
 
-    const { notifications } = usePage().props as {
+    const { notifications, auth } = usePage().props as {
         notifications?: {
             unread_count: number;
             items: Array<{
@@ -52,6 +55,14 @@ export function AppSidebarHeader({
                     employee_photo_url?: string | null;
                 };
             }>;
+        };
+        auth: {
+            user: {
+                id: number;
+                name: string;
+                email: string;
+                avatar?: string | null;
+            };
         };
     };
 
@@ -151,6 +162,23 @@ export function AppSidebarHeader({
                     </DropdownMenuContent>
                 </DropdownMenu>
                 </NotificationArrivalToastShell>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-9 max-w-[220px] rounded-xl px-2"
+                        >
+                            <div className="flex min-w-0 items-center gap-2">
+                                <UserInfo user={auth.user} />
+                                <ChevronsUpDown className="size-4 shrink-0 opacity-70" />
+                            </div>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 rounded-lg" align="end">
+                        <UserMenuContent user={auth.user} />
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </header>
     );

@@ -18,11 +18,9 @@ import {
 import { useMemo } from 'react';
 import { index as workTimetablesIndex } from '@/actions/App/Http/Controllers/WorkTimetableController';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
-    SidebarFooter,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
@@ -217,11 +215,6 @@ export function AppSidebar() {
             <SidebarContent>
                 <NavMain items={mainNavItems} />
             </SidebarContent>
-
-            <SidebarFooter>
-                {/* <NavFooter items={footerNavItems} className="mt-auto" /> */}
-                <NavUser />
-            </SidebarFooter>
         </Sidebar>
     );
 }
