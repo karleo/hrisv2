@@ -829,26 +829,26 @@ export default function Index({
                                                             openEmployeeView(employee.id);
                                                         }
                                                     }}
-                                                    className="cursor-pointer overflow-hidden rounded-2xl border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                    className="cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-900/70 dark:hover:border-slate-600 dark:hover:bg-slate-900"
                                                 >
-                                                    <div className="relative h-14 bg-gradient-to-r from-primary/38 via-primary/18 to-transparent dark:from-primary/44 dark:via-primary/24">
-                                                        <span className="absolute right-3 top-2 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                                    <div className="relative h-14 bg-gradient-to-r from-primary/62 via-primary/36 to-transparent dark:from-indigo-500/58 dark:via-indigo-500/30 dark:to-transparent">
+                                                        <span className="absolute right-3 top-2 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground dark:border-slate-600 dark:bg-slate-900/85 dark:text-slate-200">
                                                             {employee.employee_code}
                                                         </span>
                                                     </div>
                                                     <CardContent className="relative pt-0">
-                                                        <div className="-mt-10 flex justify-center">
-                                                            <div className="rounded-lg border-2 border-background shadow-sm">
+                                                        <div className="-mt-12 flex justify-center">
+                                                            <div className="rounded-lg border-2 border-background shadow-sm dark:border-slate-800">
                                                                 <AvatarInitial
                                                                     name={`${employee.first_name} ${employee.last_name}`}
                                                                     photoUrl={employee.photo_url}
-                                                                    sizeClass="h-24 w-20"
+                                                                    sizeClass="h-28 w-24"
                                                                     roundedClass="rounded-lg"
                                                                     initialTextClassName="text-lg"
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="mt-1.5 space-y-2 text-center">
+                                                        <div className="mt-0.5 space-y-1.5 text-center">
                                                             <p className="text-base font-semibold leading-none">
                                                                 {employee.first_name} {employee.last_name}
                                                             </p>
@@ -866,7 +866,7 @@ export default function Index({
                                                             </div>
                                                         </div>
                                                         <div
-                                                            className="mt-4 flex justify-center gap-1 border-t pt-3"
+                                                            className="mt-3 flex justify-center gap-1 border-t pt-2.5 dark:border-slate-700/70"
                                                             onClick={(event) => event.stopPropagation()}
                                                             onKeyDown={(event) => event.stopPropagation()}
                                                         >
