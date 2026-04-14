@@ -39,7 +39,7 @@ class EmployeeTest extends TestCase
             ->where('stats.totalEmployees', 3)
             ->where('stats.activeEmployees', 0)
             ->where('stats.totalDepartments', Department::query()->count())
-            ->where('stats.visibleEmployees', 3)
+            ->where('stats.noLoginAccessEmployees', 3)
         );
     }
 
@@ -53,7 +53,7 @@ class EmployeeTest extends TestCase
             ->where('stats.totalEmployees', 0)
             ->where('stats.activeEmployees', 0)
             ->where('stats.totalDepartments', Department::query()->count())
-            ->where('stats.visibleEmployees', 0)
+            ->where('stats.noLoginAccessEmployees', 0)
         );
     }
 

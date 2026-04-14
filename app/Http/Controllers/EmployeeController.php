@@ -254,20 +254,22 @@ class EmployeeController extends Controller
             })
             ->withQueryString();
 
+        $totalEmployees = Employee::query()->count();
         $activeEmployeesQuery = Employee::query()->whereNotNull('user_id');
         if ($hasUserActiveColumn) {
             $activeEmployeesQuery->whereHas('user', function (Builder $query): void {
                 $query->where('is_active', true);
             });
         }
+        $activeEmployees = $activeEmployeesQuery->count();
 
         return Inertia::render('employees/index', [
             'employees' => $employees,
             'stats' => [
-                'totalEmployees' => Employee::query()->count(),
-                'activeEmployees' => $activeEmployeesQuery->count(),
+                'totalEmployees' => $totalEmployees,
+                'activeEmployees' => $activeEmployees,
                 'totalDepartments' => Department::query()->count(),
-                'visibleEmployees' => count($employees->items()),
+                'noLoginAccessEmployees' => max($totalEmployees - $activeEmployees, 0),
             ],
             'filters' => $request->only('search', 'department_id', 'employee_status'),
             'departments' => Department::query()->orderBy('name')->get(['id', 'name']),

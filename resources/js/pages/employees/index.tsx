@@ -159,7 +159,7 @@ export default function Index({
         totalEmployees: number;
         activeEmployees: number;
         totalDepartments: number;
-        visibleEmployees: number;
+        noLoginAccessEmployees: number;
     };
     filters?: { search?: string; department_id?: string | number; employee_status?: string };
 }) {
@@ -305,11 +305,17 @@ export default function Index({
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>This Page</span>
+                                            <span>No Login Access</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">{stats.visibleEmployees}</p>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Current visible records</p>
+                                        <p className="text-3xl font-semibold leading-none">
+                                            {stats.noLoginAccessEmployees}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.noLoginAccessEmployees === 0
+                                                ? 'All employees have login access'
+                                                : 'Employees pending login access'}
+                                        </p>
                                     </CardContent>
                                 </Card>
                             </div>
