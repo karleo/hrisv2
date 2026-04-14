@@ -49,6 +49,19 @@ function dayTypeLabel(value?: string | null): string {
     return value === 'half' ? 'Half Day' : 'Full Day';
 }
 
+function formatDateDdMmYyyy(ymd: string | null): string {
+    if (!ymd) {
+        return '';
+    }
+
+    const [y, m, d] = ymd.split('-');
+    if (!y || !m || !d) {
+        return '';
+    }
+
+    return `${d}/${m}/${y}`;
+}
+
 export default function LeaveRequestsShow({
     leaveRequest,
     signaturesUrl,
@@ -164,7 +177,7 @@ export default function LeaveRequestsShow({
                             <span className="text-muted-foreground">Period</span>
                             <span>
                                 {leaveRequest.period_from && leaveRequest.period_to
-                                    ? `${leaveRequest.period_from} – ${leaveRequest.period_to}`
+                                    ? `${formatDateDdMmYyyy(leaveRequest.period_from)} – ${formatDateDdMmYyyy(leaveRequest.period_to)}`
                                     : '—'}
                             </span>
                             <span className="text-muted-foreground">Boundary day types</span>

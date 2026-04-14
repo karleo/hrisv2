@@ -15,7 +15,7 @@ export default function AppHeaderLayout({
             <AppContent>
                 {children}
                 <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground">
-                    {`© ${year} Prime Logistics. All rights reserved. V 1.00`}
+                    {`© ${year} Prime Logistics. All rights reserved. V 1.03`}
                 </footer>
             </AppContent>
         </AppShell>
