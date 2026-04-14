@@ -35,6 +35,7 @@ type LeaveType = {
     id: number;
     code: string;
     name: string;
+    leave_category: 'paid' | 'unpaid';
     description: string | null;
 };
 
@@ -73,7 +74,7 @@ export default function Index({
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                             <DataTableToolbar
                                 searchUrl={index().url}
-                                searchPlaceholder="Search code, name, description..."
+                                searchPlaceholder="Search code, name, category, description..."
                                 filters={filters}
                                 autoSearch
                                 showSearchButton={false}
@@ -100,6 +101,9 @@ export default function Index({
                                         <th className="px-4 py-3 text-left font-medium">
                                             Description
                                         </th>
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Category
+                                        </th>
                                         <th className="w-24 px-4 py-3 text-right font-medium">
                                             Actions
                                         </th>
@@ -109,7 +113,7 @@ export default function Index({
                                     {leaveTypeList.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={4}
+                                                colSpan={5}
                                                 className="px-4 py-8 text-center text-muted-foreground"
                                             >
                                                 {filters.search
@@ -132,6 +136,13 @@ export default function Index({
                                                 <td className="px-4 py-3 text-muted-foreground">
                                                     {leaveType.description ??
                                                         '—'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium">
+                                                        {leaveType.leave_category === 'paid'
+                                                            ? 'Paid Leave'
+                                                            : 'Unpaid Leave'}
+                                                    </span>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex justify-end gap-2">

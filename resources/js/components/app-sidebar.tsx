@@ -175,15 +175,40 @@ const mainNavItemsSource: NavItem[] = [
 export function AppSidebar() {
     const { modulePermissions, auth } = usePage().props as {
         modulePermissions: unknown;
-        auth?: { has_employee_profile?: boolean };
+        auth?: {
+            has_employee_profile?: boolean;
+            has_my_profile_access?: boolean;
+            has_leave_calendar_access?: boolean;
+        };
     };
 
     const mainNavItems = useMemo(
         () => {
             const items = filterNavByModuleAccess(mainNavItemsSource, modulePermissions);
-            if (auth?.has_employee_profile) {
+            const leaveCalendarItem = {
+                title: 'Leave Calendar',
+                description: 'Monthly approved leave visibility',
+                href: '/leave-calendar',
+                icon: CalendarDays,
+            } satisfies NavItem;
+
+            let withLeaveCalendar = items;
+            if (auth?.has_leave_calendar_access) {
+                const dashboardIndex = items.findIndex((item) => item.title === 'Dashboard');
+                if (dashboardIndex >= 0) {
+                    withLeaveCalendar = [
+                        ...items.slice(0, dashboardIndex + 1),
+                        leaveCalendarItem,
+                        ...items.slice(dashboardIndex + 1),
+                    ];
+                } else {
+                    withLeaveCalendar = [leaveCalendarItem, ...items];
+                }
+            }
+
+            if (auth?.has_my_profile_access) {
                 return [
-                    ...items,
+                    ...withLeaveCalendar,
                     {
                         title: 'Profile',
                         description: 'Your employee information',
@@ -193,9 +218,9 @@ export function AppSidebar() {
                 ] as NavItem[];
             }
 
-            return items;
+            return withLeaveCalendar;
         },
-        [modulePermissions, auth?.has_employee_profile],
+        [modulePermissions, auth?.has_employee_profile, auth?.has_my_profile_access, auth?.has_leave_calendar_access],
     );
 
     return (

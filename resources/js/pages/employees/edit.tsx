@@ -44,6 +44,24 @@ type WorkTimetable = {
     name: string;
 };
 
+type LeaveUsageLineItem = {
+    id: number;
+    leave_type: string;
+    leave_category: 'paid' | 'unpaid' | string;
+    period_from: string | null;
+    period_to: string | null;
+    days: number | null;
+    status: string;
+    decided_at: string | null;
+};
+
+type LeaveConfig = {
+    openingBalance: number;
+    approvedDaysUsed: number;
+    liveRemainingBalance: number;
+    usage: LeaveUsageLineItem[];
+};
+
 const employeeStatuses = [
     'Employed',
     'On Probation',
@@ -121,6 +139,7 @@ type Employee = {
     marital_status?: 'Single' | 'Married' | 'Other' | null;
     emergency_contact_name?: string | null;
     emergency_contact_phone?: string | null;
+    leave_opening_balance?: number | null;
 };
 
 export default function Edit({
@@ -129,6 +148,7 @@ export default function Edit({
     jobPositions,
     companyProfiles,
     workTimetables,
+    leaveConfig,
     employeeLoginActive = null,
     viewMode = false,
 }: {
@@ -137,6 +157,7 @@ export default function Edit({
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
     workTimetables: WorkTimetable[];
+    leaveConfig: LeaveConfig;
     employeeLoginActive?: boolean | null;
     viewMode?: boolean;
 }) {
@@ -160,20 +181,26 @@ export default function Edit({
     } | null>(null);
     const [previewCsvRows, setPreviewCsvRows] = useState<string[][] | null>(null);
     const [joiningDate, setJoiningDate] = useState(employee.joining_date ?? '');
+    const formatLeaveDays = (value: number): string =>
+        value.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
     const page = usePage();
     const flash = (page.props as { flash?: { success?: string; error?: string } }).flash;
     const query = (page.props as { ziggy?: { query?: { tab?: string } } }).ziggy?.query;
     const tabFromQuery = query?.tab;
     const readOnlyView = viewMode;
     const hasLinkedUser = employee.user_id !== null;
-    const initialTab: 'employee_information' | 'work_information' | 'private_information' | 'documents' =
+    const initialTab: 'employee_information' | 'work_information' | 'private_information' | 'documents' | 'leave_configuration' =
         tabFromQuery === 'documents' ||
+        tabFromQuery === 'leave_configuration' ||
         tabFromQuery === 'private_information' ||
         tabFromQuery === 'work_information' ||
         tabFromQuery === 'employee_information'
             ? tabFromQuery
             : 'employee_information';
-    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'private_information' | 'documents'>(initialTab);
+    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'private_information' | 'documents' | 'leave_configuration'>(initialTab);
     const normalizedEmployeeStatus =
         employee.employee_status === 'Active' ? 'Employed' : employee.employee_status;
     const employeeDesignation =
@@ -646,6 +673,13 @@ export default function Edit({
                         onClick={() => setTab('private_information')}
                     >
                         Personal Information
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={tab === 'leave_configuration' ? 'default' : 'outline'}
+                        onClick={() => setTab('leave_configuration')}
+                    >
+                        Leave Policy
                     </Button>
                 </div>
 
@@ -1123,6 +1157,115 @@ export default function Edit({
                                                 ))}
                                             </select>
                                             <InputError message={errors.employee_status} />
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+
+                            <div className={`rounded-xl border border-border bg-card p-6 shadow-sm ${tab === 'leave_configuration' ? '' : 'hidden'}`}>
+                                <fieldset disabled={readOnlyView} className="space-y-4">
+                                    <input type="hidden" name="tab" value="leave_configuration" />
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Leave Policy
+                                        </h3>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Set opening leave balance manually. Remaining balance updates automatically from approved leave usage.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-3">
+                                        <div className="grid gap-2 md:col-span-1">
+                                            <Label htmlFor="leave_opening_balance">
+                                                Opening Balance (days)
+                                            </Label>
+                                            <Input
+                                                id="leave_opening_balance"
+                                                name="leave_opening_balance"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                defaultValue={employee.leave_opening_balance ?? leaveConfig.openingBalance ?? 0}
+                                            />
+                                            <InputError message={errors.leave_opening_balance} />
+                                            <p className="text-xs text-muted-foreground">
+                                                Manual starting balance. This value is stored and never overwritten by usage calculations.
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border border-border bg-muted/20 p-4">
+                                            <p className="text-xs text-muted-foreground">Approved Leave Used</p>
+                                            <p className="mt-1 text-2xl font-semibold text-foreground">
+                                                {formatLeaveDays(leaveConfig.approvedDaysUsed)} days
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border border-emerald-300/50 bg-emerald-50/60 p-4 dark:border-emerald-700/50 dark:bg-emerald-950/20">
+                                            <p className="text-xs text-muted-foreground">Live Remaining Balance</p>
+                                            <p className="mt-1 text-2xl font-semibold text-foreground">
+                                                {formatLeaveDays(leaveConfig.liveRemainingBalance)} days
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-sm font-semibold text-foreground">Leave Usage</h4>
+                                            <span className="text-xs text-muted-foreground">
+                                                Approved requests only
+                                            </span>
+                                        </div>
+                                        <div className="overflow-hidden rounded-lg border border-border">
+                                            <div className="max-h-72 overflow-auto">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-muted/40 text-left">
+                                                        <tr>
+                                                            <th className="px-3 py-2 font-medium">Leave Type</th>
+                                                            <th className="px-3 py-2 font-medium">Category</th>
+                                                            <th className="px-3 py-2 font-medium">From</th>
+                                                            <th className="px-3 py-2 font-medium">To</th>
+                                                            <th className="px-3 py-2 font-medium">Days</th>
+                                                            <th className="px-3 py-2 font-medium">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {leaveConfig.usage.length > 0 ? (
+                                                            leaveConfig.usage.map((item) => (
+                                                                <tr
+                                                                    key={item.id}
+                                                                    className="border-t border-border/70"
+                                                                >
+                                                                    <td className="px-3 py-2">{item.leave_type}</td>
+                                                                    <td className="px-3 py-2">
+                                                                        <span className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium">
+                                                                            {item.leave_category === 'unpaid' ? 'Unpaid Leave' : 'Paid Leave'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2">{item.period_from ?? '—'}</td>
+                                                                    <td className="px-3 py-2">{item.period_to ?? '—'}</td>
+                                                                    <td className="px-3 py-2">
+                                                                        {item.days !== null
+                                                                            ? formatLeaveDays(item.days)
+                                                                            : '—'}
+                                                                    </td>
+                                                                    <td className="px-3 py-2">
+                                                                        <span className="inline-flex rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                                                                            Approved
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))
+                                                        ) : (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={6}
+                                                                    className="px-3 py-4 text-center text-muted-foreground"
+                                                                >
+                                                                    No approved leave usage yet.
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
                                 </fieldset>

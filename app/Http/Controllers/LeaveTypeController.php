@@ -23,6 +23,7 @@ class LeaveTypeController extends Controller
                 fn ($query) => $query->where(
                     fn ($q) => $q->where('code', 'like', '%'.$request->search.'%')
                         ->orWhere('name', 'like', '%'.$request->search.'%')
+                        ->orWhere('leave_category', 'like', '%'.$request->search.'%')
                         ->orWhere('description', 'like', '%'.$request->search.'%')
                 )
             )

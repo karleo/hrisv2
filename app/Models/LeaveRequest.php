@@ -18,7 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $date
  * @property string|null $period_from
  * @property string|null $period_to
- * @property int|null $days
+ * @property string $start_day_type
+ * @property string $end_day_type
+ * @property float|null $days
  * @property string|null $remarks
  * @property string|null $decision_remarks
  * @property \Illuminate\Support\Carbon|null $decided_at
@@ -56,7 +58,9 @@ class LeaveRequest extends Model
         'details',
         'date',
         'period_from',
+        'start_day_type',
         'period_to',
+        'end_day_type',
         'days',
         'remarks',
         'decision_remarks',
@@ -77,6 +81,7 @@ class LeaveRequest extends Model
             'code' => 'string',
             'status' => 'string',
             'decided_at' => 'datetime',
+            'days' => 'float',
         ];
     }
 

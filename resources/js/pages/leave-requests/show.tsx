@@ -30,7 +30,9 @@ type LeaveRequest = {
     details: string | null;
     date: string | null;
     period_from: string | null;
+    start_day_type?: 'full' | 'half' | null;
     period_to: string | null;
+    end_day_type?: 'full' | 'half' | null;
     days: number | null;
     remarks: string | null;
     status: string;
@@ -42,6 +44,10 @@ type LeaveRequest = {
     decision_remarks?: string | null;
     decided_at?: string | null;
 };
+
+function dayTypeLabel(value?: string | null): string {
+    return value === 'half' ? 'Half Day' : 'Full Day';
+}
 
 export default function LeaveRequestsShow({
     leaveRequest,
@@ -161,8 +167,17 @@ export default function LeaveRequestsShow({
                                     ? `${leaveRequest.period_from} – ${leaveRequest.period_to}`
                                     : '—'}
                             </span>
+                            <span className="text-muted-foreground">Boundary day types</span>
+                            <span>
+                                Start: {dayTypeLabel(leaveRequest.start_day_type)} | End:{' '}
+                                {dayTypeLabel(leaveRequest.end_day_type)}
+                            </span>
                             <span className="text-muted-foreground">Days</span>
-                            <span>{leaveRequest.days ?? '—'}</span>
+                            <span>
+                                {leaveRequest.days === null || leaveRequest.days === undefined
+                                    ? '—'
+                                    : `${leaveRequest.days.toFixed(1)} day(s)`}
+                            </span>
                             <span className="text-muted-foreground">Status</span>
                             <span>
                                 <RequestStatusBadge

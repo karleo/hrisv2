@@ -11,6 +11,7 @@ use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
+use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\NotificationController;
@@ -67,6 +68,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         'work-timetables' => 'work_timetable',
     ]);
     Route::resource('leave-requests', LeaveRequestController::class);
+    Route::get('leave-calendar', [LeaveCalendarController::class, 'index'])
+        ->name('leave-calendar.index');
     Route::post('leave-requests/{leave_request}/submit', [LeaveRequestController::class, 'submit'])
         ->name('leave-requests.submit');
     Route::post('leave-requests/{leave_request}/decide', [LeaveRequestController::class, 'decide'])

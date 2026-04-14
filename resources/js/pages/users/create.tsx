@@ -31,6 +31,7 @@ type EmployeeOption = {
     employee_code: string;
     first_name: string;
     last_name: string;
+    email_address: string | null;
     user_id: number | null;
 };
 
@@ -85,6 +86,7 @@ export default function Create({
     const [submitting, setSubmitting] = useState(false);
     const [faceGrabError, setFaceGrabError] = useState<string | null>(null);
     const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
+    const [faceEnrollmentEnabled, setFaceEnrollmentEnabled] = useState(false);
 
     const { data, setData, post, processing, errors, transform } = useForm({
         name: '',
@@ -99,16 +101,11 @@ export default function Create({
         Boolean(faceProfile.front) &&
         Boolean(faceProfile.left) &&
         Boolean(faceProfile.right);
-    const hasAnyFaceCapture =
-        Boolean(faceProfile.front) ||
-        Boolean(faceProfile.left) ||
-        Boolean(faceProfile.right);
-
     transform((payload) => ({
         ...payload,
         role_id: toOptionalPositiveInt(payload.role_id),
         employee_id: toOptionalPositiveInt(payload.employee_id),
-        ...(faceComplete && faceProfile.front && faceProfile.left && faceProfile.right
+        ...(faceEnrollmentEnabled && faceComplete && faceProfile.front && faceProfile.left && faceProfile.right
             ? {
                   face_capture_front: faceProfile.front,
                   face_capture_left: faceProfile.left,
@@ -142,9 +139,9 @@ export default function Create({
                     onSubmit={(e) => {
                         e.preventDefault();
                         setFaceGrabError(null);
-                        if (hasAnyFaceCapture && !faceComplete) {
+                        if (faceEnrollmentEnabled && !faceComplete) {
                             setFaceGrabError(
-                                'Face profile is optional. If you choose to enroll it now, lock all three angles (front, left, right) before creating the user.',
+                                'Face setup is enabled. Please capture front, left, and right angles before creating the user.',
                             );
                             return;
                         }
@@ -153,6 +150,7 @@ export default function Create({
                             forceFormData: true,
                             onFinish: () => {
                                 setFaceProfile(emptyFaceProfile());
+                                setFaceEnrollmentEnabled(false);
                                 setSubmitting(false);
                             },
                             onError: () => {
@@ -368,9 +366,30 @@ export default function Create({
                                 </Label>
                                 <Select
                                     value={data.employee_id || EMPLOYEE_NONE_VALUE}
-                                    onValueChange={(value) =>
-                                        setData('employee_id', value === EMPLOYEE_NONE_VALUE ? '' : value)
-                                    }
+                                    onValueChange={(value) => {
+                                        if (value === EMPLOYEE_NONE_VALUE) {
+                                            setData('employee_id', '');
+                                            return;
+                                        }
+
+                                        const selectedEmployee = employees.find(
+                                            (emp) => String(emp.id) === value,
+                                        );
+                                        if (!selectedEmployee) {
+                                            setData('employee_id', value);
+                                            return;
+                                        }
+
+                                        setData('employee_id', value);
+                                        setData(
+                                            'name',
+                                            `${selectedEmployee.first_name} ${selectedEmployee.last_name}`.trim(),
+                                        );
+                                        setData(
+                                            'email',
+                                            selectedEmployee.email_address ?? '',
+                                        );
+                                    }}
                                 >
                                     <SelectTrigger id="employee_id" aria-invalid={Boolean(errors.employee_id)}>
                                         <SelectValue placeholder="None" />
@@ -392,33 +411,75 @@ export default function Create({
                                 </p>
                             </div>
 
-                            <MultiAngleFaceProfileField
-                                value={faceProfile}
-                                onChange={setFaceProfile}
-                                disabled={busy}
-                                errors={{
-                                    face_capture_front: errors.face_capture_front,
-                                    face_capture_left: errors.face_capture_left,
-                                    face_capture_right: errors.face_capture_right,
-                                }}
-                            />
-                            <div
-                                className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100"
-                                role="status"
-                            >
-                                <p className="inline-flex items-center gap-2 font-medium">
-                                    <AlertCircle className="size-4" aria-hidden />
-                                    Face profile is not enrolled yet for this new user.
-                                </p>
-                                <p className="mt-1 text-xs opacity-90">
-                                    Complete front, left, and right captures, then create the user to save
-                                    face login enrollment.
-                                </p>
+                            <div className="rounded-lg border border-border p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium">Set up face login now?</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Choose "Not now" to skip and create the user immediately.
+                                        </p>
+                                    </div>
+                                    <div className="inline-flex items-center rounded-md border border-input bg-muted/20 p-1">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={faceEnrollmentEnabled ? 'ghost' : 'secondary'}
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setFaceEnrollmentEnabled(false);
+                                                setFaceGrabError(null);
+                                                setFaceProfile(emptyFaceProfile());
+                                            }}
+                                        >
+                                            Not now
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={faceEnrollmentEnabled ? 'secondary' : 'ghost'}
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setFaceEnrollmentEnabled(true);
+                                                setFaceGrabError(null);
+                                            }}
+                                        >
+                                            Set up now
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
-                            {faceGrabError ? (
-                                <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-                                    {faceGrabError}
-                                </p>
+
+                            {faceEnrollmentEnabled ? (
+                                <>
+                                    <MultiAngleFaceProfileField
+                                        value={faceProfile}
+                                        onChange={setFaceProfile}
+                                        disabled={busy}
+                                        errors={{
+                                            face_capture_front: errors.face_capture_front,
+                                            face_capture_left: errors.face_capture_left,
+                                            face_capture_right: errors.face_capture_right,
+                                        }}
+                                    />
+                                    <div
+                                        className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100"
+                                        role="status"
+                                    >
+                                        <p className="inline-flex items-center gap-2 font-medium">
+                                            <AlertCircle className="size-4" aria-hidden />
+                                            Face profile is not enrolled yet for this new user.
+                                        </p>
+                                        <p className="mt-1 text-xs opacity-90">
+                                            Complete front, left, and right captures, then create the user to save
+                                            face login enrollment.
+                                        </p>
+                                    </div>
+                                    {faceGrabError ? (
+                                        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                                            {faceGrabError}
+                                        </p>
+                                    ) : null}
+                                </>
                             ) : null}
                         </CardContent>
                         <CardFooter className="mt-auto flex flex-wrap gap-3 border-t pt-6">

@@ -65,7 +65,7 @@ class UserController extends Controller
             'roles' => Role::query()->orderBy('name')->get(['id', 'name', 'slug']),
             'employees' => Employee::query()
                 ->orderBy('employee_code')
-                ->get(['id', 'employee_code', 'first_name', 'last_name', 'user_id']),
+                ->get(['id', 'employee_code', 'first_name', 'last_name', 'email_address', 'user_id']),
         ]);
     }
 

@@ -15,6 +15,8 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\WorkTimetable;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,16 +50,79 @@ class EmployeeController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if ($employee === null) {
+        if ($employee === null && ! $user->isAdministrator()) {
             abort(403);
         }
 
-        $employee->photo_url = $employee->photo
-            ? '/storage/'.ltrim($employee->photo, '/')
-            : null;
+        if ($employee instanceof Employee) {
+            $employee->photo_url = $employee->photo
+                ? '/storage/'.ltrim($employee->photo, '/')
+                : null;
+        }
+
+        $approvedLeaveUsage = collect();
+        $approvedDaysUsed = 0.0;
+        $openingBalance = 0.0;
+
+        if ($employee instanceof Employee) {
+            $approvedLeaveUsage = LeaveRequest::query()
+                ->where('employee_id', $employee->id)
+                ->where('status', 'approved')
+                ->orderByDesc('decided_at')
+                ->orderByDesc('id')
+                ->get(['id', 'absence_types', 'absence_other', 'period_from', 'period_to', 'days', 'status', 'decided_at']);
+
+            $paidLeaveTypeNames = LeaveType::query()
+                ->where('leave_category', 'paid')
+                ->pluck('name')
+                ->filter(static fn ($name): bool => is_string($name) && $name !== '')
+                ->values()
+                ->all();
+
+            $approvedDaysUsed = (float) $approvedLeaveUsage->sum(function (LeaveRequest $leaveRequest) use ($paidLeaveTypeNames): float {
+                $types = is_array($leaveRequest->absence_types) ? $leaveRequest->absence_types : [];
+                $leaveType = (string) ($types[0] ?? '');
+                if ($leaveType === '' || ! in_array($leaveType, $paidLeaveTypeNames, true)) {
+                    return 0.0;
+                }
+
+                return (float) ($leaveRequest->days ?? 0);
+            });
+
+            $openingBalance = (float) ($employee->leave_opening_balance ?? 0);
+        }
+
+        $leaveCategoryByName = LeaveType::query()
+            ->pluck('leave_category', 'name')
+            ->mapWithKeys(static fn ($category, $name): array => [(string) $name => (string) $category])
+            ->all();
 
         return Inertia::render('employees/profile', [
             'employee' => $employee,
+            'hasEmployeeProfile' => $employee instanceof Employee,
+            'leaveConfig' => [
+                'openingBalance' => $openingBalance,
+                'approvedDaysUsed' => $approvedDaysUsed,
+                'liveRemainingBalance' => $openingBalance - $approvedDaysUsed,
+                'usage' => $approvedLeaveUsage->map(function (LeaveRequest $leaveRequest) use ($leaveCategoryByName): array {
+                    $types = is_array($leaveRequest->absence_types) ? $leaveRequest->absence_types : [];
+                    $leaveType = (string) ($types[0] ?? '');
+                    $category = $leaveCategoryByName[$leaveType] ?? 'paid';
+
+                    return [
+                        'id' => (int) $leaveRequest->id,
+                        'leave_type' => $leaveType !== ''
+                            ? $leaveType
+                            : (string) ($leaveRequest->absence_other ?: '—'),
+                        'leave_category' => $category,
+                        'period_from' => $leaveRequest->period_from,
+                        'period_to' => $leaveRequest->period_to,
+                        'days' => $leaveRequest->days,
+                        'status' => $leaveRequest->status,
+                        'decided_at' => $leaveRequest->decided_at?->toDateString(),
+                    ];
+                })->values()->all(),
+            ],
             'faceLogin' => [
                 'enabled' => $user->face_enrolled_at !== null || (is_array($user->face_profile) && $user->face_profile !== []),
                 'enrolled_at' => $user->face_enrolled_at?->toIso8601String(),
@@ -783,6 +848,35 @@ class EmployeeController extends Controller
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
 
+        $approvedLeaveUsage = LeaveRequest::query()
+            ->where('employee_id', $employee->id)
+            ->where('status', 'approved')
+            ->orderByDesc('decided_at')
+            ->orderByDesc('id')
+            ->get(['id', 'absence_types', 'absence_other', 'period_from', 'period_to', 'days', 'status', 'decided_at']);
+
+        $paidLeaveTypeNames = LeaveType::query()
+            ->where('leave_category', 'paid')
+            ->pluck('name')
+            ->filter(static fn ($name): bool => is_string($name) && $name !== '')
+            ->values()
+            ->all();
+        $leaveCategoryByName = LeaveType::query()
+            ->pluck('leave_category', 'name')
+            ->mapWithKeys(static fn ($category, $name): array => [(string) $name => (string) $category])
+            ->all();
+
+        $approvedDaysUsed = (float) $approvedLeaveUsage->sum(function (LeaveRequest $leaveRequest) use ($paidLeaveTypeNames): float {
+            $types = is_array($leaveRequest->absence_types) ? $leaveRequest->absence_types : [];
+            $leaveType = (string) ($types[0] ?? '');
+            if ($leaveType === '' || ! in_array($leaveType, $paidLeaveTypeNames, true)) {
+                return 0.0;
+            }
+
+            return (float) ($leaveRequest->days ?? 0);
+        });
+        $openingBalance = (float) ($employee->leave_opening_balance ?? 0);
+
         return Inertia::render('employees/edit', [
             'employee' => $employee,
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
@@ -791,6 +885,29 @@ class EmployeeController extends Controller
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
             'viewMode' => $request->query('mode') === 'view',
             'employeeLoginActive' => $employee->user?->is_active ?? null,
+            'leaveConfig' => [
+                'openingBalance' => $openingBalance,
+                'approvedDaysUsed' => $approvedDaysUsed,
+                'liveRemainingBalance' => $openingBalance - $approvedDaysUsed,
+                'usage' => $approvedLeaveUsage->map(function (LeaveRequest $leaveRequest) use ($leaveCategoryByName): array {
+                    $types = is_array($leaveRequest->absence_types) ? $leaveRequest->absence_types : [];
+                    $leaveType = (string) ($types[0] ?? '');
+                    $category = $leaveCategoryByName[$leaveType] ?? 'paid';
+
+                    return [
+                        'id' => (int) $leaveRequest->id,
+                        'leave_type' => $leaveType !== ''
+                            ? $leaveType
+                            : (string) ($leaveRequest->absence_other ?: '—'),
+                        'leave_category' => $category,
+                        'period_from' => $leaveRequest->period_from,
+                        'period_to' => $leaveRequest->period_to,
+                        'days' => $leaveRequest->days,
+                        'status' => $leaveRequest->status,
+                        'decided_at' => $leaveRequest->decided_at?->toDateString(),
+                    ];
+                })->values()->all(),
+            ],
         ]);
     }
 
@@ -800,6 +917,9 @@ class EmployeeController extends Controller
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
         $data = $request->validated();
+        if (! array_key_exists('leave_opening_balance', $data) || $data['leave_opening_balance'] === null) {
+            $data['leave_opening_balance'] = (float) ($employee->leave_opening_balance ?? 0);
+        }
         $userActive = $data['user_active'] ?? null;
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
@@ -831,7 +951,7 @@ class EmployeeController extends Controller
         }
 
         $tab = $request->input('tab');
-        if (! in_array($tab, ['employee_information', 'work_information', 'documents', 'private_information'], true)) {
+        if (! in_array($tab, ['employee_information', 'work_information', 'documents', 'private_information', 'leave_configuration'], true)) {
             $tab = 'employee_information';
         }
 
@@ -847,7 +967,7 @@ class EmployeeController extends Controller
         $employee->update($request->validated());
 
         $tab = $request->input('tab');
-        if (! in_array($tab, ['employee_information', 'work_information', 'documents', 'private_information'], true)) {
+        if (! in_array($tab, ['employee_information', 'work_information', 'documents', 'private_information', 'leave_configuration'], true)) {
             $tab = 'private_information';
         }
 

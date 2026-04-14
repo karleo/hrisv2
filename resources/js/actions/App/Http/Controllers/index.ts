@@ -10,6 +10,7 @@ import HardwareController from './HardwareController'
 import EmployeeTimeEntryController from './EmployeeTimeEntryController'
 import WorkTimetableController from './WorkTimetableController'
 import LeaveRequestController from './LeaveRequestController'
+import LeaveCalendarController from './LeaveCalendarController'
 import ItRequestController from './ItRequestController'
 import EmployeeRequestController from './EmployeeRequestController'
 import ItAssetRequestController from './ItAssetRequestController'
@@ -31,6 +32,7 @@ HardwareController: Object.assign(HardwareController, HardwareController),
 EmployeeTimeEntryController: Object.assign(EmployeeTimeEntryController, EmployeeTimeEntryController),
 WorkTimetableController: Object.assign(WorkTimetableController, WorkTimetableController),
 LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestController),
+LeaveCalendarController: Object.assign(LeaveCalendarController, LeaveCalendarController),
 ItRequestController: Object.assign(ItRequestController, ItRequestController),
 EmployeeRequestController: Object.assign(EmployeeRequestController, EmployeeRequestController),
 ItAssetRequestController: Object.assign(ItAssetRequestController, ItAssetRequestController),

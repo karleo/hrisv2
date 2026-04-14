@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property \Illuminate\Support\Carbon|null $start_date
  * @property \Illuminate\Support\Carbon|null $end_date
  * @property string $employee_status
+ * @property float $leave_opening_balance
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -72,6 +73,7 @@ class Employee extends Model
         'start_date',
         'end_date',
         'employee_status',
+        'leave_opening_balance',
     ];
 
     public function user(): BelongsTo
@@ -117,6 +119,7 @@ class Employee extends Model
             'first_contract_date' => 'date:Y-m-d',
             'start_date' => 'date:Y-m-d',
             'end_date' => 'date:Y-m-d',
+            'leave_opening_balance' => 'float',
         ];
     }
 

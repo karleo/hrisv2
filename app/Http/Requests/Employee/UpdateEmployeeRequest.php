@@ -60,6 +60,7 @@ class UpdateEmployeeRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'employee_status' => ['nullable', 'string', Rule::in(self::EMPLOYEE_STATUSES)],
+            'leave_opening_balance' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
             'user_active' => ['nullable', 'boolean'],
             'photo' => ['nullable', 'image', 'max:5120'],
             'documents' => ['nullable', 'array'],

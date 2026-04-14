@@ -14,7 +14,9 @@ type LeaveRequest = {
     details: string | null;
     date: string | null;
     period_from: string | null;
+    start_day_type?: 'full' | 'half' | null;
     period_to: string | null;
+    end_day_type?: 'full' | 'half' | null;
     days: number | null;
     remarks: string | null;
     status: string;
@@ -69,7 +71,7 @@ function daysLabel(n: number | null): string {
     if (n === 1) {
         return '1 DAY';
     }
-    return `${n} DAYS`;
+    return `${n.toFixed(1)} DAYS`;
 }
 
 function fullName(emp?: Employee | null): string {

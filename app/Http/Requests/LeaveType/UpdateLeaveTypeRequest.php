@@ -27,6 +27,7 @@ class UpdateLeaveTypeRequest extends FormRequest
                 Rule::unique(LeaveType::class)->ignore($leaveType->id),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'leave_category' => ['required', 'string', Rule::in(['paid', 'unpaid'])],
             'description' => ['nullable', 'string', 'max:1000'],
         ];
     }

@@ -79,6 +79,24 @@ type EmployeeDocument = {
     url: string;
 };
 
+type LeaveUsageLineItem = {
+    id: number;
+    leave_type: string;
+    leave_category: 'paid' | 'unpaid' | string;
+    period_from: string | null;
+    period_to: string | null;
+    days: number | null;
+    status: string;
+    decided_at: string | null;
+};
+
+type LeaveConfig = {
+    openingBalance: number;
+    approvedDaysUsed: number;
+    liveRemainingBalance: number;
+    usage: LeaveUsageLineItem[];
+};
+
 type LocalDocumentPreview = {
     name: string;
     url: string;
@@ -101,11 +119,15 @@ const MAX_EXCEL_PREVIEW_COLUMNS = 24;
 export default function EmployeeProfile({
     employee,
     faceLogin,
+    leaveConfig,
+    hasEmployeeProfile,
 }: {
-    employee: Employee;
+    employee: Employee | null;
     faceLogin: FaceLoginInfo;
+    leaveConfig: LeaveConfig;
+    hasEmployeeProfile: boolean;
 }) {
-    const [tab, setTab] = useState<'profile' | 'security' | 'documents'>('profile');
+    const [tab, setTab] = useState<'profile' | 'security' | 'documents' | 'leave'>('profile');
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Profile', href: '/my-profile' },
     ];
@@ -115,7 +137,11 @@ export default function EmployeeProfile({
     const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
     const [previewLocalDocument, setPreviewLocalDocument] = useState<LocalDocumentPreview | null>(null);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-    const { props } = usePage<{ flash?: { success?: string; error?: string }; errors?: Record<string, string> }>();
+    const { props } = usePage<{
+        flash?: { success?: string; error?: string };
+        errors?: Record<string, string>;
+        auth?: { user?: { name?: string; email?: string } };
+    }>();
     const errors = props.errors ?? {};
     const passwordForm = useForm({
         current_password: '',
@@ -126,6 +152,19 @@ export default function EmployeeProfile({
     const processing = faceSaving;
     const enrolledAtLabel = faceLogin.enrolled_at ? new Date(faceLogin.enrolled_at).toLocaleString() : null;
     const enrolledAngles = faceLogin.angles.length > 0 ? faceLogin.angles.join(', ') : 'front, left, right';
+    const authUserName = props.auth?.user?.name ?? '—';
+    const authUserEmail = props.auth?.user?.email ?? '—';
+
+    function formatLeaveDays(value: number | null | undefined): string {
+        if (value === null || value === undefined || Number.isNaN(value)) {
+            return '0';
+        }
+
+        return Number(value).toLocaleString(undefined, {
+            minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+            maximumFractionDigits: 2,
+        });
+    }
 
     function isImageDocument(name: string): boolean {
         return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
@@ -390,7 +429,9 @@ export default function EmployeeProfile({
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
                         <p className="text-muted-foreground mt-1">
-                            View your information from Employee Master.
+                            {hasEmployeeProfile
+                                ? 'View your information from Employee Master.'
+                                : 'View your account profile information.'}
                         </p>
                     </div>
 
@@ -413,135 +454,174 @@ export default function EmployeeProfile({
                         >
                             Security
                         </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={tab === 'documents' ? 'default' : 'outline'}
-                            className="rounded-lg"
-                            onClick={() => setTab('documents')}
-                        >
-                            Documents
-                        </Button>
+                        {hasEmployeeProfile ? (
+                            <>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={tab === 'documents' ? 'default' : 'outline'}
+                                    className="rounded-lg"
+                                    onClick={() => setTab('documents')}
+                                >
+                                    Documents
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={tab === 'leave' ? 'default' : 'outline'}
+                                    className="rounded-lg"
+                                    onClick={() => setTab('leave')}
+                                >
+                                    Leave
+                                </Button>
+                            </>
+                        ) : null}
                     </div>
 
-                    <div className={`grid gap-6 md:grid-cols-[220px_1fr] ${tab === 'profile' ? '' : 'hidden'}`}>
-                        <Card>
-                            <CardContent className="flex flex-col items-center gap-3 p-6">
-                                <div className="flex size-28 items-center justify-center overflow-hidden rounded-full border bg-muted">
-                                    {employee.photo_url ? (
-                                        <img
-                                            src={employee.photo_url}
-                                            alt="Employee photo"
-                                            className="size-full object-cover"
-                                        />
-                                    ) : (
-                                        <User className="size-10 text-muted-foreground" />
-                                    )}
-                                </div>
-                                <div className="text-center">
-                                    <p className="font-semibold">{employee.first_name} {employee.last_name}</p>
-                                    <p className="text-muted-foreground text-sm">{employee.employee_code}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                    <div className={`grid gap-6 ${hasEmployeeProfile ? 'md:grid-cols-[220px_1fr]' : ''} ${tab === 'profile' ? '' : 'hidden'}`}>
+                        {hasEmployeeProfile && employee ? (
+                            <>
+                                <Card>
+                                    <CardContent className="flex flex-col items-center gap-3 p-6">
+                                        <div className="flex size-28 items-center justify-center overflow-hidden rounded-full border bg-muted">
+                                            {employee.photo_url ? (
+                                                <img
+                                                    src={employee.photo_url}
+                                                    alt="Employee photo"
+                                                    className="size-full object-cover"
+                                                />
+                                            ) : (
+                                                <User className="size-10 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="font-semibold">{employee.first_name} {employee.last_name}</p>
+                                            <p className="text-muted-foreground text-sm">{employee.employee_code}</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Employee Information</CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Full Name</p>
-                                    <p className="font-medium">{employee.first_name} {employee.last_name}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Employee Code</p>
-                                    <p className="font-medium">{employee.employee_code}</p>
-                                </div>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Employee Information</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Full Name</p>
+                                            <p className="font-medium">{employee.first_name} {employee.last_name}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Employee Code</p>
+                                            <p className="font-medium">{employee.employee_code}</p>
+                                        </div>
 
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Email</p>
-                                    <p className="inline-flex items-center gap-2 font-medium">
-                                        <Mail className="size-4 text-muted-foreground" />
-                                        {employee.email_address}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Contact Number</p>
-                                    <p className="inline-flex items-center gap-2 font-medium">
-                                        <Phone className="size-4 text-muted-foreground" />
-                                        {employee.contact_number ?? '—'}
-                                    </p>
-                                </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Email</p>
+                                            <p className="inline-flex items-center gap-2 font-medium">
+                                                <Mail className="size-4 text-muted-foreground" />
+                                                {employee.email_address}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Contact Number</p>
+                                            <p className="inline-flex items-center gap-2 font-medium">
+                                                <Phone className="size-4 text-muted-foreground" />
+                                                {employee.contact_number ?? '—'}
+                                            </p>
+                                        </div>
 
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Department</p>
-                                    <p className="inline-flex items-center gap-2 font-medium">
-                                        <Building2 className="size-4 text-muted-foreground" />
-                                        {employee.department?.name ?? '—'}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Job Position</p>
-                                    <p className="inline-flex items-center gap-2 font-medium">
-                                        <Briefcase className="size-4 text-muted-foreground" />
-                                        {employee.job_position?.name ?? '—'}
-                                    </p>
-                                </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Department</p>
+                                            <p className="inline-flex items-center gap-2 font-medium">
+                                                <Building2 className="size-4 text-muted-foreground" />
+                                                {employee.department?.name ?? '—'}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Job Position</p>
+                                            <p className="inline-flex items-center gap-2 font-medium">
+                                                <Briefcase className="size-4 text-muted-foreground" />
+                                                {employee.job_position?.name ?? '—'}
+                                            </p>
+                                        </div>
 
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Work Timetable</p>
-                                    <p className="inline-flex items-center gap-2 font-medium">
-                                        <Clock className="size-4 text-muted-foreground" />
-                                        {employee.work_timetable?.name ?? '—'}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Company</p>
-                                    <p className="font-medium">{employee.company_profile?.company_name ?? '—'}</p>
-                                </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Work Timetable</p>
+                                            <p className="inline-flex items-center gap-2 font-medium">
+                                                <Clock className="size-4 text-muted-foreground" />
+                                                {employee.work_timetable?.name ?? '—'}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Company</p>
+                                            <p className="font-medium">{employee.company_profile?.company_name ?? '—'}</p>
+                                        </div>
 
-                                <div className="space-y-1 sm:col-span-2">
-                                    <p className="text-muted-foreground text-xs">Address</p>
-                                    <p className="inline-flex items-center gap-2 font-medium">
-                                        <MapPin className="size-4 text-muted-foreground" />
-                                        {[employee.address_1, employee.address_2].filter(Boolean).join(', ') || '—'}
-                                    </p>
-                                </div>
+                                        <div className="space-y-1 sm:col-span-2">
+                                            <p className="text-muted-foreground text-xs">Address</p>
+                                            <p className="inline-flex items-center gap-2 font-medium">
+                                                <MapPin className="size-4 text-muted-foreground" />
+                                                {[employee.address_1, employee.address_2].filter(Boolean).join(', ') || '—'}
+                                            </p>
+                                        </div>
 
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Phone</p>
-                                    <p className="font-medium">{employee.phone ?? '—'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Mobile</p>
-                                    <p className="font-medium">{employee.mobile ?? '—'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Date of Birth</p>
-                                    <p className="font-medium">{employee.date_of_birth ?? '—'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Gender</p>
-                                    <p className="font-medium">{employee.gender ?? '—'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Marital Status</p>
-                                    <p className="font-medium">{employee.marital_status ?? '—'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-muted-foreground text-xs">Emergency Contact Name</p>
-                                    <p className="font-medium">{employee.emergency_contact_name ?? '—'}</p>
-                                </div>
-                                <div className="space-y-1 sm:col-span-2">
-                                    <p className="text-muted-foreground text-xs">Emergency Contact Phone</p>
-                                    <p className="font-medium">{employee.emergency_contact_phone ?? '—'}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Phone</p>
+                                            <p className="font-medium">{employee.phone ?? '—'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Mobile</p>
+                                            <p className="font-medium">{employee.mobile ?? '—'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Date of Birth</p>
+                                            <p className="font-medium">{employee.date_of_birth ?? '—'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Gender</p>
+                                            <p className="font-medium">{employee.gender ?? '—'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Marital Status</p>
+                                            <p className="font-medium">{employee.marital_status ?? '—'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Emergency Contact Name</p>
+                                            <p className="font-medium">{employee.emergency_contact_name ?? '—'}</p>
+                                        </div>
+                                        <div className="space-y-1 sm:col-span-2">
+                                            <p className="text-muted-foreground text-xs">Emergency Contact Phone</p>
+                                            <p className="font-medium">{employee.emergency_contact_phone ?? '—'}</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </>
+                        ) : (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base">Account Information</CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+                                    <div className="space-y-1">
+                                        <p className="text-muted-foreground text-xs">Name</p>
+                                        <p className="font-medium">{authUserName}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-muted-foreground text-xs">Email</p>
+                                        <p className="font-medium">{authUserEmail}</p>
+                                    </div>
+                                    <div className="space-y-1 sm:col-span-2">
+                                        <p className="text-muted-foreground text-xs">Note</p>
+                                        <p className="text-muted-foreground">
+                                            No employee profile is linked to this account. Security settings are available under the Security tab.
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
 
-                    <Card className={tab === 'security' ? '' : 'hidden'}>
+                    <Card className={tab === 'security' && hasEmployeeProfile ? '' : 'hidden'}>
                         <CardHeader>
                             <CardTitle>Account Security</CardTitle>
                         </CardHeader>
@@ -668,15 +748,15 @@ export default function EmployeeProfile({
                         </CardContent>
                     </Card>
 
-                    <Card className={tab === 'documents' ? '' : 'hidden'}>
+                    <Card className={tab === 'documents' && hasEmployeeProfile ? '' : 'hidden'}>
                         <CardHeader>
                             <CardTitle>Documents</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {(employee.documents?.length ?? 0) === 0 ? (
+                            {(employee?.documents?.length ?? 0) === 0 ? (
                                 <p className="text-muted-foreground text-sm">No documents available.</p>
                             ) : (
-                                employee.documents?.map((doc) => (
+                                employee?.documents?.map((doc) => (
                                     <div key={doc.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
                                         <div className="min-w-0">
                                             <p className="truncate font-medium">{doc.name}</p>
@@ -702,6 +782,94 @@ export default function EmployeeProfile({
                                     </div>
                                 ))
                             )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className={tab === 'leave' && hasEmployeeProfile ? '' : 'hidden'}>
+                        <CardHeader>
+                            <CardTitle>Leave Policy</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                                    <p className="text-xs text-muted-foreground">Opening Balance</p>
+                                    <p className="mt-1 text-2xl font-semibold">
+                                        {formatLeaveDays(leaveConfig.openingBalance)} days
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                                    <p className="text-xs text-muted-foreground">Approved Leave Used</p>
+                                    <p className="mt-1 text-2xl font-semibold">
+                                        {formatLeaveDays(leaveConfig.approvedDaysUsed)} days
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-emerald-300/50 bg-emerald-50/60 p-4 dark:border-emerald-700/50 dark:bg-emerald-950/20">
+                                    <p className="text-xs text-muted-foreground">Live Remaining Balance</p>
+                                    <p className="mt-1 text-2xl font-semibold">
+                                        {formatLeaveDays(leaveConfig.liveRemainingBalance)} days
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-semibold">Leave Usage</h4>
+                                    <span className="text-xs text-muted-foreground">Approved requests only</span>
+                                </div>
+                                <div className="overflow-hidden rounded-lg border border-border">
+                                    <div className="max-h-80 overflow-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted/40 text-left">
+                                                <tr>
+                                                    <th className="px-3 py-2 font-medium">Leave Type</th>
+                                                    <th className="px-3 py-2 font-medium">Category</th>
+                                                    <th className="px-3 py-2 font-medium">From</th>
+                                                    <th className="px-3 py-2 font-medium">To</th>
+                                                    <th className="px-3 py-2 font-medium">Days</th>
+                                                    <th className="px-3 py-2 font-medium">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {leaveConfig.usage.length > 0 ? (
+                                                    leaveConfig.usage.map((item) => (
+                                                        <tr key={item.id} className="border-t border-border/70">
+                                                            <td className="px-3 py-2">{item.leave_type}</td>
+                                                            <td className="px-3 py-2">
+                                                                <span className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium">
+                                                                    {item.leave_category === 'unpaid'
+                                                                        ? 'Unpaid'
+                                                                        : 'Paid'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-2">{item.period_from ?? '—'}</td>
+                                                            <td className="px-3 py-2">{item.period_to ?? '—'}</td>
+                                                            <td className="px-3 py-2">
+                                                                {item.days !== null
+                                                                    ? formatLeaveDays(item.days)
+                                                                    : '—'}
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <span className="inline-flex rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                                                                    Approved
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td
+                                                            colSpan={6}
+                                                            className="px-3 py-4 text-center text-muted-foreground"
+                                                        >
+                                                            No approved leave usage yet.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
