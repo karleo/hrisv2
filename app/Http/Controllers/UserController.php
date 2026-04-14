@@ -77,16 +77,16 @@ class UserController extends Controller
         $validated = $request->validated();
 
         $imagesByAngle = [];
+        $anyFaceFile = false;
         foreach (FaceProfileAngle::ordered() as $angle) {
             $field = 'face_capture_'.$angle->value;
             $file = $request->file($field);
-            if ($file === null || ! $file->isValid()) {
-                throw ValidationException::withMessages([
-                    $field => __('A valid face capture is required for this angle.'),
-                ]);
+            if ($file !== null && $file->isValid()) {
+                $imagesByAngle[$angle->value] = $file;
+                $anyFaceFile = true;
             }
-            $imagesByAngle[$angle->value] = $file;
         }
+        $attemptFaceEnroll = $anyFaceFile;
 
         $employeeId = isset($validated['employee_id']) ? (int) $validated['employee_id'] : null;
 
@@ -101,17 +101,23 @@ class UserController extends Controller
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
         try {
-            DB::transaction(function () use ($data, $employeeId, $imagesByAngle): void {
+            DB::transaction(function () use ($data, $employeeId, $imagesByAngle, $attemptFaceEnroll): void {
                 $user = User::query()->create($data);
                 $this->syncEmployeeLink($user, $employeeId);
-                $this->faceVerification->enrollProfile($user, $imagesByAngle);
+                if ($attemptFaceEnroll) {
+                    $this->faceVerification->enrollProfile($user, $imagesByAngle);
+                }
             });
         } catch (Throwable $e) {
             report($e);
 
-            throw ValidationException::withMessages([
-                'face_capture_front' => __('Face enrollment failed. Try again with new captures for each angle.'),
-            ]);
+            if ($attemptFaceEnroll) {
+                throw ValidationException::withMessages([
+                    'face_capture_front' => __('Face enrollment failed. Try again with new captures for each angle.'),
+                ]);
+            }
+
+            throw $e;
         }
 
         return to_route('users.index')->with('success', 'User created.');

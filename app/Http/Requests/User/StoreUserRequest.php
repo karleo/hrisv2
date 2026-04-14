@@ -9,6 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Validator;
 
 class StoreUserRequest extends FormRequest
 {
@@ -19,7 +20,7 @@ class StoreUserRequest extends FormRequest
     {
         $face = [];
         foreach (FaceProfileAngle::ordered() as $angle) {
-            $face['face_capture_'.$angle->value] = ['required', 'image', 'max:128'];
+            $face['face_capture_'.$angle->value] = ['nullable', 'image', 'max:128'];
         }
 
         return [
@@ -39,5 +40,38 @@ class StoreUserRequest extends FormRequest
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             ...$face,
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $provided = [];
+
+            foreach (FaceProfileAngle::ordered() as $angle) {
+                $field = 'face_capture_'.$angle->value;
+                $file = $this->file($field);
+                if ($file !== null && $file->isValid()) {
+                    $provided[] = $field;
+                }
+            }
+
+            if ($provided === []) {
+                return;
+            }
+
+            if (count($provided) === count(FaceProfileAngle::ordered())) {
+                return;
+            }
+
+            foreach (FaceProfileAngle::ordered() as $angle) {
+                $field = 'face_capture_'.$angle->value;
+                if (! in_array($field, $provided, true)) {
+                    $validator->errors()->add(
+                        $field,
+                        __('If enrolling face sign-in, front, left, and right captures are required together.')
+                    );
+                }
+            }
+        });
     }
 }

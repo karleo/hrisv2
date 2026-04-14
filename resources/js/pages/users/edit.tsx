@@ -19,6 +19,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -99,6 +106,8 @@ type UserFace = {
     provider: string | null;
     angles: string[];
 };
+const ROLE_DEFAULT_VALUE = '__role_default__';
+const EMPLOYEE_NONE_VALUE = '__employee_none__';
 
 function employeeLabel(
     e: EmployeeOption,
@@ -504,24 +513,26 @@ function UserEditForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="role_id">Role</Label>
-                                <select
-                                    id="role_id"
-                                    value={data.role_id}
-                                    onChange={(e) =>
-                                        setData('role_id', e.target.value)
+                                <Select
+                                    value={data.role_id || ROLE_DEFAULT_VALUE}
+                                    onValueChange={(value) =>
+                                        setData('role_id', value === ROLE_DEFAULT_VALUE ? '' : value)
                                     }
-                                    aria-invalid={Boolean(errors.role_id)}
-                                    className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">
-                                        Basic access (dashboard — default)
-                                    </option>
-                                    {roles.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="role_id" aria-invalid={Boolean(errors.role_id)}>
+                                        <SelectValue placeholder="Basic access (dashboard — default)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ROLE_DEFAULT_VALUE}>
+                                            Basic access (dashboard — default)
+                                        </SelectItem>
+                                        {roles.map((r) => (
+                                            <SelectItem key={r.id} value={String(r.id)}>
+                                                {r.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.role_id} />
                             </div>
 
@@ -532,22 +543,24 @@ function UserEditForm({
                                         (optional)
                                     </span>
                                 </Label>
-                                <select
-                                    id="employee_id"
-                                    value={data.employee_id}
-                                    onChange={(e) =>
-                                        setData('employee_id', e.target.value)
+                                <Select
+                                    value={data.employee_id || EMPLOYEE_NONE_VALUE}
+                                    onValueChange={(value) =>
+                                        setData('employee_id', value === EMPLOYEE_NONE_VALUE ? '' : value)
                                     }
-                                    aria-invalid={Boolean(errors.employee_id)}
-                                    className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">None</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {employeeLabel(emp, user.id)}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="employee_id" aria-invalid={Boolean(errors.employee_id)}>
+                                        <SelectValue placeholder="None" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={EMPLOYEE_NONE_VALUE}>None</SelectItem>
+                                        {employees.map((emp) => (
+                                            <SelectItem key={emp.id} value={String(emp.id)}>
+                                                {employeeLabel(emp, user.id)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.employee_id} />
                                 <p className="text-xs text-muted-foreground">
                                     Links this login to an employee record.
