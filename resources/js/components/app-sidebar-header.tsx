@@ -67,17 +67,19 @@ export function AppSidebarHeader({
     };
 
     return (
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border bg-sidebar px-6 text-sidebar-foreground transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
-                <Breadcrumbs breadcrumbs={breadcrumbs} />
+                <SidebarTrigger className="-ml-1 text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+                <div className="[&_[data-slot=breadcrumb-list]]:text-sidebar-foreground/80 [&_[data-slot=breadcrumb-link]]:text-sidebar-foreground/85 [&_[data-slot=breadcrumb-link]:hover]:text-sidebar-foreground [&_[data-slot=breadcrumb-page]]:font-medium [&_[data-slot=breadcrumb-page]]:text-sidebar-foreground [&_[data-slot=breadcrumb-separator]]:text-sidebar-foreground/70">
+                    <Breadcrumbs breadcrumbs={breadcrumbs} />
+                </div>
             </div>
             <div className="ml-auto flex items-center gap-1">
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9"
+                    className="h-9 w-9 text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     onClick={() =>
                         updateAppearance(resolvedAppearance === 'dark' ? 'light' : 'dark')
                     }
@@ -104,7 +106,11 @@ export function AppSidebarHeader({
                         onOpenChange={setNotificationsMenuOpen}
                     >
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="relative h-9 w-9 text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            >
                                 <Bell className="size-5 opacity-80" />
                                 {(notifications?.unread_count ?? 0) > 0 ? (
                                     <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-red-600 px-1 text-[11px] leading-none font-bold text-white">
@@ -167,7 +173,7 @@ export function AppSidebarHeader({
                         <Button
                             type="button"
                             variant="ghost"
-                            className="h-9 max-w-[220px] rounded-xl px-2"
+                            className="h-9 max-w-[220px] rounded-xl px-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         >
                             <div className="flex min-w-0 items-center gap-2">
                                 <UserInfo user={auth.user} />
