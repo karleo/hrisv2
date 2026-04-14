@@ -59,11 +59,17 @@ export default function Login({ status }: Props) {
 
     const errors = pageErrors ?? {};
     const hasEmailIdentifier = data.email.trim().length > 0;
+    const hasPasswordIdentifier = data.password.trim().length > 0;
 
     const performLogin = useCallback(async (): Promise<void> => {
         if (loginInFlightRef.current) {
             return;
         }
+
+        const emailElement = document.getElementById('email') as HTMLInputElement | null;
+        const passwordElement = document.getElementById('password') as HTMLInputElement | null;
+        const emailValue = (emailElement?.value ?? data.email).trim();
+        const passwordValue = passwordElement?.value ?? data.password;
 
         const snapshot =
             latestFaceRef.current ??
@@ -73,8 +79,8 @@ export default function Login({ status }: Props) {
         setSubmitting(true);
 
         const payload: Record<string, string | File> = {
-            email: data.email.trim(),
-            password: data.password || 'face-only-login',
+            email: emailValue,
+            password: passwordValue || 'face-only-login',
         };
         if (data.remember) {
             payload.remember = 'on';
@@ -115,7 +121,12 @@ export default function Login({ status }: Props) {
         faceCaptureErrorMessage.toLowerCase().includes('too many face verification attempts');
     const hasFaceVerificationError = Boolean(errors.face_capture);
     const readyToAutoSignIn =
-        useFaceLogin && hasEmailIdentifier && hasFaceSample && !processing && !isFaceRateLimited;
+        useFaceLogin &&
+        !hasPasswordIdentifier &&
+        hasEmailIdentifier &&
+        hasFaceSample &&
+        !processing &&
+        !isFaceRateLimited;
 
     useEffect(() => {
         if (!useFaceLogin || loginInFlightRef.current || isFaceRateLimited) {
@@ -123,6 +134,10 @@ export default function Login({ status }: Props) {
         }
 
         if (!hasEmailIdentifier) {
+            return;
+        }
+
+        if (hasPasswordIdentifier) {
             return;
         }
 
@@ -146,6 +161,7 @@ export default function Login({ status }: Props) {
         data.email,
         faceSampleVersion,
         hasEmailIdentifier,
+        hasPasswordIdentifier,
         hasFaceSample,
         isFaceRateLimited,
         performLogin,

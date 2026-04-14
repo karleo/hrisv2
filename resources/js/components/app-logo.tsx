@@ -10,7 +10,7 @@ export default function AppLogo() {
                     decoding="async"
                 />
             </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
+            <div className="ml-1 grid flex-1 text-left text-sm group-data-[collapsible=icon]:hidden">
                 <span className="mb-0.5 truncate leading-tight font-semibold">
                     Prime Logistics
                 </span>

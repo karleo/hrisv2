@@ -95,15 +95,15 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
                                             isActive={isAnyChildActive}
-                                            className="h-auto min-h-11 overflow-visible rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+                                            className="min-h-11 rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
                                         >
-                                            {item.icon && <item.icon className="mt-0.5 size-4.5" />}
-                                            <div className="flex min-w-0 flex-1 items-center">
+                                            {item.icon && <item.icon className="mt-0.5 size-4.5 group-data-[collapsible=icon]:mt-0" />}
+                                            <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
                                                 <span className="font-medium whitespace-normal break-words leading-tight">
                                                     {item.title}
                                                 </span>
                                             </div>
-                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[collapsible=icon]:hidden" />
                                         </SidebarMenuButton>
                                     </CollapsibleTrigger>
 
@@ -123,11 +123,11 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 asChild
                                 isActive={!!item.href && isCurrentUrl(item.href)}
                                 tooltip={{ children: item.title }}
-                                className="h-auto min-h-11 overflow-visible rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+                                className="min-h-11 rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
                             >
                                 <Link href={item.href ?? '#'} prefetch>
-                                    {item.icon && <item.icon className="mt-0.5 size-4.5" />}
-                                    <div className="flex min-w-0 flex-1 items-center">
+                                    {item.icon && <item.icon className="mt-0.5 size-4.5 group-data-[collapsible=icon]:mt-0" />}
+                                    <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
                                         <span className="font-medium whitespace-normal break-words leading-tight">
                                             {item.title}
                                         </span>
