@@ -83,7 +83,7 @@ type LocalDocumentPreview = {
     name: string;
     url: string;
     html?: string;
-    excelRows?: string[][];
+    excelHtml?: string;
     csvRows?: string[][];
     note?: string;
 };
@@ -94,9 +94,9 @@ const emptyFaceProfile = (): FaceProfileFiles => ({
     right: null,
 });
 
-const MAX_PREVIEW_PARSE_BYTES = 3 * 1024 * 1024;
-const MAX_PREVIEW_ROWS = 200;
-const MAX_PREVIEW_COLUMNS = 20;
+const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
+const MAX_EXCEL_PREVIEW_ROWS = 120;
+const MAX_EXCEL_PREVIEW_COLUMNS = 24;
 
 export default function EmployeeProfile({
     employee,
@@ -187,6 +187,88 @@ export default function EmployeeProfile({
         });
     }
 
+    function buildExcelPreviewHtml(
+        XLSX: typeof import('xlsx'),
+        sheet: import('xlsx').WorkSheet | null
+    ): { html?: string; truncated: boolean } {
+        if (!sheet) {
+            return { html: undefined, truncated: false };
+        }
+
+        const ref = sheet['!ref'];
+        if (!ref) {
+            return {
+                html: XLSX.utils.sheet_to_html(sheet),
+                truncated: false,
+            };
+        }
+
+        const range = XLSX.utils.decode_range(ref);
+        const cellAddresses = Object.keys(sheet).filter((key) => !key.startsWith('!'));
+        const populatedCells = cellAddresses.filter((address) => {
+            const cell = sheet[address] as
+                | { v?: unknown; w?: string; t?: string }
+                | undefined;
+            if (!cell) {
+                return false;
+            }
+            if (cell.t === 'z') {
+                return false;
+            }
+            if (cell.v === null || cell.v === undefined) {
+                return typeof cell.w === 'string' && cell.w.trim().length > 0;
+            }
+            if (typeof cell.v === 'string') {
+                return cell.v.trim().length > 0;
+            }
+            return true;
+        });
+        const dataRange =
+            populatedCells.length > 0
+                ? populatedCells.reduce(
+                      (acc, address) => {
+                          const cellPos = XLSX.utils.decode_cell(address);
+                          return {
+                              s: {
+                                  r: Math.min(acc.s.r, cellPos.r),
+                                  c: Math.min(acc.s.c, cellPos.c),
+                              },
+                              e: {
+                                  r: Math.max(acc.e.r, cellPos.r),
+                                  c: Math.max(acc.e.c, cellPos.c),
+                              },
+                          };
+                      },
+                      {
+                          s: { ...range.s },
+                          e: { ...range.s },
+                      }
+                  )
+                : range;
+        const limitedEndRow = Math.min(
+            dataRange.e.r,
+            dataRange.s.r + MAX_EXCEL_PREVIEW_ROWS - 1
+        );
+        const limitedEndCol = Math.min(
+            dataRange.e.c,
+            dataRange.s.c + MAX_EXCEL_PREVIEW_COLUMNS - 1
+        );
+        const truncated =
+            limitedEndRow < dataRange.e.r || limitedEndCol < dataRange.e.c;
+        const limitedSheet = {
+            ...sheet,
+            '!ref': XLSX.utils.encode_range({
+                s: dataRange.s,
+                e: { r: limitedEndRow, c: limitedEndCol },
+            }),
+        };
+
+        return {
+            html: XLSX.utils.sheet_to_html(limitedSheet),
+            truncated,
+        };
+    }
+
     async function openDocumentPreview(doc: EmployeeDocument): Promise<void> {
         setPreviewDocument(null);
         setPreviewLocalDocument(null);
@@ -256,25 +338,21 @@ export default function EmployeeProfile({
 
                 const XLSX = await import('xlsx');
                 const arrayBuffer = await localFile.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const workbook = XLSX.read(arrayBuffer, {
+                    type: 'array',
+                    sheets: 0,
+                    cellFormula: false,
+                    cellHTML: false,
+                    cellStyles: false,
+                });
                 const firstSheetName = workbook.SheetNames[0];
                 const sheet = firstSheetName ? workbook.Sheets[firstSheetName] : null;
-                const rows = sheet
-                    ? XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
-                        header: 1,
-                        raw: false,
-                    })
-                    : [];
-                const limitedRows = rows.slice(0, MAX_PREVIEW_ROWS);
+                const preview = buildExcelPreviewHtml(XLSX, sheet);
                 setPreviewLocalDocument({
                     ...basePreview,
-                    excelRows: limitedRows.map((row) =>
-                        row
-                            .slice(0, MAX_PREVIEW_COLUMNS)
-                            .map((cell) => (cell ?? '').toString()),
-                    ),
+                    excelHtml: preview.html,
                     note: firstSheetName
-                        ? `Rendered from sheet: ${firstSheetName}${rows.length > MAX_PREVIEW_ROWS ? ` (showing first ${MAX_PREVIEW_ROWS} rows)` : ''}`
+                        ? `Rendered from sheet: ${firstSheetName}${preview.truncated ? ` (showing first ${MAX_EXCEL_PREVIEW_ROWS} rows x ${MAX_EXCEL_PREVIEW_COLUMNS} columns)` : ''}`
                         : 'Excel file has no sheets.',
                 });
                 return;
@@ -724,8 +802,8 @@ export default function EmployeeProfile({
                         </DialogTitle>
                     </DialogHeader>
                     {previewDocument || previewLocalDocument ? (
-                        <div className="space-y-3">
-                            <div className="rounded-md border bg-muted/20 p-2">
+                        <div className="min-w-0 space-y-3">
+                            <div className="min-w-0 overflow-hidden rounded-md border bg-muted/20 p-2">
                                 {previewDocument ? (
                                     <iframe
                                         src={previewDocument.url}
@@ -733,49 +811,31 @@ export default function EmployeeProfile({
                                         className="h-[70vh] w-full rounded-md border bg-white"
                                     />
                                 ) : previewLocalDocument?.html ? (
-                                    <div className="prose prose-sm max-w-none rounded bg-white p-4 dark:prose-invert">
-                                        <div
-                                            dangerouslySetInnerHTML={{
-                                                __html: previewLocalDocument.html,
-                                            }}
-                                        />
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full w-full overflow-x-auto overflow-y-auto p-4">
+                                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                                                <div
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: previewLocalDocument.html,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                ) : previewLocalDocument?.excelRows ? (
-                                    <div className="h-[70vh] w-full max-w-full overflow-hidden rounded bg-white">
-                                        <div className="h-full w-full overflow-x-auto overflow-y-auto">
-                                            <table className="w-max min-w-full border-collapse text-xs sm:text-sm">
-                                                <tbody>
-                                                    {previewLocalDocument.excelRows.length > 0 ? (
-                                                        previewLocalDocument.excelRows.map((row, rowIndex) => (
-                                                            <tr key={`excel-r-${rowIndex}`}>
-                                                                {row.length > 0 ? (
-                                                                    row.map((cell, colIndex) => (
-                                                                        <td
-                                                                            key={`excel-c-${rowIndex}-${colIndex}`}
-                                                                            className="min-w-[140px] border px-2 py-1 align-top whitespace-nowrap"
-                                                                        >
-                                                                            {cell}
-                                                                        </td>
-                                                                    ))
-                                                                ) : (
-                                                                    <td className="border px-2 py-1">&nbsp;</td>
-                                                                )}
-                                                            </tr>
-                                                        ))
-                                                    ) : (
-                                                        <tr>
-                                                            <td className="border px-2 py-1 text-muted-foreground">
-                                                                No data to preview.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
+                                ) : previewLocalDocument?.excelHtml ? (
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full min-w-0 w-full touch-pan-x overflow-x-auto overflow-y-auto">
+                                            <div
+                                                className="min-w-max p-2 text-xs sm:text-sm [&_table]:border-collapse [&_table]:bg-white [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_td]:align-top [&_td]:whitespace-nowrap [&_th]:border [&_th]:bg-muted/20 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: previewLocalDocument.excelHtml,
+                                                }}
+                                            />
                                         </div>
                                     </div>
                                 ) : previewLocalDocument?.csvRows ? (
-                                    <div className="h-[70vh] w-full max-w-full overflow-hidden rounded bg-white">
-                                        <div className="h-full w-full overflow-x-auto overflow-y-auto">
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full min-w-0 w-full touch-pan-x overflow-x-auto overflow-y-auto">
                                             <table className="w-max min-w-full border-collapse text-xs sm:text-sm">
                                                 <tbody>
                                                     {previewLocalDocument.csvRows.length > 0 ? (

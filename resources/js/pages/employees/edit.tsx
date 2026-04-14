@@ -77,9 +77,9 @@ const employeeStatusDotStyleMap: Record<(typeof employeeStatuses)[number], strin
     'Employment Cancelled': 'bg-zinc-500',
 };
 
-const MAX_PREVIEW_PARSE_BYTES = 3 * 1024 * 1024;
-const MAX_PREVIEW_ROWS = 200;
-const MAX_PREVIEW_COLUMNS = 20;
+const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
+const MAX_EXCEL_PREVIEW_ROWS = 120;
+const MAX_EXCEL_PREVIEW_COLUMNS = 24;
 
 type Employee = {
     id: number;
@@ -154,7 +154,7 @@ export default function Edit({
         name: string;
         url: string;
         html?: string;
-        excelRows?: string[][];
+        excelHtml?: string;
         csvRows?: string[][];
         note?: string;
     } | null>(null);
@@ -356,6 +356,88 @@ export default function Edit({
         });
     }
 
+    function buildExcelPreviewHtml(
+        XLSX: typeof import('xlsx'),
+        sheet: import('xlsx').WorkSheet | null
+    ): { html?: string; truncated: boolean } {
+        if (!sheet) {
+            return { html: undefined, truncated: false };
+        }
+
+        const ref = sheet['!ref'];
+        if (!ref) {
+            return {
+                html: XLSX.utils.sheet_to_html(sheet),
+                truncated: false,
+            };
+        }
+
+        const range = XLSX.utils.decode_range(ref);
+        const cellAddresses = Object.keys(sheet).filter((key) => !key.startsWith('!'));
+        const populatedCells = cellAddresses.filter((address) => {
+            const cell = sheet[address] as
+                | { v?: unknown; w?: string; t?: string }
+                | undefined;
+            if (!cell) {
+                return false;
+            }
+            if (cell.t === 'z') {
+                return false;
+            }
+            if (cell.v === null || cell.v === undefined) {
+                return typeof cell.w === 'string' && cell.w.trim().length > 0;
+            }
+            if (typeof cell.v === 'string') {
+                return cell.v.trim().length > 0;
+            }
+            return true;
+        });
+        const dataRange =
+            populatedCells.length > 0
+                ? populatedCells.reduce(
+                      (acc, address) => {
+                          const cellPos = XLSX.utils.decode_cell(address);
+                          return {
+                              s: {
+                                  r: Math.min(acc.s.r, cellPos.r),
+                                  c: Math.min(acc.s.c, cellPos.c),
+                              },
+                              e: {
+                                  r: Math.max(acc.e.r, cellPos.r),
+                                  c: Math.max(acc.e.c, cellPos.c),
+                              },
+                          };
+                      },
+                      {
+                          s: { ...range.s },
+                          e: { ...range.s },
+                      }
+                  )
+                : range;
+        const limitedEndRow = Math.min(
+            dataRange.e.r,
+            dataRange.s.r + MAX_EXCEL_PREVIEW_ROWS - 1
+        );
+        const limitedEndCol = Math.min(
+            dataRange.e.c,
+            dataRange.s.c + MAX_EXCEL_PREVIEW_COLUMNS - 1
+        );
+        const truncated =
+            limitedEndRow < dataRange.e.r || limitedEndCol < dataRange.e.c;
+        const limitedSheet = {
+            ...sheet,
+            '!ref': XLSX.utils.encode_range({
+                s: dataRange.s,
+                e: { r: limitedEndRow, c: limitedEndCol },
+            }),
+        };
+
+        return {
+            html: XLSX.utils.sheet_to_html(limitedSheet),
+            truncated,
+        };
+    }
+
     async function openExistingDocumentPreview(doc: EmployeeDocument) {
         setPreviewCsvRows(null);
         setPreviewLocalDocument(null);
@@ -423,27 +505,23 @@ export default function Edit({
 
                 const XLSX = await import('xlsx');
                 const arrayBuffer = await file.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const workbook = XLSX.read(arrayBuffer, {
+                    type: 'array',
+                    sheets: 0,
+                    cellFormula: false,
+                    cellHTML: false,
+                    cellStyles: false,
+                });
                 const firstSheetName = workbook.SheetNames[0];
                 const sheet = firstSheetName
                     ? workbook.Sheets[firstSheetName]
                     : null;
-                const rows = sheet
-                    ? XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
-                          header: 1,
-                          raw: false,
-                      })
-                    : [];
-                const limitedRows = rows.slice(0, MAX_PREVIEW_ROWS);
+                const preview = buildExcelPreviewHtml(XLSX, sheet);
                 setPreviewLocalDocument({
                     ...basePreview,
-                    excelRows: limitedRows.map((r) =>
-                        r
-                            .slice(0, MAX_PREVIEW_COLUMNS)
-                            .map((cell) => (cell ?? '').toString())
-                    ),
+                    excelHtml: preview.html,
                     note: firstSheetName
-                        ? `Rendered from sheet: ${firstSheetName}${rows.length > MAX_PREVIEW_ROWS ? ` (showing first ${MAX_PREVIEW_ROWS} rows)` : ''}`
+                        ? `Rendered from sheet: ${firstSheetName}${preview.truncated ? ` (showing first ${MAX_EXCEL_PREVIEW_ROWS} rows x ${MAX_EXCEL_PREVIEW_COLUMNS} columns)` : ''}`
                         : 'Excel file has no sheets.',
                 });
                 return;
@@ -1442,17 +1520,17 @@ export default function Edit({
                     }
                 }}
             >
-                <DialogContent className="w-[95vw] sm:max-w-5xl">
+                <DialogContent className="w-[95vw] max-w-[95vw] overflow-hidden sm:max-w-5xl">
                     <DialogHeader>
                         <DialogTitle>Document Preview</DialogTitle>
                     </DialogHeader>
                     {previewDocument || previewLocalDocument ? (
-                        <div className="space-y-3">
+                        <div className="min-w-0 space-y-3">
                             <p className="text-sm font-medium">
                                 {previewDocument?.original_name ??
                                     previewLocalDocument?.name}
                             </p>
-                            <div className="max-h-[70vh] overflow-auto rounded-md border bg-muted/20 p-2">
+                            <div className="max-h-[70vh] min-w-0 overflow-hidden rounded-md border bg-muted/20 p-2">
                                 {previewDocument &&
                                 isImageDocument(previewDocument.original_name) ? (
                                     <img
@@ -1469,111 +1547,97 @@ export default function Edit({
                                     />
                                 ) : previewDocument &&
                                   isCsvDocument(previewDocument.original_name) ? (
-                                    <div className="overflow-auto rounded bg-white p-2">
-                                        <table className="min-w-full border-collapse text-sm">
-                                            <tbody>
-                                                {(previewCsvRows ?? []).length > 0 ? (
-                                                    (previewCsvRows ?? []).map(
-                                                        (row, rowIndex) => (
-                                                            <tr key={`csv-r-${rowIndex}`}>
-                                                                {row.length > 0 ? (
-                                                                    row.map((cell, colIndex) => (
-                                                                        <td
-                                                                            key={`csv-c-${rowIndex}-${colIndex}`}
-                                                                            className="border px-2 py-1 align-top"
-                                                                        >
-                                                                            {cell}
-                                                                        </td>
-                                                                    ))
-                                                                ) : (
-                                                                    <td className="border px-2 py-1">&nbsp;</td>
-                                                                )}
-                                                            </tr>
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full min-w-0 w-full touch-pan-x overflow-x-auto overflow-y-auto p-2">
+                                            <table className="w-max min-w-full border-collapse text-xs sm:text-sm">
+                                                <tbody>
+                                                    {(previewCsvRows ?? []).length > 0 ? (
+                                                        (previewCsvRows ?? []).map(
+                                                            (row, rowIndex) => (
+                                                                <tr key={`csv-r-${rowIndex}`}>
+                                                                    {row.length > 0 ? (
+                                                                        row.map((cell, colIndex) => (
+                                                                            <td
+                                                                                key={`csv-c-${rowIndex}-${colIndex}`}
+                                                                                className="min-w-[140px] border px-2 py-1 align-top whitespace-nowrap"
+                                                                            >
+                                                                                {cell}
+                                                                            </td>
+                                                                        ))
+                                                                    ) : (
+                                                                        <td className="border px-2 py-1">&nbsp;</td>
+                                                                    )}
+                                                                </tr>
+                                                            )
                                                         )
-                                                    )
-                                                ) : (
-                                                    <tr>
-                                                        <td className="border px-2 py-1 text-muted-foreground">
-                                                            No CSV data to preview.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
+                                                    ) : (
+                                                        <tr>
+                                                            <td className="border px-2 py-1 text-muted-foreground">
+                                                                No CSV data to preview.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 ) : previewLocalDocument?.html ? (
-                                    <div className="prose prose-sm max-w-none rounded bg-white p-4 dark:prose-invert">
-                                        <div
-                                            dangerouslySetInnerHTML={{
-                                                __html: previewLocalDocument.html,
-                                            }}
-                                        />
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full w-full overflow-x-auto overflow-y-auto p-4">
+                                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                                                <div
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: previewLocalDocument.html,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                ) : previewLocalDocument?.excelRows ? (
-                                    <div className="overflow-auto rounded bg-white p-2">
-                                        <table className="min-w-full border-collapse text-sm">
-                                            <tbody>
-                                                {previewLocalDocument.excelRows.length > 0 ? (
-                                                    previewLocalDocument.excelRows.map(
-                                                        (row, rowIndex) => (
-                                                            <tr key={`r-${rowIndex}`}>
-                                                                {row.length > 0 ? (
-                                                                    row.map((cell, colIndex) => (
-                                                                        <td
-                                                                            key={`c-${rowIndex}-${colIndex}`}
-                                                                            className="border px-2 py-1 align-top"
-                                                                        >
-                                                                            {cell}
-                                                                        </td>
-                                                                    ))
-                                                                ) : (
-                                                                    <td className="border px-2 py-1">&nbsp;</td>
-                                                                )}
-                                                            </tr>
-                                                        )
-                                                    )
-                                                ) : (
-                                                    <tr>
-                                                        <td className="border px-2 py-1 text-muted-foreground">
-                                                            No data to preview.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
+                                ) : previewLocalDocument?.excelHtml ? (
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full min-w-0 w-full touch-pan-x overflow-x-auto overflow-y-auto p-2">
+                                            <div
+                                                className="min-w-max text-xs sm:text-sm [&_table]:border-collapse [&_table]:bg-white [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_td]:align-top [&_td]:whitespace-nowrap [&_th]:border [&_th]:bg-muted/20 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: previewLocalDocument.excelHtml,
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 ) : previewLocalDocument?.csvRows ? (
-                                    <div className="overflow-auto rounded bg-white p-2">
-                                        <table className="min-w-full border-collapse text-sm">
-                                            <tbody>
-                                                {previewLocalDocument.csvRows.length > 0 ? (
-                                                    previewLocalDocument.csvRows.map(
-                                                        (row, rowIndex) => (
-                                                            <tr key={`local-csv-r-${rowIndex}`}>
-                                                                {row.length > 0 ? (
-                                                                    row.map((cell, colIndex) => (
-                                                                        <td
-                                                                            key={`local-csv-c-${rowIndex}-${colIndex}`}
-                                                                            className="border px-2 py-1 align-top"
-                                                                        >
-                                                                            {cell}
-                                                                        </td>
-                                                                    ))
-                                                                ) : (
-                                                                    <td className="border px-2 py-1">&nbsp;</td>
-                                                                )}
-                                                            </tr>
+                                    <div className="h-[70vh] min-w-0 w-full max-w-full overflow-hidden rounded bg-white">
+                                        <div className="h-full min-w-0 w-full touch-pan-x overflow-x-auto overflow-y-auto p-2">
+                                            <table className="w-max min-w-full border-collapse text-xs sm:text-sm">
+                                                <tbody>
+                                                    {previewLocalDocument.csvRows.length > 0 ? (
+                                                        previewLocalDocument.csvRows.map(
+                                                            (row, rowIndex) => (
+                                                                <tr key={`local-csv-r-${rowIndex}`}>
+                                                                    {row.length > 0 ? (
+                                                                        row.map((cell, colIndex) => (
+                                                                            <td
+                                                                                key={`local-csv-c-${rowIndex}-${colIndex}`}
+                                                                                className="min-w-[140px] border px-2 py-1 align-top whitespace-nowrap"
+                                                                            >
+                                                                                {cell}
+                                                                            </td>
+                                                                        ))
+                                                                    ) : (
+                                                                        <td className="border px-2 py-1">&nbsp;</td>
+                                                                    )}
+                                                                </tr>
+                                                            )
                                                         )
-                                                    )
-                                                ) : (
-                                                    <tr>
-                                                        <td className="border px-2 py-1 text-muted-foreground">
-                                                            No CSV data to preview.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
+                                                    ) : (
+                                                        <tr>
+                                                            <td className="border px-2 py-1 text-muted-foreground">
+                                                                No CSV data to preview.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 ) : previewLocalDocument &&
                                   isImageDocument(previewLocalDocument.name) ? (
