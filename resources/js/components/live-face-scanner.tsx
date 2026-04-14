@@ -112,8 +112,8 @@ function isFaceCentered(landmarks: LandmarkPoint[]): boolean {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    const centered = Math.abs(centerX - 0.5) < 0.18 && Math.abs(centerY - 0.5) < 0.2;
-    const sizeOk = width > 0.2 && height > 0.3 && width < 0.95 && height < 0.98;
+    const centered = Math.abs(centerX - 0.5) < 0.24 && Math.abs(centerY - 0.5) < 0.26;
+    const sizeOk = width > 0.16 && height > 0.22 && width < 0.98 && height < 0.99;
 
     return centered && sizeOk;
 }
@@ -152,7 +152,7 @@ function evaluateFaceQualityForPose(
 
     const leftEyeEar = eyeAspectRatio(landmarks, 159, 145, 33, 133);
     const rightEyeEar = eyeAspectRatio(landmarks, 386, 374, 362, 263);
-    if (leftEyeEar < 0.1 || rightEyeEar < 0.1) {
+    if (leftEyeEar < 0.08 || rightEyeEar < 0.08) {
         return { ready: false, hint: 'Keep both eyes open and look at the camera.' };
     }
 
@@ -173,7 +173,7 @@ function evaluateFaceQualityForPose(
 
     const eyeLineY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
     const pitchOffset = nose.y - eyeLineY;
-    if (pitchOffset < 0.045 || pitchOffset > 0.24) {
+    if (pitchOffset < 0.03 || pitchOffset > 0.3) {
         return { ready: false, hint: 'Keep your head level (not too high or too low).' };
     }
 
@@ -257,7 +257,12 @@ const LiveFaceScanner = forwardRef<LiveFaceScannerHandle, Props>(function LiveFa
             }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 1280 } },
+                    video: {
+                        facingMode: { ideal: 'user' },
+                        width: { ideal: 1280, min: 640 },
+                        height: { ideal: 960, min: 480 },
+                        frameRate: { ideal: 24, max: 30 },
+                    },
                     audio: false,
                 });
                 if (cancelled) {
@@ -419,7 +424,7 @@ const LiveFaceScanner = forwardRef<LiveFaceScannerHandle, Props>(function LiveFa
                 consecutiveReadyFramesRef.current = 0;
             }
 
-            const aligned = consecutiveReadyFramesRef.current >= 3;
+            const aligned = consecutiveReadyFramesRef.current >= 2;
             isFaceReadyRef.current = aligned;
             setFaceAligned((prev) => (prev === aligned ? prev : aligned));
             if (quality.hint !== hintRef.current) {
@@ -539,7 +544,7 @@ const LiveFaceScanner = forwardRef<LiveFaceScannerHandle, Props>(function LiveFa
             >
                 <video
                     ref={videoRef}
-                    className="h-full w-full object-cover object-[50%_28%]"
+                    className="h-full w-full object-cover object-center"
                     muted
                     playsInline
                     aria-label={videoAriaLabel}

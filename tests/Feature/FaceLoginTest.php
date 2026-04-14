@@ -193,7 +193,7 @@ class FaceLoginTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_login_fails_without_face_when_enrolled(): void
+    public function test_login_succeeds_with_password_without_face_when_enrolled(): void
     {
         $bytes = $this->canonicalFaceBytes();
         $user = User::factory()->create([
@@ -206,10 +206,36 @@ class FaceLoginTest extends TestCase
             'face_enrolled_at' => now(),
         ])->save();
 
-        $this->from('/login')->post('/login', [
+        $response = $this->post('/login', [
             'email' => $user->email,
             'password' => 'Password123!',
-        ])->assertSessionHasErrors('face_capture');
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_fails_when_enrolled_user_submits_neither_valid_password_nor_face(): void
+    {
+        $bytes = $this->canonicalFaceBytes();
+        $user = User::factory()->create([
+            'password' => Hash::make('Password123!'),
+        ]);
+        $paths = $this->seedMultiAngleProfile($user, $bytes);
+        $user->forceFill([
+            'face_profile' => $paths,
+            'face_reference_path' => null,
+            'face_enrolled_at' => now(),
+            'face_provider' => 'local',
+        ])->save();
+
+        $this->from('/login')->post('/login', [
+            'email' => $user->email,
+            'password' => 'face-only-login',
+        ])->assertSessionHasErrors([
+            'face_capture' => 'Use password or provide a face scan.',
+        ]);
 
         $this->assertGuest();
     }

@@ -328,8 +328,8 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
                                         showCircularFaceGuide
                                         captureWhilePreviewing
                                         requireFaceAlignmentForSampling
-                                        previewCaptureInitialDelayMs={1200}
-                                        previewCaptureIntervalMs={5000}
+                                        previewCaptureInitialDelayMs={900}
+                                        previewCaptureIntervalMs={1800}
                                         onPreviewCapture={onPreviewFaceCapture}
                                         error={errors.face_capture}
                                         helperText="Enter your email, then keep your face inside the oval guide."

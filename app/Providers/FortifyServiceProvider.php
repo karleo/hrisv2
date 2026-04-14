@@ -56,6 +56,8 @@ class FortifyServiceProvider extends ServiceProvider
             $email = trim((string) $request->input('email', ''));
             $faceFile = $request->file('face_capture');
             $hasValidFaceFile = $faceFile !== null && $faceFile->isValid();
+            $passwordInput = (string) $request->input('password');
+            $hasPasswordAttempt = $passwordInput !== '' && $passwordInput !== 'face-only-login';
             if ($email === '') {
                 throw ValidationException::withMessages([
                     'email' => __('Email is required.'),
@@ -82,9 +84,13 @@ class FortifyServiceProvider extends ServiceProvider
                 (is_string($user->face_reference_path) && $user->face_reference_path !== '');
 
             if ($hasFaceEnrollment) {
+                if ($hasPasswordAttempt && Hash::check($passwordInput, $user->password)) {
+                    return $user;
+                }
+
                 if (! $hasValidFaceFile) {
                     throw ValidationException::withMessages([
-                        'face_capture' => __('Face verification is required.'),
+                        'face_capture' => __('Use password or provide a face scan.'),
                     ]);
                 }
 

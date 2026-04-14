@@ -1,5 +1,5 @@
-const MAX_CAPTURE_WIDTH = 640;
-const MAX_BYTES = 100 * 1024;
+const MAX_CAPTURE_WIDTH = 960;
+const MAX_BYTES = 180 * 1024;
 
 /**
  * Wait until the video element has drawable dimensions (metadata / first frames).
