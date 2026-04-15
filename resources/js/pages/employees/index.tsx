@@ -5,6 +5,8 @@ import {
     CreditCard,
     Download,
     Eye,
+    Grid2x2,
+    List,
     Mail,
     Pencil,
     Plus,
@@ -346,19 +348,23 @@ export default function Index({
                                                         size="sm"
                                                         type="button"
                                                         variant={viewMode === 'table' ? 'default' : 'ghost'}
-                                                        className="h-8 rounded-full px-3 text-xs"
+                                                        className="size-8 rounded-full p-0"
+                                                        aria-label="Table view"
+                                                        title="Table view"
                                                         onClick={() => setViewMode('table')}
                                                     >
-                                                        Table
+                                                        <List className="size-4" />
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         type="button"
                                                         variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                                                        className="h-8 rounded-full px-3 text-xs"
+                                                        className="size-8 rounded-full p-0"
+                                                        aria-label="Grid view"
+                                                        title="Grid view"
                                                         onClick={() => setViewMode('grid')}
                                                     >
-                                                        Grid
+                                                        <Grid2x2 className="size-4" />
                                                     </Button>
                                                 </div>
                                             </div>
