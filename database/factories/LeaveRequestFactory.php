@@ -29,8 +29,10 @@ class LeaveRequestFactory extends Factory
             'details' => null,
             'date' => $periodFrom->format('Y-m-d'),
             'period_from' => $periodFrom->format('Y-m-d'),
+            'start_day_type' => 'full',
             'period_to' => $periodTo->format('Y-m-d'),
-            'days' => (int) $periodFrom->diff($periodTo)->days + 1,
+            'end_day_type' => 'full',
+            'days' => (float) $periodFrom->diff($periodTo)->days + 1,
             'remarks' => null,
             'status' => 'submitted',
         ];

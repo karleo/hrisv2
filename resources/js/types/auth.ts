@@ -12,6 +12,9 @@ export type User = {
 
 export type Auth = {
     user: User;
+    has_employee_profile?: boolean;
+    has_my_profile_access?: boolean;
+    has_leave_calendar_access?: boolean;
 };
 
 export type TwoFactorSetupData = {

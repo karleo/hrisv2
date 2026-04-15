@@ -14,7 +14,9 @@ type LeaveRequest = {
     details: string | null;
     date: string | null;
     period_from: string | null;
+    start_day_type?: 'full' | 'half' | null;
     period_to: string | null;
+    end_day_type?: 'full' | 'half' | null;
     days: number | null;
     remarks: string | null;
     status: string;
@@ -37,7 +39,7 @@ const ABSENCE_LABELS: { label: string; value: string }[] = [
 
 const DETAIL_OPTIONS = ['W/ medical Report', 'W/ Out medical Report'] as const;
 
-function formatUsDate(ymd: string | null): string {
+function formatDateDdMmYyyy(ymd: string | null): string {
     if (!ymd) {
         return '';
     }
@@ -45,10 +47,10 @@ function formatUsDate(ymd: string | null): string {
     if (!y || !m || !d) {
         return '';
     }
-    return `${m}/${d}/${y}`;
+    return `${d}/${m}/${y}`;
 }
 
-function formatUsDateTime(value: string | null | undefined): string {
+function formatDateTimeDdMmYyyy(value: string | null | undefined): string {
     if (!value) {
         return '';
     }
@@ -59,7 +61,7 @@ function formatUsDateTime(value: string | null | undefined): string {
     }
 
     const [, y, m, d] = match;
-    return `${m}/${d}/${y}`;
+    return `${d}/${m}/${y}`;
 }
 
 function daysLabel(n: number | null): string {
@@ -69,7 +71,7 @@ function daysLabel(n: number | null): string {
     if (n === 1) {
         return '1 DAY';
     }
-    return `${n} DAYS`;
+    return `${n.toFixed(1)} DAYS`;
 }
 
 function fullName(emp?: Employee | null): string {
@@ -138,7 +140,7 @@ export default function LeaveRequestPrint({
     const remarksText = leaveRequest.remarks?.trim() || '';
     const isApproved = Boolean(leaveRequest.approved_by_signature_url);
     const approvedDate = isApproved
-        ? formatUsDateTime(leaveRequest.decided_at) || formatUsDate(leaveRequest.date)
+        ? formatDateTimeDdMmYyyy(leaveRequest.decided_at) || formatDateDdMmYyyy(leaveRequest.date)
         : '';
 
     return (
@@ -199,7 +201,7 @@ export default function LeaveRequestPrint({
                             <div className="min-w-0">
                                 <p className="mb-1 text-xs font-semibold text-[#1c287f]">Date</p>
                                 <FormInputBox>
-                                    {formatUsDate(leaveRequest.date) || (
+                                    {formatDateDdMmYyyy(leaveRequest.date) || (
                                         <span className="text-neutral-400 normal-case">—</span>
                                     )}
                                 </FormInputBox>
@@ -289,7 +291,7 @@ export default function LeaveRequestPrint({
                             <div>
                                 <p className="mb-1 text-xs font-semibold text-[#00107f]">From</p>
                                 <FormInputBox>
-                                    {formatUsDate(leaveRequest.period_from) || (
+                                    {formatDateDdMmYyyy(leaveRequest.period_from) || (
                                         <span className="text-neutral-400 normal-case">—</span>
                                     )}
                                 </FormInputBox>
@@ -297,7 +299,7 @@ export default function LeaveRequestPrint({
                             <div>
                                 <p className="mb-1 text-xs font-semibold text-[#00107f]">To</p>
                                 <FormInputBox>
-                                    {formatUsDate(leaveRequest.period_to) || (
+                                    {formatDateDdMmYyyy(leaveRequest.period_to) || (
                                         <span className="text-neutral-400 normal-case">—</span>
                                     )}
                                 </FormInputBox>

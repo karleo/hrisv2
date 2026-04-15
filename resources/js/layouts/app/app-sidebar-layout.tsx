@@ -18,7 +18,7 @@ export default function AppSidebarLayout({
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {children}
                 <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground md:px-6">
-                    {`© ${year} Prime Logistics. All rights reserved.`}
+                    {`© ${year} Prime Logistics. All rights reserved. V 1.03`}
                     {appVersion ? ` v${appVersion}` : null}
                 </footer>
             </AppContent>

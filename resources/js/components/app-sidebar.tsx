@@ -16,18 +16,16 @@ import {
     Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
+import { index as workTimetablesIndex } from '@/actions/App/Http/Controllers/WorkTimetableController';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
-    SidebarFooter,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { index as workTimetablesIndex } from '@/actions/App/Http/Controllers/WorkTimetableController';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { dashboard } from '@/routes';
 import { index as companyProfilesIndex } from '@/routes/company-profiles';
@@ -66,13 +64,6 @@ const mainNavItemsSource: NavItem[] = [
         module: 'leave_requests',
     },
     {
-        title: 'Time & attendance',
-        description: 'Daily logs and attendance actions',
-        href: '/time-attendance',
-        icon: Clock,
-        module: 'time_attendance',
-    },
-    {
         title: 'IT Requests',
         description: 'Software and hardware request forms',
         href: itRequestsIndex(),
@@ -92,6 +83,13 @@ const mainNavItemsSource: NavItem[] = [
         href: '/employee-requests',
         icon: Briefcase,
         module: 'employee_requests',
+    },
+    {
+        title: 'Time & attendance',
+        description: 'Daily logs and attendance actions',
+        href: '/time-attendance',
+        icon: Clock,
+        module: 'time_attendance',
     },
     {
         title: 'Settings',
@@ -168,12 +166,6 @@ const mainNavItemsSource: NavItem[] = [
                         icon: Shield,
                         module: 'role_management',
                     },
-                    {
-                        title: 'User roles',
-                        href: '/user-roles',
-                        icon: UserCog,
-                        module: 'role_management',
-                    },
                 ],
             },
         ],
@@ -183,15 +175,40 @@ const mainNavItemsSource: NavItem[] = [
 export function AppSidebar() {
     const { modulePermissions, auth } = usePage().props as {
         modulePermissions: unknown;
-        auth?: { has_employee_profile?: boolean };
+        auth?: {
+            has_employee_profile?: boolean;
+            has_my_profile_access?: boolean;
+            has_leave_calendar_access?: boolean;
+        };
     };
 
     const mainNavItems = useMemo(
         () => {
             const items = filterNavByModuleAccess(mainNavItemsSource, modulePermissions);
-            if (auth?.has_employee_profile) {
+            const leaveCalendarItem = {
+                title: 'Leave Calendar',
+                description: 'Monthly approved leave visibility',
+                href: '/leave-calendar',
+                icon: CalendarDays,
+            } satisfies NavItem;
+
+            let withLeaveCalendar = items;
+            if (auth?.has_leave_calendar_access) {
+                const dashboardIndex = items.findIndex((item) => item.title === 'Dashboard');
+                if (dashboardIndex >= 0) {
+                    withLeaveCalendar = [
+                        ...items.slice(0, dashboardIndex + 1),
+                        leaveCalendarItem,
+                        ...items.slice(dashboardIndex + 1),
+                    ];
+                } else {
+                    withLeaveCalendar = [leaveCalendarItem, ...items];
+                }
+            }
+
+            if (auth?.has_my_profile_access) {
                 return [
-                    ...items,
+                    ...withLeaveCalendar,
                     {
                         title: 'Profile',
                         description: 'Your employee information',
@@ -201,9 +218,9 @@ export function AppSidebar() {
                 ] as NavItem[];
             }
 
-            return items;
+            return withLeaveCalendar;
         },
-        [modulePermissions, auth?.has_employee_profile],
+        [modulePermissions, auth?.has_employee_profile, auth?.has_my_profile_access, auth?.has_leave_calendar_access],
     );
 
     return (
@@ -223,11 +240,6 @@ export function AppSidebar() {
             <SidebarContent>
                 <NavMain items={mainNavItems} />
             </SidebarContent>
-
-            <SidebarFooter>
-                {/* <NavFooter items={footerNavItems} className="mt-auto" /> */}
-                <NavUser />
-            </SidebarFooter>
         </Sidebar>
     );
 }

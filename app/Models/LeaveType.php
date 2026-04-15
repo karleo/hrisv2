@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $code
  * @property string $name
+ * @property string $leave_category
  * @property string|null $description
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
@@ -26,6 +27,7 @@ class LeaveType extends Model
     protected $fillable = [
         'code',
         'name',
+        'leave_category',
         'description',
     ];
 }

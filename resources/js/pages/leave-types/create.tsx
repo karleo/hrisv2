@@ -68,6 +68,23 @@ export default function Create() {
                                 </div>
 
                                 <div className="grid gap-2">
+                                    <Label htmlFor="leave_category">
+                                        Leave Category
+                                    </Label>
+                                    <select
+                                        id="leave_category"
+                                        name="leave_category"
+                                        required
+                                        defaultValue="paid"
+                                        className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <option value="paid">Paid Leave</option>
+                                        <option value="unpaid">Unpaid Leave</option>
+                                    </select>
+                                    <InputError message={errors.leave_category} />
+                                </div>
+
+                                <div className="grid gap-2">
                                     <Label htmlFor="description">
                                         Description
                                     </Label>

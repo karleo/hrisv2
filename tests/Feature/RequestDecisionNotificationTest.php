@@ -32,6 +32,7 @@ class RequestDecisionNotificationTest extends TestCase
         $department = Department::factory()->create();
         $employee = Employee::factory()->create([
             'department_id' => $department->id,
+            'leave_opening_balance' => 30,
         ]);
         $requesterUser = User::factory()->create();
         $employee->update(['user_id' => $requesterUser->id]);

@@ -1,10 +1,14 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, CircleAlert, Eye, EyeOff } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, CheckCircle2, CircleAlert, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import MultiAngleFaceProfileField, {
+    type FaceProfileFiles,
+} from '@/components/multi-angle-face-profile-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -15,6 +19,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -25,6 +36,10 @@ const userEditFieldLabels: Record<string, string> = {
     password_confirmation: 'Confirm new password',
     role_id: 'Role',
     employee_id: 'Employee',
+    face_capture: 'Face sign-in',
+    face_capture_front: 'Face sign-in (front)',
+    face_capture_left: 'Face sign-in (left)',
+    face_capture_right: 'Face sign-in (right)',
 };
 
 type FormErrors = Record<string, string | string[] | undefined>;
@@ -82,7 +97,17 @@ type UserEdit = {
     email: string;
     role_id: number | null;
     employee_id: number | null;
+    face_enrolled: boolean;
 };
+
+type UserFace = {
+    enrolled: boolean;
+    enrolled_at: string | null;
+    provider: string | null;
+    angles: string[];
+};
+const ROLE_DEFAULT_VALUE = '__role_default__';
+const EMPLOYEE_NONE_VALUE = '__employee_none__';
 
 function employeeLabel(
     e: EmployeeOption,
@@ -95,12 +120,18 @@ function employeeLabel(
     return `${base} (linked)`;
 }
 
+function emptyFaceProfile(): FaceProfileFiles {
+    return { front: null, left: null, right: null };
+}
+
 function UserEditForm({
     user,
+    userFace,
     roles,
     employees,
 }: {
     user: UserEdit;
+    userFace: UserFace;
     roles: RoleOption[];
     employees: EmployeeOption[];
 }) {
@@ -111,11 +142,16 @@ function UserEditForm({
     const [dialogErrorLines, setDialogErrorLines] = useState<
         { field: string; message: string }[]
     >([]);
+    const [includeFaceInSave, setIncludeFaceInSave] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [faceGrabError, setFaceGrabError] = useState<string | null>(null);
+    const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
     const { flash } = usePage().props as {
         flash?: { success?: string; error?: string };
     };
 
-    const { data, setData, put, processing, errors, transform } = useForm({
+    const { data, setData, post, processing, errors, transform } = useForm({
+        _method: 'put' as const,
         name: user.name,
         email: user.email,
         password: '',
@@ -125,11 +161,25 @@ function UserEditForm({
     });
 
     transform((payload) => {
+        const faceTrio =
+            includeFaceInSave &&
+            faceProfile.front &&
+            faceProfile.left &&
+            faceProfile.right
+                ? {
+                      face_capture_front: faceProfile.front,
+                      face_capture_left: faceProfile.left,
+                      face_capture_right: faceProfile.right,
+                  }
+                : {};
+
         const base = {
+            _method: 'put' as const,
             name: payload.name,
             email: payload.email,
             role_id: toOptionalPositiveInt(payload.role_id),
             employee_id: toOptionalPositiveInt(payload.employee_id),
+            ...faceTrio,
         };
 
         if (payload.password === '') {
@@ -142,6 +192,17 @@ function UserEditForm({
             password_confirmation: payload.password_confirmation,
         };
     });
+
+    const busy = processing || submitting;
+    const faceProfileComplete =
+        Boolean(faceProfile.front) &&
+        Boolean(faceProfile.left) &&
+        Boolean(faceProfile.right);
+    const enrolledAtLabel = userFace.enrolled_at
+        ? new Date(userFace.enrolled_at).toLocaleString()
+        : null;
+    const enrolledAngles =
+        userFace.angles.length > 0 ? userFace.angles.map((angle) => angle.toUpperCase()).join(', ') : null;
 
     return (
         <>
@@ -236,9 +297,31 @@ function UserEditForm({
                     className="flex w-full min-w-0 flex-1 flex-col"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        put(`/users/${user.id}`, {
+                        setFaceGrabError(null);
+
+                        if (includeFaceInSave) {
+                            const done =
+                                faceProfile.front &&
+                                faceProfile.left &&
+                                faceProfile.right;
+                            if (!done) {
+                                setFaceGrabError(
+                                    'Lock all three face angles (front, left, right) before saving.',
+                                );
+                                return;
+                            }
+                        }
+
+                        setSubmitting(true);
+                        post(`/users/${user.id}`, {
+                            forceFormData: true,
                             preserveScroll: true,
+                            onFinish: () => {
+                                setFaceProfile(emptyFaceProfile());
+                                setSubmitting(false);
+                            },
                             onError: (pageErrors) => {
+                                setFaceGrabError(null);
                                 setDialogErrorLines(
                                     flattenFormErrors(
                                         pageErrors as FormErrors,
@@ -251,6 +334,8 @@ function UserEditForm({
                                 setDialogErrorLines([]);
                                 setData('password', '');
                                 setData('password_confirmation', '');
+                                setIncludeFaceInSave(false);
+                                setFaceProfile(emptyFaceProfile());
                             },
                         });
                     }}
@@ -428,24 +513,26 @@ function UserEditForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="role_id">Role</Label>
-                                <select
-                                    id="role_id"
-                                    value={data.role_id}
-                                    onChange={(e) =>
-                                        setData('role_id', e.target.value)
+                                <Select
+                                    value={data.role_id || ROLE_DEFAULT_VALUE}
+                                    onValueChange={(value) =>
+                                        setData('role_id', value === ROLE_DEFAULT_VALUE ? '' : value)
                                     }
-                                    aria-invalid={Boolean(errors.role_id)}
-                                    className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">
-                                        Basic access (dashboard — default)
-                                    </option>
-                                    {roles.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="role_id" aria-invalid={Boolean(errors.role_id)}>
+                                        <SelectValue placeholder="Basic access (dashboard — default)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ROLE_DEFAULT_VALUE}>
+                                            Basic access (dashboard — default)
+                                        </SelectItem>
+                                        {roles.map((r) => (
+                                            <SelectItem key={r.id} value={String(r.id)}>
+                                                {r.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.role_id} />
                             </div>
 
@@ -456,22 +543,24 @@ function UserEditForm({
                                         (optional)
                                     </span>
                                 </Label>
-                                <select
-                                    id="employee_id"
-                                    value={data.employee_id}
-                                    onChange={(e) =>
-                                        setData('employee_id', e.target.value)
+                                <Select
+                                    value={data.employee_id || EMPLOYEE_NONE_VALUE}
+                                    onValueChange={(value) =>
+                                        setData('employee_id', value === EMPLOYEE_NONE_VALUE ? '' : value)
                                     }
-                                    aria-invalid={Boolean(errors.employee_id)}
-                                    className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">None</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {employeeLabel(emp, user.id)}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="employee_id" aria-invalid={Boolean(errors.employee_id)}>
+                                        <SelectValue placeholder="None" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={EMPLOYEE_NONE_VALUE}>None</SelectItem>
+                                        {employees.map((emp) => (
+                                            <SelectItem key={emp.id} value={String(emp.id)}>
+                                                {employeeLabel(emp, user.id)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.employee_id} />
                                 <p className="text-xs text-muted-foreground">
                                     Links this login to an employee record.
@@ -479,9 +568,119 @@ function UserEditForm({
                                     moves the link to this user.
                                 </p>
                             </div>
+
+                            <div className="border-border space-y-4 border-t pt-6">
+                                <p className="text-sm font-medium text-foreground">
+                                    Face sign-in{' '}
+                                    <span className="font-normal text-muted-foreground">
+                                        (optional)
+                                    </span>
+                                </p>
+                                <div
+                                    className={`rounded-lg border px-3 py-2 text-sm ${
+                                        userFace.enrolled
+                                            ? 'border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/25 dark:text-emerald-100'
+                                            : 'border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100'
+                                    }`}
+                                    role="status"
+                                >
+                                    <p className="inline-flex items-center gap-2 font-medium">
+                                        <CheckCircle2 className="size-4" aria-hidden />
+                                        {userFace.enrolled
+                                            ? 'Face profile is already enrolled for this user.'
+                                            : 'No face profile enrolled yet for this user.'}
+                                    </p>
+                                    {userFace.enrolled ? (
+                                        <p className="mt-1 text-xs opacity-90">
+                                            {enrolledAngles ? `Angles: ${enrolledAngles}. ` : ''}
+                                            {userFace.provider ? `Provider: ${userFace.provider}. ` : ''}
+                                            {enrolledAtLabel ? `Enrolled at: ${enrolledAtLabel}.` : ''}
+                                        </p>
+                                    ) : (
+                                        <p className="mt-1 text-xs opacity-90">
+                                            Capture front, left, and right angles below, then save to enroll.
+                                        </p>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {user.face_enrolled
+                                        ? 'A multi-angle face profile may already be enrolled. Check the box below to replace it with new front, left, and right captures.'
+                                        : 'No face profile yet — check the box below to enroll three angles when you save.'}
+                                </p>
+                                {userFace.enrolled ? (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        disabled={busy}
+                                        onClick={() => {
+                                            router.delete(`/users/${user.id}/face-login`, {
+                                                preserveScroll: true,
+                                            });
+                                        }}
+                                    >
+                                        Disable face login
+                                    </Button>
+                                ) : null}
+                                <div className="flex items-start gap-3 rounded-lg border border-zinc-200/80 bg-zinc-50/50 p-3 dark:border-zinc-700/80 dark:bg-zinc-900/30">
+                                    <Checkbox
+                                        id="include_face_in_save"
+                                        checked={includeFaceInSave}
+                                        onCheckedChange={(v) => {
+                                            const on = v === true;
+                                            setIncludeFaceInSave(on);
+                                            if (!on) {
+                                                setFaceProfile(emptyFaceProfile());
+                                            }
+                                        }}
+                                        disabled={busy}
+                                        className="mt-0.5"
+                                    />
+                                    <Label
+                                        htmlFor="include_face_in_save"
+                                        className="cursor-pointer text-sm font-normal leading-snug"
+                                    >
+                                        Update face profile on this save
+                                        <span className="mt-1 block text-xs text-muted-foreground">
+                                            When checked, lock front, left, and right angles below; all three are required together.
+                                        </span>
+                                    </Label>
+                                </div>
+                                {includeFaceInSave ? (
+                                    <>
+                                        <MultiAngleFaceProfileField
+                                            value={faceProfile}
+                                            onChange={setFaceProfile}
+                                            disabled={busy}
+                                            errors={{
+                                                face_capture_front:
+                                                    errors.face_capture_front,
+                                                face_capture_left:
+                                                    errors.face_capture_left,
+                                                face_capture_right:
+                                                    errors.face_capture_right,
+                                            }}
+                                        />
+                                        {faceGrabError ? (
+                                            <p
+                                                className="text-sm text-red-600 dark:text-red-400"
+                                                role="alert"
+                                            >
+                                                {faceGrabError}
+                                            </p>
+                                        ) : null}
+                                    </>
+                                ) : null}
+                            </div>
                         </CardContent>
                         <CardFooter className="mt-auto flex flex-wrap gap-3 border-t pt-6">
-                            <Button disabled={processing} type="submit">
+                            <Button
+                                disabled={
+                                    busy ||
+                                    (includeFaceInSave && !faceProfileComplete)
+                                }
+                                type="submit"
+                            >
                                 Save changes
                             </Button>
                             <Link href="/users">
@@ -499,10 +698,12 @@ function UserEditForm({
 
 export default function Edit({
     user,
+    userFace,
     roles,
     employees,
 }: {
     user: UserEdit;
+    userFace: UserFace;
     roles: RoleOption[];
     employees: EmployeeOption[];
 }) {
@@ -514,7 +715,7 @@ export default function Edit({
         },
     ];
 
-    const formVersionKey = `${user.id}-${user.employee_id ?? 'none'}-${user.role_id ?? 'none'}-${user.name}-${user.email}`;
+    const formVersionKey = `${user.id}-${user.employee_id ?? 'none'}-${user.role_id ?? 'none'}-${user.name}-${user.email}-${user.face_enrolled ? '1' : '0'}`;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -523,6 +724,7 @@ export default function Edit({
             <UserEditForm
                 key={formVersionKey}
                 user={user}
+                userFace={userFace}
                 roles={roles}
                 employees={employees}
             />

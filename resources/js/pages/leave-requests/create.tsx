@@ -1,6 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Calendar, ChevronLeft, ClipboardCheck, FileText, Send, User } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import { SignaturePad } from '@/components/signature-pad';
@@ -16,6 +16,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
 type Department = { id: number; name: string };
@@ -26,24 +27,101 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'New request', href: '/leave-requests/create' },
 ];
 
-const ABSENCE_TYPES = [
-    'Personal Leave',
-    'Sick Leave',
-    'Maternity Leave',
-    'Emergency Leave',
-    'Annual Leave',
-    'Others',
+const DETAILS_OPTIONS = ['W/ medical Report', 'W/ Out medical Report'] as const;
+const DAY_TYPE_OPTIONS = [
+    { value: 'full', label: 'Full Day' },
+    { value: 'half', label: 'Half Day' },
 ] as const;
 
-const DETAILS_OPTIONS = ['W/ medical Report', 'W/ Out medical Report'] as const;
+function DayTypeSegmentedControl({
+    id,
+    label,
+    value,
+    onChange,
+    description,
+    error,
+}: {
+    id: string;
+    label: string;
+    value: 'full' | 'half';
+    onChange: (value: 'full' | 'half') => void;
+    description?: string;
+    error?: string;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label>{label}</Label>
+            <div id={id} className="grid grid-cols-2 rounded-md border border-input bg-muted/20 p-1">
+                {DAY_TYPE_OPTIONS.map((option) => {
+                    const isActive = value === option.value;
+
+                    return (
+                        <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => onChange(option.value)}
+                            className={cn(
+                                'h-9 rounded-sm text-sm font-medium transition-colors',
+                                isActive
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                            )}
+                            aria-pressed={isActive}
+                        >
+                            {option.label}
+                        </button>
+                    );
+                })}
+            </div>
+            {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
+            <InputError message={error} />
+        </div>
+    );
+}
+
+function calculateLeaveDays(
+    periodFrom: string,
+    periodTo: string,
+    startDayType: 'full' | 'half',
+    endDayType: 'full' | 'half',
+): number | null {
+    if (!periodFrom || !periodTo) {
+        return null;
+    }
+
+    const from = new Date(`${periodFrom}T00:00:00`);
+    const to = new Date(`${periodTo}T00:00:00`);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) {
+        return null;
+    }
+
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const diffDays = Math.floor((to.getTime() - from.getTime()) / oneDayMs) + 1;
+
+    if (periodFrom === periodTo) {
+        return startDayType === 'half' || endDayType === 'half' ? 0.5 : 1;
+    }
+
+    let total = diffDays;
+    if (startDayType === 'half') {
+        total -= 0.5;
+    }
+    if (endDayType === 'half') {
+        total -= 0.5;
+    }
+
+    return Math.max(total, 0.5);
+}
 
 export default function LeaveRequestsCreate({
     employees,
     departments,
+    leaveTypes,
     defaultEmployeeId = null,
 }: {
     employees: Employee[];
     departments: { id: number; name: string }[];
+    leaveTypes: string[];
     defaultEmployeeId?: number | null;
 }) {
     const initialEmployee = defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
@@ -54,10 +132,18 @@ export default function LeaveRequestsCreate({
     const [departmentId, setDepartmentId] = useState<string>(
         initialEmployee ? String(initialEmployee.department_id) : '',
     );
+    const [periodFrom, setPeriodFrom] = useState<string>('');
+    const [periodTo, setPeriodTo] = useState<string>('');
+    const [startDayType, setStartDayType] = useState<'full' | 'half'>('full');
+    const [endDayType, setEndDayType] = useState<'full' | 'half'>('full');
     const [employeeSignatureDataUrl, setEmployeeSignatureDataUrl] = useState<string | null>(null);
 
     const selectedEmployee = employees.find((e) => e.id === Number(selectedEmployeeId));
     const departmentName = selectedEmployee?.department?.name ?? departments.find((d) => d.id === Number(departmentId))?.name ?? '';
+    const totalLeaveDays = useMemo(
+        () => calculateLeaveDays(periodFrom, periodTo, startDayType, endDayType),
+        [periodFrom, periodTo, startDayType, endDayType],
+    );
 
     const handleEmployeeChange = useCallback(
         (value: string) => {
@@ -183,7 +269,7 @@ export default function LeaveRequestsCreate({
                                                 className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                             >
                                                 <option value="">Select type</option>
-                                                {ABSENCE_TYPES.map((t) => (
+                                                {leaveTypes.map((t) => (
                                                     <option key={t} value={t}>
                                                         {t}
                                                     </option>
@@ -217,13 +303,52 @@ export default function LeaveRequestsCreate({
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="period_from">Period from</Label>
-                                            <Input id="period_from" name="period_from" type="date" />
+                                            <Input
+                                                id="period_from"
+                                                name="period_from"
+                                                type="date"
+                                                value={periodFrom}
+                                                onChange={(event) => setPeriodFrom(event.target.value)}
+                                            />
                                             <InputError message={errors?.period_from} />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="period_to">Period to</Label>
-                                            <Input id="period_to" name="period_to" type="date" />
+                                            <Input
+                                                id="period_to"
+                                                name="period_to"
+                                                type="date"
+                                                value={periodTo}
+                                                onChange={(event) => setPeriodTo(event.target.value)}
+                                            />
                                             <InputError message={errors?.period_to} />
+                                        </div>
+                                        <input type="hidden" name="start_day_type" value={startDayType} />
+                                        <input type="hidden" name="end_day_type" value={endDayType} />
+
+                                        <DayTypeSegmentedControl
+                                            id="start_day_type"
+                                            label="Start day type"
+                                            value={startDayType}
+                                            onChange={setStartDayType}
+                                            error={errors?.start_day_type}
+                                        />
+                                        <DayTypeSegmentedControl
+                                            id="end_day_type"
+                                            label="End day type"
+                                            value={endDayType}
+                                            onChange={setEndDayType}
+                                            error={errors?.end_day_type}
+                                        />
+
+                                        <div className="rounded-md border border-border/70 bg-muted/30 p-3 text-sm sm:col-span-2">
+                                            <p className="text-muted-foreground text-xs">Calculated leave duration</p>
+                                            <p className="mt-1 text-base font-semibold">
+                                                {totalLeaveDays === null ? 'Select period dates to calculate' : `${totalLeaveDays.toFixed(1)} day(s)`}
+                                            </p>
+                                            <p className="text-muted-foreground mt-1 text-xs">
+                                                Half day can only be applied to the start or end date.
+                                            </p>
                                         </div>
 
                                         <div className="grid gap-2 sm:col-span-2">
@@ -258,6 +383,9 @@ export default function LeaveRequestsCreate({
                                             </div>
                                             <div className="rounded-md border bg-muted/30 p-2">
                                                 {departmentName || 'No department selected'}
+                                            </div>
+                                            <div className="rounded-md border bg-muted/30 p-2">
+                                                {totalLeaveDays === null ? 'Leave duration: —' : `Leave duration: ${totalLeaveDays.toFixed(1)} day(s)`}
                                             </div>
                                         </CardContent>
                                     </Card>

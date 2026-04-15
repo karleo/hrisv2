@@ -31,5 +31,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="FACE_LOGIN_DRIVER" value="local"/>
+        <env name="FACE_LOGIN_LOCAL_MODE" value="hash"/>
     </php>
 </phpunit>

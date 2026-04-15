@@ -27,7 +27,7 @@ export function NavUser() {
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton
                             size="lg"
-                            className="group rounded-xl border border-white/40 bg-white/30 text-sidebar-accent-foreground backdrop-blur-sm data-[state=open]:bg-sidebar-accent dark:border-white/18 dark:bg-white/14"
+                            className="group rounded-xl border border-transparent bg-transparent text-sidebar-foreground/90 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                             data-test="sidebar-menu-button"
                         >
                             <UserInfo user={auth.user} />

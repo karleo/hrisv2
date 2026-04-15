@@ -2,6 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
+use App\Models\User;
+use App\Support\RequestApprovalScope;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +46,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'has_employee_profile' => $request->user()?->employee()->exists() ?? false,
+                'has_my_profile_access' => $this->hasMyProfileAccess($request->user()),
+                'has_leave_calendar_access' => $this->hasLeaveCalendarAccess($request->user()),
             ],
             'modulePermissions' => (object) ($request->user()?->modulePermissionsPayload() ?? []),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
@@ -67,5 +73,31 @@ class HandleInertiaRequests extends Middleware
                 'error' => $request->session()->get('error'),
             ],
         ];
+    }
+
+    private function hasLeaveCalendarAccess(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        /** @var RequestApprovalScope $approvalScope */
+        $approvalScope = app(RequestApprovalScope::class);
+
+        if (! $user->hasModuleAbility(PermissionModule::LeaveCalendar, ModuleAbility::View)) {
+            return false;
+        }
+
+        return $approvalScope->isAdministratorOrHr($user)
+            || $approvalScope->managedDepartmentIds($user) !== [];
+    }
+
+    private function hasMyProfileAccess(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return $user->isAdministrator() || $user->employee()->exists();
     }
 }

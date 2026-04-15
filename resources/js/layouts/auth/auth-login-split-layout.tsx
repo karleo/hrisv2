@@ -2,7 +2,8 @@ import type { PropsWithChildren } from 'react';
 
 import { cn } from '@/lib/utils';
 
-const LOGIN_ILLUSTRATION = '/images/login-illustration.png';
+const LOGIN_ILLUSTRATION = '/images/login-illustration-dubai.png';
+const LOGIN_FORM_PATTERN = '/images/login-form-pattern.png';
 
 export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
     return (
@@ -15,19 +16,19 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
         >
             {/* Light: soft mint wash · Dark: deep teal atmosphere */}
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-25%,rgba(60,169,155,0.35),transparent_58%)] dark:bg-[radial-gradient(ellipse_90%_60%_at_50%_-30%,rgba(60,169,155,0.5),transparent_55%)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-25%,rgba(60,169,155,0.35),transparent_58%)] dark:bg-[radial-gradient(ellipse_88%_58%_at_50%_-30%,rgba(45,150,140,0.28),transparent_58%)]"
                 aria-hidden
             />
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(60,169,155,0.22),transparent_48%)] opacity-90 dark:bg-[radial-gradient(circle_at_0%_100%,rgba(60,169,155,0.32),transparent_45%)] dark:opacity-100"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(60,169,155,0.22),transparent_48%)] opacity-90 dark:bg-[radial-gradient(circle_at_0%_100%,rgba(38,126,164,0.22),transparent_50%)] dark:opacity-100"
                 aria-hidden
             />
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,255,255,0.7),transparent_42%)] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(60,169,155,0.18),transparent_42%)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,255,255,0.7),transparent_42%)] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,128,255,0.14),transparent_46%)]"
                 aria-hidden
             />
             <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent to-zinc-900/[0.03] dark:to-black/50"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent to-zinc-900/[0.03] dark:from-[#040914]/15 dark:to-[#02050d]/75"
                 aria-hidden
             />
 
@@ -53,7 +54,18 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                             'border-zinc-200/90 lg:border-r dark:border-zinc-800/90',
                         )}
                     >
-                        {children}
+                        <div
+                            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-45 dark:opacity-20"
+                            style={{ backgroundImage: `url(${LOGIN_FORM_PATTERN})` }}
+                            aria-hidden
+                        />
+                        <div
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/60 via-white/45 to-white/70 dark:from-[#0b0d0c]/85 dark:via-[#0b0d0c]/78 dark:to-[#0b0d0c]/88"
+                            aria-hidden
+                        />
+                        <div className="relative z-10">
+                            {children}
+                        </div>
                     </div>
 
                     <div
@@ -76,8 +88,8 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                             alt=""
                             className={cn(
                                 'relative h-full min-h-[320px] w-full object-cover object-center',
-                                'opacity-95 mix-blend-multiply',
-                                'dark:min-h-0 dark:opacity-65 dark:mix-blend-normal',
+                                'opacity-100',
+                                'dark:min-h-0 dark:opacity-90 dark:mix-blend-normal',
                             )}
                         />
                     </div>

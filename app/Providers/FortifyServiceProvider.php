@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Contracts\FaceVerificationContract;
 use App\Http\Responses\Fortify\LoginResponse as FortifyLoginResponse;
 use App\Http\Responses\Fortify\TwoFactorLoginResponse as FortifyTwoFactorLoginResponse;
 use App\Models\User;
@@ -52,11 +53,22 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::createUsersUsing(CreateNewUser::class);
 
         Fortify::authenticateUsing(function (Request $request): ?User {
+            $email = trim((string) $request->input('email', ''));
+            $faceFile = $request->file('face_capture');
+            $hasValidFaceFile = $faceFile !== null && $faceFile->isValid();
+            $passwordInput = (string) $request->input('password');
+            $hasPasswordAttempt = $passwordInput !== '' && $passwordInput !== 'face-only-login';
+            if ($email === '') {
+                throw ValidationException::withMessages([
+                    'email' => __('Email is required.'),
+                ]);
+            }
+
             $user = User::query()
-                ->where('email', $request->input('email'))
+                ->where('email', $email)
                 ->first();
 
-            if (! $user || ! Hash::check($request->input('password'), $user->password)) {
+            if (! $user) {
                 return null;
             }
 
@@ -64,6 +76,48 @@ class FortifyServiceProvider extends ServiceProvider
                 throw ValidationException::withMessages([
                     'email' => 'Your account is inactive. Please contact HR.',
                 ]);
+            }
+
+            $hasFaceEnrollment =
+                $user->face_enrolled_at !== null ||
+                (is_array($user->face_profile) && $user->face_profile !== []) ||
+                (is_string($user->face_reference_path) && $user->face_reference_path !== '');
+
+            if ($hasFaceEnrollment) {
+                if ($hasPasswordAttempt && Hash::check($passwordInput, $user->password)) {
+                    return $user;
+                }
+
+                if (! $hasValidFaceFile) {
+                    throw ValidationException::withMessages([
+                        'face_capture' => __('Use password or provide a face scan.'),
+                    ]);
+                }
+
+                $rateKey = 'face-login:'.$user->id.':'.$request->ip();
+                if (RateLimiter::tooManyAttempts($rateKey, 20)) {
+                    throw ValidationException::withMessages([
+                        'email' => __('Too many face verification attempts. Try again later.'),
+                    ]);
+                }
+
+                RateLimiter::hit($rateKey, decaySeconds: 120);
+
+                $verified = app(FaceVerificationContract::class)->verify($user, $faceFile);
+
+                if (! $verified) {
+                    throw ValidationException::withMessages([
+                        'face_capture' => __('Face does not match this email account.'),
+                    ]);
+                }
+
+                RateLimiter::clear($rateKey);
+
+                return $user;
+            }
+
+            if (! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
             }
 
             return $user;
@@ -112,6 +166,10 @@ class FortifyServiceProvider extends ServiceProvider
 
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+
+            if ($request->hasFile('face_capture')) {
+                return Limit::perMinute(20)->by($throttleKey);
+            }
 
             return Limit::perMinute(5)->by($throttleKey);
         });

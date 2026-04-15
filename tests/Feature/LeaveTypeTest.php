@@ -45,6 +45,7 @@ class LeaveTypeTest extends TestCase
         $data = [
             'code' => 'LV-001',
             'name' => 'Annual Leave',
+            'leave_category' => 'paid',
             'description' => 'Paid annual leave',
         ];
 
@@ -58,7 +59,7 @@ class LeaveTypeTest extends TestCase
     {
         $response = $this->post(route('leave-types.store'), []);
 
-        $response->assertSessionHasErrors(['code', 'name']);
+        $response->assertSessionHasErrors(['code', 'name', 'leave_category']);
     }
 
     public function test_store_validates_unique_code(): void
@@ -68,6 +69,7 @@ class LeaveTypeTest extends TestCase
         $response = $this->post(route('leave-types.store'), [
             'code' => 'LV-001',
             'name' => 'Annual Leave',
+            'leave_category' => 'paid',
         ]);
 
         $response->assertSessionHasErrors(['code']);
@@ -97,6 +99,7 @@ class LeaveTypeTest extends TestCase
         $data = [
             'code' => 'LV-002',
             'name' => 'Sick Leave',
+            'leave_category' => 'unpaid',
             'description' => 'Paid sick leave',
         ];
 
@@ -114,6 +117,7 @@ class LeaveTypeTest extends TestCase
         $response = $this->patch(route('leave-types.update', $leaveType), [
             'code' => 'LV-002',
             'name' => 'Annual Leave',
+            'leave_category' => 'paid',
         ]);
 
         $response->assertSessionHasErrors(['code']);

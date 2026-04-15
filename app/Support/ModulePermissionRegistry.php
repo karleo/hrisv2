@@ -15,6 +15,7 @@ use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
@@ -120,6 +121,9 @@ final class ModulePermissionRegistry
             'submit' => [PermissionModule::LeaveRequests, ModuleAbility::Create],
             'decide' => [PermissionModule::LeaveRequests, ModuleAbility::Update],
             'updateSignatures' => [PermissionModule::LeaveRequests, ModuleAbility::View],
+        ],
+        LeaveCalendarController::class => [
+            'index' => [PermissionModule::LeaveCalendar, ModuleAbility::View],
         ],
         ItRequestController::class => [
             'index' => [PermissionModule::ItRequests, ModuleAbility::View],

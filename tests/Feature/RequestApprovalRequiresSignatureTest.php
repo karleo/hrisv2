@@ -8,6 +8,7 @@ use App\Models\EmployeeRequest;
 use App\Models\ItAssetRequest;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,7 @@ class RequestApprovalRequiresSignatureTest extends TestCase
         $department = Department::factory()->create();
         $employee = Employee::factory()->create([
             'department_id' => $department->id,
+            'leave_opening_balance' => 30,
         ]);
         $requesterUser = User::factory()->create();
         $employee->update(['user_id' => $requesterUser->id]);
@@ -155,5 +157,73 @@ class RequestApprovalRequiresSignatureTest extends TestCase
 
         $leaveRequest->refresh();
         $this->assertSame('rejected', strtolower((string) $leaveRequest->status));
+    }
+
+    public function test_leave_request_cannot_be_approved_when_requested_days_exceed_available_balance(): void
+    {
+        [$department, $employee] = $this->departmentEmployeeAndRequester();
+        $employee->update(['leave_opening_balance' => 2]);
+
+        LeaveType::factory()->create([
+            'name' => 'Annual Leave',
+            'leave_category' => 'paid',
+        ]);
+
+        LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+            'status' => 'approved',
+            'days' => 1,
+        ]);
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Annual Leave'],
+            'status' => 'submitted',
+            'days' => 2,
+            'approved_by_signature' => 'leave-requests/test/signatures/manager.png',
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('leave-requests.decide', $leaveRequest), [
+                'decision' => 'approved',
+            ])
+            ->assertSessionHas('error')
+            ->assertRedirect();
+
+        $leaveRequest->refresh();
+        $this->assertSame('submitted', strtolower((string) $leaveRequest->status));
+    }
+
+    public function test_unpaid_leave_can_be_approved_even_if_balance_is_not_enough(): void
+    {
+        [$department, $employee] = $this->departmentEmployeeAndRequester();
+        $employee->update(['leave_opening_balance' => 1]);
+
+        LeaveType::factory()->create([
+            'name' => 'Unpaid Leave',
+            'leave_category' => 'unpaid',
+        ]);
+
+        $leaveRequest = LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_types' => ['Unpaid Leave'],
+            'status' => 'submitted',
+            'days' => 5,
+            'approved_by_signature' => 'leave-requests/test/signatures/manager.png',
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('leave-requests.decide', $leaveRequest), [
+                'decision' => 'approved',
+            ])
+            ->assertSessionMissing('error')
+            ->assertRedirect();
+
+        $leaveRequest->refresh();
+        $this->assertSame('approved', strtolower((string) $leaveRequest->status));
     }
 }

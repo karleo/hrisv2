@@ -8,6 +8,7 @@ use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
@@ -133,6 +134,7 @@ class LeaveRequestController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'leaveTypes' => $this->availableLeaveTypeNames(),
             'defaultEmployeeId' => $request->user()?->employee?->id,
         ]);
     }
@@ -144,9 +146,14 @@ class LeaveRequestController extends Controller
     {
         $data = $request->validated();
 
+        $startDayType = $data['start_day_type'] ?? 'full';
+        $endDayType = $data['end_day_type'] ?? 'full';
+
         $days = $this->computeDays(
             $data['period_from'] ?? null,
-            $data['period_to'] ?? null
+            $data['period_to'] ?? null,
+            $startDayType,
+            $endDayType,
         );
 
         $leaveRequest = LeaveRequest::query()->create([
@@ -157,7 +164,9 @@ class LeaveRequestController extends Controller
             'details' => ! empty($data['details']) ? $data['details'] : null,
             'date' => $data['date'] ?? null,
             'period_from' => $data['period_from'] ?? null,
+            'start_day_type' => $startDayType,
             'period_to' => $data['period_to'] ?? null,
+            'end_day_type' => $endDayType,
             'days' => $days,
             'remarks' => ! empty($data['remarks']) ? $data['remarks'] : null,
             'status' => 'draft',
@@ -249,6 +258,32 @@ class LeaveRequestController extends Controller
             return redirect()->back()->with('error', 'Please save your manager or HR signature before approving this request.');
         }
 
+        if ($validated['decision'] === 'approved') {
+            $employee = Employee::query()->find($leave_request->employee_id);
+            if ($employee === null) {
+                return redirect()->back()->with('error', 'Cannot approve: employee record is missing.');
+            }
+
+            $requestedDays = (float) ($leave_request->days ?? 0);
+            if ($requestedDays <= 0) {
+                return redirect()->back()->with('error', 'Cannot approve: leave request days must be set.');
+            }
+
+            if ($this->isPaidLeaveRequest($leave_request)) {
+                $availableRemaining = $this->availableLeaveBalanceForEmployee($employee);
+                if ($requestedDays > $availableRemaining) {
+                    return redirect()->back()->with(
+                        'error',
+                        sprintf(
+                            'Cannot approve: requested %.2f day(s) exceeds available balance %.2f day(s).',
+                            $requestedDays,
+                            $availableRemaining
+                        )
+                    );
+                }
+            }
+        }
+
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
         $leave_request->update([
@@ -304,8 +339,10 @@ class LeaveRequestController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'leaveTypes' => $this->availableLeaveTypeNames(),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
+            'decisionUrl' => route('leave-requests.decide', $leave_request, false),
             'canDecide' => $this->approvalScope->canDecide(request()->user(), $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
         ]);
     }
@@ -320,9 +357,13 @@ class LeaveRequestController extends Controller
         $data = $request->validated();
 
         $status = $data['status'] ?? $leave_request->status;
+        $startDayType = $data['start_day_type'] ?? 'full';
+        $endDayType = $data['end_day_type'] ?? 'full';
         $days = $this->computeDays(
             $data['period_from'] ?? null,
-            $data['period_to'] ?? null
+            $data['period_to'] ?? null,
+            $startDayType,
+            $endDayType,
         );
 
         $leave_request->update([
@@ -333,7 +374,9 @@ class LeaveRequestController extends Controller
             'details' => ! empty($data['details']) ? $data['details'] : null,
             'date' => $data['date'] ?? null,
             'period_from' => $data['period_from'] ?? null,
+            'start_day_type' => $startDayType,
             'period_to' => $data['period_to'] ?? null,
+            'end_day_type' => $endDayType,
             'days' => $days,
             'remarks' => ! empty($data['remarks']) ? $data['remarks'] : null,
             'status' => $status,
@@ -447,7 +490,12 @@ class LeaveRequestController extends Controller
     /**
      * Compute number of days (inclusive) between period_from and period_to.
      */
-    private function computeDays(?string $periodFrom, ?string $periodTo): ?int
+    private function computeDays(
+        ?string $periodFrom,
+        ?string $periodTo,
+        string $startDayType = 'full',
+        string $endDayType = 'full',
+    ): ?float
     {
         if (empty($periodFrom) || empty($periodTo)) {
             return null;
@@ -456,7 +504,90 @@ class LeaveRequestController extends Controller
         $from = Carbon::parse($periodFrom);
         $to = Carbon::parse($periodTo);
 
-        return $from->diffInDays($to) + 1;
+        if ($from->isSameDay($to)) {
+            return $startDayType === 'half' || $endDayType === 'half' ? 0.5 : 1.0;
+        }
+
+        $duration = (float) ($from->diffInDays($to) + 1);
+
+        if ($startDayType === 'half') {
+            $duration -= 0.5;
+        }
+        if ($endDayType === 'half') {
+            $duration -= 0.5;
+        }
+
+        return max($duration, 0.5);
+    }
+
+    private function availableLeaveBalanceForEmployee(Employee $employee): float
+    {
+        $paidLeaveTypeNames = LeaveType::query()
+            ->where('leave_category', 'paid')
+            ->pluck('name')
+            ->filter(static fn ($name): bool => is_string($name) && $name !== '')
+            ->values()
+            ->all();
+
+        $approvedRequests = LeaveRequest::query()
+            ->where('employee_id', $employee->id)
+            ->where('status', 'approved')
+            ->get(['absence_types', 'days']);
+
+        $approvedDaysUsed = (float) $approvedRequests->sum(function (LeaveRequest $leaveRequest) use ($paidLeaveTypeNames): float {
+            $types = is_array($leaveRequest->absence_types) ? $leaveRequest->absence_types : [];
+            $type = (string) ($types[0] ?? '');
+
+            if ($type === '' || ! in_array($type, $paidLeaveTypeNames, true)) {
+                return 0.0;
+            }
+
+            return (float) ($leaveRequest->days ?? 0);
+        });
+
+        $openingBalance = (float) ($employee->leave_opening_balance ?? 0);
+
+        return $openingBalance - $approvedDaysUsed;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function availableLeaveTypeNames(): array
+    {
+        $leaveTypes = LeaveType::query()
+            ->orderBy('name')
+            ->pluck('name')
+            ->filter(static fn ($name): bool => is_string($name) && $name !== '')
+            ->values()
+            ->all();
+
+        if ($leaveTypes !== []) {
+            return $leaveTypes;
+        }
+
+        return ['Personal Leave', 'Sick Leave', 'Maternity Leave', 'Emergency Leave', 'Annual Leave', 'Others'];
+    }
+
+    private function isPaidLeaveRequest(LeaveRequest $leaveRequest): bool
+    {
+        $types = is_array($leaveRequest->absence_types) ? $leaveRequest->absence_types : [];
+        $type = (string) ($types[0] ?? '');
+
+        if ($type === '') {
+            return true;
+        }
+
+        $leaveType = LeaveType::query()
+            ->where('name', $type)
+            ->first(['leave_category']);
+
+        if ($leaveType === null) {
+            // Keep conservative behavior for legacy records that do not map.
+            return true;
+        }
+
+        return $leaveType->leave_category === 'paid';
     }
 
     /**

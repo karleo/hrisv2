@@ -149,6 +149,28 @@ class LeaveRequestTest extends TestCase
         ]);
     }
 
+    public function test_store_calculates_decimal_days_for_partial_boundaries(): void
+    {
+        [$employee, $department] = $this->createEmployeeAndDepartment();
+
+        $response = $this->post(route('leave-requests.store'), [
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'absence_type' => 'Annual Leave',
+            'period_from' => '2026-04-10',
+            'period_to' => '2026-04-12',
+            'start_day_type' => 'half',
+            'end_day_type' => 'full',
+        ]);
+
+        $leaveRequest = LeaveRequest::firstOrFail();
+
+        $response->assertRedirect(route('leave-requests.show', $leaveRequest));
+        $this->assertSame(2.5, (float) $leaveRequest->days);
+        $this->assertSame('half', $leaveRequest->start_day_type);
+        $this->assertSame('full', $leaveRequest->end_day_type);
+    }
+
     public function test_submit_sets_status_to_submitted_when_draft(): void
     {
         [$employee, $department] = $this->createEmployeeAndDepartment();

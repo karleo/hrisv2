@@ -1,20 +1,21 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Fragment, type FormEvent, useState } from 'react';
 import {
     ChevronRight,
     CircleAlert,
     CreditCard,
     Download,
     Eye,
+    Grid2x2,
+    List,
     Mail,
     Pencil,
     Plus,
     Search,
     Trash2,
     Upload,
-    User,
     Users,
 } from 'lucide-react';
+import { Fragment, type FormEvent, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
@@ -152,9 +153,16 @@ type PaginatedEmployees = {
 
 export default function Index({
     employees,
+    stats,
     filters = {},
 }: {
     employees: PaginatedEmployees;
+    stats: {
+        totalEmployees: number;
+        activeEmployees: number;
+        totalDepartments: number;
+        noLoginAccessEmployees: number;
+    };
     filters?: { search?: string; department_id?: string | number; employee_status?: string };
 }) {
     const { data: employeeList } = employees;
@@ -180,6 +188,20 @@ export default function Index({
         return groups;
     }, {});
     const sortedGroupNames = Object.keys(groupedEmployees).sort((a, b) => a.localeCompare(b));
+    const exportQuery = new URLSearchParams();
+    if (filters.search) {
+        exportQuery.set('search', String(filters.search));
+    }
+    if (filters.employee_status) {
+        exportQuery.set('employee_status', String(filters.employee_status));
+    }
+    if (filters.department_id) {
+        exportQuery.set('department_id', String(filters.department_id));
+    }
+    if (groupMode !== 'none') {
+        exportQuery.set('group_by', groupMode);
+    }
+    const exportHref = `/employees/export${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ''}`;
 
     function toggleGroup(groupName: string) {
         setExpandedGroups((previous) => ({
@@ -246,8 +268,12 @@ export default function Index({
                                             <span>Total Employee</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">{employees.total}</p>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">+2 increase from last month</p>
+                                        <p className="text-3xl font-semibold leading-none">{stats.totalEmployees}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.totalEmployees === 0
+                                                ? 'No employees yet'
+                                                : 'Current total employee records'}
+                                        </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
@@ -256,10 +282,12 @@ export default function Index({
                                             <span>Active Employee</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">
-                                            {employeeList.filter((emp) => emp.user_id).length}
+                                        <p className="text-3xl font-semibold leading-none">{stats.activeEmployees}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.activeEmployees === 0
+                                                ? 'No active employee accounts'
+                                                : 'Employees with active login access'}
                                         </p>
-                                        <p className="text-xs text-rose-500">-2 decrease from yesterday</p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
@@ -268,20 +296,28 @@ export default function Index({
                                             <span>Total Department</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">
-                                            {new Set(employeeList.map((emp) => emp.department?.id).filter(Boolean)).size}
+                                        <p className="text-3xl font-semibold leading-none">{stats.totalDepartments}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.totalDepartments === 0
+                                                ? 'No departments configured'
+                                                : 'Configured departments in the system'}
                                         </p>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">+1 increase from last year</p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>This Page</span>
+                                            <span>No Login Access</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
-                                        <p className="text-3xl font-semibold leading-none">{employeeList.length}</p>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Current visible records</p>
+                                        <p className="text-3xl font-semibold leading-none">
+                                            {stats.noLoginAccessEmployees}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {stats.noLoginAccessEmployees === 0
+                                                ? 'All employees have login access'
+                                                : 'Employees pending login access'}
+                                        </p>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -312,19 +348,23 @@ export default function Index({
                                                         size="sm"
                                                         type="button"
                                                         variant={viewMode === 'table' ? 'default' : 'ghost'}
-                                                        className="h-8 rounded-full px-3 text-xs"
+                                                        className="size-8 rounded-full p-0"
+                                                        aria-label="Table view"
+                                                        title="Table view"
                                                         onClick={() => setViewMode('table')}
                                                     >
-                                                        Table
+                                                        <List className="size-4" />
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         type="button"
                                                         variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                                                        className="h-8 rounded-full px-3 text-xs"
+                                                        className="size-8 rounded-full p-0"
+                                                        aria-label="Grid view"
+                                                        title="Grid view"
                                                         onClick={() => setViewMode('grid')}
                                                     >
-                                                        Grid
+                                                        <Grid2x2 className="size-4" />
                                                     </Button>
                                                 </div>
                                             </div>
@@ -389,7 +429,7 @@ export default function Index({
                                                 Template
                                             </Button>
                                         </a>
-                                        <a href="/employees/export">
+                                        <a href={exportHref}>
                                             <Button size="sm" variant="outline" className="h-9 gap-2 rounded-full px-3">
                                                 <Download className="size-4" />
                                                 Export
@@ -695,7 +735,7 @@ export default function Index({
                                                                             ?? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300';
 
                                                                         return (
-                                                                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${departmentStyleMap[groupName] ?? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300'}`}>
+                                                                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${departmentStyle}`}>
                                                                         {departmentName}
                                                                     </span>
                                                                         );
@@ -795,26 +835,26 @@ export default function Index({
                                                             openEmployeeView(employee.id);
                                                         }
                                                     }}
-                                                    className="cursor-pointer overflow-hidden rounded-2xl border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                    className="cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-900/70 dark:hover:border-slate-600 dark:hover:bg-slate-900"
                                                 >
-                                                    <div className="relative h-14 bg-gradient-to-r from-primary/38 via-primary/18 to-transparent dark:from-primary/44 dark:via-primary/24">
-                                                        <span className="absolute right-3 top-2 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                                    <div className="relative h-14 bg-gradient-to-r from-primary/62 via-primary/36 to-transparent dark:from-indigo-500/58 dark:via-indigo-500/30 dark:to-transparent">
+                                                        <span className="absolute right-3 top-2 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground dark:border-slate-600 dark:bg-slate-900/85 dark:text-slate-200">
                                                             {employee.employee_code}
                                                         </span>
                                                     </div>
                                                     <CardContent className="relative pt-0">
-                                                        <div className="-mt-10 flex justify-center">
-                                                            <div className="rounded-lg border-2 border-background shadow-sm">
+                                                        <div className="-mt-12 flex justify-center">
+                                                            <div className="rounded-lg border-2 border-background shadow-sm dark:border-slate-800">
                                                                 <AvatarInitial
                                                                     name={`${employee.first_name} ${employee.last_name}`}
                                                                     photoUrl={employee.photo_url}
-                                                                    sizeClass="h-24 w-20"
+                                                                    sizeClass="h-28 w-24"
                                                                     roundedClass="rounded-lg"
                                                                     initialTextClassName="text-lg"
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="mt-1.5 space-y-2 text-center">
+                                                        <div className="mt-0.5 space-y-1.5 text-center">
                                                             <p className="text-base font-semibold leading-none">
                                                                 {employee.first_name} {employee.last_name}
                                                             </p>
@@ -832,7 +872,7 @@ export default function Index({
                                                             </div>
                                                         </div>
                                                         <div
-                                                            className="mt-4 flex justify-center gap-1 border-t pt-3"
+                                                            className="mt-3 flex justify-center gap-1 border-t pt-2.5 dark:border-slate-700/70"
                                                             onClick={(event) => event.stopPropagation()}
                                                             onKeyDown={(event) => event.stopPropagation()}
                                                         >

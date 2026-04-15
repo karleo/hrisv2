@@ -27,6 +27,7 @@ class LeaveTypeFactory extends Factory
         return [
             'code' => strtoupper(fake()->unique()->bothify('LV-###')),
             'name' => fake()->words(2, true),
+            'leave_category' => fake()->randomElement(['paid', 'unpaid']),
             'description' => fake()->optional(0.7)->sentence(),
         ];
     }

@@ -246,7 +246,7 @@ function Sidebar({
             "flex h-full w-full flex-col",
             "group-data-[variant=sidebar]:bg-sidebar",
             "group-data-[variant=floating]:rounded-xl group-data-[variant=floating]:border group-data-[variant=floating]:border-white/40 group-data-[variant=floating]:bg-white/60 group-data-[variant=floating]:shadow-xl group-data-[variant=floating]:backdrop-blur-2xl dark:group-data-[variant=floating]:border-white/15 dark:group-data-[variant=floating]:bg-white/10 dark:group-data-[variant=floating]:shadow-black/30",
-            "group-data-[variant=inset]:rounded-2xl group-data-[variant=inset]:border group-data-[variant=inset]:border-white/45 group-data-[variant=inset]:bg-white/65 group-data-[variant=inset]:shadow-xl group-data-[variant=inset]:shadow-slate-900/10 group-data-[variant=inset]:backdrop-blur-2xl dark:group-data-[variant=inset]:border-white/15 dark:group-data-[variant=inset]:bg-white/12 dark:group-data-[variant=inset]:shadow-black/40",
+            "group-data-[variant=inset]:rounded-2xl group-data-[variant=inset]:border group-data-[variant=inset]:border-sidebar-border group-data-[variant=inset]:bg-sidebar group-data-[variant=inset]:shadow-xl group-data-[variant=inset]:shadow-slate-900/25",
           )}
         >
           {children}

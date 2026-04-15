@@ -1,12 +1,22 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import MultiAngleFaceProfileField, {
+    type FaceProfileFiles,
+} from '@/components/multi-angle-face-profile-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -21,6 +31,7 @@ type EmployeeOption = {
     employee_code: string;
     first_name: string;
     last_name: string;
+    email_address: string | null;
     user_id: number | null;
 };
 
@@ -49,10 +60,18 @@ function employeeLabel(
     return `${base} (linked)`;
 }
 
+const emptyFaceProfile = (): FaceProfileFiles => ({
+    front: null,
+    left: null,
+    right: null,
+});
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Users', href: '/users' },
     { title: 'Create', href: '/users/create' },
 ];
+const ROLE_DEFAULT_VALUE = '__role_default__';
+const EMPLOYEE_NONE_VALUE = '__employee_none__';
 
 export default function Create({
     roles,
@@ -64,6 +83,10 @@ export default function Create({
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] =
         useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [faceGrabError, setFaceGrabError] = useState<string | null>(null);
+    const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
+    const [faceEnrollmentEnabled, setFaceEnrollmentEnabled] = useState(false);
 
     const { data, setData, post, processing, errors, transform } = useForm({
         name: '',
@@ -74,14 +97,24 @@ export default function Create({
         employee_id: '',
     });
 
+    const faceComplete =
+        Boolean(faceProfile.front) &&
+        Boolean(faceProfile.left) &&
+        Boolean(faceProfile.right);
     transform((payload) => ({
-        name: payload.name,
-        email: payload.email,
-        password: payload.password,
-        password_confirmation: payload.password_confirmation,
+        ...payload,
         role_id: toOptionalPositiveInt(payload.role_id),
         employee_id: toOptionalPositiveInt(payload.employee_id),
+        ...(faceEnrollmentEnabled && faceComplete && faceProfile.front && faceProfile.left && faceProfile.right
+            ? {
+                  face_capture_front: faceProfile.front,
+                  face_capture_left: faceProfile.left,
+                  face_capture_right: faceProfile.right,
+              }
+            : {}),
     }));
+
+    const busy = processing || submitting;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -98,14 +131,32 @@ export default function Create({
 
                 <Heading
                     title="Create user"
-                    description="Add a system login. Linking an employee is optional."
+                    description="Add a system login. Face sign-in is optional; if you enroll it now, capture three angles (front, left, right) for a stronger profile. Linking an employee is optional."
                 />
 
                 <form
                     className="flex w-full min-w-0 flex-1 flex-col"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        post('/users');
+                        setFaceGrabError(null);
+                        if (faceEnrollmentEnabled && !faceComplete) {
+                            setFaceGrabError(
+                                'Face setup is enabled. Please capture front, left, and right angles before creating the user.',
+                            );
+                            return;
+                        }
+                        setSubmitting(true);
+                        post('/users', {
+                            forceFormData: true,
+                            onFinish: () => {
+                                setFaceProfile(emptyFaceProfile());
+                                setFaceEnrollmentEnabled(false);
+                                setSubmitting(false);
+                            },
+                            onError: () => {
+                                setFaceGrabError(null);
+                            },
+                        });
                     }}
                 >
                     <Card className="min-h-0 w-full flex-1">
@@ -283,23 +334,26 @@ export default function Create({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="role_id">Role</Label>
-                                <select
-                                    id="role_id"
-                                    value={data.role_id}
-                                    onChange={(e) =>
-                                        setData('role_id', e.target.value)
+                                <Select
+                                    value={data.role_id || ROLE_DEFAULT_VALUE}
+                                    onValueChange={(value) =>
+                                        setData('role_id', value === ROLE_DEFAULT_VALUE ? '' : value)
                                     }
-                                    className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="">
-                                        Basic access (dashboard — default)
-                                    </option>
-                                    {roles.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="role_id" aria-invalid={Boolean(errors.role_id)}>
+                                        <SelectValue placeholder="Basic access (dashboard — default)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ROLE_DEFAULT_VALUE}>
+                                            Basic access (dashboard — default)
+                                        </SelectItem>
+                                        {roles.map((r) => (
+                                            <SelectItem key={r.id} value={String(r.id)}>
+                                                {r.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.role_id} />
                             </div>
 
@@ -310,21 +364,45 @@ export default function Create({
                                         (optional)
                                     </span>
                                 </Label>
-                                <select
-                                    id="employee_id"
-                                    value={data.employee_id}
-                                    onChange={(e) =>
-                                        setData('employee_id', e.target.value)
-                                    }
-                                    className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                <Select
+                                    value={data.employee_id || EMPLOYEE_NONE_VALUE}
+                                    onValueChange={(value) => {
+                                        if (value === EMPLOYEE_NONE_VALUE) {
+                                            setData('employee_id', '');
+                                            return;
+                                        }
+
+                                        const selectedEmployee = employees.find(
+                                            (emp) => String(emp.id) === value,
+                                        );
+                                        if (!selectedEmployee) {
+                                            setData('employee_id', value);
+                                            return;
+                                        }
+
+                                        setData('employee_id', value);
+                                        setData(
+                                            'name',
+                                            `${selectedEmployee.first_name} ${selectedEmployee.last_name}`.trim(),
+                                        );
+                                        setData(
+                                            'email',
+                                            selectedEmployee.email_address ?? '',
+                                        );
+                                    }}
                                 >
-                                    <option value="">None</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {employeeLabel(emp)}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="employee_id" aria-invalid={Boolean(errors.employee_id)}>
+                                        <SelectValue placeholder="None" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={EMPLOYEE_NONE_VALUE}>None</SelectItem>
+                                        {employees.map((emp) => (
+                                            <SelectItem key={emp.id} value={String(emp.id)}>
+                                                {employeeLabel(emp)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.employee_id} />
                                 <p className="text-xs text-muted-foreground">
                                     Links this login to an employee record.
@@ -332,9 +410,80 @@ export default function Create({
                                     moves the link to this user.
                                 </p>
                             </div>
+
+                            <div className="rounded-lg border border-border p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium">Set up face login now?</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Choose "Not now" to skip and create the user immediately.
+                                        </p>
+                                    </div>
+                                    <div className="inline-flex items-center rounded-md border border-input bg-muted/20 p-1">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={faceEnrollmentEnabled ? 'ghost' : 'secondary'}
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setFaceEnrollmentEnabled(false);
+                                                setFaceGrabError(null);
+                                                setFaceProfile(emptyFaceProfile());
+                                            }}
+                                        >
+                                            Not now
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={faceEnrollmentEnabled ? 'secondary' : 'ghost'}
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setFaceEnrollmentEnabled(true);
+                                                setFaceGrabError(null);
+                                            }}
+                                        >
+                                            Set up now
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {faceEnrollmentEnabled ? (
+                                <>
+                                    <MultiAngleFaceProfileField
+                                        value={faceProfile}
+                                        onChange={setFaceProfile}
+                                        disabled={busy}
+                                        errors={{
+                                            face_capture_front: errors.face_capture_front,
+                                            face_capture_left: errors.face_capture_left,
+                                            face_capture_right: errors.face_capture_right,
+                                        }}
+                                    />
+                                    <div
+                                        className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100"
+                                        role="status"
+                                    >
+                                        <p className="inline-flex items-center gap-2 font-medium">
+                                            <AlertCircle className="size-4" aria-hidden />
+                                            Face profile is not enrolled yet for this new user.
+                                        </p>
+                                        <p className="mt-1 text-xs opacity-90">
+                                            Complete front, left, and right captures, then create the user to save
+                                            face login enrollment.
+                                        </p>
+                                    </div>
+                                    {faceGrabError ? (
+                                        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                                            {faceGrabError}
+                                        </p>
+                                    ) : null}
+                                </>
+                            ) : null}
                         </CardContent>
                         <CardFooter className="mt-auto flex flex-wrap gap-3 border-t pt-6">
-                            <Button disabled={processing} type="submit">
+                            <Button disabled={busy} type="submit">
                                 Create user
                             </Button>
                             <Link href="/users">

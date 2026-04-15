@@ -1,18 +1,23 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import {
+    CheckCircle2,
+    ClipboardList,
     Eye,
     FileText,
     Pencil,
     Plus,
     Printer,
+    Send,
     Trash2,
     Users,
+    XCircle,
 } from 'lucide-react';
+import { useMemo } from 'react';
 import EmployeeRequestController from '@/actions/App/Http/Controllers/EmployeeRequestController';
 import { DataTablePagination } from '@/components/data-table-pagination';
-import { RequestStatusBadge } from '@/components/request-status-badge';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
+import { RequestStatusBadge } from '@/components/request-status-badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -27,6 +32,14 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { create, index } from '@/routes/employee-requests';
 import type { BreadcrumbItem } from '@/types';
@@ -80,6 +93,28 @@ type PaginatedEmployeeRequests = {
     links: { url: string | null; label: string; active: boolean }[];
 };
 
+type EmployeeRequestStats = {
+    total: number;
+    draft: number;
+    submitted: number;
+    approved: number;
+    rejected: number;
+};
+
+const STATUS_FILTER_OPTIONS = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+] as const;
+
+const DATE_PRESET_OPTIONS = [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'last_7_days', label: 'Last 7 days' },
+    { value: 'this_month', label: 'This month' },
+] as const;
+
 function formatDateDdMmYyyy(value: string | null | undefined): string {
     if (value == null || value === '') return '—';
     const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -90,31 +125,103 @@ function formatDateDdMmYyyy(value: string | null | undefined): string {
     return value;
 }
 
+function employeeInitials(employee: Employee | undefined): string {
+    if (!employee) return '?';
+    const a = employee.first_name?.charAt(0) ?? '';
+    const b = employee.last_name?.charAt(0) ?? '';
+    const s = `${a}${b}`.toUpperCase();
+    return s.length > 0 ? s : '?';
+}
+
+function navigateIndex(params: {
+    search?: string;
+    department_id?: number;
+    status?: string;
+    date_preset?: string;
+}) {
+    const cleaned: Record<string, string | number> = { page: 1 };
+    if (params.search?.trim()) {
+        cleaned.search = params.search.trim();
+    }
+    if (params.department_id != null) {
+        cleaned.department_id = params.department_id;
+    }
+    if (params.status) {
+        cleaned.status = params.status;
+    }
+    if (params.date_preset) {
+        cleaned.date_preset = params.date_preset;
+    }
+    router.get(index().url, cleaned, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+}
+
 export default function Index({
     employeeRequests,
     filters = {},
+    departments,
+    stats,
 }: {
     employeeRequests: PaginatedEmployeeRequests;
-    filters?: { search?: string };
+    filters?: {
+        search?: string | null;
+        department_id?: number | null;
+        status?: string | null;
+        date_preset?: string | null;
+    };
+    departments: Department[];
+    stats: EmployeeRequestStats;
 }) {
-    useRequestStatusPoll(['employeeRequests']);
+    useRequestStatusPoll(['employeeRequests', 'stats']);
 
     const { data: requestList } = employeeRequests;
+    const persistQuery = useMemo(() => {
+        const q: Record<string, string | number> = {};
+        if (filters.department_id != null) {
+            q.department_id = filters.department_id;
+        }
+        if (filters.status) {
+            q.status = filters.status;
+        }
+        if (filters.date_preset) {
+            q.date_preset = filters.date_preset;
+        }
+        return q;
+    }, [filters.department_id, filters.status, filters.date_preset]);
+
+    const departmentSelectValue =
+        filters.department_id != null ? String(filters.department_id) : 'all';
+    const statusSelectValue = filters.status && filters.status !== '' ? filters.status : 'all';
+    const datePresetSelectValue =
+        filters.date_preset && filters.date_preset !== '' ? filters.date_preset : 'all';
+    const hasActiveFilters =
+        Boolean(filters.search?.trim()) ||
+        filters.department_id != null ||
+        Boolean(filters.status) ||
+        Boolean(filters.date_preset);
+
     const { flash, modulePermissions } = usePage().props as {
         flash?: { success?: string; error?: string };
         modulePermissions?: ModulePermissionsMap;
     };
     const canUpdate = Boolean(modulePermissions?.employee_requests?.can_update);
     const canDelete = Boolean(modulePermissions?.employee_requests?.can_delete);
+    const clearAllFilters = () => {
+        router.get(index().url, { page: 1 }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Employee Requests" />
 
             <div className="flex h-full flex-1 flex-col">
-                {/* Page header */}
                 <div className="border-b bg-gradient-to-b from-muted/30 to-background px-4 py-6 sm:px-6 lg:px-8">
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-6">
                         {flash?.success && (
                             <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                                 {flash.success}
@@ -125,36 +232,190 @@ export default function Index({
                                 {flash.error}
                             </div>
                         )}
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                                <Users className="size-5 text-primary" />
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-3">
+                                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 shadow-sm">
+                                    <Users className="size-5 text-primary" />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                                        Employee requests
+                                    </h1>
+                                    <p className="text-muted-foreground mt-0.5 max-w-xl text-sm">
+                                        Track and manage employee ticket, passport, and encashment requests in one place.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                    Employee Requests
-                                </h1>
-                                <p className="text-muted-foreground text-sm">
-                                    View and manage employee requests
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <DataTableToolbar
-                                searchUrl={index().url}
-                                searchPlaceholder="Search by employee..."
-                                filters={filters}
-                                autoSearch
-                                showSearchButton={false}
-                            />
-                            <Link href={create().url}>
-                                <Button size="sm" className="gap-2">
+                            <Button asChild className="shrink-0 gap-2 self-start lg:self-center">
+                                <Link href={create().url} prefetch>
                                     <Plus className="size-4" />
-                                    New Request
-                                </Button>
-                            </Link>
+                                    New request
+                                </Link>
+                            </Button>
                         </div>
-                    </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                            <Card className="border shadow-sm">
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+                                        <ClipboardList className="size-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                                            Total
+                                        </p>
+                                        <p className="text-2xl font-semibold tabular-nums">{stats.total}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border shadow-sm">
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/15">
+                                        <FileText className="size-5 text-amber-700 dark:text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                                            Drafts
+                                        </p>
+                                        <p className="text-2xl font-semibold tabular-nums">{stats.draft}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border shadow-sm">
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex size-10 items-center justify-center rounded-lg bg-sky-500/15">
+                                        <Send className="size-5 text-sky-700 dark:text-sky-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                                            Pending review
+                                        </p>
+                                        <p className="text-2xl font-semibold tabular-nums">{stats.submitted}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border shadow-sm">
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-500/15">
+                                        <CheckCircle2 className="size-5 text-emerald-700 dark:text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                                            Approved
+                                        </p>
+                                        <p className="text-2xl font-semibold tabular-nums">{stats.approved}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border shadow-sm sm:col-span-2 xl:col-span-1">
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex size-10 items-center justify-center rounded-lg bg-red-500/15">
+                                        <XCircle className="size-5 text-red-700 dark:text-red-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                                            Rejected
+                                        </p>
+                                        <p className="text-2xl font-semibold tabular-nums">{stats.rejected}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                                <DataTableToolbar
+                                    searchUrl={index().url}
+                                    searchPlaceholder="Search by employee name…"
+                                    filters={{ search: filters.search ?? undefined }}
+                                    persistQuery={persistQuery}
+                                    autoSearch
+                                    showSearchButton={false}
+                                />
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Select
+                                        value={departmentSelectValue}
+                                        onValueChange={(v) => {
+                                            navigateIndex({
+                                                search: filters.search?.trim() || undefined,
+                                                department_id: v === 'all' ? undefined : Number(v),
+                                                status: filters.status ?? undefined,
+                                                date_preset: filters.date_preset ?? undefined,
+                                            });
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-[200px]">
+                                            <SelectValue placeholder="Department" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All departments</SelectItem>
+                                            {departments.map((d) => (
+                                                <SelectItem key={d.id} value={String(d.id)}>
+                                                    {d.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={statusSelectValue}
+                                        onValueChange={(v) => {
+                                            navigateIndex({
+                                                search: filters.search?.trim() || undefined,
+                                                department_id: filters.department_id ?? undefined,
+                                                status: v === 'all' ? undefined : v,
+                                                date_preset: filters.date_preset ?? undefined,
+                                            });
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-[180px]">
+                                            <SelectValue placeholder="Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All statuses</SelectItem>
+                                            {STATUS_FILTER_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={datePresetSelectValue}
+                                        onValueChange={(v) => {
+                                            navigateIndex({
+                                                search: filters.search?.trim() || undefined,
+                                                department_id: filters.department_id ?? undefined,
+                                                status: filters.status ?? undefined,
+                                                date_preset: v === 'all' ? undefined : v,
+                                            });
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-[200px]">
+                                            <SelectValue placeholder="Date" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Any date</SelectItem>
+                                            {DATE_PRESET_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            {hasActiveFilters && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="shrink-0"
+                                    onClick={clearAllFilters}
+                                >
+                                    Clear filters
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -171,13 +432,13 @@ export default function Index({
                                             <th className="px-4 py-3.5 text-left font-medium">
                                                 Employee
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
+                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
                                                 Job Position
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
+                                            <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
                                                 Department
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
+                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
                                                 Date
                                             </th>
                                             <th className="hidden px-4 py-3.5 text-left font-medium xl:table-cell">
@@ -200,18 +461,18 @@ export default function Index({
                                                 >
                                                     <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
                                                         <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-                                                            <FileText className="size-7 text-muted-foreground" />
+                                                            <Users className="size-7 text-muted-foreground" />
                                                         </div>
                                                         <p className="text-muted-foreground text-sm">
-                                                            {filters.search
-                                                                ? 'No employee requests match your search.'
-                                                                : 'No employee requests yet. Create your first request to get started.'}
+                                                            {hasActiveFilters
+                                                                ? 'No employee requests match your filters.'
+                                                                : 'No employee requests yet. Create the first request to get started.'}
                                                         </p>
-                                                        {!filters.search && (
+                                                        {!hasActiveFilters && (
                                                             <Link href={create().url}>
                                                                 <Button size="sm" variant="outline" className="gap-2">
                                                                     <Plus className="size-4" />
-                                                                    New Employee Request
+                                                                    New request
                                                                 </Button>
                                                             </Link>
                                                         )}
@@ -224,24 +485,38 @@ export default function Index({
                                                     key={request.id}
                                                     className="border-b transition-colors hover:bg-muted/30 last:border-0"
                                                 >
-                                                    <td className="px-4 py-3 font-medium">
+                                                    <td className="px-4 py-3 font-mono text-xs font-medium sm:text-sm">
                                                         {request.code || '—'}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        {request.employee
-                                                            ? `${request.employee.first_name} ${request.employee.last_name}`
-                                                            : '—'}
-                                                    </td>
-                                                    <td className="hidden px-4 py-3 md:table-cell">
-                                                        {request.job_position?.name ?? '—'}
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="size-9 border border-border/60">
+                                                                <AvatarFallback className="text-xs font-medium">
+                                                                    {employeeInitials(request.employee)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="min-w-0">
+                                                                <p className="truncate font-medium">
+                                                                    {request.employee
+                                                                        ? `${request.employee.first_name} ${request.employee.last_name}`
+                                                                        : '—'}
+                                                                </p>
+                                                                <p className="text-muted-foreground truncate text-xs md:hidden">
+                                                                    {request.department?.name ?? '—'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="hidden px-4 py-3 lg:table-cell">
+                                                        {request.job_position?.name ?? '—'}
+                                                    </td>
+                                                    <td className="hidden px-4 py-3 md:table-cell">
                                                         {request.department?.name ?? '—'}
                                                     </td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                                                         {formatDateDdMmYyyy(request.date)}
                                                     </td>
-                                                    <td className="hidden px-4 py-3 xl:table-cell">
+                                                    <td className="hidden px-4 py-3 text-muted-foreground xl:table-cell">
                                                         {formatDateDdMmYyyy(request.date_of_joining)}
                                                     </td>
                                                     <td className="px-4 py-3">

@@ -3,7 +3,6 @@ import { ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
     SidebarGroup,
-    SidebarGroupLabel,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
@@ -38,7 +37,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <SidebarMenuSubButton
                         asChild
                         isActive={isActive}
-                        className="h-8 rounded-lg border border-white/40 bg-white/35 px-2 text-xs font-medium backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+                        className="h-8 rounded-lg border border-transparent bg-transparent px-2 text-xs font-medium text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                     >
                         <Link href={item.href ?? '#'} prefetch>
                             {item.icon && <item.icon />}
@@ -57,7 +56,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <CollapsibleTrigger asChild>
                         <SidebarMenuSubButton
                             isActive={isActive}
-                            className="h-8 rounded-lg border border-white/40 bg-white/35 px-2 text-xs font-medium backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+                            className="h-8 rounded-lg border border-transparent bg-transparent px-2 text-xs font-medium text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                         >
                             {item.icon && <item.icon />}
                             <span className="min-w-0 flex-1 whitespace-nowrap">
@@ -78,7 +77,6 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
 
     return (
         <SidebarGroup className="px-2 py-0">
-            <SidebarGroupLabel>Platform</SidebarGroupLabel>
             <SidebarMenu className="gap-2">
                 {items.map((item) => {
                     const hasChildren = (item.items?.length ?? 0) > 0;
@@ -97,15 +95,15 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
                                             isActive={isAnyChildActive}
-                                            className="h-auto min-h-11 overflow-visible rounded-xl border border-white/45 bg-white/30 px-2.5 py-1.5 text-[13px] backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+                                            className="min-h-11 rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
                                         >
-                                            {item.icon && <item.icon className="mt-0.5 size-4.5" />}
-                                            <div className="flex min-w-0 flex-1 items-center">
+                                            {item.icon && <item.icon className="mt-0.5 size-4.5 group-data-[collapsible=icon]:mt-0" />}
+                                            <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
                                                 <span className="font-medium whitespace-normal break-words leading-tight">
                                                     {item.title}
                                                 </span>
                                             </div>
-                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[collapsible=icon]:hidden" />
                                         </SidebarMenuButton>
                                     </CollapsibleTrigger>
 
@@ -125,11 +123,11 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 asChild
                                 isActive={!!item.href && isCurrentUrl(item.href)}
                                 tooltip={{ children: item.title }}
-                                className="h-auto min-h-11 overflow-visible rounded-xl border border-white/45 bg-white/30 px-2.5 py-1.5 text-[13px] backdrop-blur-sm transition-all hover:border-primary/45 hover:bg-primary/10 hover:text-primary dark:border-white/18 dark:bg-white/14 data-[active=true]:border-primary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+                                className="min-h-11 rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
                             >
                                 <Link href={item.href ?? '#'} prefetch>
-                                    {item.icon && <item.icon className="mt-0.5 size-4.5" />}
-                                    <div className="flex min-w-0 flex-1 items-center">
+                                    {item.icon && <item.icon className="mt-0.5 size-4.5 group-data-[collapsible=icon]:mt-0" />}
+                                    <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
                                         <span className="font-medium whitespace-normal break-words leading-tight">
                                             {item.title}
                                         </span>
