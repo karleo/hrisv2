@@ -100,18 +100,20 @@ export default function Create({
         note?: string;
     } | null>(null);
     const [joiningDate, setJoiningDate] = useState('');
-    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'documents' | 'personal_information'>('employee_information');
-    const tabOrder: Array<'employee_information' | 'work_information' | 'documents' | 'personal_information'> = [
+    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'documents' | 'personal_information' | 'leave_configuration'>('employee_information');
+    const tabOrder: Array<'employee_information' | 'work_information' | 'documents' | 'personal_information' | 'leave_configuration'> = [
         'employee_information',
         'work_information',
         'documents',
         'personal_information',
+        'leave_configuration',
     ];
     const tabLabel: Record<typeof tabOrder[number], string> = {
         employee_information: 'Employee Information',
         work_information: 'Employement',
         documents: 'Documents',
         personal_information: 'Personal Information',
+        leave_configuration: 'Leave Policy',
     };
 
     function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -991,6 +993,35 @@ export default function Create({
 
                                 </CardContent>
                             </Card>
+
+                            <Card className={tab === 'leave_configuration' ? '' : 'hidden'}>
+                                <CardHeader>
+                                    <CardTitle>Leave Policy</CardTitle>
+                                    <p className="text-sm text-muted-foreground">
+                                        Set the employee opening leave balance. Remaining balance is calculated automatically after leave approvals.
+                                    </p>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid gap-2 md:max-w-sm">
+                                        <Label htmlFor="leave_opening_balance">
+                                            Opening Balance (days)
+                                        </Label>
+                                        <Input
+                                            id="leave_opening_balance"
+                                            name="leave_opening_balance"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            defaultValue="0"
+                                            placeholder="0.00"
+                                        />
+                                        <InputError message={errors.leave_opening_balance} />
+                                        <p className="text-xs text-muted-foreground">
+                                            Example: 21.5 means 21.5 days available as opening balance.
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                         <Card>
                             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -1011,7 +1042,7 @@ export default function Create({
                                     >
                                         Previous
                                     </Button>
-                                    {tab !== 'personal_information' && (
+                                    {tab !== 'leave_configuration' && (
                                         <Button
                                             type="button"
                                             onClick={() => {
@@ -1024,7 +1055,7 @@ export default function Create({
                                             Next
                                         </Button>
                                     )}
-                                    {tab === 'personal_information' && (
+                                    {tab === 'leave_configuration' && (
                                         <Button disabled={processing} type="submit">
                                             Create Employee
                                         </Button>
