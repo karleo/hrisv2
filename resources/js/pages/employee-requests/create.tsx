@@ -144,8 +144,7 @@ export default function Create({
         employee_signature_data_url: '',
     });
 
-    const saveDraft = (e: React.FormEvent) => {
-        e.preventDefault();
+    const saveDraft = () => {
         post('/employee-requests');
     };
 
@@ -223,14 +222,31 @@ export default function Create({
                                 </p>
                             </div>
 
-                            <div className="min-w-[200px]">
-                                <Label className="text-sm font-medium">Request Code</Label>
-                                <Input
-                                    type="text"
-                                    readOnly
-                                    value="Auto-generated (PRLER-YYYY-####)"
-                                    className="mt-1.5 bg-muted text-muted-foreground"
-                                />
+                            <div className="flex flex-col gap-3 lg:items-end">
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        disabled={processing}
+                                        type="button"
+                                        onClick={saveDraft}
+                                    >
+                                        <Send className="mr-2 size-4" />
+                                        {processing ? 'Saving...' : 'Save'}
+                                    </Button>
+                                    <Link href={index()}>
+                                        <Button type="button" variant="outline">
+                                            Discard
+                                        </Button>
+                                    </Link>
+                                </div>
+                                <div className="min-w-[200px]">
+                                    <Label className="text-sm font-medium">Request Code</Label>
+                                    <Input
+                                        type="text"
+                                        readOnly
+                                        value="Auto-generated (PRLER-YYYY-####)"
+                                        className="mt-1.5 bg-muted text-muted-foreground"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -877,34 +893,6 @@ export default function Create({
                                         </CardContent>
                                     </Card>
 
-                                    {/* Actions Card */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="text-lg">Actions</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <Button
-                                                disabled={processing}
-                                                type="button"
-                                                className="w-full"
-                                                onClick={saveDraft}
-                                                size="lg"
-                                            >
-                                                <Send className="mr-2 size-4" />
-                                                {processing ? 'Saving...' : 'Save as draft'}
-                                            </Button>
-                                            <Link href={index()} className="block">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    className="w-full"
-                                                    size="lg"
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </Link>
-                                        </CardContent>
-                                    </Card>
                                 </div>
                             </div>
                         </div>

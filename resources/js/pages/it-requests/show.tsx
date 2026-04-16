@@ -1,5 +1,5 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, Printer, Send } from 'lucide-react';
+import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import {
@@ -15,6 +15,15 @@ import {
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
@@ -65,14 +74,20 @@ export default function Show({
     itRequest,
     signaturesUrl,
     submitUrl,
+    cancelUrl,
     decisionUrl,
     canDecide,
+    canCancel = false,
+    canEdit = false,
 }: {
     itRequest: ItRequest;
     signaturesUrl: string;
     submitUrl: string;
+    cancelUrl: string;
     decisionUrl: string;
     canDecide: boolean;
+    canCancel?: boolean;
+    canEdit?: boolean;
 }) {
     useRequestStatusPoll(['itRequest', 'canDecide']);
 
@@ -102,7 +117,7 @@ export default function Show({
                         <ArrowLeft className="size-4" />
                         Back to IT Requests
                     </Link>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2 [&_[data-slot=button]]:h-8">
                         {isDraft ? (
                             <Form
                                 action={submitUrl}
@@ -111,16 +126,59 @@ export default function Show({
                                 className="contents"
                             >
                                 {({ processing }) => (
-                                    <Button type="submit" disabled={processing}>
+                                    <Button type="submit" size="sm" disabled={processing}>
                                         <Send className="mr-2 size-4" />
                                         Submit request
                                     </Button>
                                 )}
                             </Form>
                         ) : null}
-                        <Button asChild>
+                        {canCancel ? (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button type="button" variant="destructive" size="sm">
+                                        <Ban className="mr-2 size-4" />
+                                        Cancel
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogTitle>Cancel IT request?</DialogTitle>
+                                    <DialogDescription>
+                                        Are you sure you want to cancel this IT request? This record will stay in the system.
+                                    </DialogDescription>
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button type="button" variant="secondary">
+                                                Keep request
+                                            </Button>
+                                        </DialogClose>
+                                        <Form
+                                            action={cancelUrl}
+                                            method="delete"
+                                            options={{ preserveScroll: true }}
+                                            className="contents"
+                                        >
+                                            {({ processing }) => (
+                                                <Button type="submit" variant="destructive" disabled={processing}>
+                                                    Cancel request
+                                                </Button>
+                                            )}
+                                        </Form>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        ) : null}
+                        {canEdit ? (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/it-requests/${itRequest.id}/edit`}>
+                                    <PenLine className="mr-2 size-4" />
+                                    Edit
+                                </Link>
+                            </Button>
+                        ) : null}
+                        <Button variant="outline" size="sm" asChild>
                             <Link href={`/it-requests/${itRequest.id}/print`}>
-                                <Printer className="size-4" />
+                                <Printer className="mr-2 size-4" />
                                 Print
                             </Link>
                         </Button>

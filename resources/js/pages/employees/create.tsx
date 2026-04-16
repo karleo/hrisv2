@@ -1,12 +1,13 @@
 import { Head, Link } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, Eye, ImagePlus, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,11 +58,13 @@ export default function Create({
     jobPositions,
     companyProfiles,
     workTimetables,
+    canViewActivityLogs = false,
 }: {
     departments: Department[];
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
     workTimetables: WorkTimetable[];
+    canViewActivityLogs?: boolean;
 }) {
     const photoInputRef = useRef<HTMLInputElement>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -1184,6 +1187,49 @@ export default function Create({
                                 ) : null}
                             </DialogContent>
                         </Dialog>
+                        {canViewActivityLogs ? (
+                            <Collapsible
+                                defaultOpen={false}
+                                className="overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-sm"
+                            >
+                                <CollapsibleTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="group flex w-full items-center justify-between gap-3 bg-gradient-to-r from-muted/20 via-card to-card px-5 py-4 text-left transition-colors hover:bg-muted/40"
+                                    >
+                                        <div className="inline-flex min-w-0 items-start gap-3">
+                                            <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
+                                                <History className="size-4" />
+                                            </span>
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-sm font-semibold tracking-tight">
+                                                        Activity Log
+                                                    </p>
+                                                    <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                                        0 entries
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Timeline of employee profile changes.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                    </button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="border-t border-border/70 px-5 pb-5 pt-4">
+                                        <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center">
+                                            <p className="text-sm font-medium">No activity captured yet</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Activity history will appear here once this employee is created and updated.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+                        ) : null}
                         </>
                     )}
                 </Form>

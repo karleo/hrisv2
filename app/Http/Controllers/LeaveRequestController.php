@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
 use App\Http\Requests\LeaveRequest\StoreLeaveRequestRequest;
 use App\Http\Requests\LeaveRequest\UpdateLeaveRequestRequest;
 use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestActivityLog;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
@@ -100,7 +103,7 @@ class LeaveRequestController extends Controller
         $applyFilters($leaveRequests);
 
         $leaveRequests = $leaveRequests
-            ->with(['employee', 'department'])
+            ->with(['employee.companyProfile:id,company_name', 'department'])
             ->orderByDesc('created_at')
             ->paginate(15)
             ->withQueryString();
@@ -125,17 +128,37 @@ class LeaveRequestController extends Controller
      */
     public function create(Request $request): Response
     {
+        $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
+        $employees = Employee::query()
+            ->with('department:id,name')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name', 'department_id', 'leave_opening_balance']);
+
+        $leaveBalanceByEmployeeId = $employees
+            ->mapWithKeys(fn (Employee $employee): array => [
+                (string) $employee->id => round($this->availableLeaveBalanceForEmployee($employee), 2),
+            ])
+            ->all();
+
         return Inertia::render('leave-requests/create', [
-            'employees' => Employee::query()
-                ->with('department:id,name')
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $employees
+                ->map(fn (Employee $employee): array => [
+                    'id' => $employee->id,
+                    'first_name' => $employee->first_name,
+                    'last_name' => $employee->last_name,
+                    'department_id' => $employee->department_id,
+                    'department' => $employee->department,
+                ])
+                ->values(),
+            'leaveBalanceByEmployeeId' => $leaveBalanceByEmployeeId,
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'leaveTypes' => $this->availableLeaveTypeNames(),
             'defaultEmployeeId' => $request->user()?->employee?->id,
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => [],
         ]);
     }
 
@@ -188,8 +211,10 @@ class LeaveRequestController extends Controller
      */
     public function show(LeaveRequest $leave_request): Response
     {
-        $this->assertCanView(request()->user(), $leave_request);
+        $actor = request()->user();
+        $this->assertCanView($actor, $leave_request);
         $leave_request->load(['employee', 'department', 'approvedByEmployee']);
+        $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
         $approvedBySignatureUrl = $this->publicStorageBrowserUrl($leave_request->approved_by_signature);
@@ -205,8 +230,13 @@ class LeaveRequestController extends Controller
                 ->get(['id', 'first_name', 'last_name']),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
+            'cancelUrl' => route('leave-requests.destroy', $leave_request, false),
             'decisionUrl' => route('leave-requests.decide', $leave_request, false),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
+            'canDecide' => $this->approvalScope->canDecide($actor, $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
+            'canCancel' => $this->canCancel($actor, $leave_request),
+            'canEdit' => $this->canEdit($actor, $leave_request),
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $canViewActivityLogs ? $this->activityLogsForLeaveRequest($leave_request) : [],
         ]);
     }
 
@@ -218,6 +248,30 @@ class LeaveRequestController extends Controller
         $this->assertCanModify(request()->user(), $leave_request);
         if (strtolower((string) $leave_request->status) !== 'draft') {
             return redirect()->back()->with('error', 'Only draft leave requests can be submitted.');
+        }
+
+        $employee = Employee::query()->find($leave_request->employee_id);
+        if ($employee === null) {
+            return redirect()->back()->with('error', 'Cannot submit: employee record is missing.');
+        }
+
+        $requestedDays = (float) ($leave_request->days ?? 0);
+        if ($requestedDays <= 0) {
+            return redirect()->back()->with('error', 'Cannot submit: leave request days must be set.');
+        }
+
+        if ($this->isPaidLeaveRequest($leave_request)) {
+            $availableRemaining = $this->availableLeaveBalanceForEmployee($employee);
+            if ($requestedDays > $availableRemaining) {
+                return redirect()->back()->with(
+                    'error',
+                    sprintf(
+                        'Cannot submit: requested %.2f day(s) exceeds available balance %.2f day(s).',
+                        $requestedDays,
+                        $availableRemaining
+                    )
+                );
+            }
         }
 
         $leave_request->update(['status' => 'submitted']);
@@ -258,32 +312,6 @@ class LeaveRequestController extends Controller
             return redirect()->back()->with('error', 'Please save your manager or HR signature before approving this request.');
         }
 
-        if ($validated['decision'] === 'approved') {
-            $employee = Employee::query()->find($leave_request->employee_id);
-            if ($employee === null) {
-                return redirect()->back()->with('error', 'Cannot approve: employee record is missing.');
-            }
-
-            $requestedDays = (float) ($leave_request->days ?? 0);
-            if ($requestedDays <= 0) {
-                return redirect()->back()->with('error', 'Cannot approve: leave request days must be set.');
-            }
-
-            if ($this->isPaidLeaveRequest($leave_request)) {
-                $availableRemaining = $this->availableLeaveBalanceForEmployee($employee);
-                if ($requestedDays > $availableRemaining) {
-                    return redirect()->back()->with(
-                        'error',
-                        sprintf(
-                            'Cannot approve: requested %.2f day(s) exceeds available balance %.2f day(s).',
-                            $requestedDays,
-                            $availableRemaining
-                        )
-                    );
-                }
-            }
-        }
-
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
         $leave_request->update([
@@ -319,9 +347,11 @@ class LeaveRequestController extends Controller
      */
     public function edit(LeaveRequest $leave_request): Response
     {
-        $this->assertCanModify(request()->user(), $leave_request);
-        $this->assertEditableByCurrentUser(request()->user(), $leave_request);
+        $actor = request()->user();
+        $this->assertCanModify($actor, $leave_request);
+        $this->assertEditableByCurrentUser($actor, $leave_request);
         $leave_request->load(['employee', 'department', 'approvedByEmployee']);
+        $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $this->publicStorageBrowserUrl($leave_request->employee_signature);
         $approvedBySignatureUrl = $this->publicStorageBrowserUrl($leave_request->approved_by_signature);
@@ -342,8 +372,12 @@ class LeaveRequestController extends Controller
             'leaveTypes' => $this->availableLeaveTypeNames(),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
+            'cancelUrl' => route('leave-requests.destroy', $leave_request, false),
             'decisionUrl' => route('leave-requests.decide', $leave_request, false),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
+            'canDecide' => $this->approvalScope->canDecide($actor, $leave_request->employee_id, $leave_request->department_id, (string) $leave_request->status),
+            'canCancel' => $this->canCancel($actor, $leave_request),
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $canViewActivityLogs ? $this->activityLogsForLeaveRequest($leave_request) : [],
         ]);
     }
 
@@ -382,26 +416,40 @@ class LeaveRequestController extends Controller
             'status' => $status,
         ]);
 
-        return to_route('leave-requests.index');
+        return to_route('leave-requests.show', $leave_request)
+            ->with('success', 'Leave request updated successfully.');
     }
 
     /**
-     * Remove the specified leave request.
+     * Cancel the specified leave request.
      */
     public function destroy(LeaveRequest $leave_request): RedirectResponse
     {
-        $this->assertCanModify(request()->user(), $leave_request);
-        $this->assertEditableByCurrentUser(request()->user(), $leave_request);
-        if ($leave_request->employee_signature) {
-            Storage::disk('public')->delete($leave_request->employee_signature);
-        }
-        if ($leave_request->approved_by_signature) {
-            Storage::disk('public')->delete($leave_request->approved_by_signature);
+        $actor = request()->user();
+        $status = strtolower((string) $leave_request->status);
+
+        if ($status === 'draft') {
+            $this->assertCanModify($actor, $leave_request);
+            $this->assertEditableByCurrentUser($actor, $leave_request);
+        } elseif (in_array($status, ['submitted', 'approved'], true)) {
+            if ($actor === null || ! $actor->isAdministrator()) {
+                abort(403);
+            }
+        } else {
+            return redirect()->back()->with('error', 'Only draft, submitted, or approved requests can be cancelled.');
         }
 
-        $leave_request->delete();
+        if ($status === 'cancelled') {
+            return redirect()->back()->with('success', 'Leave request is already cancelled.');
+        }
 
-        return to_route('leave-requests.index');
+        $leave_request->update([
+            'status' => 'cancelled',
+            'decision_remarks' => $leave_request->decision_remarks,
+            'decided_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Leave request cancelled successfully.');
     }
 
     /**
@@ -420,6 +468,16 @@ class LeaveRequestController extends Controller
         $approvedByName = '';
         if ($leave_request->approvedByEmployee) {
             $approvedByName = trim($leave_request->approvedByEmployee->first_name.' '.$leave_request->approvedByEmployee->last_name);
+        }
+        if ($approvedByName === '' && strtolower((string) $leave_request->status) === 'approved') {
+            $approvalStatusLog = LeaveRequestActivityLog::query()
+                ->where('leave_request_id', $leave_request->id)
+                ->where('field_name', 'status')
+                ->where('new_value', 'approved')
+                ->orderByDesc('created_at')
+                ->first(['actor_name']);
+
+            $approvedByName = trim((string) ($approvalStatusLog?->actor_name ?? ''));
         }
 
         return Inertia::render('leave-requests/print', [
@@ -616,6 +674,33 @@ class LeaveRequestController extends Controller
         return '/leave-requests/'.$key.'/signatures';
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function activityLogsForLeaveRequest(LeaveRequest $leaveRequest): array
+    {
+        return $leaveRequest->activityLogs()
+            ->with('actor:id,name')
+            ->limit(200)
+            ->get()
+            ->map(function ($log): array {
+                $oldValue = is_string($log->old_value) ? trim($log->old_value) : null;
+                $newValue = is_string($log->new_value) ? trim($log->new_value) : null;
+
+                return [
+                    'id' => (int) $log->id,
+                    'action' => (string) $log->action,
+                    'field' => (string) $log->field_name,
+                    'old_value' => $oldValue === '' ? null : $oldValue,
+                    'new_value' => $newValue === '' ? null : $newValue,
+                    'performed_by' => (string) ($log->actor?->name ?? $log->actor_name ?? 'System'),
+                    'performed_at' => $log->created_at?->toIso8601String(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     private function storeSignatureFromDataUrl(?string $dataUrl, string $directory): ?string
     {
         if ($dataUrl === null || $dataUrl === '') {
@@ -653,14 +738,45 @@ class LeaveRequestController extends Controller
 
     private function assertEditableByCurrentUser(?User $user, LeaveRequest $leaveRequest): void
     {
-        // HR/Admin can still perform corrections when needed.
-        if ($user !== null && $this->approvalScope->isAdministratorOrHr($user)) {
-            return;
+        if ($user === null) {
+            abort(403);
         }
 
         if (strtolower((string) $leaveRequest->status) !== 'draft') {
             abort(403);
         }
+    }
+
+    private function canCancel(?User $user, LeaveRequest $leaveRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        $status = strtolower((string) $leaveRequest->status);
+        if ($status === 'cancelled') {
+            return false;
+        }
+
+        if ($status === 'draft') {
+            return $this->approvalScope->canModify($user, $leaveRequest->employee_id, $leaveRequest->department_id, (string) $leaveRequest->status);
+        }
+
+        if (in_array($status, ['submitted', 'approved'], true)) {
+            return $user->isAdministrator();
+        }
+
+        return false;
+    }
+
+    private function canEdit(?User $user, LeaveRequest $leaveRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return strtolower((string) $leaveRequest->status) === 'draft'
+            && $this->approvalScope->canModify($user, $leaveRequest->employee_id, $leaveRequest->department_id, (string) $leaveRequest->status);
     }
 
     /**

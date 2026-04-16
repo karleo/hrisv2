@@ -83,13 +83,19 @@ class HandleInertiaRequests extends Middleware
 
         /** @var RequestApprovalScope $approvalScope */
         $approvalScope = app(RequestApprovalScope::class);
+        $isDepartmentManager = $approvalScope->managedDepartmentIds($user) !== [];
+
+        // Department managers should see Leave Calendar by default.
+        if ($isDepartmentManager) {
+            return true;
+        }
 
         if (! $user->hasModuleAbility(PermissionModule::LeaveCalendar, ModuleAbility::View)) {
             return false;
         }
 
         return $approvalScope->isAdministratorOrHr($user)
-            || $approvalScope->managedDepartmentIds($user) !== [];
+            || $user->employee()->exists();
     }
 
     private function hasMyProfileAccess(?User $user): bool

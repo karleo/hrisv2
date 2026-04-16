@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Form, Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, Ban } from 'lucide-react';
 import ItRequestController from '@/actions/App/Http/Controllers/ItRequestController';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
@@ -10,6 +10,15 @@ import {
 } from '@/components/request-employee-signature-card';
 import { normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
@@ -62,6 +71,8 @@ export default function Edit({
     hardware,
     signaturesUrl,
     canDecide,
+    cancelUrl,
+    canCancel = false,
 }: {
     itRequest: ItRequest;
     employees: EmployeeOption[];
@@ -70,6 +81,8 @@ export default function Edit({
     hardware: HardwareOption[];
     signaturesUrl: string;
     canDecide: boolean;
+    cancelUrl: string;
+    canCancel?: boolean;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Requests', href: index().url },
@@ -95,6 +108,12 @@ export default function Edit({
     const selectedEmployee = employees.find((employee) => employee.id === data.employee_id);
     const statusNorm = normalizeRequestStatus(data.status || itRequest.status);
 
+    const saveChanges = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((payload) => ({ ...payload, status: data.status || itRequest.status }));
+        put(ItRequestController.update.put(itRequest.id).url);
+    };
+
     const submitAs = (status: 'draft' | 'submitted') => (e: React.FormEvent) => {
         e.preventDefault();
         transform((payload) => ({ ...payload, status }));
@@ -118,6 +137,48 @@ export default function Edit({
                     title={`Edit IT Request #${itRequest.id}`}
                     description="Update the IT request details and employee signature."
                 />
+                <div className="flex justify-end">
+                    <Button type="button" onClick={saveChanges} disabled={processing}>
+                        Save changes
+                    </Button>
+                </div>
+                {canCancel ? (
+                    <div className="flex justify-end">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button type="button" variant="destructive">
+                                    <Ban className="mr-2 size-4" />
+                                    Cancel request
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogTitle>Cancel IT request?</DialogTitle>
+                                <DialogDescription>
+                                    Are you sure you want to cancel this IT request? This record will stay in the system.
+                                </DialogDescription>
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="secondary">
+                                            Keep request
+                                        </Button>
+                                    </DialogClose>
+                                    <Form
+                                        action={cancelUrl}
+                                        method="delete"
+                                        options={{ preserveScroll: true }}
+                                        className="contents"
+                                    >
+                                        {({ processing: cancelling }) => (
+                                            <Button type="submit" variant="destructive" disabled={cancelling}>
+                                                Cancel request
+                                            </Button>
+                                        )}
+                                    </Form>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                ) : null}
 
                 <FormValidationInlineAlert errors={errors as Record<string, unknown>} />
 
@@ -272,14 +333,6 @@ export default function Edit({
                     />
 
                     <div className="flex gap-4">
-                        <Button
-                            disabled={processing}
-                            type="button"
-                            variant="outline"
-                            onClick={submitAs('draft')}
-                        >
-                            Save (Draft)
-                        </Button>
                         <Button
                             disabled={processing}
                             type="button"

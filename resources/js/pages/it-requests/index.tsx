@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Eye,
     FileText,
@@ -6,7 +6,6 @@ import {
     Pencil,
     Plus,
     Printer,
-    Trash2,
 } from 'lucide-react';
 import ItRequestController from '@/actions/App/Http/Controllers/ItRequestController';
 import { DataTablePagination } from '@/components/data-table-pagination';
@@ -17,15 +16,6 @@ import {
     Card,
     CardContent,
 } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { create, index } from '@/routes/it-requests';
@@ -43,6 +33,8 @@ type Employee = {
     id: number;
     first_name: string;
     last_name: string;
+    company_profile?: { company_name: string };
+    companyProfile?: { company_name: string };
 };
 
 type Department = {
@@ -85,7 +77,6 @@ export default function Index({
         modulePermissions?: ModulePermissionsMap;
     };
     const canUpdate = Boolean(modulePermissions?.it_requests?.can_update);
-    const canDelete = Boolean(modulePermissions?.it_requests?.can_delete);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -151,6 +142,9 @@ export default function Index({
                                             <th className="px-4 py-3.5 text-left font-medium">
                                                 Department
                                             </th>
+                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
+                                                Company
+                                            </th>
                                             <th className="px-4 py-3.5 text-left font-medium">
                                                 Status
                                             </th>
@@ -163,7 +157,7 @@ export default function Index({
                                         {requestList.length === 0 ? (
                                             <tr>
                                                 <td
-                                                    colSpan={4}
+                                                    colSpan={5}
                                                     className="px-4 py-16 text-center"
                                                 >
                                                     <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
@@ -199,6 +193,11 @@ export default function Index({
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         {request.department?.name ?? '—'}
+                                                    </td>
+                                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                                        {request.employee?.company_profile?.company_name
+                                                            ?? request.employee?.companyProfile?.company_name
+                                                            ?? '—'}
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <RequestStatusBadge
@@ -245,54 +244,6 @@ export default function Index({
                                                                         <Pencil className="size-4" />
                                                                     </Button>
                                                                 </Link>
-                                                            )}
-                                                            {canDelete && (
-                                                                <Dialog>
-                                                                    <DialogTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="size-8"
-                                                                            aria-label="Delete"
-                                                                        >
-                                                                            <Trash2 className="size-4 text-destructive" />
-                                                                        </Button>
-                                                                    </DialogTrigger>
-                                                                    <DialogContent>
-                                                                        <DialogTitle>
-                                                                            Delete IT request?
-                                                                        </DialogTitle>
-                                                                        <DialogDescription>
-                                                                            Are you sure you want to delete this IT request
-                                                                            for{' '}
-                                                                            <strong>
-                                                                                {request.employee
-                                                                                    ? `${request.employee.first_name} ${request.employee.last_name}`
-                                                                                    : 'this employee'}
-                                                                            </strong>
-                                                                            ? This action cannot be undone.
-                                                                        </DialogDescription>
-                                                                        <DialogFooter>
-                                                                            <DialogClose asChild>
-                                                                                <Button variant="secondary">
-                                                                                    Cancel
-                                                                                </Button>
-                                                                            </DialogClose>
-                                                                            <Button
-                                                                                variant="destructive"
-                                                                                onClick={() =>
-                                                                                    router.delete(
-                                                                                        ItRequestController.destroy.url(
-                                                                                            request.id,
-                                                                                        ),
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                Delete
-                                                                            </Button>
-                                                                        </DialogFooter>
-                                                                    </DialogContent>
-                                                                </Dialog>
                                                             )}
                                                         </div>
                                                     </td>

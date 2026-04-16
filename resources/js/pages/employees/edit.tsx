@@ -1,11 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, Download, Eye, ImagePlus, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Download, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +61,16 @@ type LeaveConfig = {
     approvedDaysUsed: number;
     liveRemainingBalance: number;
     usage: LeaveUsageLineItem[];
+};
+
+type ActivityLogEntry = {
+    id: number;
+    action: 'created' | 'updated' | 'deleted' | string;
+    field: string;
+    old_value: string | null;
+    new_value: string | null;
+    performed_by: string;
+    performed_at: string | null;
 };
 
 const employeeStatuses = [
@@ -148,6 +159,8 @@ export default function Edit({
     jobPositions,
     companyProfiles,
     workTimetables,
+    activityLogs,
+    canViewActivityLogs = false,
     leaveConfig,
     employeeLoginActive = null,
     viewMode = false,
@@ -157,6 +170,8 @@ export default function Edit({
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
     workTimetables: WorkTimetable[];
+    activityLogs: ActivityLogEntry[];
+    canViewActivityLogs?: boolean;
     leaveConfig: LeaveConfig;
     employeeLoginActive?: boolean | null;
     viewMode?: boolean;
@@ -186,6 +201,95 @@ export default function Edit({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
+    const formatAuditDateLabel = (value: string | null): string => {
+        if (!value) {
+            return 'Unknown date';
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+        }).format(parsed);
+    };
+    const formatAuditTimeLabel = (value: string | null): string => {
+        if (!value) {
+            return '—';
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+
+        return new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        })
+            .format(parsed)
+            .toLowerCase();
+    };
+    const auditDayKey = (value: string | null): string => {
+        if (!value) {
+            return 'unknown';
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return 'unknown';
+        }
+
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, '0');
+        const day = String(parsed.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+    const formatAuditFieldName = (value: string): string =>
+        value
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+    const formatAuditValue = (value: string | null): string =>
+        value === null || value.trim() === '' ? '—' : value;
+    const getAuditActionLabelClass = (action: string): string => {
+        switch (action) {
+            case 'created':
+                return 'text-emerald-600 dark:text-emerald-300';
+            case 'deleted':
+                return 'text-rose-600 dark:text-rose-300';
+            default:
+                return 'text-blue-600 dark:text-blue-300';
+        }
+    };
+    const getActorInitials = (actor: string): string => {
+        const normalized = actor.trim();
+        if (normalized === '') {
+            return 'SY';
+        }
+
+        const parts = normalized.split(/\s+/).filter(Boolean);
+        if (parts.length === 1) {
+            return parts[0].slice(0, 2).toUpperCase();
+        }
+
+        return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+    };
+    const activityTimeline = Object.entries(
+        activityLogs.reduce<Record<string, ActivityLogEntry[]>>((groups, log) => {
+            const key = auditDayKey(log.performed_at);
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(log);
+
+            return groups;
+        }, {})
+    ).sort(([a], [b]) => (a < b ? 1 : -1));
     const page = usePage();
     const flash = (page.props as { flash?: { success?: string; error?: string } }).flash;
     const query = (page.props as { ziggy?: { query?: { tab?: string } } }).ziggy?.query;
@@ -1650,6 +1754,102 @@ export default function Edit({
                             </>
                         )}
                     </Form>
+                ) : null}
+
+                {canViewActivityLogs ? (
+                    <Collapsible
+                        defaultOpen={false}
+                        className="overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-sm"
+                    >
+                        <CollapsibleTrigger asChild>
+                            <button
+                                type="button"
+                                className="group flex w-full items-center justify-between gap-3 bg-gradient-to-r from-muted/20 via-card to-card px-5 py-4 text-left transition-colors hover:bg-muted/40"
+                            >
+                                <div className="inline-flex min-w-0 items-start gap-3">
+                                    <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
+                                        <History className="size-4" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-sm font-semibold tracking-tight">
+                                                Activity Log
+                                            </p>
+                                            <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                                {activityLogs.length} entries
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            View employee record changes by HR/Admin users.
+                                        </p>
+                                    </div>
+                                </div>
+                                <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="space-y-4 border-t border-border/70 px-5 pb-5 pt-4">
+                                {activityLogs.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center">
+                                        <p className="text-sm font-medium">No activity captured yet</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Changes will appear here automatically once employee details are updated.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="max-h-[30rem] space-y-6 overflow-auto pr-1">
+                                        {activityTimeline.map(([day, entries]) => (
+                                            <div key={day} className="space-y-3">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                                    {formatAuditDateLabel(entries[0]?.performed_at ?? null)}
+                                                </p>
+                                                <div className="space-y-3">
+                                                    {entries.map((log) => (
+                                                        <div key={log.id} className="relative pl-8">
+                                                            <span className="absolute bottom-[-18px] left-2.5 top-5 border-l border-dashed border-border/80" />
+                                                            <span className="absolute left-0 top-2.5 inline-flex size-5 items-center justify-center rounded-full border-2 border-background bg-primary/10 text-[10px] font-semibold text-primary">
+                                                                •
+                                                            </span>
+                                                            <div className="rounded-xl border border-border/70 bg-background px-4 py-3 shadow-sm transition-colors hover:bg-muted/20">
+                                                                <div className="flex items-start justify-between gap-4">
+                                                                    <div className="min-w-0">
+                                                                        <div className="flex min-w-0 items-center gap-2">
+                                                                            <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[11px] font-semibold text-primary">
+                                                                                {getActorInitials(log.performed_by || 'System')}
+                                                                            </span>
+                                                                            <p className="min-w-0 truncate text-sm">
+                                                                                <span className="font-semibold">{log.performed_by || 'System'}</span>{' '}
+                                                                                <span className={`${getAuditActionLabelClass(log.action)} font-semibold capitalize`}>
+                                                                                    {log.action}
+                                                                                </span>{' '}
+                                                                                <span className="text-muted-foreground">field</span>{' '}
+                                                                                <span className="font-medium">{formatAuditFieldName(log.field)}</span>
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="mt-2 ml-10 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                                            <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-0.5">
+                                                                                from: {formatAuditValue(log.old_value)}
+                                                                            </span>
+                                                                            <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-0.5">
+                                                                                to: {formatAuditValue(log.new_value)}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="shrink-0 text-xs text-muted-foreground">
+                                                                        {formatAuditTimeLabel(log.performed_at)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                 ) : null}
             </div>
 

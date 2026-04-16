@@ -22,6 +22,7 @@ enum PermissionModule: string
     case LeaveCalendar = 'leave_calendar';
     case TimeAttendance = 'time_attendance';
     case WorkTimetables = 'work_timetables';
+    case ActivityLogs = 'activity_logs';
 
     public function label(): string
     {
@@ -44,6 +45,7 @@ enum PermissionModule: string
             self::LeaveCalendar => 'Leave calendar',
             self::TimeAttendance => 'Time & attendance',
             self::WorkTimetables => 'Work timetables',
+            self::ActivityLogs => 'Activity logs',
         };
     }
 }

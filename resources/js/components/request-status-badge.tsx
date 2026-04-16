@@ -24,6 +24,9 @@ export function requestStatusBadgeColors(status: string | null | undefined): str
     if (n === 'rejected') {
         return 'border-rose-200/80 bg-rose-100 text-rose-900 dark:border-rose-800/60 dark:bg-rose-950/50 dark:text-rose-200';
     }
+    if (n === 'cancelled') {
+        return 'border-slate-300/80 bg-slate-100 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200';
+    }
     return 'border-muted-foreground/20 bg-muted text-muted-foreground';
 }
 

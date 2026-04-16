@@ -34,7 +34,7 @@ class EmployeeRequestController extends Controller
     public function index(Request $request): Response
     {
         $visibleRequests = EmployeeRequest::query()
-            ->with(['employee', 'department', 'jobPosition'])
+            ->with(['employee.companyProfile:id,company_name', 'department', 'jobPosition'])
             ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = (string) $request->input('search');
@@ -184,7 +184,8 @@ class EmployeeRequestController extends Controller
      */
     public function show(EmployeeRequest $employee_request): Response
     {
-        $this->assertCanView(request()->user(), $employee_request);
+        $actor = request()->user();
+        $this->assertCanView($actor, $employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $employee_request->employee_signature
@@ -209,8 +210,11 @@ class EmployeeRequestController extends Controller
                 ->get(['id', 'first_name', 'last_name']),
             'signaturesUrl' => $this->employeeRequestSignaturesPostUrl($employee_request),
             'submitUrl' => route('employee-requests.submit', $employee_request, false),
+            'cancelUrl' => route('employee-requests.destroy', $employee_request, false),
             'decisionUrl' => route('employee-requests.decide', $employee_request, false),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
+            'canDecide' => $this->approvalScope->canDecide($actor, $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
+            'canCancel' => $this->canCancel($actor, $employee_request),
+            'canEdit' => $this->canEdit($actor, $employee_request),
         ]);
     }
 
@@ -297,7 +301,9 @@ class EmployeeRequestController extends Controller
      */
     public function edit(EmployeeRequest $employee_request): Response
     {
-        $this->assertCanModify(request()->user(), $employee_request);
+        $actor = request()->user();
+        $this->assertCanModify($actor, $employee_request);
+        $this->assertEditableStatus($employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $employee_request->employee_signature
@@ -327,7 +333,9 @@ class EmployeeRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'signaturesUrl' => $this->employeeRequestSignaturesPostUrl($employee_request),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
+            'cancelUrl' => route('employee-requests.destroy', $employee_request, false),
+            'canDecide' => $this->approvalScope->canDecide($actor, $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
+            'canCancel' => $this->canCancel($actor, $employee_request),
         ]);
     }
 
@@ -337,6 +345,7 @@ class EmployeeRequestController extends Controller
     public function update(UpdateEmployeeRequestRequest $request, EmployeeRequest $employee_request): RedirectResponse
     {
         $this->assertCanModify($request->user(), $employee_request);
+        $this->assertEditableStatus($employee_request);
         $data = $request->validated();
 
         $status = $data['status'] ?? $employee_request->status;
@@ -400,27 +409,33 @@ class EmployeeRequestController extends Controller
     }
 
     /**
-     * Remove the specified employee request.
+     * Cancel the specified employee request.
      */
     public function destroy(EmployeeRequest $employee_request): RedirectResponse
     {
-        $this->assertCanModify(request()->user(), $employee_request);
-        if ($employee_request->employee_signature) {
-            Storage::disk('public')->delete($employee_request->employee_signature);
-        }
-        if ($employee_request->approved_by_signature) {
-            Storage::disk('public')->delete($employee_request->approved_by_signature);
-        }
-        if ($employee_request->dept_head_signature) {
-            Storage::disk('public')->delete($employee_request->dept_head_signature);
-        }
-        if ($employee_request->ceo_signature) {
-            Storage::disk('public')->delete($employee_request->ceo_signature);
+        $actor = request()->user();
+        $status = strtolower((string) $employee_request->status);
+
+        if ($status === 'draft') {
+            $this->assertCanModify($actor, $employee_request);
+        } elseif (in_array($status, ['submitted', 'approved'], true)) {
+            if ($actor === null || ! $actor->isAdministrator()) {
+                abort(403);
+            }
+        } else {
+            return redirect()->back()->with('error', 'Only draft, submitted, or approved requests can be cancelled.');
         }
 
-        $employee_request->delete();
+        if ($status === 'cancelled') {
+            return redirect()->back()->with('success', 'Employee request is already cancelled.');
+        }
 
-        return to_route('employee-requests.index');
+        $employee_request->update([
+            'status' => 'cancelled',
+            'decided_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Employee request cancelled successfully.');
     }
 
     /**
@@ -544,6 +559,45 @@ class EmployeeRequestController extends Controller
     private function assertCanModify(?User $user, EmployeeRequest $employeeRequest): void
     {
         if (! $this->approvalScope->canModify($user, $employeeRequest->employee_id, $employeeRequest->department_id, (string) $employeeRequest->status)) {
+            abort(403);
+        }
+    }
+
+    private function canCancel(?User $user, EmployeeRequest $employeeRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        $status = strtolower((string) $employeeRequest->status);
+        if ($status === 'cancelled') {
+            return false;
+        }
+
+        if ($status === 'draft') {
+            return $this->approvalScope->canModify($user, $employeeRequest->employee_id, $employeeRequest->department_id, (string) $employeeRequest->status);
+        }
+
+        if (in_array($status, ['submitted', 'approved'], true)) {
+            return $user->isAdministrator();
+        }
+
+        return false;
+    }
+
+    private function canEdit(?User $user, EmployeeRequest $employeeRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return strtolower((string) $employeeRequest->status) === 'draft'
+            && $this->approvalScope->canModify($user, $employeeRequest->employee_id, $employeeRequest->department_id, (string) $employeeRequest->status);
+    }
+
+    private function assertEditableStatus(EmployeeRequest $employeeRequest): void
+    {
+        if (strtolower((string) $employeeRequest->status) !== 'draft') {
             abort(403);
         }
     }

@@ -8,7 +8,6 @@ import {
     Pencil,
     Plus,
     Send,
-    Trash2,
     XCircle,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -19,15 +18,6 @@ import { RequestStatusBadge } from '@/components/request-status-badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import {
     Select,
     SelectContent,
@@ -42,6 +32,7 @@ import type { ModulePermissionsMap } from '@/types/permissions';
 
 type Employee = { id: number; first_name: string; last_name: string };
 type Department = { id: number; name: string };
+type CompanyProfile = { company_name: string };
 type LeaveRequest = {
     id: number;
     code: string;
@@ -51,7 +42,11 @@ type LeaveRequest = {
     period_from: string | null;
     period_to: string | null;
     days: number | null;
-    employee?: Employee & { department?: Department };
+    employee?: Employee & {
+        department?: Department;
+        companyProfile?: CompanyProfile;
+        company_profile?: CompanyProfile;
+    };
     department?: Department;
 };
 
@@ -188,7 +183,6 @@ export default function LeaveRequestsIndex({
         modulePermissions?: ModulePermissionsMap;
     };
     const canUpdate = Boolean(modulePermissions?.leave_requests?.can_update);
-    const canDelete = Boolean(modulePermissions?.leave_requests?.can_delete);
 
     const clearAllFilters = () => {
         router.get(LeaveRequestController.index.url(), { page: 1 }, {
@@ -414,6 +408,9 @@ export default function LeaveRequestsIndex({
                                                 Department
                                             </th>
                                             <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
+                                                Company
+                                            </th>
+                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
                                                 Period
                                             </th>
                                             <th className="hidden px-4 py-3.5 text-left font-medium xl:table-cell">
@@ -426,7 +423,7 @@ export default function LeaveRequestsIndex({
                                     <tbody>
                                         {items.length === 0 ? (
                                             <tr>
-                                                <td colSpan={7} className="px-4 py-16 text-center">
+                                                <td colSpan={8} className="px-4 py-16 text-center">
                                                     <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
                                                         <div className="flex size-14 items-center justify-center rounded-full bg-muted">
                                                             <CalendarDays className="size-7 text-muted-foreground" />
@@ -453,8 +450,10 @@ export default function LeaveRequestsIndex({
                                                     key={lr.id}
                                                     className="border-b transition-colors hover:bg-muted/30 last:border-0"
                                                 >
-                                                    <td className="px-4 py-3 font-mono text-xs font-medium sm:text-sm">
-                                                        {lr.code}
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-flex rounded-md border border-border/70 bg-muted/30 px-2 py-1 font-mono text-[12px] font-semibold tracking-wide text-foreground sm:text-[13px]">
+                                                            {lr.code}
+                                                        </span>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
@@ -477,6 +476,11 @@ export default function LeaveRequestsIndex({
                                                     </td>
                                                     <td className="hidden px-4 py-3 md:table-cell">
                                                         {lr.department?.name ?? '—'}
+                                                    </td>
+                                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                                        {lr.employee?.company_profile?.company_name
+                                                            ?? lr.employee?.companyProfile?.company_name
+                                                            ?? '—'}
                                                     </td>
                                                     <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                                                         {lr.period_from && lr.period_to
@@ -502,7 +506,7 @@ export default function LeaveRequestsIndex({
                                                                     <Eye className="size-4" />
                                                                 </Button>
                                                             </Link>
-                                                            {canUpdate && (
+                                                            {canUpdate && lr.status === 'draft' && (
                                                                 <Link
                                                                     href={LeaveRequestController.edit.url(lr.id)}
                                                                     aria-label="Edit"
@@ -511,48 +515,6 @@ export default function LeaveRequestsIndex({
                                                                         <Pencil className="size-4" />
                                                                     </Button>
                                                                 </Link>
-                                                            )}
-                                                            {canDelete && (
-                                                                <Dialog>
-                                                                    <DialogTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="size-8"
-                                                                            aria-label="Delete"
-                                                                        >
-                                                                            <Trash2 className="size-4 text-destructive" />
-                                                                        </Button>
-                                                                    </DialogTrigger>
-                                                                    <DialogContent>
-                                                                        <DialogTitle>Delete leave request?</DialogTitle>
-                                                                        <DialogDescription>
-                                                                            This will permanently remove{' '}
-                                                                            <strong>{lr.code}</strong>
-                                                                            {lr.employee
-                                                                                ? ` for ${lr.employee.first_name} ${lr.employee.last_name}`
-                                                                                : ''}
-                                                                            . This cannot be undone.
-                                                                        </DialogDescription>
-                                                                        <DialogFooter>
-                                                                            <DialogClose asChild>
-                                                                                <Button variant="secondary">Cancel</Button>
-                                                                            </DialogClose>
-                                                                            <Button
-                                                                                variant="destructive"
-                                                                                onClick={() =>
-                                                                                    router.delete(
-                                                                                        LeaveRequestController.destroy.url(
-                                                                                            lr.id,
-                                                                                        ),
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                Delete
-                                                                            </Button>
-                                                                        </DialogFooter>
-                                                                    </DialogContent>
-                                                                </Dialog>
                                                             )}
                                                         </div>
                                                     </td>

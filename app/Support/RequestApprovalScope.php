@@ -158,8 +158,12 @@ class RequestApprovalScope
 
         return in_array($slug, ['hr', 'human_resources', 'human-resources'], true)
             || str_contains($slug, 'human-resource')
+            || str_contains($slug, 'ceo')
+            || str_contains($slug, 'chief-executive')
             || str_contains($name, 'hr')
-            || str_contains($name, 'human resource');
+            || str_contains($name, 'human resource')
+            || str_contains($name, 'chief executive officer')
+            || $name === 'ceo';
     }
 
     private function isManagerForDepartment(User $user, int $departmentId): bool

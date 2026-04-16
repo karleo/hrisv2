@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @property int $id
@@ -38,6 +39,14 @@ class Employee extends Model
 {
     /** @use HasFactory<\Database\Factories\EmployeeFactory> */
     use HasFactory;
+
+    /**
+     * @var list<string>
+     */
+    private const AUDIT_IGNORE_FIELDS = [
+        'created_at',
+        'updated_at',
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -89,6 +98,11 @@ class Employee extends Model
     public function managedDepartments(): HasMany
     {
         return $this->hasMany(Department::class, 'manager_employee_id');
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(EmployeeActivityLog::class)->orderByDesc('created_at');
     }
 
     public function documents(): HasMany
@@ -153,5 +167,126 @@ class Employee extends Model
         $weekday = (int) Carbon::parse($at)->timezone(config('app.timezone'))->format('N');
 
         return $this->workTimetable->days->firstWhere('weekday', $weekday);
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (self $employee): void {
+            $employee->recordAuditEntries(
+                EmployeeActivityLog::ACTION_CREATED,
+                $employee->auditLoggableValues(),
+                []
+            );
+        });
+
+        static::updated(function (self $employee): void {
+            $changes = $employee->getChanges();
+            unset($changes['updated_at']);
+            if ($changes === []) {
+                return;
+            }
+
+            $oldValues = [];
+            foreach ($changes as $field => $_value) {
+                $oldValues[$field] = $employee->getOriginal($field);
+            }
+
+            $employee->recordAuditEntries(
+                EmployeeActivityLog::ACTION_UPDATED,
+                $changes,
+                $oldValues
+            );
+        });
+
+        static::deleted(function (self $employee): void {
+            $employee->recordAuditEntries(
+                EmployeeActivityLog::ACTION_DELETED,
+                [],
+                $employee->auditLoggableValues()
+            );
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function auditLoggableValues(): array
+    {
+        $values = [];
+        foreach ($this->getFillable() as $field) {
+            if (in_array($field, self::AUDIT_IGNORE_FIELDS, true)) {
+                continue;
+            }
+
+            $values[$field] = $this->getAttribute($field);
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param  array<string, mixed>  $newValues
+     * @param  array<string, mixed>  $oldValues
+     */
+    private function recordAuditEntries(string $action, array $newValues, array $oldValues): void
+    {
+        $actor = Auth::user();
+        $actorId = $actor?->id;
+        $actorName = $actor?->name ?? $actor?->email ?? 'System';
+
+        $fields = array_values(array_unique(array_merge(array_keys($newValues), array_keys($oldValues))));
+        if ($fields === []) {
+            return;
+        }
+
+        $rows = [];
+        $now = now();
+        foreach ($fields as $field) {
+            if (in_array($field, self::AUDIT_IGNORE_FIELDS, true)) {
+                continue;
+            }
+
+            $rows[] = [
+                'employee_id' => $this->id,
+                'actor_user_id' => $actorId,
+                'actor_name' => $actorName,
+                'action' => $action,
+                'field_name' => $field,
+                'old_value' => self::normalizeAuditValue($oldValues[$field] ?? null),
+                'new_value' => self::normalizeAuditValue($newValues[$field] ?? null),
+                'created_at' => $now,
+            ];
+        }
+
+        if ($rows !== []) {
+            EmployeeActivityLog::query()->insert($rows);
+        }
+    }
+
+    private static function normalizeAuditValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->toDateTimeString();
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_array($value)) {
+            $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            return $encoded === false ? '[unserializable]' : $encoded;
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return '[unserializable]';
     }
 }

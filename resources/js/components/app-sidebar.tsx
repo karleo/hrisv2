@@ -207,15 +207,7 @@ export function AppSidebar() {
             }
 
             if (auth?.has_my_profile_access) {
-                return [
-                    ...withLeaveCalendar,
-                    {
-                        title: 'Profile',
-                        description: 'Your employee information',
-                        href: '/my-profile',
-                        icon: UserRound,
-                    },
-                ] as NavItem[];
+                return withLeaveCalendar;
             }
 
             return withLeaveCalendar;
@@ -224,11 +216,19 @@ export function AppSidebar() {
     );
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        <Sidebar
+            collapsible="icon"
+            variant="inset"
+            className="[&_[data-sidebar=sidebar]]:bg-gradient-to-b [&_[data-sidebar=sidebar]]:from-[#363b78] [&_[data-sidebar=sidebar]]:via-[#2b2f66] [&_[data-sidebar=sidebar]]:to-[#1b1f47]"
+        >
+            <SidebarHeader className="border-b border-sidebar-border/70 p-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            className="h-12 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-2.5 shadow-sm hover:border-sidebar-border hover:bg-sidebar-accent/60"
+                        >
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
@@ -237,7 +237,10 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="py-2 pl-1.5 pr-0">
+                <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/55 group-data-[collapsible=icon]:hidden">
+                    Navigation
+                </p>
                 <NavMain items={mainNavItems} />
             </SidebarContent>
         </Sidebar>

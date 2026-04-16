@@ -1,6 +1,7 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { Calendar, ChevronLeft, ClipboardCheck, FileText, Save, Send, User } from 'lucide-react';
+import { Ban, Calendar, ChevronLeft, ClipboardCheck, FileText, Save, Send, User } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import {
@@ -10,6 +11,15 @@ import {
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -140,18 +150,24 @@ export default function LeaveRequestsEdit({
     departments,
     leaveTypes,
     signaturesUrl,
-    submitUrl,
+    cancelUrl,
     decisionUrl,
     canDecide,
+    canCancel = false,
+    canViewActivityLogs = false,
+    activityLogs,
 }: {
     leaveRequest: LeaveRequest;
     employees: Employee[];
     departments: { id: number; name: string }[];
     leaveTypes: string[];
     signaturesUrl: string;
-    submitUrl: string;
+    cancelUrl: string;
     decisionUrl: string;
     canDecide: boolean;
+    canCancel?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
 }) {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(String(leaveRequest.employee_id));
     const [departmentId, setDepartmentId] = useState<string>(String(leaveRequest.department_id));
@@ -184,7 +200,6 @@ export default function LeaveRequestsEdit({
 
     const absenceType = leaveRequest.absence_types?.[0] ?? '';
     const statusNorm = normalizeRequestStatus(leaveRequest.status);
-    const isDraft = statusNorm === 'draft';
     const canShowDecisionActions = canDecide && statusNorm === 'submitted';
     const [decisionRemarks, setDecisionRemarks] = useState('');
     const [decisionClientError, setDecisionClientError] = useState<string | null>(null);
@@ -215,7 +230,52 @@ export default function LeaveRequestsEdit({
                                     the request view when the record is a draft.
                                 </p>
                             </div>
-                            <RequestStatusBadge status={leaveRequest.status} />
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    form="leave-request-edit-form"
+                                >
+                                    <Save className="mr-2 size-4" />
+                                    Save changes
+                                </Button>
+                                {canCancel ? (
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button type="button" variant="destructive" size="sm">
+                                                <Ban className="mr-2 size-4" />
+                                                Cancel
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogTitle>Cancel leave request?</DialogTitle>
+                                            <DialogDescription>
+                                                Are you sure you want to cancel this leave request? This record will stay in the system.
+                                            </DialogDescription>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button type="button" variant="secondary">
+                                                        Keep request
+                                                    </Button>
+                                                </DialogClose>
+                                                <Form
+                                                    action={cancelUrl}
+                                                    method="delete"
+                                                    options={{ preserveScroll: true }}
+                                                    className="contents"
+                                                >
+                                                    {({ processing }) => (
+                                                        <Button type="submit" variant="destructive" disabled={processing}>
+                                                            Cancel request
+                                                        </Button>
+                                                    )}
+                                                </Form>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                ) : null}
+                                <RequestStatusBadge status={leaveRequest.status} />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -223,6 +283,7 @@ export default function LeaveRequestsEdit({
                 <Form
                     action={`/leave-requests/${leaveRequest.id}`}
                     method="post"
+                    id="leave-request-edit-form"
                     className="px-4 py-8 md:px-8"
                     options={{ preserveScroll: true }}
                 >
@@ -470,94 +531,85 @@ export default function LeaveRequestsEdit({
                                         </CardContent>
                                     </Card>
 
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Actions</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            {isDraft ? (
-                                                <Link href={submitUrl} method="post" as="button" className="w-full">
-                                                    <Button type="button" variant="secondary" className="w-full">
-                                                        <Send className="mr-2 size-4" />
-                                                        Submit request
-                                                    </Button>
-                                                </Link>
-                                            ) : null}
-                                            <Button type="submit" className="w-full">
-                                                <Save className="mr-2 size-4" />
-                                                Update leave request
-                                            </Button>
-                                            {canShowDecisionActions ? (
-                                                <>
-                                                    <div className="rounded-md border bg-muted/30 p-3 text-left">
-                                                        <p className="text-xs font-semibold text-foreground">
-                                                            Decision remarks (required for reject)
+                                    {canShowDecisionActions ? (
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Actions</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-3">
+                                                <div className="rounded-md border bg-muted/30 p-3 text-left">
+                                                    <p className="text-xs font-semibold text-foreground">
+                                                        Decision remarks (required for reject)
+                                                    </p>
+                                                    <textarea
+                                                        value={decisionRemarks}
+                                                        onChange={(event) => {
+                                                            setDecisionRemarks(event.target.value);
+                                                            setDecisionClientError(null);
+                                                        }}
+                                                        rows={3}
+                                                        className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                                        placeholder="Add reason when rejecting"
+                                                    />
+                                                    {decisionClientError ? (
+                                                        <p className="mt-2 text-xs text-destructive">
+                                                            {decisionClientError}
                                                         </p>
-                                                        <textarea
-                                                            value={decisionRemarks}
-                                                            onChange={(event) => {
-                                                                setDecisionRemarks(event.target.value);
-                                                                setDecisionClientError(null);
-                                                            }}
-                                                            rows={3}
-                                                            className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                                                            placeholder="Add reason when rejecting"
-                                                        />
-                                                        {decisionClientError ? (
-                                                            <p className="mt-2 text-xs text-destructive">
-                                                                {decisionClientError}
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="secondary"
-                                                        className="w-full"
-                                                        onClick={() => {
-                                                            setDecisionClientError(null);
-                                                            router.post(
-                                                                decisionUrl,
-                                                                { decision: 'approved', remarks: decisionRemarks },
-                                                                { preserveScroll: true },
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Send className="mr-2 size-4" />
-                                                        Approve request
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="destructive"
-                                                        className="w-full"
-                                                        onClick={() => {
-                                                            if (decisionRemarks.trim() === '') {
-                                                                setDecisionClientError(
-                                                                    'Please add remarks before rejecting.',
-                                                                );
-                                                                return;
-                                                            }
-
-                                                            setDecisionClientError(null);
-                                                            router.post(
-                                                                decisionUrl,
-                                                                { decision: 'rejected', remarks: decisionRemarks },
-                                                                { preserveScroll: true },
-                                                            );
-                                                        }}
-                                                    >
-                                                        Reject request
-                                                    </Button>
-                                                </>
-                                            ) : null}
-                                            <Link href={`/leave-requests/${leaveRequest.id}`} className="block">
-                                                <Button type="button" variant="ghost" className="w-full">
-                                                    Cancel
+                                                    ) : null}
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    className="w-full"
+                                                    onClick={() => {
+                                                        setDecisionClientError(null);
+                                                        router.post(
+                                                            decisionUrl,
+                                                            { decision: 'approved', remarks: decisionRemarks },
+                                                            { preserveScroll: true },
+                                                        );
+                                                    }}
+                                                >
+                                                    <Send className="mr-2 size-4" />
+                                                    Approve request
                                                 </Button>
-                                            </Link>
-                                        </CardContent>
-                                    </Card>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    className="w-full"
+                                                    onClick={() => {
+                                                        if (decisionRemarks.trim() === '') {
+                                                            setDecisionClientError(
+                                                                'Please add remarks before rejecting.',
+                                                            );
+                                                            return;
+                                                        }
+
+                                                        setDecisionClientError(null);
+                                                        router.post(
+                                                            decisionUrl,
+                                                            { decision: 'rejected', remarks: decisionRemarks },
+                                                            { preserveScroll: true },
+                                                        );
+                                                    }}
+                                                >
+                                                    Reject request
+                                                </Button>
+                                            </CardContent>
+                                        </Card>
+                                    ) : null}
                                 </div>
                             </div>
+
+                            {canViewActivityLogs ? (
+                                <div className="lg:col-span-3">
+                                    <ActivityLogTimeline
+                                        entries={activityLogs}
+                                        title="Activity Log"
+                                        description="Track leave request updates by authorized users."
+                                    />
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </Form>

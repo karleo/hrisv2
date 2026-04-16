@@ -33,7 +33,7 @@ class ItRequestController extends Controller
     public function index(Request $request): Response
     {
         $itRequests = ItRequest::query()
-            ->with(['employee', 'department'])
+            ->with(['employee.companyProfile:id,company_name', 'department'])
             ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
             ->when(
                 $request->filled('search'),
@@ -101,7 +101,8 @@ class ItRequestController extends Controller
      */
     public function show(ItRequest $it_request): Response
     {
-        $this->assertCanView(request()->user(), $it_request);
+        $actor = request()->user();
+        $this->assertCanView($actor, $it_request);
         $it_request->load(['employee', 'department', 'software', 'hardware', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $it_request->employee_signature
@@ -122,8 +123,11 @@ class ItRequestController extends Controller
                 ->get(['id', 'first_name', 'last_name']),
             'signaturesUrl' => $this->itRequestSignaturesPostUrl($it_request),
             'submitUrl' => route('it-requests.submit', $it_request, false),
+            'cancelUrl' => route('it-requests.destroy', $it_request, false),
             'decisionUrl' => route('it-requests.decide', $it_request, false),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
+            'canDecide' => $this->approvalScope->canDecide($actor, $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
+            'canCancel' => $this->canCancel($actor, $it_request),
+            'canEdit' => $this->canEdit($actor, $it_request),
         ]);
     }
 
@@ -238,7 +242,9 @@ class ItRequestController extends Controller
      */
     public function edit(ItRequest $it_request): Response
     {
-        $this->assertCanModify(request()->user(), $it_request);
+        $actor = request()->user();
+        $this->assertCanModify($actor, $it_request);
+        $this->assertEditableStatus($it_request);
         $it_request->load(['employee', 'department', 'software', 'hardware', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $it_request->employee_signature
@@ -267,7 +273,9 @@ class ItRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
             'signaturesUrl' => $this->itRequestSignaturesPostUrl($it_request),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
+            'cancelUrl' => route('it-requests.destroy', $it_request, false),
+            'canDecide' => $this->approvalScope->canDecide($actor, $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
+            'canCancel' => $this->canCancel($actor, $it_request),
         ]);
     }
 
@@ -277,6 +285,7 @@ class ItRequestController extends Controller
     public function update(UpdateItRequestRequest $request, ItRequest $it_request): RedirectResponse
     {
         $this->assertCanModify($request->user(), $it_request);
+        $this->assertEditableStatus($it_request);
         $data = $request->validated();
 
         $status = $data['status'] ?? $it_request->status;
@@ -295,21 +304,33 @@ class ItRequestController extends Controller
     }
 
     /**
-     * Remove the specified IT request.
+     * Cancel the specified IT request.
      */
     public function destroy(ItRequest $it_request): RedirectResponse
     {
-        $this->assertCanModify(request()->user(), $it_request);
-        if ($it_request->employee_signature) {
-            Storage::disk('public')->delete($it_request->employee_signature);
-        }
-        if ($it_request->approved_by_signature) {
-            Storage::disk('public')->delete($it_request->approved_by_signature);
+        $actor = request()->user();
+        $status = strtolower((string) $it_request->status);
+
+        if ($status === 'draft') {
+            $this->assertCanModify($actor, $it_request);
+        } elseif (in_array($status, ['submitted', 'approved'], true)) {
+            if ($actor === null || ! $actor->isAdministrator()) {
+                abort(403);
+            }
+        } else {
+            return redirect()->back()->with('error', 'Only draft, submitted, or approved requests can be cancelled.');
         }
 
-        $it_request->delete();
+        if ($status === 'cancelled') {
+            return redirect()->back()->with('success', 'IT request is already cancelled.');
+        }
 
-        return to_route('it-requests.index');
+        $it_request->update([
+            'status' => 'cancelled',
+            'decided_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'IT request cancelled successfully.');
     }
 
     /**
@@ -401,6 +422,45 @@ class ItRequestController extends Controller
     private function assertCanModify(?User $user, ItRequest $itRequest): void
     {
         if (! $this->approvalScope->canModify($user, $itRequest->employee_id, $itRequest->department_id, (string) $itRequest->status)) {
+            abort(403);
+        }
+    }
+
+    private function canCancel(?User $user, ItRequest $itRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        $status = strtolower((string) $itRequest->status);
+        if ($status === 'cancelled') {
+            return false;
+        }
+
+        if ($status === 'draft') {
+            return $this->approvalScope->canModify($user, $itRequest->employee_id, $itRequest->department_id, (string) $itRequest->status);
+        }
+
+        if (in_array($status, ['submitted', 'approved'], true)) {
+            return $user->isAdministrator();
+        }
+
+        return false;
+    }
+
+    private function canEdit(?User $user, ItRequest $itRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return strtolower((string) $itRequest->status) === 'draft'
+            && $this->approvalScope->canModify($user, $itRequest->employee_id, $itRequest->department_id, (string) $itRequest->status);
+    }
+
+    private function assertEditableStatus(ItRequest $itRequest): void
+    {
+        if (strtolower((string) $itRequest->status) !== 'draft') {
             abort(403);
         }
     }

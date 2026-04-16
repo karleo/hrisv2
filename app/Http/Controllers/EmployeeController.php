@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Contracts\FaceVerificationContract;
 use App\Enums\FaceProfileAngle;
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
 use App\Http\Requests\Employee\ImportEmployeesRequest;
 use App\Http\Requests\Employee\StoreEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeePrivateInformationRequest;
@@ -346,11 +348,14 @@ class EmployeeController extends Controller
      */
     public function create(): Response
     {
+        $canViewActivityLogs = request()->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
+
         return Inertia::render('employees/create', [
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
+            'canViewActivityLogs' => $canViewActivityLogs,
         ]);
     }
 
@@ -876,6 +881,29 @@ class EmployeeController extends Controller
             return (float) ($leaveRequest->days ?? 0);
         });
         $openingBalance = (float) ($employee->leave_opening_balance ?? 0);
+        $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
+        $activityLogs = $canViewActivityLogs
+            ? $employee->activityLogs()
+                ->with('actor:id,name')
+                ->limit(200)
+                ->get()
+                ->map(function ($log): array {
+                    $oldValue = is_string($log->old_value) ? trim($log->old_value) : null;
+                    $newValue = is_string($log->new_value) ? trim($log->new_value) : null;
+
+                    return [
+                        'id' => (int) $log->id,
+                        'action' => (string) $log->action,
+                        'field' => (string) $log->field_name,
+                        'old_value' => $oldValue === '' ? null : $oldValue,
+                        'new_value' => $newValue === '' ? null : $newValue,
+                        'performed_by' => (string) ($log->actor?->name ?? $log->actor_name ?? 'System'),
+                        'performed_at' => $log->created_at?->toIso8601String(),
+                    ];
+                })
+                ->values()
+                ->all()
+            : [];
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
@@ -885,6 +913,8 @@ class EmployeeController extends Controller
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
             'viewMode' => $request->query('mode') === 'view',
             'employeeLoginActive' => $employee->user?->is_active ?? null,
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $activityLogs,
             'leaveConfig' => [
                 'openingBalance' => $openingBalance,
                 'approvedDaysUsed' => $approvedDaysUsed,

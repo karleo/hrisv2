@@ -8,7 +8,6 @@ import {
     Plus,
     Printer,
     Send,
-    Trash2,
     Users,
     XCircle,
 } from 'lucide-react';
@@ -23,15 +22,6 @@ import {
     Card,
     CardContent,
 } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import {
     Select,
     SelectContent,
@@ -56,6 +46,8 @@ type Employee = {
     id: number;
     first_name: string;
     last_name: string;
+    company_profile?: { company_name: string };
+    companyProfile?: { company_name: string };
 };
 
 type Department = {
@@ -207,7 +199,6 @@ export default function Index({
         modulePermissions?: ModulePermissionsMap;
     };
     const canUpdate = Boolean(modulePermissions?.employee_requests?.can_update);
-    const canDelete = Boolean(modulePermissions?.employee_requests?.can_delete);
     const clearAllFilters = () => {
         router.get(index().url, { page: 1 }, {
             preserveState: true,
@@ -438,6 +429,9 @@ export default function Index({
                                             <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
                                                 Department
                                             </th>
+                                            <th className="hidden px-4 py-3.5 text-left font-medium xl:table-cell">
+                                                Company
+                                            </th>
                                             <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
                                                 Date
                                             </th>
@@ -456,7 +450,7 @@ export default function Index({
                                         {requestList.length === 0 ? (
                                             <tr>
                                                 <td
-                                                    colSpan={8}
+                                                    colSpan={9}
                                                     className="px-4 py-16 text-center"
                                                 >
                                                     <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
@@ -485,8 +479,10 @@ export default function Index({
                                                     key={request.id}
                                                     className="border-b transition-colors hover:bg-muted/30 last:border-0"
                                                 >
-                                                    <td className="px-4 py-3 font-mono text-xs font-medium sm:text-sm">
-                                                        {request.code || '—'}
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-flex rounded-md border border-border/70 bg-muted/30 px-2 py-1 font-mono text-[12px] font-semibold tracking-wide text-foreground sm:text-[13px]">
+                                                            {request.code || '—'}
+                                                        </span>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
@@ -512,6 +508,11 @@ export default function Index({
                                                     </td>
                                                     <td className="hidden px-4 py-3 md:table-cell">
                                                         {request.department?.name ?? '—'}
+                                                    </td>
+                                                    <td className="hidden px-4 py-3 xl:table-cell">
+                                                        {request.employee?.company_profile?.company_name
+                                                            ?? request.employee?.companyProfile?.company_name
+                                                            ?? '—'}
                                                     </td>
                                                     <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                                                         {formatDateDdMmYyyy(request.date)}
@@ -564,54 +565,6 @@ export default function Index({
                                                                         <Pencil className="size-4" />
                                                                     </Button>
                                                                 </Link>
-                                                            )}
-                                                            {canDelete && (
-                                                                <Dialog>
-                                                                    <DialogTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="size-8"
-                                                                            aria-label="Delete"
-                                                                        >
-                                                                            <Trash2 className="size-4 text-destructive" />
-                                                                        </Button>
-                                                                    </DialogTrigger>
-                                                                    <DialogContent>
-                                                                        <DialogTitle>
-                                                                            Delete employee request?
-                                                                        </DialogTitle>
-                                                                        <DialogDescription>
-                                                                            Are you sure you want to delete this employee
-                                                                            request for{' '}
-                                                                            <strong>
-                                                                                {request.employee
-                                                                                    ? `${request.employee.first_name} ${request.employee.last_name}`
-                                                                                    : 'this employee'}
-                                                                            </strong>
-                                                                            ? This action cannot be undone.
-                                                                        </DialogDescription>
-                                                                        <DialogFooter>
-                                                                            <DialogClose asChild>
-                                                                                <Button variant="secondary">
-                                                                                    Cancel
-                                                                                </Button>
-                                                                            </DialogClose>
-                                                                            <Button
-                                                                                variant="destructive"
-                                                                                onClick={() =>
-                                                                                    router.delete(
-                                                                                        EmployeeRequestController.destroy.url(
-                                                                                            request.id,
-                                                                                        ),
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                Delete
-                                                                            </Button>
-                                                                        </DialogFooter>
-                                                                    </DialogContent>
-                                                                </Dialog>
                                                             )}
                                                         </div>
                                                     </td>

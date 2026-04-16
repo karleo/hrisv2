@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Calendar } from 'lucide-react';
+import { Form, Head, Link, useForm } from '@inertiajs/react';
+import { Ban, Calendar, Save } from 'lucide-react';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -18,6 +18,15 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
@@ -81,6 +90,8 @@ export default function Edit({
     jobPositions,
     signaturesUrl,
     canDecide,
+    cancelUrl,
+    canCancel = false,
 }: {
     employeeRequest: EmployeeRequest;
     employees: EmployeeOption[];
@@ -88,6 +99,8 @@ export default function Edit({
     jobPositions: JobPositionOption[];
     signaturesUrl: string;
     canDecide: boolean;
+    cancelUrl: string;
+    canCancel?: boolean;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
@@ -148,6 +161,12 @@ export default function Edit({
         put(`/employee-requests/${employeeRequest.id}`);
     };
 
+    const saveChanges = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((payload) => ({ ...payload, status: data.status || employeeRequest.status }));
+        put(`/employee-requests/${employeeRequest.id}`);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit Employee Request #${employeeRequest.id}`} />
@@ -164,6 +183,49 @@ export default function Edit({
                     title={`Employee Request #${employeeRequest.id}`}
                     description="Update employee information, request details, and signature."
                 />
+                <div className="flex justify-end">
+                    <Button type="button" onClick={saveChanges} disabled={processing}>
+                        <Save className="mr-2 size-4" />
+                        Save changes
+                    </Button>
+                </div>
+                {canCancel ? (
+                    <div className="flex justify-end">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button type="button" variant="destructive">
+                                    <Ban className="mr-2 size-4" />
+                                    Cancel request
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogTitle>Cancel employee request?</DialogTitle>
+                                <DialogDescription>
+                                    Are you sure you want to cancel this employee request? This record will stay in the system.
+                                </DialogDescription>
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="secondary">
+                                            Keep request
+                                        </Button>
+                                    </DialogClose>
+                                    <Form
+                                        action={cancelUrl}
+                                        method="delete"
+                                        options={{ preserveScroll: true }}
+                                        className="contents"
+                                    >
+                                        {({ processing: cancelling }) => (
+                                            <Button type="submit" variant="destructive" disabled={cancelling}>
+                                                Cancel request
+                                            </Button>
+                                        )}
+                                    </Form>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                ) : null}
 
                 <form
                     className="flex w-full max-w-4xl flex-col gap-6"
@@ -558,14 +620,6 @@ export default function Edit({
                             </div>
                         </CardContent>
                         <CardFooter className="flex flex-wrap gap-3 border-t pt-6">
-                            <Button
-                                disabled={processing}
-                                type="button"
-                                variant="outline"
-                                onClick={submitAs('draft')}
-                            >
-                                Save draft
-                            </Button>
                             <Button
                                 disabled={processing}
                                 type="button"

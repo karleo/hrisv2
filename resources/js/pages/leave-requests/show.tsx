@@ -1,6 +1,7 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { ChevronLeft, PenLine, Printer, Send } from 'lucide-react';
+import { Ban, ChevronLeft, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import {
     approveRequiresManagerSignatureMessage,
     rejectRequiresRemarksMessage,
@@ -14,6 +15,15 @@ import {
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
@@ -66,14 +76,24 @@ export default function LeaveRequestsShow({
     leaveRequest,
     signaturesUrl,
     submitUrl,
+    cancelUrl,
     decisionUrl,
     canDecide,
+    canCancel = false,
+    canEdit = false,
+    canViewActivityLogs = false,
+    activityLogs,
 }: {
     leaveRequest: LeaveRequest;
     signaturesUrl: string;
     submitUrl: string;
+    cancelUrl: string;
     decisionUrl: string;
     canDecide: boolean;
+    canCancel?: boolean;
+    canEdit?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
 }) {
     useRequestStatusPoll(['leaveRequest', 'canDecide']);
 
@@ -104,7 +124,7 @@ export default function LeaveRequestsShow({
                         </Button>
                         <h1 className="text-xl font-semibold">Leave request {leaveRequest.code}</h1>
                     </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2 [&_[data-slot=button]]:h-8">
                         {isDraft ? (
                             <Form
                                 action={submitUrl}
@@ -120,12 +140,14 @@ export default function LeaveRequestsShow({
                                 )}
                             </Form>
                         ) : null}
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href={`/leave-requests/${leaveRequest.id}/print`}>
-                                <Printer className="mr-2 size-4" />
-                                Print
-                            </Link>
-                        </Button>
+                        {!isDraft ? (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/leave-requests/${leaveRequest.id}/print`}>
+                                    <Printer className="mr-2 size-4" />
+                                    Print
+                                </Link>
+                            </Button>
+                        ) : null}
                         {isDraft ? (
                             <Button variant="outline" size="sm" asChild>
                                 <Link href={`/leave-requests/${leaveRequest.id}/edit`}>
@@ -133,6 +155,53 @@ export default function LeaveRequestsShow({
                                     Edit
                                 </Link>
                             </Button>
+                        ) : canEdit ? (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/leave-requests/${leaveRequest.id}/edit`}>
+                                    <PenLine className="mr-2 size-4" />
+                                    Edit
+                                </Link>
+                            </Button>
+                        ) : null}
+                        {canCancel ? (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-8"
+                                    >
+                                        <Ban className="mr-2 size-4" />
+                                        Cancel
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogTitle>Cancel leave request?</DialogTitle>
+                                    <DialogDescription>
+                                        Are you sure you want to cancel this leave request? This record will stay in the system.
+                                    </DialogDescription>
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button type="button" variant="secondary">
+                                                Keep request
+                                            </Button>
+                                        </DialogClose>
+                                        <Form
+                                            action={cancelUrl}
+                                            method="delete"
+                                            options={{ preserveScroll: true }}
+                                            className="contents"
+                                        >
+                                            {({ processing }) => (
+                                                <Button type="submit" variant="destructive" disabled={processing}>
+                                                    Cancel request
+                                                </Button>
+                                            )}
+                                        </Form>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         ) : null}
                     </div>
                 </div>
@@ -280,6 +349,14 @@ export default function LeaveRequestsShow({
                     }
                     employeeName={employeeFullName(leaveRequest.employee)}
                 />
+
+                {canViewActivityLogs ? (
+                    <ActivityLogTimeline
+                        entries={activityLogs}
+                        title="Activity Log"
+                        description="Track leave request updates by authorized users."
+                    />
+                ) : null}
                 </div>
             </div>
         </AppLayout>

@@ -38,12 +38,20 @@ class LeaveCalendarController extends Controller
         $managedDepartmentIds = $user instanceof User
             ? $this->approvalScope->managedDepartmentIds($user)
             : [];
+        $currentEmployeeDepartmentId = $user?->employee?->department_id;
         $isAdminOrHr = $user instanceof User
             ? $this->approvalScope->isAdministratorOrHr($user)
             : false;
+        $allowedDepartmentIds = array_values(array_unique(array_filter(
+            [
+                ...$managedDepartmentIds,
+                $currentEmployeeDepartmentId !== null ? (int) $currentEmployeeDepartmentId : null,
+            ],
+            static fn ($id): bool => $id !== null
+        )));
 
         $departmentFilterId = isset($filters['department_id']) ? (int) $filters['department_id'] : null;
-        if (! $isAdminOrHr && $departmentFilterId !== null && ! in_array($departmentFilterId, $managedDepartmentIds, true)) {
+        if (! $isAdminOrHr && $departmentFilterId !== null && ! in_array($departmentFilterId, $allowedDepartmentIds, true)) {
             abort(403);
         }
 
@@ -60,9 +68,7 @@ class LeaveCalendarController extends Controller
             ->whereDate('period_to', '>=', $monthStart->toDateString())
             ->with(['employee:id,first_name,last_name', 'department:id,name']);
 
-        if (! $isAdminOrHr) {
-            $approvedLeavesQuery->whereIn('department_id', $managedDepartmentIds);
-        }
+        $this->approvalScope->scopeVisible($approvedLeavesQuery, $user);
 
         if ($departmentFilterId !== null) {
             $approvedLeavesQuery->where('department_id', $departmentFilterId);
@@ -151,7 +157,7 @@ class LeaveCalendarController extends Controller
         $departments = Department::query()
             ->when(
                 ! $isAdminOrHr,
-                fn ($query) => $query->whereIn('id', $managedDepartmentIds)
+                fn ($query) => $query->whereIn('id', $allowedDepartmentIds)
             )
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -201,6 +207,11 @@ class LeaveCalendarController extends Controller
             return false;
         }
 
+        // Department managers should access Leave Calendar by default.
+        if ($this->approvalScope->managedDepartmentIds($user) !== []) {
+            return true;
+        }
+
         if (! $user->hasModuleAbility(PermissionModule::LeaveCalendar, ModuleAbility::View)) {
             return false;
         }
@@ -209,7 +220,8 @@ class LeaveCalendarController extends Controller
             return true;
         }
 
-        return $this->approvalScope->managedDepartmentIds($user) !== [];
+        return $this->approvalScope->managedDepartmentIds($user) !== []
+            || $user->employee()->exists();
     }
 
     private function assertCanAccess(?User $user): void

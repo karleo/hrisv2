@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, Save, Send, User } from 'lucide-react';
+import { Form, Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, Ban, Calendar, CheckCircle2, Laptop, Package, Save, Send, User } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
@@ -16,6 +16,15 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -77,6 +86,8 @@ export default function Edit({
     hardware,
     signaturesUrl,
     canDecide,
+    cancelUrl,
+    canCancel = false,
 }: {
     itAssetRequest: ItAssetRequest;
     employees: EmployeeOption[];
@@ -84,6 +95,8 @@ export default function Edit({
     hardware: HardwareOption[];
     signaturesUrl: string;
     canDecide: boolean;
+    cancelUrl: string;
+    canCancel?: boolean;
 }) {
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
     const showHref = `/it-asset-requests/${itAssetRequest.id}`;
@@ -145,6 +158,12 @@ export default function Edit({
         put(`/it-asset-requests/${itAssetRequest.id}`);
     };
 
+    const saveChanges = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((payload) => ({ ...payload, status: data.status || itAssetRequest.status }));
+        put(`/it-asset-requests/${itAssetRequest.id}`);
+    };
+
     const selectedHardware = hardware.filter((hw) =>
         data.hardware_ids.includes(hw.id),
     );
@@ -188,7 +207,53 @@ export default function Edit({
                                             Update details and signatures for {requestLabel}.
                                         </p>
                                     </div>
-                                    <RequestStatusBadge status={itAssetRequest.status} />
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={saveChanges}
+                                            disabled={processing}
+                                        >
+                                            <Save className="mr-2 size-4" />
+                                            Save changes
+                                        </Button>
+                                        {canCancel ? (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button type="button" variant="destructive" size="sm">
+                                                        <Ban className="mr-2 size-4" />
+                                                        Cancel request
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogTitle>Cancel IT asset request?</DialogTitle>
+                                                    <DialogDescription>
+                                                        Are you sure you want to cancel this IT asset request? This record will stay in the system.
+                                                    </DialogDescription>
+                                                    <DialogFooter>
+                                                        <DialogClose asChild>
+                                                            <Button type="button" variant="secondary">
+                                                                Keep request
+                                                            </Button>
+                                                        </DialogClose>
+                                                        <Form
+                                                            action={cancelUrl}
+                                                            method="delete"
+                                                            options={{ preserveScroll: true }}
+                                                            className="contents"
+                                                        >
+                                                            {({ processing: cancelling }) => (
+                                                                <Button type="submit" variant="destructive" disabled={cancelling}>
+                                                                    Cancel request
+                                                                </Button>
+                                                            )}
+                                                        </Form>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        ) : null}
+                                        <RequestStatusBadge status={itAssetRequest.status} />
+                                    </div>
                                 </div>
                             </div>
 
@@ -603,17 +668,6 @@ export default function Edit({
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            <Button
-                                                disabled={processing}
-                                                type="button"
-                                                variant="outline"
-                                                className="w-full"
-                                                size="lg"
-                                                onClick={submitAs('draft')}
-                                            >
-                                                <Save className="mr-2 size-4" />
-                                                {processing ? 'Saving…' : 'Save as draft'}
-                                            </Button>
                                             <Button
                                                 disabled={processing}
                                                 type="button"

@@ -8,6 +8,7 @@ export default function AppHeaderLayout({
     breadcrumbs,
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.04';
 
     return (
         <AppShell>
@@ -15,7 +16,7 @@ export default function AppHeaderLayout({
             <AppContent>
                 {children}
                 <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground">
-                    {`© ${year} Prime Logistics. All rights reserved. V 1.03`}
+                    {`© ${year} Prime Logistics. All rights reserved. V ${appVersion}`}
                 </footer>
             </AppContent>
         </AppShell>
