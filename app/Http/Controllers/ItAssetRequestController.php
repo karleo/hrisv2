@@ -32,7 +32,7 @@ class ItAssetRequestController extends Controller
     public function index(Request $request): Response
     {
         $itAssetRequests = ItAssetRequest::query()
-            ->with(['employee', 'department'])
+            ->with(['employee.companyProfile:id,company_name', 'department'])
             ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
             ->when(
                 $request->filled('search'),
@@ -97,7 +97,8 @@ class ItAssetRequestController extends Controller
      */
     public function show(ItAssetRequest $it_asset_request): Response
     {
-        $this->assertCanView(request()->user(), $it_asset_request);
+        $actor = request()->user();
+        $this->assertCanView($actor, $it_asset_request);
         $it_asset_request->load(['employee', 'department', 'issuedByEmployee']);
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
@@ -124,9 +125,12 @@ class ItAssetRequestController extends Controller
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id']),
             'submitUrl' => route('it-asset-requests.submit', $it_asset_request, false),
+            'cancelUrl' => route('it-asset-requests.destroy', $it_asset_request, false),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
             'decisionUrl' => route('it-asset-requests.decide', $it_asset_request, false),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status),
+            'canDecide' => $this->approvalScope->canDecide($actor, $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status),
+            'canCancel' => $this->canCancel($actor, $it_asset_request),
+            'canEdit' => $this->canEdit($actor, $it_asset_request),
         ]);
     }
 
@@ -242,7 +246,9 @@ class ItAssetRequestController extends Controller
      */
     public function edit(ItAssetRequest $it_asset_request): Response
     {
-        $this->assertCanModify(request()->user(), $it_asset_request);
+        $actor = request()->user();
+        $this->assertCanModify($actor, $it_asset_request);
+        $this->assertEditableStatus($it_asset_request);
         $it_asset_request->load(['employee', 'department', 'issuedByEmployee']);
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
@@ -265,7 +271,9 @@ class ItAssetRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'code', 'name']),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
-            'canDecide' => $this->approvalScope->canDecide(request()->user(), $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status),
+            'cancelUrl' => route('it-asset-requests.destroy', $it_asset_request, false),
+            'canDecide' => $this->approvalScope->canDecide($actor, $it_asset_request->employee_id, $it_asset_request->department_id, (string) $it_asset_request->status),
+            'canCancel' => $this->canCancel($actor, $it_asset_request),
         ]);
     }
 
@@ -275,6 +283,7 @@ class ItAssetRequestController extends Controller
     public function update(UpdateItAssetRequestRequest $request, ItAssetRequest $it_asset_request): RedirectResponse
     {
         $this->assertCanModify($request->user(), $it_asset_request);
+        $this->assertEditableStatus($it_asset_request);
         $data = $request->validated();
 
         $status = $data['status'] ?? $it_asset_request->status;
@@ -347,21 +356,33 @@ class ItAssetRequestController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Cancel the specified IT asset request.
      */
     public function destroy(ItAssetRequest $it_asset_request): RedirectResponse
     {
-        $this->assertCanModify(request()->user(), $it_asset_request);
-        if ($it_asset_request->employee_signature) {
-            Storage::disk('public')->delete($it_asset_request->employee_signature);
-        }
-        if ($it_asset_request->issued_by_signature) {
-            Storage::disk('public')->delete($it_asset_request->issued_by_signature);
+        $actor = request()->user();
+        $status = strtolower((string) $it_asset_request->status);
+
+        if ($status === 'draft') {
+            $this->assertCanModify($actor, $it_asset_request);
+        } elseif (in_array($status, ['submitted', 'approved'], true)) {
+            if ($actor === null || ! $actor->isAdministrator()) {
+                abort(403);
+            }
+        } else {
+            return redirect()->back()->with('error', 'Only draft, submitted, or approved requests can be cancelled.');
         }
 
-        $it_asset_request->delete();
+        if ($status === 'cancelled') {
+            return redirect()->back()->with('success', 'IT asset request is already cancelled.');
+        }
 
-        return to_route('it-asset-requests.index');
+        $it_asset_request->update([
+            'status' => 'cancelled',
+            'decided_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'IT asset request cancelled successfully.');
     }
 
     /**
@@ -400,6 +421,45 @@ class ItAssetRequestController extends Controller
     private function assertCanModify(?User $user, ItAssetRequest $itAssetRequest): void
     {
         if (! $this->approvalScope->canModify($user, $itAssetRequest->employee_id, $itAssetRequest->department_id, (string) $itAssetRequest->status)) {
+            abort(403);
+        }
+    }
+
+    private function canCancel(?User $user, ItAssetRequest $itAssetRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        $status = strtolower((string) $itAssetRequest->status);
+        if ($status === 'cancelled') {
+            return false;
+        }
+
+        if ($status === 'draft') {
+            return $this->approvalScope->canModify($user, $itAssetRequest->employee_id, $itAssetRequest->department_id, (string) $itAssetRequest->status);
+        }
+
+        if (in_array($status, ['submitted', 'approved'], true)) {
+            return $user->isAdministrator();
+        }
+
+        return false;
+    }
+
+    private function canEdit(?User $user, ItAssetRequest $itAssetRequest): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return strtolower((string) $itAssetRequest->status) === 'draft'
+            && $this->approvalScope->canModify($user, $itAssetRequest->employee_id, $itAssetRequest->department_id, (string) $itAssetRequest->status);
+    }
+
+    private function assertEditableStatus(ItAssetRequest $itAssetRequest): void
+    {
+        if (strtolower((string) $itAssetRequest->status) !== 'draft') {
             abort(403);
         }
     }

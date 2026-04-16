@@ -25,11 +25,19 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
+        $currentEmployeeDepartmentId = $user?->employee?->department_id;
+        $managedDepartmentIds = $user !== null ? $this->approvalScope->managedDepartmentIds($user) : [];
+        $hasScopedDepartmentAccess = $managedDepartmentIds !== []
+            || $currentEmployeeDepartmentId !== null;
+        $isDepartmentManager = $managedDepartmentIds !== [];
         $canViewLeaveCalendar = $user !== null
-            && $user->hasModuleAbility(PermissionModule::LeaveCalendar, ModuleAbility::View)
+            && (
+                $isDepartmentManager
+                || $user->hasModuleAbility(PermissionModule::LeaveCalendar, ModuleAbility::View)
+            )
             && (
             $this->approvalScope->isAdministratorOrHr($user)
-            || $this->approvalScope->managedDepartmentIds($user) !== []
+            || $hasScopedDepartmentAccess
         );
 
         $leavePending = LeaveRequest::query()->where('status', 'submitted');
@@ -115,11 +123,17 @@ class DashboardController extends Controller
                 ->all();
 
             $isAdminOrHr = $user !== null && $this->approvalScope->isAdministratorOrHr($user);
-            $managedDepartmentIds = $user !== null ? $this->approvalScope->managedDepartmentIds($user) : [];
+            $allowedDepartmentIds = array_values(array_unique(array_filter(
+                [
+                    ...$managedDepartmentIds,
+                    $currentEmployeeDepartmentId !== null ? (int) $currentEmployeeDepartmentId : null,
+                ],
+                static fn ($id): bool => $id !== null
+            )));
             $departmentsCount = Department::query()
                 ->when(
                     ! $isAdminOrHr,
-                    fn ($query) => $query->whereIn('id', $managedDepartmentIds)
+                    fn ($query) => $query->whereIn('id', $allowedDepartmentIds)
                 )
                 ->count();
 

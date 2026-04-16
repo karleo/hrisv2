@@ -6,12 +6,14 @@ use App\Contracts\FaceVerificationContract;
 use App\Enums\FaceProfileAngle;
 use App\Http\Requests\User\StoreUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
+use App\Models\AppSetting;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,6 +21,8 @@ use Throwable;
 
 class UserController extends Controller
 {
+    private const LOGIN_FACE_RECOGNITION_SETTING_KEY = 'login_face_recognition_enabled';
+
     public function __construct(
         private readonly FaceVerificationContract $faceVerification,
     ) {}
@@ -53,6 +57,7 @@ class UserController extends Controller
         return Inertia::render('users/index', [
             'users' => $users,
             'filters' => $request->only('search'),
+            'faceLoginVisibleOnLoginPage' => $this->isFaceLoginVisibleOnLoginPage(),
         ]);
     }
 
@@ -260,6 +265,26 @@ class UserController extends Controller
         return to_route('users.edit', $user)->with('success', 'Face login disabled for this user.');
     }
 
+    public function updateLoginFaceRecognitionVisibility(Request $request): RedirectResponse
+    {
+        if (! Schema::hasTable('app_settings')) {
+            return to_route('users.index')->with('error', 'App settings table is missing. Please run migrations.');
+        }
+
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        AppSetting::putBool(self::LOGIN_FACE_RECOGNITION_SETTING_KEY, (bool) $validated['enabled']);
+
+        return to_route('users.index')->with(
+            'success',
+            $validated['enabled']
+                ? 'Face recognition login has been enabled on the login page.'
+                : 'Face recognition login has been disabled on the login page.'
+        );
+    }
+
     private function syncEmployeeLink(User $user, ?int $employeeId): void
     {
         Employee::query()->where('user_id', $user->id)->update(['user_id' => null]);
@@ -290,5 +315,14 @@ class UserController extends Controller
         }
 
         return (int) $id;
+    }
+
+    private function isFaceLoginVisibleOnLoginPage(): bool
+    {
+        if (! Schema::hasTable('app_settings')) {
+            return true;
+        }
+
+        return AppSetting::getBool(self::LOGIN_FACE_RECOGNITION_SETTING_KEY, true);
     }
 }

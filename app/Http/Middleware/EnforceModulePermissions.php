@@ -8,6 +8,7 @@ use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
+use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Models\User;
 use App\Support\ModulePermissionRegistry;
@@ -81,6 +82,10 @@ class EnforceModulePermissions
             return $next($request);
         }
 
+        if (self::allowsScopedLeaveCalendarAccess($user, $controller, $method)) {
+            return $next($request);
+        }
+
         abort(403);
     }
 
@@ -150,5 +155,21 @@ class EnforceModulePermissions
         return $scope->isAdministratorOrHr($user)
             || $scope->managedDepartmentIds($user) !== []
             || $user->employee !== null;
+    }
+
+    /**
+     * Allow Leave Calendar for department managers by default.
+     * Record-level scoping is enforced in LeaveCalendarController.
+     */
+    private static function allowsScopedLeaveCalendarAccess(User $user, string $controller, string $method): bool
+    {
+        if ($controller !== LeaveCalendarController::class || $method !== 'index') {
+            return false;
+        }
+
+        /** @var RequestApprovalScope $scope */
+        $scope = app(RequestApprovalScope::class);
+
+        return $scope->managedDepartmentIds($user) !== [];
     }
 }

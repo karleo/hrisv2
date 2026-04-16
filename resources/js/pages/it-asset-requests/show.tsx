@@ -1,5 +1,5 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, Printer, Send } from 'lucide-react';
+import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import {
     ItAssetRequestSignaturesCard,
@@ -13,6 +13,15 @@ import {
 } from '@/components/request-decision-client-message';
 import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -70,17 +79,23 @@ export default function Show({
     hardware = [],
     employees = [],
     submitUrl,
+    cancelUrl,
     signaturesUrl,
     decisionUrl,
     canDecide,
+    canCancel = false,
+    canEdit = false,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
     employees?: Employee[];
     submitUrl: string;
+    cancelUrl: string;
     signaturesUrl: string;
     decisionUrl: string;
     canDecide: boolean;
+    canCancel?: boolean;
+    canEdit?: boolean;
 }) {
     useRequestStatusPoll(['itAssetRequest', 'canDecide']);
 
@@ -125,27 +140,72 @@ export default function Show({
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <RequestStatusBadge status={itAssetRequest.status} />
-                            {isDraft ? (
-                                <Form
-                                    action={submitUrl}
-                                    method="post"
-                                    options={{ preserveScroll: true }}
-                                    className="contents"
-                                >
-                                    {({ processing }) => (
-                                        <Button type="submit" disabled={processing}>
-                                            <Send className="mr-2 size-4" />
-                                            Submit request
+                            <div className="flex flex-wrap items-center gap-2 [&_[data-slot=button]]:h-8">
+                                {isDraft ? (
+                                    <Form
+                                        action={submitUrl}
+                                        method="post"
+                                        options={{ preserveScroll: true }}
+                                        className="contents"
+                                    >
+                                        {({ processing }) => (
+                                            <Button type="submit" size="sm" disabled={processing}>
+                                                <Send className="mr-2 size-4" />
+                                                Submit request
+                                            </Button>
+                                        )}
+                                    </Form>
+                                ) : null}
+                                {canCancel ? (
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button type="button" variant="destructive" size="sm">
+                                                <Ban className="mr-2 size-4" />
+                                                Cancel
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogTitle>Cancel IT asset request?</DialogTitle>
+                                            <DialogDescription>
+                                                Are you sure you want to cancel this IT asset request? This record will stay in the system.
+                                            </DialogDescription>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button type="button" variant="secondary">
+                                                        Keep request
+                                                    </Button>
+                                                </DialogClose>
+                                                <Form
+                                                    action={cancelUrl}
+                                                    method="delete"
+                                                    options={{ preserveScroll: true }}
+                                                    className="contents"
+                                                >
+                                                    {({ processing }) => (
+                                                        <Button type="submit" variant="destructive" disabled={processing}>
+                                                            Cancel request
+                                                        </Button>
+                                                    )}
+                                                </Form>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                ) : null}
+                                {canEdit ? (
+                                    <Link href={`/it-asset-requests/${itAssetRequest.id}/edit`}>
+                                        <Button type="button" variant="outline" size="sm">
+                                            <PenLine className="mr-2 size-4" />
+                                            Edit
                                         </Button>
-                                    )}
-                                </Form>
-                            ) : null}
-                            <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
-                                <Button type="button">
-                                    <Printer className="size-4" />
-                                    Print
-                                </Button>
-                            </Link>
+                                    </Link>
+                                ) : null}
+                                <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
+                                    <Button type="button" variant="outline" size="sm">
+                                        <Printer className="mr-2 size-4" />
+                                        Print
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>

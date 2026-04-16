@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Eye,
     FileText,
@@ -6,7 +6,6 @@ import {
     Pencil,
     Plus,
     Printer,
-    Trash2,
 } from 'lucide-react';
 import ItAssetRequestController from '@/actions/App/Http/Controllers/ItAssetRequestController';
 import { DataTablePagination } from '@/components/data-table-pagination';
@@ -17,15 +16,6 @@ import {
     Card,
     CardContent,
 } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { create, index } from '@/routes/it-asset-requests';
@@ -43,6 +33,8 @@ type Employee = {
     id: number;
     first_name: string;
     last_name: string;
+    company_profile?: { company_name: string };
+    companyProfile?: { company_name: string };
 };
 
 type Department = {
@@ -95,7 +87,6 @@ export default function Index({
         modulePermissions?: ModulePermissionsMap;
     };
     const canUpdate = Boolean(modulePermissions?.it_asset_requests?.can_update);
-    const canDelete = Boolean(modulePermissions?.it_asset_requests?.can_delete);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -167,6 +158,9 @@ export default function Index({
                                             <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
                                                 Department
                                             </th>
+                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
+                                                Company
+                                            </th>
                                             <th className="px-4 py-3.5 text-left font-medium">
                                                 Status
                                             </th>
@@ -179,7 +173,7 @@ export default function Index({
                                         {requestList.length === 0 ? (
                                             <tr>
                                                 <td
-                                                    colSpan={6}
+                                                    colSpan={7}
                                                     className="px-4 py-16 text-center"
                                                 >
                                                     <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
@@ -208,8 +202,10 @@ export default function Index({
                                                     key={request.id}
                                                     className="border-b transition-colors hover:bg-muted/30 last:border-0"
                                                 >
-                                                    <td className="px-4 py-3 font-medium">
-                                                        {request.code || '—'}
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-flex rounded-md border border-border/70 bg-muted/30 px-2 py-1 font-mono text-[12px] font-semibold tracking-wide text-foreground sm:text-[13px]">
+                                                            {request.code || '—'}
+                                                        </span>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         {formatDateDdMmYyyy(request.date)}
@@ -222,6 +218,11 @@ export default function Index({
                                                     <td className="hidden px-4 py-3 md:table-cell">
                                                         {request.department?.name ??
                                                             '—'}
+                                                    </td>
+                                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                                        {request.employee?.company_profile?.company_name
+                                                            ?? request.employee?.companyProfile?.company_name
+                                                            ?? '—'}
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <RequestStatusBadge
@@ -268,48 +269,6 @@ export default function Index({
                                                                         <Pencil className="size-4" />
                                                                     </Button>
                                                                 </Link>
-                                                            )}
-                                                            {canDelete && (
-                                                                <Dialog>
-                                                                    <DialogTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="size-8"
-                                                                            aria-label="Delete"
-                                                                        >
-                                                                            <Trash2 className="size-4 text-destructive" />
-                                                                        </Button>
-                                                                    </DialogTrigger>
-                                                                    <DialogContent>
-                                                                        <DialogTitle>
-                                                                            Delete IT asset request?
-                                                                        </DialogTitle>
-                                                                        <DialogDescription>
-                                                                            Are you sure you want to delete this request?
-                                                                            This action cannot be undone.
-                                                                        </DialogDescription>
-                                                                        <DialogFooter>
-                                                                            <DialogClose asChild>
-                                                                                <Button variant="secondary">
-                                                                                    Cancel
-                                                                                </Button>
-                                                                            </DialogClose>
-                                                                            <Button
-                                                                                variant="destructive"
-                                                                                onClick={() =>
-                                                                                    router.delete(
-                                                                                        ItAssetRequestController.destroy.url(
-                                                                                            request.id,
-                                                                                        ),
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                Delete
-                                                                            </Button>
-                                                                        </DialogFooter>
-                                                                    </DialogContent>
-                                                                </Dialog>
                                                             )}
                                                         </div>
                                                     </td>

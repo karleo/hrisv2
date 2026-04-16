@@ -16,6 +16,16 @@ use Inertia\Response;
 class RoleController extends Controller
 {
     /**
+     * @var list<PermissionModule>
+     */
+    private const DELETE_DISABLED_MODULES = [
+        PermissionModule::LeaveRequests,
+        PermissionModule::ItRequests,
+        PermissionModule::EmployeeRequests,
+        PermissionModule::ItAssetRequests,
+    ];
+
+    /**
      * Display a listing of roles.
      */
     public function index(Request $request): Response
@@ -130,7 +140,7 @@ class RoleController extends Controller
     }
 
     /**
-     * @return list<array{key: string, label: string}>
+     * @return list<array{key: string, label: string, time_attendance_checks: bool, delete_disabled: bool}>
      */
     private function modulesForForm(): array
     {
@@ -139,6 +149,7 @@ class RoleController extends Controller
                 'key' => $module->value,
                 'label' => $module->label(),
                 'time_attendance_checks' => $module === PermissionModule::TimeAttendance,
+                'delete_disabled' => in_array($module, self::DELETE_DISABLED_MODULES, true),
             ],
             PermissionModule::cases()
         ));
@@ -161,7 +172,9 @@ class RoleController extends Controller
                     'can_view' => $this->boolInput($row['can_view'] ?? false),
                     'can_create' => $this->boolInput($row['can_create'] ?? false),
                     'can_update' => $this->boolInput($row['can_update'] ?? false),
-                    'can_delete' => $this->boolInput($row['can_delete'] ?? false),
+                    'can_delete' => in_array($module, self::DELETE_DISABLED_MODULES, true)
+                        ? false
+                        : $this->boolInput($row['can_delete'] ?? false),
                     'can_check_in' => $this->boolInput($row['can_check_in'] ?? false),
                     'can_check_out' => $this->boolInput($row['can_check_out'] ?? false),
                 ]

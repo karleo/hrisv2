@@ -115,6 +115,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::get('user-roles', [UserRoleController::class, 'index'])->name('user-roles.index');
     Route::patch('user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');
     Route::resource('roles', RoleController::class)->except(['show']);
+    Route::patch('users/settings/login-face-recognition', [UserController::class, 'updateLoginFaceRecognitionVisibility'])
+        ->name('users.login-face-recognition.update');
     Route::resource('users', UserController::class)->except(['show']);
     Route::delete('users/{user}/face-login', [UserController::class, 'destroyFaceLogin'])->name('users.face-login.destroy');
 });

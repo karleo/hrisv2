@@ -131,7 +131,7 @@ export default function EmployeeProfile({
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Profile', href: '/my-profile' },
     ];
-    const [enableFaceLogin, setEnableFaceLogin] = useState(!faceLogin.enabled);
+    const [showFaceSetup, setShowFaceSetup] = useState(false);
     const [faceSaving, setFaceSaving] = useState(false);
     const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
     const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
@@ -678,38 +678,51 @@ export default function EmployeeProfile({
                                 </p>
                             ) : null}
 
-                            <div className="flex flex-wrap gap-2">
-                                {!enableFaceLogin ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setEnableFaceLogin(true)}
-                                        disabled={processing}
-                                    >
-                                        Enable / Update face login
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() => {
-                                            setEnableFaceLogin(false);
-                                            setFaceProfile(emptyFaceProfile());
-                                        }}
-                                        disabled={processing}
-                                    >
-                                        Cancel enrollment
-                                    </Button>
-                                )}
+                            <div className="rounded-lg border border-border p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            Set up face login now?
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Choose "Not now" to skip. You can always set it up later.
+                                        </p>
+                                    </div>
+                                    <div className="inline-flex rounded-lg border border-border bg-muted/30 p-1">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={showFaceSetup ? 'ghost' : 'default'}
+                                            className="rounded-md"
+                                            onClick={() => {
+                                                setShowFaceSetup(false);
+                                                setFaceProfile(emptyFaceProfile());
+                                            }}
+                                            disabled={processing}
+                                        >
+                                            Not now
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={showFaceSetup ? 'default' : 'ghost'}
+                                            className="rounded-md"
+                                            onClick={() => setShowFaceSetup(true)}
+                                            disabled={processing}
+                                        >
+                                            Set up now
+                                        </Button>
+                                    </div>
+                                </div>
 
                                 {faceLogin.enabled ? (
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className="mt-3 text-xs text-muted-foreground">
                                         To disable face login, contact an administrator.
                                     </p>
                                 ) : null}
                             </div>
 
-                            {enableFaceLogin ? (
+                            {showFaceSetup ? (
                                 <div className="space-y-3 rounded-lg border p-3">
                                     <MultiAngleFaceProfileField
                                         value={faceProfile}
@@ -735,7 +748,7 @@ export default function EmployeeProfile({
                                                 onStart: () => setFaceSaving(true),
                                                 onFinish: () => setFaceSaving(false),
                                                 onSuccess: () => {
-                                                    setEnableFaceLogin(false);
+                                                    setShowFaceSetup(false);
                                                     setFaceProfile(emptyFaceProfile());
                                                 },
                                             });

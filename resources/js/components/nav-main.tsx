@@ -11,6 +11,7 @@ import {
     SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
@@ -37,7 +38,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <SidebarMenuSubButton
                         asChild
                         isActive={isActive}
-                        className="h-8 rounded-lg border border-transparent bg-transparent px-2 text-xs font-medium text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+                        className="h-8 rounded-full border border-transparent bg-transparent px-3 text-xs font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground data-[active=true]:bg-[#1b2046] data-[active=true]:font-semibold data-[active=true]:text-white"
                     >
                         <Link href={item.href ?? '#'} prefetch>
                             {item.icon && <item.icon />}
@@ -56,7 +57,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     <CollapsibleTrigger asChild>
                         <SidebarMenuSubButton
                             isActive={isActive}
-                            className="h-8 rounded-lg border border-transparent bg-transparent px-2 text-xs font-medium text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+                            className="h-8 rounded-full border border-transparent bg-transparent px-3 text-xs font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground data-[active=true]:bg-[#1b2046] data-[active=true]:font-semibold data-[active=true]:text-white"
                         >
                             {item.icon && <item.icon />}
                             <span className="min-w-0 flex-1 whitespace-nowrap">
@@ -76,8 +77,8 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
     };
 
     return (
-        <SidebarGroup className="px-2 py-0">
-            <SidebarMenu className="gap-2">
+        <SidebarGroup className="px-1.5 py-0.5">
+            <SidebarMenu className="gap-1.5">
                 {items.map((item) => {
                     const hasChildren = (item.items?.length ?? 0) > 0;
 
@@ -90,16 +91,28 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 defaultOpen={isAnyChildActive}
                                 className="group/collapsible"
                             >
-                                <SidebarMenuItem>
+                                <SidebarMenuItem
+                                    className={cn(
+                                        'rounded-2xl',
+                                    )}
+                                >
                                     <CollapsibleTrigger asChild>
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
                                             isActive={isAnyChildActive}
-                                            className="min-h-11 rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
+                                            className={cn(
+                                                'relative z-10 min-h-11 overflow-visible rounded-2xl border border-transparent bg-transparent px-3 py-1.5 text-[13px] text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0',
+                                                isAnyChildActive &&
+                                                    'mr-[-6px] rounded-l-[999px] rounded-r-none bg-[#1b2046] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)] hover:bg-[#1b2046] hover:text-white',
+                                            )}
                                         >
-                                            {item.icon && <item.icon className="mt-0.5 size-4.5 group-data-[collapsible=icon]:mt-0" />}
+                                            {item.icon ? (
+                                                <span className="flex size-6 shrink-0 items-center justify-center text-sidebar-foreground/90 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-7">
+                                                    <item.icon className="size-4.5 group-data-[collapsible=icon]:size-4" />
+                                                </span>
+                                            ) : null}
                                             <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
-                                                <span className="font-medium whitespace-normal break-words leading-tight">
+                                                <span className="line-clamp-1 text-sm font-medium leading-tight">
                                                     {item.title}
                                                 </span>
                                             </div>
@@ -117,18 +130,34 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         );
                     }
 
+                    const isItemActive = !!item.href && isCurrentUrl(item.href);
+
                     return (
-                        <SidebarMenuItem key={item.title}>
+                        <SidebarMenuItem
+                            key={item.title}
+                            className={cn(
+                                'mr-[-6px] rounded-2xl',
+                                isItemActive &&
+                                    "relative rounded-l-[999px] rounded-r-none bg-[#1b2046] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] before:absolute before:-top-3 before:-right-3 before:size-6 before:rounded-full before:bg-[#2b2f66] before:content-[''] after:absolute after:-bottom-3 after:-right-3 after:size-6 after:rounded-full after:bg-[#2b2f66] after:content-['']",
+                            )}
+                        >
                             <SidebarMenuButton
                                 asChild
-                                isActive={!!item.href && isCurrentUrl(item.href)}
+                                isActive={isItemActive}
                                 tooltip={{ children: item.title }}
-                                className="min-h-11 rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-[13px] text-sidebar-foreground/90 transition-all hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:border-sidebar-primary/55 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
+                                className={cn(
+                                    'relative z-10 min-h-11 overflow-visible rounded-2xl border border-transparent bg-transparent px-3 py-1.5 text-[13px] text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0',
+                                    isItemActive && 'font-semibold text-white hover:bg-transparent hover:text-white',
+                                )}
                             >
                                 <Link href={item.href ?? '#'} prefetch>
-                                    {item.icon && <item.icon className="mt-0.5 size-4.5 group-data-[collapsible=icon]:mt-0" />}
+                                    {item.icon ? (
+                                        <span className="flex size-6 shrink-0 items-center justify-center text-sidebar-foreground/90 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-7">
+                                            <item.icon className="size-4.5 group-data-[collapsible=icon]:size-4" />
+                                        </span>
+                                    ) : null}
                                     <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
-                                        <span className="font-medium whitespace-normal break-words leading-tight">
+                                        <span className="line-clamp-1 text-sm font-medium leading-tight">
                                             {item.title}
                                         </span>
                                     </div>

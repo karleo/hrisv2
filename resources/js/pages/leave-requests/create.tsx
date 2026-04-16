@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Calendar, ChevronLeft, ClipboardCheck, FileText, Send, User } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import { SignaturePad } from '@/components/signature-pad';
@@ -117,12 +118,18 @@ export default function LeaveRequestsCreate({
     employees,
     departments,
     leaveTypes,
+    leaveBalanceByEmployeeId = {},
     defaultEmployeeId = null,
+    canViewActivityLogs = false,
+    activityLogs = [],
 }: {
     employees: Employee[];
     departments: { id: number; name: string }[];
     leaveTypes: string[];
+    leaveBalanceByEmployeeId?: Record<string, number>;
     defaultEmployeeId?: number | null;
+    canViewActivityLogs?: boolean;
+    activityLogs?: ActivityLogTimelineEntry[];
 }) {
     const initialEmployee = defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
@@ -144,6 +151,13 @@ export default function LeaveRequestsCreate({
         () => calculateLeaveDays(periodFrom, periodTo, startDayType, endDayType),
         [periodFrom, periodTo, startDayType, endDayType],
     );
+    const selectedEmployeeRemainingBalance = useMemo(() => {
+        if (!selectedEmployeeId) {
+            return null;
+        }
+
+        return leaveBalanceByEmployeeId[selectedEmployeeId] ?? 0;
+    }, [leaveBalanceByEmployeeId, selectedEmployeeId]);
 
     const handleEmployeeChange = useCallback(
         (value: string) => {
@@ -169,16 +183,30 @@ export default function LeaveRequestsCreate({
                             <ChevronLeft className="size-4" />
                             Back to Leave Requests
                         </Link>
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">New leave request</h1>
-                            <p className="text-muted-foreground">
-                                Save a draft first, then open the request and use Submit when it is ready to send.
-                            </p>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight">New leave request</h1>
+                                <p className="text-muted-foreground">
+                                    Save a draft first, then open the request and use Submit when it is ready to send.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button type="submit" form="leave-request-create-form">
+                                    <Send className="mr-2 size-4" />
+                                    Save
+                                </Button>
+                                <Link href="/leave-requests">
+                                    <Button type="button" variant="outline">
+                                        Discard
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <Form
+                    id="leave-request-create-form"
                     action="/leave-requests"
                     method="post"
                     className="px-4 py-8 md:px-8"
@@ -387,23 +415,11 @@ export default function LeaveRequestsCreate({
                                             <div className="rounded-md border bg-muted/30 p-2">
                                                 {totalLeaveDays === null ? 'Leave duration: —' : `Leave duration: ${totalLeaveDays.toFixed(1)} day(s)`}
                                             </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Actions</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <Button type="submit" className="w-full">
-                                                <Send className="mr-2 size-4" />
-                                                Save as draft
-                                            </Button>
-                                            <Link href="/leave-requests" className="block">
-                                                <Button type="button" variant="ghost" className="w-full">
-                                                    Cancel
-                                                </Button>
-                                            </Link>
+                                            <div className="rounded-md border bg-muted/30 p-2">
+                                                {selectedEmployeeRemainingBalance === null
+                                                    ? 'Remaining leave balance: —'
+                                                    : `Remaining leave balance: ${selectedEmployeeRemainingBalance.toFixed(1)} day(s)`}
+                                            </div>
                                         </CardContent>
                                     </Card>
 
@@ -425,6 +441,17 @@ export default function LeaveRequestsCreate({
                                     </Card>
                                 </div>
                             </div>
+
+                            {canViewActivityLogs ? (
+                                <div className="lg:col-span-3">
+                                    <ActivityLogTimeline
+                                        entries={activityLogs}
+                                        title="Activity Log"
+                                        description="Track leave request updates by authorized users."
+                                        emptyDescription="Activity history will appear after this leave request is created and updated."
+                                    />
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </Form>

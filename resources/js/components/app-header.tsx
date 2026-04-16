@@ -112,6 +112,8 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
         () => filterNavByModuleAccess(mainNavItemsSource, modulePermissions),
         [modulePermissions],
     );
+    const unreadCount = notifications?.unread_count ?? 0;
+    const hasUnread = unreadCount > 0;
     const getInitials = useInitials();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
     return (
@@ -253,13 +255,25 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 onOpenChange={setNotificationsMenuOpen}
                             >
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                                        <Bell className="size-5 opacity-80" />
-                                        {(notifications?.unread_count ?? 0) > 0 ? (
-                                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-red-600 px-1 text-[11px] leading-none font-bold text-white">
-                                                {(notifications?.unread_count ?? 0) > 99
-                                                    ? '99+'
-                                                    : notifications?.unread_count}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={cn(
+                                            'relative h-9 w-9 rounded-lg border transition-all',
+                                            hasUnread
+                                                ? 'border-sky-200/80 bg-sky-50 text-sky-700 shadow-sm hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-200 dark:hover:bg-sky-500/25'
+                                                : 'border-indigo-100/80 bg-indigo-50/70 text-indigo-600 hover:border-indigo-200 hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20',
+                                        )}
+                                    >
+                                        <Bell
+                                            className={cn(
+                                                'size-5',
+                                                hasUnread ? 'animate-pulse' : 'opacity-95',
+                                            )}
+                                        />
+                                        {hasUnread ? (
+                                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[11px] leading-none font-bold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.6)] dark:shadow-[0_0_0_2px_rgba(15,23,42,0.8)]">
+                                                {unreadCount > 99 ? '99+' : unreadCount}
                                             </span>
                                         ) : null}
                                     </Button>

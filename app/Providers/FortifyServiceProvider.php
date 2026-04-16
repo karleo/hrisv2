@@ -7,6 +7,7 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Contracts\FaceVerificationContract;
 use App\Http\Responses\Fortify\LoginResponse as FortifyLoginResponse;
 use App\Http\Responses\Fortify\TwoFactorLoginResponse as FortifyTwoFactorLoginResponse;
+use App\Models\AppSetting;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    private const LOGIN_FACE_RECOGNITION_SETTING_KEY = 'login_face_recognition_enabled';
+
     /**
      * Register any application services.
      */
@@ -58,6 +61,7 @@ class FortifyServiceProvider extends ServiceProvider
             $hasValidFaceFile = $faceFile !== null && $faceFile->isValid();
             $passwordInput = (string) $request->input('password');
             $hasPasswordAttempt = $passwordInput !== '' && $passwordInput !== 'face-only-login';
+            $faceLoginVisible = $this->isFaceLoginVisibleOnLoginPage();
             if ($email === '') {
                 throw ValidationException::withMessages([
                     'email' => __('Email is required.'),
@@ -83,7 +87,7 @@ class FortifyServiceProvider extends ServiceProvider
                 (is_array($user->face_profile) && $user->face_profile !== []) ||
                 (is_string($user->face_reference_path) && $user->face_reference_path !== '');
 
-            if ($hasFaceEnrollment) {
+            if ($faceLoginVisible && $hasFaceEnrollment) {
                 if ($hasPasswordAttempt && Hash::check($passwordInput, $user->password)) {
                     return $user;
                 }
@@ -133,6 +137,7 @@ class FortifyServiceProvider extends ServiceProvider
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'canRegister' => Features::enabled(Features::registration()),
             'status' => $request->session()->get('status'),
+            'faceLoginVisible' => $this->isFaceLoginVisibleOnLoginPage(),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/reset-password', [
@@ -173,5 +178,14 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($throttleKey);
         });
+    }
+
+    private function isFaceLoginVisibleOnLoginPage(): bool
+    {
+        if (! Schema::hasTable('app_settings')) {
+            return true;
+        }
+
+        return AppSetting::getBool(self::LOGIN_FACE_RECOGNITION_SETTING_KEY, true);
     }
 }

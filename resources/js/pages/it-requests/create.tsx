@@ -87,8 +87,7 @@ export default function Create({
 
     const selectedEmployee = employees.find((employee) => employee.id === data.employee_id);
 
-    const saveDraft = (e: React.FormEvent) => {
-        e.preventDefault();
+    const saveDraft = () => {
         post(ItRequestController.store.post().url);
     };
 
@@ -114,6 +113,21 @@ export default function Create({
                             title="Create IT Request"
                             description="Save a draft first, then open the request and use Submit when it is ready to send."
                         />
+                        <div className="flex items-center gap-2">
+                            <Button
+                                disabled={processing}
+                                type="button"
+                                onClick={saveDraft}
+                            >
+                                <Send className="mr-2 size-4" />
+                                {processing ? 'Saving...' : 'Save'}
+                            </Button>
+                            <Link href={index()}>
+                                <Button type="button" variant="outline">
+                                    Discard
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
@@ -293,27 +307,6 @@ export default function Create({
                                     </CardContent>
                                 </Card>
 
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Actions</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <Button
-                                            disabled={processing}
-                                            type="button"
-                                            className="w-full"
-                                            onClick={saveDraft}
-                                        >
-                                            <Send className="mr-2 size-4" />
-                                            Save as draft
-                                        </Button>
-                                        <Link href={index()} className="block">
-                                            <Button type="button" variant="ghost" className="w-full">
-                                                Cancel
-                                            </Button>
-                                        </Link>
-                                    </CardContent>
-                                </Card>
                             </div>
                         </div>
                     </form>

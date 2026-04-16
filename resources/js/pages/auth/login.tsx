@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 
 type Props = {
     status?: string;
+    faceLoginVisible?: boolean;
 };
 
 const fieldShell = cn(
@@ -31,7 +32,7 @@ const fieldInput = cn(
     'focus-visible:ring-0 dark:text-zinc-50 dark:placeholder:text-zinc-500',
 );
 
-export default function Login({ status }: Props) {
+export default function Login({ status, faceLoginVisible = true }: Props) {
     const [showPassword, setShowPassword] = useState(false);
     const [useFaceLogin, setUseFaceLogin] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -121,12 +122,21 @@ export default function Login({ status }: Props) {
         faceCaptureErrorMessage.toLowerCase().includes('too many face verification attempts');
     const hasFaceVerificationError = Boolean(errors.face_capture);
     const readyToAutoSignIn =
+        faceLoginVisible &&
         useFaceLogin &&
         !hasPasswordIdentifier &&
         hasEmailIdentifier &&
         hasFaceSample &&
         !processing &&
         !isFaceRateLimited;
+
+    useEffect(() => {
+        if (! faceLoginVisible) {
+            setUseFaceLogin(false);
+            latestFaceRef.current = null;
+            setHasFaceSample(false);
+        }
+    }, [faceLoginVisible]);
 
     useEffect(() => {
         if (!useFaceLogin || loginInFlightRef.current || isFaceRateLimited) {
@@ -246,11 +256,65 @@ export default function Login({ status }: Props) {
                             <InputError id="login-email-error" message={errors.email} />
                         </div>
 
-                        <details className="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2 dark:border-zinc-700/80 dark:bg-zinc-900/30">
-                            <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                Use password instead
-                            </summary>
-                            <div className="mt-2 grid gap-2">
+                        {faceLoginVisible ? (
+                            <details className="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2 dark:border-zinc-700/80 dark:bg-zinc-900/30">
+                                <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    Use password instead
+                                </summary>
+                                <div className="mt-2 grid gap-2">
+                                    <div
+                                        className={cn(
+                                            fieldShell,
+                                            errors.password &&
+                                                'border-red-400 ring-2 ring-red-100 dark:border-red-500 dark:ring-red-950/50',
+                                        )}
+                                    >
+                                        <div className="flex w-12 shrink-0 items-center justify-center border-r border-zinc-200/80 dark:border-zinc-700/80">
+                                            <Lock
+                                                className="size-[1.125rem] text-zinc-400 dark:text-zinc-500"
+                                                aria-hidden
+                                            />
+                                        </div>
+                                        <Input
+                                            id="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            name="password"
+                                            value={data.password}
+                                            onChange={(e) => setData('password', e.target.value)}
+                                            tabIndex={2}
+                                            autoComplete="current-password"
+                                            placeholder="Optional backup password"
+                                            className={cn(fieldInput, 'pr-2')}
+                                            aria-invalid={errors.password ? true : undefined}
+                                            aria-describedby={
+                                                errors.password ? 'login-password-error' : undefined
+                                            }
+                                        />
+                                        <div className="flex shrink-0 items-center pr-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword((value) => !value)}
+                                                className="flex size-10 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-200/80 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                                tabIndex={-1}
+                                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                                aria-pressed={showPassword}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="size-[1.125rem]" aria-hidden />
+                                                ) : (
+                                                    <Eye className="size-[1.125rem]" aria-hidden />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <InputError id="login-password-error" message={errors.password} />
+                                </div>
+                            </details>
+                        ) : (
+                            <div className="grid gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2 dark:border-zinc-700/80 dark:bg-zinc-900/30">
+                                <Label className="px-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    Password
+                                </Label>
                                 <div
                                     className={cn(
                                         fieldShell,
@@ -270,9 +334,10 @@ export default function Login({ status }: Props) {
                                         name="password"
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
+                                        required
                                         tabIndex={2}
                                         autoComplete="current-password"
-                                        placeholder="Optional backup password"
+                                        placeholder="Enter your password"
                                         className={cn(fieldInput, 'pr-2')}
                                         aria-invalid={errors.password ? true : undefined}
                                         aria-describedby={
@@ -298,85 +363,87 @@ export default function Login({ status }: Props) {
                                 </div>
                                 <InputError id="login-password-error" message={errors.password} />
                             </div>
-                        </details>
+                        )}
 
-                        <div className="grid gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2 dark:border-zinc-700/80 dark:bg-zinc-900/30">
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                    <ScanFace className="size-3.5" aria-hidden />
-                                    Face login
-                                </p>
-                                <Button
-                                    type="button"
-                                    variant={useFaceLogin ? 'secondary' : 'outline'}
-                                    size="sm"
-                                    className={cn(
-                                        'text-zinc-700',
-                                        'hover:text-zinc-900',
-                                        'dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:hover:bg-zinc-700 dark:hover:text-white',
-                                    )}
-                                    onClick={() => {
-                                        setUseFaceLogin((value) => {
-                                            const next = !value;
-                                            if (!next) {
-                                                latestFaceRef.current = null;
-                                                setHasFaceSample(false);
-                                            }
-
-                                            return next;
-                                        });
-                                    }}
-                                    disabled={processing}
-                                >
-                                    {useFaceLogin ? 'Hide camera' : 'Use face login'}
-                                </Button>
-                            </div>
-                            {useFaceLogin ? (
-                                <>
-                                    <LiveFaceScanner
-                                        ref={faceScannerRef}
-                                        disabled={processing}
-                                        compact
-                                        showCircularFaceGuide
-                                        captureWhilePreviewing
-                                        requireFaceAlignmentForSampling
-                                        previewCaptureInitialDelayMs={900}
-                                        previewCaptureIntervalMs={1800}
-                                        onPreviewCapture={onPreviewFaceCapture}
-                                        error={errors.face_capture}
-                                        helperText="Enter your email, then keep your face inside the oval guide."
-                                    />
-                                    <div
+                        {faceLoginVisible ? (
+                            <div className="grid gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2 dark:border-zinc-700/80 dark:bg-zinc-900/30">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                        <ScanFace className="size-3.5" aria-hidden />
+                                        Face login
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant={useFaceLogin ? 'secondary' : 'outline'}
+                                        size="sm"
                                         className={cn(
-                                            'rounded-xl border px-3 py-2 text-xs',
-                                            readyToAutoSignIn
-                                                ? 'border-emerald-200/80 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/25 dark:text-emerald-300/90'
-                                                : 'border-zinc-200/80 bg-zinc-50/70 text-zinc-600 dark:border-zinc-700/80 dark:bg-zinc-900/30 dark:text-zinc-300',
+                                            'text-zinc-700',
+                                            'hover:text-zinc-900',
+                                            'dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:hover:bg-zinc-700 dark:hover:text-white',
                                         )}
-                                        role="status"
+                                        onClick={() => {
+                                            setUseFaceLogin((value) => {
+                                                const next = !value;
+                                                if (!next) {
+                                                    latestFaceRef.current = null;
+                                                    setHasFaceSample(false);
+                                                }
+
+                                                return next;
+                                            });
+                                        }}
+                                        disabled={processing}
                                     >
-                                        <p className="inline-flex items-center gap-1.5 font-medium">
-                                            <CheckCircle2 className="size-3.5" aria-hidden />
-                                            {readyToAutoSignIn
-                                                ? 'Face verified. Attempting sign-in...'
-                                                : isFaceRateLimited
-                                                  ? 'Face login paused due rate limit. Please wait and try again.'
-                                                  : !hasEmailIdentifier
-                                                    ? 'Enter your email to continue face login.'
-                                                  : hasFaceVerificationError
-                                                    ? faceCaptureErrorMessage
-                                                    : hasFaceSample
-                                                  ? 'Face sample captured. Waiting for server verification.'
-                                                  : 'Waiting for a valid face sample.'}
-                                        </p>
-                                    </div>
-                                </>
-                            ) : (
-                                <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-                                    Use email + password, or enable face login to open camera scan.
-                                </p>
-                            )}
-                        </div>
+                                        {useFaceLogin ? 'Hide camera' : 'Use face login'}
+                                    </Button>
+                                </div>
+                                {useFaceLogin ? (
+                                    <>
+                                        <LiveFaceScanner
+                                            ref={faceScannerRef}
+                                            disabled={processing}
+                                            compact
+                                            showCircularFaceGuide
+                                            captureWhilePreviewing
+                                            requireFaceAlignmentForSampling
+                                            previewCaptureInitialDelayMs={900}
+                                            previewCaptureIntervalMs={1800}
+                                            onPreviewCapture={onPreviewFaceCapture}
+                                            error={errors.face_capture}
+                                            helperText="Enter your email, then keep your face inside the oval guide."
+                                        />
+                                        <div
+                                            className={cn(
+                                                'rounded-xl border px-3 py-2 text-xs',
+                                                readyToAutoSignIn
+                                                    ? 'border-emerald-200/80 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/25 dark:text-emerald-300/90'
+                                                    : 'border-zinc-200/80 bg-zinc-50/70 text-zinc-600 dark:border-zinc-700/80 dark:bg-zinc-900/30 dark:text-zinc-300',
+                                            )}
+                                            role="status"
+                                        >
+                                            <p className="inline-flex items-center gap-1.5 font-medium">
+                                                <CheckCircle2 className="size-3.5" aria-hidden />
+                                                {readyToAutoSignIn
+                                                    ? 'Face verified. Attempting sign-in...'
+                                                    : isFaceRateLimited
+                                                      ? 'Face login paused due rate limit. Please wait and try again.'
+                                                      : !hasEmailIdentifier
+                                                        ? 'Enter your email to continue face login.'
+                                                      : hasFaceVerificationError
+                                                        ? faceCaptureErrorMessage
+                                                        : hasFaceSample
+                                                      ? 'Face sample captured. Waiting for server verification.'
+                                                      : 'Waiting for a valid face sample.'}
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+                                        Use email + password, or enable face login to open camera scan.
+                                    </p>
+                                )}
+                            </div>
+                        ) : null}
 
                         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-1">

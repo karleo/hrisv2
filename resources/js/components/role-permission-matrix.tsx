@@ -5,6 +5,8 @@ export type ModuleMeta = {
     label: string;
     /** When true, this row is Time & attendance: use Check in/out instead of Create. */
     time_attendance_checks?: boolean;
+    /** When true, Delete permission is intentionally not available for this module. */
+    delete_disabled?: boolean;
 };
 
 export type PermissionFlags = {
@@ -46,6 +48,10 @@ function shouldHideCell(mod: ModuleMeta, field: keyof PermissionFlags): boolean 
         (field === 'can_check_in' || field === 'can_check_out') &&
         !mod.time_attendance_checks
     ) {
+        return true;
+    }
+
+    if (field === 'can_delete' && mod.delete_disabled) {
         return true;
     }
 
