@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::index
- * @see app/Http/Controllers/ItAssetRequestController.php:32
+ * @see app/Http/Controllers/ItAssetRequestController.php:35
  * @route '/it-asset-requests'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
 create.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ create.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -112,7 +112,7 @@ create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -122,7 +122,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
     const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -132,7 +132,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
         createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -141,7 +141,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::create
- * @see app/Http/Controllers/ItAssetRequestController.php:57
+ * @see app/Http/Controllers/ItAssetRequestController.php:60
  * @route '/it-asset-requests/create'
  */
         createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -157,7 +157,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     create.form = createForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::store
- * @see app/Http/Controllers/ItAssetRequestController.php:77
+ * @see app/Http/Controllers/ItAssetRequestController.php:84
  * @route '/it-asset-requests'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -172,7 +172,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::store
- * @see app/Http/Controllers/ItAssetRequestController.php:77
+ * @see app/Http/Controllers/ItAssetRequestController.php:84
  * @route '/it-asset-requests'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -181,7 +181,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::store
- * @see app/Http/Controllers/ItAssetRequestController.php:77
+ * @see app/Http/Controllers/ItAssetRequestController.php:84
  * @route '/it-asset-requests'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -191,7 +191,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::store
- * @see app/Http/Controllers/ItAssetRequestController.php:77
+ * @see app/Http/Controllers/ItAssetRequestController.php:84
  * @route '/it-asset-requests'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -201,7 +201,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::store
- * @see app/Http/Controllers/ItAssetRequestController.php:77
+ * @see app/Http/Controllers/ItAssetRequestController.php:84
  * @route '/it-asset-requests'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -212,7 +212,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
 export const show = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -227,7 +227,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
 show.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -260,7 +260,7 @@ show.url = (args: { it_asset_request: number | { id: number } } | [it_asset_requ
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
 show.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -269,7 +269,7 @@ show.get = (args: { it_asset_request: number | { id: number } } | [it_asset_requ
 })
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
 show.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -279,7 +279,7 @@ show.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
     const showForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -289,7 +289,7 @@ show.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
         showForm.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -298,7 +298,7 @@ show.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
         })
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::show
- * @see app/Http/Controllers/ItAssetRequestController.php:98
+ * @see app/Http/Controllers/ItAssetRequestController.php:116
  * @route '/it-asset-requests/{it_asset_request}'
  */
         showForm.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -314,7 +314,7 @@ show.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
     show.form = showForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
 export const edit = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -329,7 +329,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
 edit.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -362,7 +362,7 @@ edit.url = (args: { it_asset_request: number | { id: number } } | [it_asset_requ
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
 edit.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -371,7 +371,7 @@ edit.get = (args: { it_asset_request: number | { id: number } } | [it_asset_requ
 })
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
 edit.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -381,7 +381,7 @@ edit.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
     const editForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -391,7 +391,7 @@ edit.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
         editForm.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -400,7 +400,7 @@ edit.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
         })
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::edit
- * @see app/Http/Controllers/ItAssetRequestController.php:247
+ * @see app/Http/Controllers/ItAssetRequestController.php:258
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
         editForm.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -416,7 +416,7 @@ edit.head = (args: { it_asset_request: number | { id: number } } | [it_asset_req
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
 export const update = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -431,7 +431,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
 update.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -464,7 +464,7 @@ update.url = (args: { it_asset_request: number | { id: number } } | [it_asset_re
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
 update.put = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -473,7 +473,7 @@ update.put = (args: { it_asset_request: number | { id: number } } | [it_asset_re
 })
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
 update.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -483,7 +483,7 @@ update.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
     const updateForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -498,7 +498,7 @@ update.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
         updateForm.put = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -512,7 +512,7 @@ update.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_
         })
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::update
- * @see app/Http/Controllers/ItAssetRequestController.php:283
+ * @see app/Http/Controllers/ItAssetRequestController.php:300
  * @route '/it-asset-requests/{it_asset_request}'
  */
         updateForm.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -528,7 +528,7 @@ update.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::destroy
- * @see app/Http/Controllers/ItAssetRequestController.php:361
+ * @see app/Http/Controllers/ItAssetRequestController.php:387
  * @route '/it-asset-requests/{it_asset_request}'
  */
 export const destroy = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -543,7 +543,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::destroy
- * @see app/Http/Controllers/ItAssetRequestController.php:361
+ * @see app/Http/Controllers/ItAssetRequestController.php:387
  * @route '/it-asset-requests/{it_asset_request}'
  */
 destroy.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -576,7 +576,7 @@ destroy.url = (args: { it_asset_request: number | { id: number } } | [it_asset_r
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::destroy
- * @see app/Http/Controllers/ItAssetRequestController.php:361
+ * @see app/Http/Controllers/ItAssetRequestController.php:387
  * @route '/it-asset-requests/{it_asset_request}'
  */
 destroy.delete = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -586,7 +586,7 @@ destroy.delete = (args: { it_asset_request: number | { id: number } } | [it_asse
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::destroy
- * @see app/Http/Controllers/ItAssetRequestController.php:361
+ * @see app/Http/Controllers/ItAssetRequestController.php:387
  * @route '/it-asset-requests/{it_asset_request}'
  */
     const destroyForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -601,7 +601,7 @@ destroy.delete = (args: { it_asset_request: number | { id: number } } | [it_asse
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::destroy
- * @see app/Http/Controllers/ItAssetRequestController.php:361
+ * @see app/Http/Controllers/ItAssetRequestController.php:387
  * @route '/it-asset-requests/{it_asset_request}'
  */
         destroyForm.delete = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -617,7 +617,7 @@ destroy.delete = (args: { it_asset_request: number | { id: number } } | [it_asse
     destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::submit
- * @see app/Http/Controllers/ItAssetRequestController.php:140
+ * @see app/Http/Controllers/ItAssetRequestController.php:155
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
 export const submit = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -632,7 +632,7 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::submit
- * @see app/Http/Controllers/ItAssetRequestController.php:140
+ * @see app/Http/Controllers/ItAssetRequestController.php:155
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
 submit.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -665,7 +665,7 @@ submit.url = (args: { it_asset_request: number | { id: number } } | [it_asset_re
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::submit
- * @see app/Http/Controllers/ItAssetRequestController.php:140
+ * @see app/Http/Controllers/ItAssetRequestController.php:155
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
 submit.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -675,7 +675,7 @@ submit.post = (args: { it_asset_request: number | { id: number } } | [it_asset_r
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::submit
- * @see app/Http/Controllers/ItAssetRequestController.php:140
+ * @see app/Http/Controllers/ItAssetRequestController.php:155
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
     const submitForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -685,7 +685,7 @@ submit.post = (args: { it_asset_request: number | { id: number } } | [it_asset_r
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::submit
- * @see app/Http/Controllers/ItAssetRequestController.php:140
+ * @see app/Http/Controllers/ItAssetRequestController.php:155
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
         submitForm.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -696,7 +696,7 @@ submit.post = (args: { it_asset_request: number | { id: number } } | [it_asset_r
     submit.form = submitForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::decide
- * @see app/Http/Controllers/ItAssetRequestController.php:170
+ * @see app/Http/Controllers/ItAssetRequestController.php:185
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
 export const decide = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -711,7 +711,7 @@ decide.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::decide
- * @see app/Http/Controllers/ItAssetRequestController.php:170
+ * @see app/Http/Controllers/ItAssetRequestController.php:185
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
 decide.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -744,7 +744,7 @@ decide.url = (args: { it_asset_request: number | { id: number } } | [it_asset_re
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::decide
- * @see app/Http/Controllers/ItAssetRequestController.php:170
+ * @see app/Http/Controllers/ItAssetRequestController.php:185
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
 decide.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -754,7 +754,7 @@ decide.post = (args: { it_asset_request: number | { id: number } } | [it_asset_r
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::decide
- * @see app/Http/Controllers/ItAssetRequestController.php:170
+ * @see app/Http/Controllers/ItAssetRequestController.php:185
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
     const decideForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -764,7 +764,7 @@ decide.post = (args: { it_asset_request: number | { id: number } } | [it_asset_r
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::decide
- * @see app/Http/Controllers/ItAssetRequestController.php:170
+ * @see app/Http/Controllers/ItAssetRequestController.php:185
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
         decideForm.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -775,7 +775,7 @@ decide.post = (args: { it_asset_request: number | { id: number } } | [it_asset_r
     decide.form = decideForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
 export const print = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -790,7 +790,7 @@ print.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
 print.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -823,7 +823,7 @@ print.url = (args: { it_asset_request: number | { id: number } } | [it_asset_req
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
 print.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -832,7 +832,7 @@ print.get = (args: { it_asset_request: number | { id: number } } | [it_asset_req
 })
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
 print.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -842,7 +842,7 @@ print.head = (args: { it_asset_request: number | { id: number } } | [it_asset_re
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
     const printForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -852,7 +852,7 @@ print.head = (args: { it_asset_request: number | { id: number } } | [it_asset_re
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
         printForm.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -861,7 +861,7 @@ print.head = (args: { it_asset_request: number | { id: number } } | [it_asset_re
         })
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::print
- * @see app/Http/Controllers/ItAssetRequestController.php:218
+ * @see app/Http/Controllers/ItAssetRequestController.php:233
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
         printForm.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -877,7 +877,7 @@ print.head = (args: { it_asset_request: number | { id: number } } | [it_asset_re
     print.form = printForm
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::updateSignatures
- * @see app/Http/Controllers/ItAssetRequestController.php:308
+ * @see app/Http/Controllers/ItAssetRequestController.php:334
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
 export const updateSignatures = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -892,7 +892,7 @@ updateSignatures.definition = {
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::updateSignatures
- * @see app/Http/Controllers/ItAssetRequestController.php:308
+ * @see app/Http/Controllers/ItAssetRequestController.php:334
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
 updateSignatures.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -925,7 +925,7 @@ updateSignatures.url = (args: { it_asset_request: number | { id: number } } | [i
 
 /**
 * @see \App\Http\Controllers\ItAssetRequestController::updateSignatures
- * @see app/Http/Controllers/ItAssetRequestController.php:308
+ * @see app/Http/Controllers/ItAssetRequestController.php:334
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
 updateSignatures.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -935,7 +935,7 @@ updateSignatures.post = (args: { it_asset_request: number | { id: number } } | [
 
     /**
 * @see \App\Http\Controllers\ItAssetRequestController::updateSignatures
- * @see app/Http/Controllers/ItAssetRequestController.php:308
+ * @see app/Http/Controllers/ItAssetRequestController.php:334
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
     const updateSignaturesForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -945,7 +945,7 @@ updateSignatures.post = (args: { it_asset_request: number | { id: number } } | [
 
             /**
 * @see \App\Http\Controllers\ItAssetRequestController::updateSignatures
- * @see app/Http/Controllers/ItAssetRequestController.php:308
+ * @see app/Http/Controllers/ItAssetRequestController.php:334
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
         updateSignaturesForm.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

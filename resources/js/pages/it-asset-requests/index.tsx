@@ -18,16 +18,10 @@ import {
 } from '@/components/ui/card';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { create, index } from '@/routes/it-asset-requests';
 import type { BreadcrumbItem } from '@/types';
 import type { ModulePermissionsMap } from '@/types/permissions';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'IT Asset Requests',
-        href: index().url,
-    },
-];
 
 type Employee = {
     id: number;
@@ -88,9 +82,20 @@ export default function Index({
     };
     const canUpdate = Boolean(modulePermissions?.it_asset_requests?.can_update);
 
+    const { t } = useI18n();
+
+    const pageTitle = t('dashboard.itAssetRequests', 'IT Asset Requests');
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: pageTitle,
+            href: index().url,
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="IT Asset Requests" />
+            <Head title={pageTitle} />
 
             <div className="flex h-full flex-1 flex-col">
                 {/* Page header */}
@@ -113,17 +118,23 @@ export default function Index({
                             </div>
                             <div>
                                 <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                    IT Asset Requests
+                                    {pageTitle}
                                 </h1>
                                 <p className="text-muted-foreground text-sm">
-                                    View and manage IT asset requests
+                                    {t(
+                                        'itAssetRequestsIndex.subtitle',
+                                        'View and manage IT asset requests',
+                                    )}
                                 </p>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <DataTableToolbar
                                 searchUrl={index().url}
-                                searchPlaceholder="Search by employee..."
+                                searchPlaceholder={t(
+                                    'itAssetRequestsIndex.searchPlaceholder',
+                                    'Search by employee...',
+                                )}
                                 filters={filters}
                                 autoSearch
                                 showSearchButton={false}
@@ -131,7 +142,7 @@ export default function Index({
                             <Link href={create().url}>
                                 <Button size="sm" className="gap-2">
                                     <Plus className="size-4" />
-                                    New Request
+                                    {t('itAssetRequestsIndex.newRequest', 'New Request')}
                                 </Button>
                             </Link>
                         </div>
@@ -146,26 +157,26 @@ export default function Index({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Code
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itAssetRequestsIndex.table.code', 'Code')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Date
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itAssetRequestsIndex.table.date', 'Date')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Employee
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itAssetRequestsIndex.table.employee', 'Employee')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
-                                                Department
+                                            <th className="hidden px-4 py-3.5 text-start font-medium md:table-cell">
+                                                {t('itAssetRequestsIndex.table.department', 'Department')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Company
+                                            <th className="hidden px-4 py-3.5 text-start font-medium lg:table-cell">
+                                                {t('itAssetRequestsIndex.table.company', 'Company')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Status
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itAssetRequestsIndex.table.status', 'Status')}
                                             </th>
-                                            <th className="w-36 px-4 py-3.5 text-right font-medium">
-                                                Actions
+                                            <th className="w-36 px-4 py-3.5 text-end font-medium">
+                                                {t('itAssetRequestsIndex.table.actions', 'Actions')}
                                             </th>
                                         </tr>
                                     </thead>
@@ -182,14 +193,23 @@ export default function Index({
                                                         </div>
                                                         <p className="text-muted-foreground text-sm">
                                                             {filters.search
-                                                                ? 'No IT asset requests match your search.'
-                                                                : 'No IT asset requests yet. Create your first request to get started.'}
+                                                                ? t(
+                                                                      'itAssetRequestsIndex.empty.search',
+                                                                      'No IT asset requests match your search.',
+                                                                  )
+                                                                : t(
+                                                                      'itAssetRequestsIndex.empty.noData',
+                                                                      'No IT asset requests yet. Create your first request to get started.',
+                                                                  )}
                                                         </p>
                                                         {!filters.search && (
                                                             <Link href={create().url}>
                                                                 <Button size="sm" variant="outline" className="gap-2">
                                                                     <Plus className="size-4" />
-                                                                    New IT Asset Request
+                                                                    {t(
+                                                                        'itAssetRequestsIndex.newItAssetRequest',
+                                                                        'New IT Asset Request',
+                                                                    )}
                                                                 </Button>
                                                             </Link>
                                                         )}
@@ -234,7 +254,10 @@ export default function Index({
                                                         <div className="flex justify-end gap-1">
                                                             <Link
                                                                 href={ItAssetRequestController.show.url(request.id)}
-                                                                aria-label="View"
+                                                                aria-label={t(
+                                                                    'itAssetRequestsIndex.aria.view',
+                                                                    'View',
+                                                                )}
                                                             >
                                                                 <Button
                                                                     variant="ghost"
@@ -245,8 +268,11 @@ export default function Index({
                                                                 </Button>
                                                             </Link>
                                                             <Link
-                                                                href={`${ItAssetRequestController.show.url(request.id)}?print=1`}
-                                                                aria-label="Print"
+                                                                href={`/it-asset-requests/${request.id}/print`}
+                                                                aria-label={t(
+                                                                    'itAssetRequestsIndex.aria.print',
+                                                                    'Print',
+                                                                )}
                                                             >
                                                                 <Button
                                                                     variant="ghost"
@@ -259,7 +285,10 @@ export default function Index({
                                                             {canUpdate && request.status === 'draft' && (
                                                                 <Link
                                                                     href={ItAssetRequestController.edit.url(request.id)}
-                                                                    aria-label="Edit"
+                                                                    aria-label={t(
+                                                                        'itAssetRequestsIndex.aria.edit',
+                                                                        'Edit',
+                                                                    )}
                                                                 >
                                                                     <Button
                                                                         variant="ghost"

@@ -7,6 +7,7 @@ use App\Enums\PermissionModule;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
@@ -14,8 +15,8 @@ use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
-use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveCalendarController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
@@ -108,6 +109,15 @@ final class ModulePermissionRegistry
             'edit' => [PermissionModule::Hardware, ModuleAbility::Update],
             'update' => [PermissionModule::Hardware, ModuleAbility::Update],
             'destroy' => [PermissionModule::Hardware, ModuleAbility::Delete],
+        ],
+        DocumentTypeController::class => [
+            'index' => [PermissionModule::DocumentTypes, ModuleAbility::View],
+            'create' => [PermissionModule::DocumentTypes, ModuleAbility::Create],
+            'store' => [PermissionModule::DocumentTypes, ModuleAbility::Create],
+            'show' => [PermissionModule::DocumentTypes, ModuleAbility::View],
+            'edit' => [PermissionModule::DocumentTypes, ModuleAbility::Update],
+            'update' => [PermissionModule::DocumentTypes, ModuleAbility::Update],
+            'destroy' => [PermissionModule::DocumentTypes, ModuleAbility::Delete],
         ],
         LeaveRequestController::class => [
             'index' => [PermissionModule::LeaveRequests, ModuleAbility::View],

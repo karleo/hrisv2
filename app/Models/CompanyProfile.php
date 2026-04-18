@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $company_address_2
  * @property int|null $country_id
  * @property string|null $website
+ * @property string|null $signature_template
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -34,6 +35,7 @@ class CompanyProfile extends Model
         'company_address_2',
         'country_id',
         'website',
+        'signature_template',
     ];
 
     public function country(): BelongsTo

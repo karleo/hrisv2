@@ -14,6 +14,7 @@ use App\Http\Requests\Employee\UpdateProfileRequest;
 use App\Http\Requests\Employee\UploadProfileDocumentRequest;
 use App\Models\CompanyProfile;
 use App\Models\Department;
+use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\JobPosition;
@@ -24,6 +25,7 @@ use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -48,7 +50,7 @@ class EmployeeController extends Controller
         }
 
         $employee = Employee::query()
-            ->with(['department', 'jobPosition', 'companyProfile', 'workTimetable', 'documents'])
+            ->with(['department', 'jobPosition', 'companyProfile', 'workTimetable', 'documents.documentType'])
             ->where('user_id', $user->id)
             ->first();
 
@@ -99,9 +101,42 @@ class EmployeeController extends Controller
             ->mapWithKeys(static fn ($category, $name): array => [(string) $name => (string) $category])
             ->all();
 
+        $companyForSignature = null;
+        if ($employee instanceof Employee && $employee->companyProfile !== null) {
+            $companyForSignature = $employee->companyProfile;
+        }
+        if ($companyForSignature === null) {
+            $companyForSignature = CompanyProfile::query()->first();
+        }
+
+        $emailSignatureCompanyProfile = $companyForSignature instanceof CompanyProfile
+            ? [
+                'company_name' => $companyForSignature->company_name,
+                'company_address_1' => $companyForSignature->company_address_1,
+                'company_address_2' => $companyForSignature->company_address_2,
+                'website' => $companyForSignature->website,
+                'signature_template' => $companyForSignature->signature_template,
+            ]
+            : null;
+
+        $emailSignaturePreview = [
+            'fullName' => $employee instanceof Employee
+                ? trim($employee->first_name.' '.$employee->last_name)
+                : (string) ($user->name ?? ''),
+            'designation' => $employee instanceof Employee ? ($employee->jobPosition?->name) : null,
+            'email' => $employee instanceof Employee
+                ? $employee->email_address
+                : (string) ($user->email ?? ''),
+            'phone' => $employee instanceof Employee
+                ? ($employee->mobile ?? $employee->contact_number)
+                : null,
+        ];
+
         return Inertia::render('employees/profile', [
             'employee' => $employee,
             'hasEmployeeProfile' => $employee instanceof Employee,
+            'emailSignatureCompanyProfile' => $emailSignatureCompanyProfile,
+            'emailSignaturePreview' => $emailSignaturePreview,
             'leaveConfig' => [
                 'openingBalance' => $openingBalance,
                 'approvedDaysUsed' => $approvedDaysUsed,
@@ -215,7 +250,7 @@ class EmployeeController extends Controller
             abort(403);
         }
 
-        $employee = Employee::query()->with('documents')->where('user_id', $user->id)->first();
+        $employee = Employee::query()->with('documents.documentType')->where('user_id', $user->id)->first();
         if ($employee === null) {
             abort(403);
         }
@@ -225,25 +260,19 @@ class EmployeeController extends Controller
             return back()->with('error', 'Please select a document.');
         }
 
-        $baseName = trim((string) ($request->input('name') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)));
-        $documentName = $baseName !== '' ? $baseName : 'Document';
-
-        $existing = $employee->documents->firstWhere('name', $documentName);
-        $path = $file->store("employees/{$employee->id}/documents", 'public');
-
-        if ($existing !== null) {
-            Storage::disk('public')->delete($existing->path);
-            $existing->update([
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
-        } else {
-            $employee->documents()->create([
-                'name' => $documentName,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
+        $documentType = DocumentType::query()->find($request->integer('document_type_id'));
+        if ($documentType === null) {
+            return back()->with('error', 'Please select a valid document type.');
         }
+
+        $path = $file->store("employees/{$employee->id}/documents", 'public');
+        $this->createEmployeeDocumentVersion(
+            $employee,
+            $documentType,
+            $path,
+            $file->getClientOriginalName(),
+            $request->input('expiry_date')
+        );
 
         return back()->with('success', 'Document uploaded successfully.');
     }
@@ -266,7 +295,7 @@ class EmployeeController extends Controller
         return back()->with('success', 'Document deleted.');
     }
 
-    public function showProfileDocument(Request $request, EmployeeDocument $employeeDocument): BinaryFileResponse
+    public function showProfileDocument(Request $request, EmployeeDocument $employee_document): BinaryFileResponse
     {
         $user = $request->user();
         if ($user === null) {
@@ -274,18 +303,19 @@ class EmployeeController extends Controller
         }
 
         $employee = Employee::query()->where('user_id', $user->id)->first();
-        if ($employee === null || $employeeDocument->employee_id !== $employee->id) {
+        if ($employee === null || $employee_document->employee_id !== $employee->id) {
             abort(404);
         }
 
-        if (! Storage::disk('public')->exists($employeeDocument->path)) {
+        $relativePath = $this->resolveExistingPublicDiskDocumentPath($employee_document);
+        if ($relativePath === null) {
             abort(404, 'Document file not found.');
         }
 
         return response()->file(
-            Storage::disk('public')->path($employeeDocument->path),
+            Storage::disk('public')->path($relativePath),
             [
-                'Content-Disposition' => 'inline; filename="'.$employeeDocument->original_name.'"',
+                'Content-Disposition' => 'inline; filename="'.$employee_document->original_name.'"',
             ]
         );
     }
@@ -353,8 +383,19 @@ class EmployeeController extends Controller
         return Inertia::render('employees/create', [
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
-            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get([
+                'id',
+                'company_name',
+                'company_address_1',
+                'company_address_2',
+                'website',
+                'signature_template',
+            ]),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
+            'documentTypes' => DocumentType::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'requires_expiry_date']),
             'canViewActivityLogs' => $canViewActivityLogs,
         ]);
     }
@@ -751,8 +792,9 @@ class EmployeeController extends Controller
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
-        $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels']);
+        $documentTypeIds = $request->input('document_type_ids', []);
+        $documentExpiryDates = $request->input('document_expiry_dates', []);
+        unset($data['photo'], $data['documents'], $data['document_type_ids'], $data['document_expiry_dates']);
 
         $data['role'] = 'Employee';
 
@@ -765,12 +807,17 @@ class EmployeeController extends Controller
 
         foreach ($documents as $i => $file) {
             $path = $file->store("employees/{$employee->id}/documents", 'public');
-            $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $employee->documents()->create([
-                'name' => $label,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
+            $documentType = DocumentType::query()->find($documentTypeIds[$i] ?? null);
+            if ($documentType === null) {
+                continue;
+            }
+            $this->createEmployeeDocumentVersion(
+                $employee,
+                $documentType,
+                $path,
+                $file->getClientOriginalName(),
+                $documentExpiryDates[$i] ?? null
+            );
         }
 
         return to_route('employees.edit', $employee)->with('success', 'Employee updated successfully.');
@@ -842,7 +889,7 @@ class EmployeeController extends Controller
         $employee->load([
             'department',
             'jobPosition',
-            'documents',
+            'documents.documentType',
             'companyProfile',
             'workTimetable',
             'user' => function ($query) use ($hasUserActiveColumn): void {
@@ -904,13 +951,41 @@ class EmployeeController extends Controller
                 ->values()
                 ->all()
             : [];
+        $orderedEmployeeIds = Employee::query()
+            ->orderBy('employee_code')
+            ->orderBy('id')
+            ->pluck('id')
+            ->values();
+        $employeePosition = $orderedEmployeeIds->search((int) $employee->id);
+        $previousEmployeeId = null;
+        $nextEmployeeId = null;
+
+        if ($employeePosition !== false) {
+            $previousEmployeeId = $employeePosition > 0
+                ? $orderedEmployeeIds->get($employeePosition - 1)
+                : null;
+            $nextEmployeeId = $employeePosition < ($orderedEmployeeIds->count() - 1)
+                ? $orderedEmployeeIds->get($employeePosition + 1)
+                : null;
+        }
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
-            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get([
+                'id',
+                'company_name',
+                'company_address_1',
+                'company_address_2',
+                'website',
+                'signature_template',
+            ]),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
+            'documentTypes' => DocumentType::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'requires_expiry_date']),
             'viewMode' => $request->query('mode') === 'view',
             'employeeLoginActive' => $employee->user?->is_active ?? null,
             'canViewActivityLogs' => $canViewActivityLogs,
@@ -938,6 +1013,10 @@ class EmployeeController extends Controller
                     ];
                 })->values()->all(),
             ],
+            'employeeNavigation' => [
+                'previousId' => is_numeric($previousEmployeeId) ? (int) $previousEmployeeId : null,
+                'nextId' => is_numeric($nextEmployeeId) ? (int) $nextEmployeeId : null,
+            ],
         ]);
     }
 
@@ -953,8 +1032,9 @@ class EmployeeController extends Controller
         $userActive = $data['user_active'] ?? null;
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
-        $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels'], $data['user_active']);
+        $documentTypeIds = $request->input('document_type_ids', []);
+        $documentExpiryDates = $request->input('document_expiry_dates', []);
+        unset($data['photo'], $data['documents'], $data['document_type_ids'], $data['document_expiry_dates'], $data['user_active']);
 
         $employee->update($data);
 
@@ -968,12 +1048,17 @@ class EmployeeController extends Controller
 
         foreach ($documents as $i => $file) {
             $path = $file->store("employees/{$employee->id}/documents", 'public');
-            $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $employee->documents()->create([
-                'name' => $label,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
+            $documentType = DocumentType::query()->find($documentTypeIds[$i] ?? null);
+            if ($documentType === null) {
+                continue;
+            }
+            $this->createEmployeeDocumentVersion(
+                $employee,
+                $documentType,
+                $path,
+                $file->getClientOriginalName(),
+                $documentExpiryDates[$i] ?? null
+            );
         }
 
         if (Schema::hasColumn('users', 'is_active') && $employee->user_id !== null && $userActive !== null) {
@@ -1027,36 +1112,111 @@ class EmployeeController extends Controller
     /**
      * Remove the specified document from the employee.
      */
-    public function destroyDocument(Employee $employee, EmployeeDocument $employeeDocument): RedirectResponse
+    public function destroyDocument(Employee $employee, EmployeeDocument $employee_document): RedirectResponse
     {
-        if ($employeeDocument->employee_id !== $employee->id) {
+        if ($employee_document->employee_id !== $employee->id) {
             abort(404);
         }
-        $path = str_replace('\\', '/', $employeeDocument->path);
-        Storage::disk('public')->delete($employeeDocument->path);
+        $path = str_replace('\\', '/', $employee_document->path);
+        Storage::disk('public')->delete($employee_document->path);
         Storage::disk('public')->delete($path);
         Storage::disk('public')->deleteDirectory("employees/{$employee->id}/documents");
-        $employeeDocument->delete();
+        $employee_document->delete();
 
         return back();
     }
 
-    public function showDocument(Employee $employee, EmployeeDocument $employeeDocument): BinaryFileResponse
+    public function showDocument(Employee $employee, EmployeeDocument $employee_document): BinaryFileResponse
     {
-        if ($employeeDocument->employee_id !== $employee->id) {
+        if ($employee_document->employee_id !== $employee->id) {
             abort(404);
         }
 
-        if (! Storage::disk('public')->exists($employeeDocument->path)) {
+        $relativePath = $this->resolveExistingPublicDiskDocumentPath($employee_document);
+        if ($relativePath === null) {
             abort(404, 'Document file not found.');
         }
 
         return response()->file(
-            Storage::disk('public')->path($employeeDocument->path),
+            Storage::disk('public')->path($relativePath),
             [
-                'Content-Disposition' => 'inline; filename="'.$employeeDocument->original_name.'"',
+                'Content-Disposition' => 'inline; filename="'.$employee_document->original_name.'"',
             ]
         );
+    }
+
+    /**
+     * Resolve the path relative to the public disk root, or null if the file is missing.
+     * Handles Windows-style separators and legacy values that include a "storage/" prefix.
+     */
+    private function resolveExistingPublicDiskDocumentPath(EmployeeDocument $document): ?string
+    {
+        $raw = $document->path;
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace('\\', '/', $raw);
+        $normalized = ltrim($normalized, '/');
+
+        $candidates = [$normalized];
+        if (str_starts_with($normalized, 'storage/')) {
+            $candidates[] = substr($normalized, strlen('storage/'));
+        }
+
+        $disk = Storage::disk('public');
+        foreach (array_unique($candidates) as $candidate) {
+            if ($candidate !== '' && $disk->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function createEmployeeDocumentVersion(
+        Employee $employee,
+        DocumentType $documentType,
+        string $path,
+        string $originalName,
+        mixed $expiryDate,
+    ): EmployeeDocument {
+        return DB::transaction(function () use ($employee, $documentType, $path, $originalName, $expiryDate): EmployeeDocument {
+            $previousDocument = EmployeeDocument::query()
+                ->where('employee_id', $employee->id)
+                ->where('document_type_id', $documentType->id)
+                ->orderByDesc('version_number')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($previousDocument !== null) {
+                $previousDocument->update([
+                    'status' => EmployeeDocument::STATUS_ARCHIVED,
+                    'archived_at' => now(),
+                ]);
+            }
+
+            return $employee->documents()->create([
+                'document_type_id' => $documentType->id,
+                'name' => $documentType->name,
+                'path' => $path,
+                'original_name' => $originalName,
+                'expiry_date' => $this->normalizeDocumentExpiryDate($expiryDate),
+                'status' => EmployeeDocument::STATUS_ACTIVE,
+                'version_number' => (int) ($previousDocument?->version_number ?? 0) + 1,
+                'archived_at' => null,
+                'replaces_document_id' => $previousDocument?->id,
+            ]);
+        });
+    }
+
+    private function normalizeDocumentExpiryDate(mixed $value): ?string
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        return Carbon::parse((string) $value)->toDateString();
     }
 
     /**

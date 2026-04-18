@@ -27,6 +27,7 @@ import {
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
+import { useI18n } from '@/lib/i18n';
 
 type Employee = { id: number; first_name: string; last_name: string };
 type Department = { id: number; name: string };
@@ -95,6 +96,7 @@ export default function LeaveRequestsShow({
     canViewActivityLogs?: boolean;
     activityLogs: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     useRequestStatusPoll(['leaveRequest', 'canDecide']);
 
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
@@ -353,8 +355,8 @@ export default function LeaveRequestsShow({
                 {canViewActivityLogs ? (
                     <ActivityLogTimeline
                         entries={activityLogs}
-                        title="Activity Log"
-                        description="Track leave request updates by authorized users."
+                        title={t('activity.title', 'Activity Log')}
+                        description={t('activity.description.leave', 'Track leave request updates by authorized users.')}
                     />
                 ) : null}
                 </div>

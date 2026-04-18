@@ -1,15 +1,14 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CheckCircle2, Laptop, Package, Send, User } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -17,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { index } from '@/routes/it-asset-requests';
 import type { BreadcrumbItem } from '@/types';
 
@@ -36,6 +36,11 @@ type HardwareOption = {
     id: number;
     code: string;
     name: string;
+};
+
+type HardwareItemInput = {
+    hardware_id: number;
+    serial_number: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -67,12 +72,17 @@ export default function Create({
     departments,
     hardware,
     defaultEmployeeId = null,
+    canViewActivityLogs = false,
+    activityLogs = [],
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     hardware: HardwareOption[];
     defaultEmployeeId?: number | null;
+    canViewActivityLogs?: boolean;
+    activityLogs?: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const initialDate = getTodayYmd();
 
     const initialEmployee =
@@ -84,7 +94,7 @@ export default function Create({
         employee_id: number | '';
         department_id: number | '';
         hardware_ids: number[];
-        serial_number: string;
+        hardware_items: HardwareItemInput[];
         remarks: string;
     }>({
         date: initialDate,
@@ -92,28 +102,16 @@ export default function Create({
         employee_id: initialEmployee?.id ?? '',
         department_id: initialEmployee?.department_id ?? '',
         hardware_ids: [],
-        serial_number: '',
+        hardware_items: [],
         remarks: '',
     });
 
-    const [dateInput, setDateInput] = useState<string>(
-        data.date ? toDdMmYyyy(data.date) : '',
-    );
-    const [dateIssuedInput, setDateIssuedInput] = useState<string>(
-        data.date_issued ? toDdMmYyyy(data.date_issued) : '',
-    );
+    const dateInput = data.date ? toDdMmYyyy(data.date) : '';
+    const dateIssuedInput = data.date_issued ? toDdMmYyyy(data.date_issued) : '';
     const [hardwareSearch, setHardwareSearch] = useState<string>('');
 
     const dateRef = useRef<HTMLInputElement>(null);
     const dateIssuedRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        setDateInput(data.date ? toDdMmYyyy(data.date) : '');
-    }, [data.date]);
-
-    useEffect(() => {
-        setDateIssuedInput(data.date_issued ? toDdMmYyyy(data.date_issued) : '');
-    }, [data.date_issued]);
 
     const openDatePicker = (ref: React.RefObject<HTMLInputElement>) => {
         const el = ref.current;
@@ -130,6 +128,37 @@ export default function Create({
     const saveDraft = () => {
         post('/it-asset-requests');
     };
+
+    const syncHardwareItems = (nextHardwareIds: number[]) => {
+        setData((previous) => {
+            const serialByHardwareId = new Map(
+                previous.hardware_items.map((item) => [item.hardware_id, item.serial_number]),
+            );
+
+            return {
+                ...previous,
+                hardware_ids: nextHardwareIds,
+                hardware_items: nextHardwareIds.map((hardwareId) => ({
+                    hardware_id: hardwareId,
+                    serial_number: serialByHardwareId.get(hardwareId) ?? '',
+                })),
+            };
+        });
+    };
+
+    const setHardwareSerialNumber = (hardwareId: number, serialNumber: string) => {
+        setData(
+            'hardware_items',
+            data.hardware_items.map((item) =>
+                item.hardware_id === hardwareId ? { ...item, serial_number: serialNumber } : item,
+            ),
+        );
+    };
+
+    const hardwareSerialById = useMemo(
+        () => new Map(data.hardware_items.map((item) => [item.hardware_id, item.serial_number])),
+        [data.hardware_items],
+    );
 
     const selectedHardware = hardware.filter((hw) =>
         data.hardware_ids.includes(hw.id),
@@ -148,7 +177,7 @@ export default function Create({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Create IT Asset Request" />
+            <Head title={t('forms.itAsset.createTitle', 'Create IT Asset Request')} />
 
             <div className="flex min-h-screen w-full flex-col bg-muted/30">
                 {/* Header Section */}
@@ -159,16 +188,16 @@ export default function Create({
                             className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ArrowLeft className="size-4" />
-                            Back to IT Asset Requests
+                            {t('forms.itAsset.backToRequests', 'Back to IT Asset Requests')}
                         </Link>
 
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                             <div className="space-y-1">
                                 <h1 className="text-3xl font-bold tracking-tight">
-                                    Create IT Asset Request
+                                    {t('forms.itAsset.createTitle', 'Create IT Asset Request')}
                                 </h1>
                                 <p className="text-muted-foreground">
-                                    Save a draft first, then open the request and use Submit when it is ready to send.
+                                    {t('forms.saveDraftHelp', 'Save a draft first, then open the request and use Submit when it is ready to send.')}
                                 </p>
                             </div>
 
@@ -180,16 +209,16 @@ export default function Create({
                                         onClick={saveDraft}
                                     >
                                         <Send className="mr-2 size-4" />
-                                        {processing ? 'Saving...' : 'Save'}
+                                        {processing ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
                                     </Button>
                                     <Link href={index()}>
                                         <Button type="button" variant="outline">
-                                            Discard
+                                            {t('common.discard', 'Discard')}
                                         </Button>
                                     </Link>
                                 </div>
                                 <div className="min-w-[200px]">
-                                    <Label className="text-sm font-medium">Request Code</Label>
+                                    <Label className="text-sm font-medium">{t('forms.requestCode', 'Request Code')}</Label>
                                     <Input
                                         type="text"
                                         readOnly
@@ -259,7 +288,6 @@ export default function Create({
                                                     onChange={(e) => {
                                                         const iso = e.target.value;
                                                         setData('date', iso);
-                                                        setDateInput(iso ? toDdMmYyyy(iso) : '');
                                                     }}
                                                     className="absolute inset-0 z-10 cursor-pointer opacity-0"
                                                 />
@@ -301,7 +329,6 @@ export default function Create({
                                                     onChange={(e) => {
                                                         const iso = e.target.value;
                                                         setData('date_issued', iso);
-                                                        setDateIssuedInput(iso ? toDdMmYyyy(iso) : '');
                                                     }}
                                                     className="absolute inset-0 z-10 cursor-pointer opacity-0"
                                                 />
@@ -436,9 +463,11 @@ export default function Create({
                                                                         checked={isSelected}
                                                                         onChange={(e) => {
                                                                             if (e.target.checked) {
-                                                                                setData('hardware_ids', [...data.hardware_ids, hw.id]);
+                                                                                syncHardwareItems([...data.hardware_ids, hw.id]);
                                                                             } else {
-                                                                                setData('hardware_ids', data.hardware_ids.filter(id => id !== hw.id));
+                                                                                syncHardwareItems(
+                                                                                    data.hardware_ids.filter((id) => id !== hw.id),
+                                                                                );
                                                                             }
                                                                         }}
                                                                         className="sr-only"
@@ -457,23 +486,38 @@ export default function Create({
                                             <InputError message={errors.hardware_ids} />
                                         </div>
 
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="serial_number">
-                                                Serial Number
-                                            </Label>
-                                            <Input
-                                                id="serial_number"
-                                                name="serial_number"
-                                                type="text"
-                                                value={data.serial_number}
-                                                onChange={(e) =>
-                                                    setData('serial_number', e.target.value)
-                                                }
-                                                placeholder="Enter serial number (optional)"
-                                                className="h-10"
-                                            />
-                                            <InputError message={errors.serial_number} />
-                                        </div>
+                                        {selectedHardware.length > 0 ? (
+                                            <div className="grid gap-3">
+                                                <Label>Serial Number Per Hardware</Label>
+                                                <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                                                    {selectedHardware.map((hw, index) => (
+                                                        <div key={hw.id} className="grid gap-2 sm:grid-cols-[1fr,220px] sm:items-center">
+                                                            <div className="text-sm">
+                                                                <div className="font-medium">{hw.code}</div>
+                                                                <div className="text-muted-foreground">{hw.name}</div>
+                                                            </div>
+                                                            <div>
+                                                                <Input
+                                                                    type="text"
+                                                                    value={hardwareSerialById.get(hw.id) ?? ''}
+                                                                    onChange={(e) =>
+                                                                        setHardwareSerialNumber(hw.id, e.target.value)
+                                                                    }
+                                                                    placeholder="Serial number (optional)"
+                                                                    className="h-10"
+                                                                />
+                                                                <InputError
+                                                                    message={
+                                                                        errors[`hardware_items.${index}.serial_number`] ||
+                                                                        errors.hardware_items
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="remarks">Remarks</Label>
@@ -500,7 +544,7 @@ export default function Create({
                                     {/* Summary Card */}
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle className="text-lg">Summary</CardTitle>
+                                            <CardTitle className="text-lg">{t('forms.summary', 'Summary')}</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             {selectedHardware.length > 0 && (
@@ -585,6 +629,18 @@ export default function Create({
                                 </div>
                             </div>
                         </div>
+                        {canViewActivityLogs ? (
+                            <div className="lg:col-span-3">
+                                <ActivityLogTimeline
+                                    entries={activityLogs}
+                                    title={t('activity.title', 'Activity Log')}
+                                    description={t(
+                                        'activity.description.itAsset',
+                                        'Track IT asset request updates by authorized users.',
+                                    )}
+                                />
+                            </div>
+                        ) : null}
                     </form>
                 </div>
             </div>

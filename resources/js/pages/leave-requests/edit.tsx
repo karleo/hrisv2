@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
@@ -169,6 +170,7 @@ export default function LeaveRequestsEdit({
     canViewActivityLogs?: boolean;
     activityLogs: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(String(leaveRequest.employee_id));
     const [departmentId, setDepartmentId] = useState<string>(String(leaveRequest.department_id));
     const [periodFrom, setPeriodFrom] = useState<string>(leaveRequest.period_from ?? '');
@@ -605,8 +607,8 @@ export default function LeaveRequestsEdit({
                                 <div className="lg:col-span-3">
                                     <ActivityLogTimeline
                                         entries={activityLogs}
-                                        title="Activity Log"
-                                        description="Track leave request updates by authorized users."
+                                        title={t('activity.title', 'Activity Log')}
+                                        description={t('activity.description.leave', 'Track leave request updates by authorized users.')}
                                     />
                                 </div>
                             ) : null}

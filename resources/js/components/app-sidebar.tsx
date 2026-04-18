@@ -27,6 +27,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
+import { useI18n } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import { index as companyProfilesIndex } from '@/routes/company-profiles';
 import { index as countriesIndex } from '@/routes/countries';
@@ -41,97 +42,104 @@ import { index as softwareIndex } from '@/routes/software';
 import type { NavItem } from '@/types';
 import AppLogo from './app-logo';
 
-const mainNavItemsSource: NavItem[] = [
-    {
-        title: 'Dashboard',
+function buildMainNavItems(t: (key: string, fallback?: string) => string): NavItem[] {
+    return [
+        {
+        title: t('sidebar.dashboard', 'Dashboard'),
         description: 'Overview and quick metrics',
         href: dashboard(),
         icon: LayoutGrid,
         module: 'dashboard',
-    },
-    {
-        title: 'Employees',
+        },
+        {
+        title: t('sidebar.employees', 'Employees'),
         description: 'Manage employee records',
         href: employeesIndex(),
         icon: Users,
         module: 'employees',
-    },
-    {
-        title: 'Leave Management',
+        },
+        {
+        title: t('sidebar.leaveManagement', 'Leave Management'),
         description: 'Requests, approvals, and balances',
         href: leaveRequestsIndex(),
         icon: CalendarDays,
         module: 'leave_requests',
-    },
-    {
-        title: 'IT Requests',
+        },
+        {
+        title: t('sidebar.itRequests', 'IT Requests'),
         description: 'Software and hardware request forms',
         href: itRequestsIndex(),
         icon: Cpu,
         module: 'it_requests',
-    },
-    {
-        title: 'IT Asset Management',
+        },
+        {
+        title: t('sidebar.itAssetRequests', 'IT Asset Management'),
         description: 'Asset issuance and signature tracking',
         href: '/it-asset-requests',
         icon: Cpu,
         module: 'it_asset_requests',
-    },
-    {
-        title: 'Employee Requests',
+        },
+        {
+        title: t('sidebar.employeeRequests', 'Employee Requests'),
         description: 'Travel and HR support requests',
         href: '/employee-requests',
         icon: Briefcase,
         module: 'employee_requests',
-    },
-    {
-        title: 'Time & attendance',
+        },
+        {
+        title: t('sidebar.timeAttendance', 'Time & attendance'),
         description: 'Daily logs and attendance actions',
         href: '/time-attendance',
         icon: Clock,
         module: 'time_attendance',
-    },
-    {
-        title: 'Settings',
+        },
+        {
+        title: t('sidebar.settings', 'Settings'),
         description: 'Reference data and configuration',
         icon: Settings,
         items: [
             {
-                title: 'Masters',
+                title: t('sidebar.masters', 'Masters'),
                 icon: Table2,
                 items: [
                     {
-                        title: 'Departments',
+                        title: t('sidebar.departments', 'Departments'),
                         href: departmentsIndex(),
                         icon: Building2,
                         module: 'departments',
                     },
                     {
-                        title: 'Job Positions',
+                        title: t('sidebar.jobPositions', 'Job Positions'),
                         href: jobPositionsIndex(),
                         icon: Briefcase,
                         module: 'job_positions',
                     },
                     {
-                        title: 'Countries',
+                        title: t('sidebar.countries', 'Countries'),
                         href: countriesIndex(),
                         icon: Globe,
                         module: 'countries',
                     },
                     {
-                        title: 'Software',
+                        title: t('sidebar.software', 'Software'),
                         href: softwareIndex(),
                         icon: AppWindow,
                         module: 'software',
                     },
                     {
-                        title: 'Hardware',
+                        title: t('sidebar.hardware', 'Hardware'),
                         href: hardwareIndex(),
                         icon: Cpu,
                         module: 'hardware',
                     },
                     {
-                        title: 'Leave Types',
+                        title: t('sidebar.documentTypes', 'Document Types'),
+                        href: '/document-types',
+                        icon: Table2,
+                        module: 'document_types',
+                    },
+                    {
+                        title: t('sidebar.leaveTypes', 'Leave Types'),
                         href: leaveTypesIndex(),
                         icon: CalendarDays,
                         module: 'leave_types',
@@ -139,29 +147,29 @@ const mainNavItemsSource: NavItem[] = [
                 ],
             },
             {
-                title: 'Company Profiles',
+                title: t('sidebar.companyProfiles', 'Company Profiles'),
                 href: companyProfilesIndex(),
                 icon: Building2,
                 module: 'company_profiles',
             },
             {
-                title: 'Work timetables',
+                title: t('sidebar.workTimetables', 'Work timetables'),
                 href: workTimetablesIndex(),
                 icon: Table2,
                 module: 'work_timetables',
             },
             {
-                title: 'User config',
+                title: t('sidebar.userConfig', 'User config'),
                 icon: UserCog,
                 items: [
                     {
-                        title: 'Users',
+                        title: t('sidebar.users', 'Users'),
                         href: '/users',
                         icon: UserRound,
                         module: 'user_management',
                     },
                     {
-                        title: 'Roles',
+                        title: t('sidebar.roles', 'Roles'),
                         href: '/roles',
                         icon: Shield,
                         module: 'role_management',
@@ -169,10 +177,26 @@ const mainNavItemsSource: NavItem[] = [
                 ],
             },
         ],
-    },
-];
+        },
+    ];
+}
+
+function hrefToUrl(href: NavItem['href']): string {
+    if (!href) {
+        return '';
+    }
+    if (typeof href === 'string') {
+        return href;
+    }
+    if (typeof href === 'object' && 'url' in href) {
+        return String((href as { url?: string }).url ?? '');
+    }
+
+    return '';
+}
 
 export function AppSidebar() {
+    const { t } = useI18n();
     const { modulePermissions, auth } = usePage().props as {
         modulePermissions: unknown;
         auth?: {
@@ -184,9 +208,9 @@ export function AppSidebar() {
 
     const mainNavItems = useMemo(
         () => {
-            const items = filterNavByModuleAccess(mainNavItemsSource, modulePermissions);
+            const items = filterNavByModuleAccess(buildMainNavItems(t), modulePermissions);
             const leaveCalendarItem = {
-                title: 'Leave Calendar',
+                title: t('sidebar.leaveCalendar', 'Leave Calendar'),
                 description: 'Monthly approved leave visibility',
                 href: '/leave-calendar',
                 icon: CalendarDays,
@@ -194,7 +218,9 @@ export function AppSidebar() {
 
             let withLeaveCalendar = items;
             if (auth?.has_leave_calendar_access) {
-                const dashboardIndex = items.findIndex((item) => item.title === 'Dashboard');
+                const dashboardIndex = items.findIndex(
+                    (item) => hrefToUrl(item.href) === dashboard().url
+                );
                 if (dashboardIndex >= 0) {
                     withLeaveCalendar = [
                         ...items.slice(0, dashboardIndex + 1),
@@ -212,7 +238,7 @@ export function AppSidebar() {
 
             return withLeaveCalendar;
         },
-        [modulePermissions, auth?.has_employee_profile, auth?.has_my_profile_access, auth?.has_leave_calendar_access],
+        [modulePermissions, auth?.has_employee_profile, auth?.has_my_profile_access, auth?.has_leave_calendar_access, t],
     );
 
     return (
@@ -239,7 +265,7 @@ export function AppSidebar() {
 
             <SidebarContent className="py-2 pl-1.5 pr-0">
                 <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/55 group-data-[collapsible=icon]:hidden">
-                    Navigation
+                    {t('sidebar.navigation', 'Navigation')}
                 </p>
                 <NavMain items={mainNavItems} />
             </SidebarContent>

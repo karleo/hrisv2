@@ -1,6 +1,7 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import {
     ItAssetRequestSignaturesCard,
     itAssetRequestShowSignatureVisitOnly,
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Employee = {
@@ -43,6 +45,12 @@ type Hardware = {
     name: string;
 };
 
+type HardwareItem = {
+    hardware_id: number;
+    serial_number: string | null;
+    hardware: Hardware;
+};
+
 type ItAssetRequest = {
     id: number;
     code: string;
@@ -50,6 +58,7 @@ type ItAssetRequest = {
     date_issued: string | null;
     status: string;
     hardware_ids: number[] | null;
+    hardware_items?: HardwareItem[];
     hardware?: Hardware[];
     asset_type: string | null;
     serial_number: string | null;
@@ -77,6 +86,7 @@ function formatDateDdMmYyyy(value: string | null | undefined): string {
 export default function Show({
     itAssetRequest,
     hardware = [],
+    hardwareItems = [],
     employees = [],
     submitUrl,
     cancelUrl,
@@ -85,9 +95,12 @@ export default function Show({
     canDecide,
     canCancel = false,
     canEdit = false,
+    canViewActivityLogs = false,
+    activityLogs,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
+    hardwareItems?: HardwareItem[];
     employees?: Employee[];
     submitUrl: string;
     cancelUrl: string;
@@ -96,7 +109,10 @@ export default function Show({
     canDecide: boolean;
     canCancel?: boolean;
     canEdit?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     useRequestStatusPoll(['itAssetRequest', 'canDecide']);
 
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
@@ -104,6 +120,28 @@ export default function Show({
     const statusNorm = normalizeRequestStatus(itAssetRequest.status);
     const isDraft = statusNorm === 'draft';
     const [decisionClientMessage, setDecisionClientMessage] = useState<string | null>(null);
+    const resolvedHardwareItems = useMemo<HardwareItem[]>(() => {
+        if (hardwareItems.length > 0) {
+            return hardwareItems;
+        }
+
+        if ((itAssetRequest.hardware_items ?? []).length > 0) {
+            return itAssetRequest.hardware_items ?? [];
+        }
+
+        if (hardware.length === 0) {
+            return [];
+        }
+
+        const fallbackSerial =
+            hardware.length === 1 ? (itAssetRequest.serial_number ?? null) : null;
+
+        return hardware.map((item, index) => ({
+            hardware_id: item.id,
+            serial_number: index === 0 ? fallbackSerial : null,
+            hardware: item,
+        }));
+    }, [hardware, hardwareItems, itAssetRequest.hardware_items, itAssetRequest.serial_number]);
     const visibleDecisionMessage = visibleRequestDecisionMessage(decisionClientMessage, {
         hasIssuedBySignature: Boolean(itAssetRequest.issued_by_signature_url),
     });
@@ -269,26 +307,25 @@ export default function Show({
                         </div>
                     </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-lg border p-4">
-                            <div className="text-xs text-muted-foreground">Hardware</div>
-                            <div className="mt-1">
-                                {hardware.length > 0 ? (
-                                    <ul className="list-disc list-inside space-y-1 text-sm">
-                                        {hardware.map((hw) => (
-                                            <li key={hw.id}>
-                                                {hw.code} - {hw.name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">—</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="rounded-lg border p-4">
-                            <div className="text-xs text-muted-foreground">Serial number</div>
-                            <div className="font-semibold">{itAssetRequest.serial_number ?? '—'}</div>
+                    <div className="mt-5 rounded-lg border p-4">
+                        <div className="text-xs text-muted-foreground">Hardware and serial numbers</div>
+                        <div className="mt-2">
+                            {resolvedHardwareItems.length > 0 ? (
+                                <ul className="space-y-2 text-sm">
+                                    {resolvedHardwareItems.map((item) => (
+                                        <li key={item.hardware_id} className="rounded-md border bg-muted/30 px-3 py-2">
+                                            <div className="font-medium">
+                                                {item.hardware.code} - {item.hardware.name}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Serial: {item.serial_number ?? '—'}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                            )}
                         </div>
                     </div>
 
@@ -434,6 +471,16 @@ export default function Show({
                                 </div>
                             </div>
                         </div>
+                        {canViewActivityLogs ? (
+                            <ActivityLogTimeline
+                                entries={activityLogs}
+                                title={t('activity.title', 'Activity Log')}
+                                description={t(
+                                    'activity.description.itAsset',
+                                    'Track IT asset request updates by authorized users.',
+                                )}
+                            />
+                        ) : null}
                     </div>
                 </div>
             </div>

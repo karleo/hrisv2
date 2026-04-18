@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
 use App\Http\Requests\EmployeeRequest\StoreEmployeeRequestRequest;
 use App\Http\Requests\EmployeeRequest\UpdateEmployeeRequestRequest;
 use App\Models\CompanyProfile;
@@ -187,6 +189,7 @@ class EmployeeRequestController extends Controller
         $actor = request()->user();
         $this->assertCanView($actor, $employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
+        $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
@@ -215,6 +218,8 @@ class EmployeeRequestController extends Controller
             'canDecide' => $this->approvalScope->canDecide($actor, $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
             'canCancel' => $this->canCancel($actor, $employee_request),
             'canEdit' => $this->canEdit($actor, $employee_request),
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $canViewActivityLogs ? $this->activityLogsForEmployeeRequest($employee_request) : [],
         ]);
     }
 
@@ -305,6 +310,7 @@ class EmployeeRequestController extends Controller
         $this->assertCanModify($actor, $employee_request);
         $this->assertEditableStatus($employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
+        $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
@@ -336,6 +342,8 @@ class EmployeeRequestController extends Controller
             'cancelUrl' => route('employee-requests.destroy', $employee_request, false),
             'canDecide' => $this->approvalScope->canDecide($actor, $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
             'canCancel' => $this->canCancel($actor, $employee_request),
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $canViewActivityLogs ? $this->activityLogsForEmployeeRequest($employee_request) : [],
         ]);
     }
 
@@ -547,6 +555,33 @@ class EmployeeRequestController extends Controller
         }
 
         return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function activityLogsForEmployeeRequest(EmployeeRequest $employeeRequest): array
+    {
+        return $employeeRequest->activityLogs()
+            ->with('actor:id,name')
+            ->limit(200)
+            ->get()
+            ->map(function ($log): array {
+                $oldValue = is_string($log->old_value) ? trim($log->old_value) : null;
+                $newValue = is_string($log->new_value) ? trim($log->new_value) : null;
+
+                return [
+                    'id' => (int) $log->id,
+                    'action' => (string) $log->action,
+                    'field' => (string) $log->field_name,
+                    'old_value' => $oldValue === '' ? null : $oldValue,
+                    'new_value' => $newValue === '' ? null : $newValue,
+                    'performed_by' => (string) ($log->actor?->name ?? $log->actor_name ?? 'System'),
+                    'performed_at' => $log->created_at?->toIso8601String(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function assertCanView(?User $user, EmployeeRequest $employeeRequest): void

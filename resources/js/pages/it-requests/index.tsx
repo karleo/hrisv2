@@ -18,16 +18,10 @@ import {
 } from '@/components/ui/card';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { create, index } from '@/routes/it-requests';
 import type { BreadcrumbItem } from '@/types';
 import type { ModulePermissionsMap } from '@/types/permissions';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'IT Requests',
-        href: index().url,
-    },
-];
 
 type Employee = {
     id: number;
@@ -78,9 +72,18 @@ export default function Index({
     };
     const canUpdate = Boolean(modulePermissions?.it_requests?.can_update);
 
+    const { t } = useI18n();
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('sidebar.itRequests', 'IT Requests'),
+            href: index().url,
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="IT Requests" />
+            <Head title={t('sidebar.itRequests', 'IT Requests')} />
 
             <div className="flex h-full flex-1 flex-col">
                 {/* Page header */}
@@ -103,17 +106,23 @@ export default function Index({
                             </div>
                             <div>
                                 <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                    IT Requests
+                                    {t('sidebar.itRequests', 'IT Requests')}
                                 </h1>
                                 <p className="text-muted-foreground text-sm">
-                                    View and manage submitted IT requests
+                                    {t(
+                                        'itRequestsIndex.subtitle',
+                                        'View and manage submitted IT requests',
+                                    )}
                                 </p>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <DataTableToolbar
                                 searchUrl={index().url}
-                                searchPlaceholder="Search by employee..."
+                                searchPlaceholder={t(
+                                    'itRequestsIndex.searchPlaceholder',
+                                    'Search by employee...',
+                                )}
                                 filters={filters}
                                 autoSearch
                                 showSearchButton={false}
@@ -121,7 +130,7 @@ export default function Index({
                             <Link href={create().url}>
                                 <Button size="sm" className="gap-2">
                                     <Plus className="size-4" />
-                                    New Request
+                                    {t('itRequestsIndex.newRequest', 'New Request')}
                                 </Button>
                             </Link>
                         </div>
@@ -136,20 +145,20 @@ export default function Index({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Employee
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itRequestsIndex.table.employee', 'Employee')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Department
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itRequestsIndex.table.department', 'Department')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Company
+                                            <th className="hidden px-4 py-3.5 text-start font-medium lg:table-cell">
+                                                {t('itRequestsIndex.table.company', 'Company')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Status
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('itRequestsIndex.table.status', 'Status')}
                                             </th>
-                                            <th className="w-36 px-4 py-3.5 text-right font-medium">
-                                                Actions
+                                            <th className="w-36 px-4 py-3.5 text-end font-medium">
+                                                {t('itRequestsIndex.table.actions', 'Actions')}
                                             </th>
                                         </tr>
                                     </thead>
@@ -166,14 +175,23 @@ export default function Index({
                                                         </div>
                                                         <p className="text-muted-foreground text-sm">
                                                             {filters.search
-                                                                ? 'No IT requests match your search.'
-                                                                : 'No IT requests yet. Create your first request to get started.'}
+                                                                ? t(
+                                                                      'itRequestsIndex.empty.search',
+                                                                      'No IT requests match your search.',
+                                                                  )
+                                                                : t(
+                                                                      'itRequestsIndex.empty.noData',
+                                                                      'No IT requests yet. Create your first request to get started.',
+                                                                  )}
                                                         </p>
                                                         {!filters.search && (
                                                             <Link href={create().url}>
                                                                 <Button size="sm" variant="outline" className="gap-2">
                                                                     <Plus className="size-4" />
-                                                                    New IT Request
+                                                                    {t(
+                                                                        'itRequestsIndex.newItRequest',
+                                                                        'New IT Request',
+                                                                    )}
                                                                 </Button>
                                                             </Link>
                                                         )}
@@ -209,7 +227,7 @@ export default function Index({
                                                         <div className="flex justify-end gap-1">
                                                             <Link
                                                                 href={ItRequestController.show.url(request.id)}
-                                                                aria-label="View"
+                                                                aria-label={t('itRequestsIndex.aria.view', 'View')}
                                                             >
                                                                 <Button
                                                                     variant="ghost"
@@ -220,8 +238,8 @@ export default function Index({
                                                                 </Button>
                                                             </Link>
                                                             <Link
-                                                                href={`${ItRequestController.show.url(request.id)}?print=1`}
-                                                                aria-label="Print"
+                                                                href={`/it-requests/${request.id}/print`}
+                                                                aria-label={t('itRequestsIndex.aria.print', 'Print')}
                                                             >
                                                                 <Button
                                                                     variant="ghost"
@@ -234,7 +252,7 @@ export default function Index({
                                                             {canUpdate && request.status === 'draft' && (
                                                                 <Link
                                                                     href={ItRequestController.edit.url(request.id)}
-                                                                    aria-label="Edit"
+                                                                    aria-label={t('itRequestsIndex.aria.edit', 'Edit')}
                                                                 >
                                                                     <Button
                                                                         variant="ghost"

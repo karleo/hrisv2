@@ -9,12 +9,12 @@ export default function AppSidebarLayout({
     breadcrumbs = [],
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.04';
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.05';
 
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
+            <AppContent variant="sidebar" className="overflow-x-hidden" dir="ltr">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {children}
                 <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground md:px-6">

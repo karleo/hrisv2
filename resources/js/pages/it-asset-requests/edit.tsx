@@ -1,6 +1,7 @@
 import { Form, Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Ban, Calendar, CheckCircle2, Laptop, Package, Save, Send, User } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
 import {
@@ -29,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { index } from '@/routes/it-asset-requests';
 import type { BreadcrumbItem } from '@/types';
 
@@ -50,6 +52,11 @@ type HardwareOption = {
     name: string;
 };
 
+type HardwareItemInput = {
+    hardware_id: number;
+    serial_number: string;
+};
+
 type ItAssetRequest = {
     id: number;
     code: string;
@@ -58,6 +65,7 @@ type ItAssetRequest = {
     employee_id: number;
     department_id: number;
     hardware_ids: number[] | null;
+    hardware_items?: HardwareItemInput[];
     serial_number: string | null;
     remarks: string | null;
     status: string;
@@ -88,6 +96,8 @@ export default function Edit({
     canDecide,
     cancelUrl,
     canCancel = false,
+    canViewActivityLogs = false,
+    activityLogs,
 }: {
     itAssetRequest: ItAssetRequest;
     employees: EmployeeOption[];
@@ -97,7 +107,10 @@ export default function Edit({
     canDecide: boolean;
     cancelUrl: string;
     canCancel?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
     const showHref = `/it-asset-requests/${itAssetRequest.id}`;
     const statusNorm = normalizeRequestStatus(itAssetRequest.status);
@@ -114,13 +127,35 @@ export default function Edit({
         { title: `Edit ${requestLabel}`, href: '#' },
     ];
 
+    const initialHardwareItems: HardwareItemInput[] = useMemo(() => {
+        if ((itAssetRequest.hardware_items ?? []).length > 0) {
+            return (itAssetRequest.hardware_items ?? []).map((item) => ({
+                hardware_id: item.hardware_id,
+                serial_number: item.serial_number ?? '',
+            }));
+        }
+
+        const legacyHardwareIds = itAssetRequest.hardware_ids ?? [];
+        if (legacyHardwareIds.length === 0) {
+            return [];
+        }
+
+        return legacyHardwareIds.map((hardwareId, index) => ({
+            hardware_id: hardwareId,
+            serial_number:
+                legacyHardwareIds.length === 1 && index === 0
+                    ? (itAssetRequest.serial_number ?? '')
+                    : '',
+        }));
+    }, [itAssetRequest.hardware_ids, itAssetRequest.hardware_items, itAssetRequest.serial_number]);
+
     const { data, setData, processing, errors, put, transform } = useForm<{
         date: string;
         date_issued: string;
         employee_id: number | '';
         department_id: number | '';
         hardware_ids: number[];
-        serial_number: string;
+        hardware_items: HardwareItemInput[];
         remarks: string;
         status: string;
     }>({
@@ -128,8 +163,8 @@ export default function Edit({
         date_issued: itAssetRequest.date_issued ?? '',
         employee_id: itAssetRequest.employee_id,
         department_id: itAssetRequest.department_id,
-        hardware_ids: itAssetRequest.hardware_ids ?? [],
-        serial_number: itAssetRequest.serial_number ?? '',
+        hardware_ids: initialHardwareItems.map((item) => item.hardware_id),
+        hardware_items: initialHardwareItems,
         remarks: itAssetRequest.remarks ?? '',
         status: itAssetRequest.status,
     });
@@ -163,6 +198,37 @@ export default function Edit({
         transform((payload) => ({ ...payload, status: data.status || itAssetRequest.status }));
         put(`/it-asset-requests/${itAssetRequest.id}`);
     };
+
+    const syncHardwareItems = (nextHardwareIds: number[]) => {
+        setData((previous) => {
+            const serialByHardwareId = new Map(
+                previous.hardware_items.map((item) => [item.hardware_id, item.serial_number]),
+            );
+
+            return {
+                ...previous,
+                hardware_ids: nextHardwareIds,
+                hardware_items: nextHardwareIds.map((hardwareId) => ({
+                    hardware_id: hardwareId,
+                    serial_number: serialByHardwareId.get(hardwareId) ?? '',
+                })),
+            };
+        });
+    };
+
+    const setHardwareSerialNumber = (hardwareId: number, serialNumber: string) => {
+        setData(
+            'hardware_items',
+            data.hardware_items.map((item) =>
+                item.hardware_id === hardwareId ? { ...item, serial_number: serialNumber } : item,
+            ),
+        );
+    };
+
+    const hardwareSerialById = useMemo(
+        () => new Map(data.hardware_items.map((item) => [item.hardware_id, item.serial_number])),
+        [data.hardware_items],
+    );
 
     const selectedHardware = hardware.filter((hw) =>
         data.hardware_ids.includes(hw.id),
@@ -497,10 +563,9 @@ export default function Edit({
                                                                         checked={isSelected}
                                                                         onChange={(e) => {
                                                                             if (e.target.checked) {
-                                                                                setData('hardware_ids', [...data.hardware_ids, hw.id]);
+                                                                                syncHardwareItems([...data.hardware_ids, hw.id]);
                                                                             } else {
-                                                                                setData(
-                                                                                    'hardware_ids',
+                                                                                syncHardwareItems(
                                                                                     data.hardware_ids.filter((id) => id !== hw.id),
                                                                                 );
                                                                             }
@@ -522,19 +587,38 @@ export default function Edit({
                                             <InputError message={errors.hardware_ids} />
                                         </div>
 
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="serial_number">Serial Number</Label>
-                                            <Input
-                                                id="serial_number"
-                                                name="serial_number"
-                                                type="text"
-                                                value={data.serial_number}
-                                                onChange={(e) => setData('serial_number', e.target.value)}
-                                                placeholder="Enter serial number (optional)"
-                                                className="h-10"
-                                            />
-                                            <InputError message={errors.serial_number} />
-                                        </div>
+                                        {selectedHardware.length > 0 ? (
+                                            <div className="grid gap-3">
+                                                <Label>Serial Number Per Hardware</Label>
+                                                <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                                                    {selectedHardware.map((hw, index) => (
+                                                        <div key={hw.id} className="grid gap-2 sm:grid-cols-[1fr,220px] sm:items-center">
+                                                            <div className="text-sm">
+                                                                <div className="font-medium">{hw.code}</div>
+                                                                <div className="text-muted-foreground">{hw.name}</div>
+                                                            </div>
+                                                            <div>
+                                                                <Input
+                                                                    type="text"
+                                                                    value={hardwareSerialById.get(hw.id) ?? ''}
+                                                                    onChange={(e) =>
+                                                                        setHardwareSerialNumber(hw.id, e.target.value)
+                                                                    }
+                                                                    placeholder="Serial number (optional)"
+                                                                    className="h-10"
+                                                                />
+                                                                <InputError
+                                                                    message={
+                                                                        errors[`hardware_items.${index}.serial_number`] ||
+                                                                        errors.hardware_items
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="remarks">Remarks</Label>
@@ -693,6 +777,18 @@ export default function Edit({
                                 </div>
                             </div>
                         </div>
+                        {canViewActivityLogs ? (
+                            <div className="lg:col-span-3">
+                                <ActivityLogTimeline
+                                    entries={activityLogs}
+                                    title={t('activity.title', 'Activity Log')}
+                                    description={t(
+                                        'activity.description.itAsset',
+                                        'Track IT asset request updates by authorized users.',
+                                    )}
+                                />
+                            </div>
+                        ) : null}
                     </form>
                 </div>
             </div>

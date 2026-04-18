@@ -17,6 +17,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
@@ -131,6 +132,7 @@ export default function LeaveRequestsCreate({
     canViewActivityLogs?: boolean;
     activityLogs?: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const initialEmployee = defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -172,7 +174,7 @@ export default function LeaveRequestsCreate({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="New leave request" />
+            <Head title={t('forms.leave.newRequest', 'New leave request')} />
             <div className="flex min-h-screen flex-col bg-muted/30">
                 <div className="border-b bg-card px-4 py-6 md:px-8">
                     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
@@ -181,23 +183,25 @@ export default function LeaveRequestsCreate({
                             className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ChevronLeft className="size-4" />
-                            Back to Leave Requests
+                            {t('forms.leave.backToRequests', 'Back to Leave Requests')}
                         </Link>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight">New leave request</h1>
+                                <h1 className="text-3xl font-bold tracking-tight">
+                                    {t('forms.leave.newRequest', 'New leave request')}
+                                </h1>
                                 <p className="text-muted-foreground">
-                                    Save a draft first, then open the request and use Submit when it is ready to send.
+                                    {t('forms.saveDraftHelp', 'Save a draft first, then open the request and use Submit when it is ready to send.')}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button type="submit" form="leave-request-create-form">
                                     <Send className="mr-2 size-4" />
-                                    Save
+                                    {t('common.save', 'Save')}
                                 </Button>
                                 <Link href="/leave-requests">
                                     <Button type="button" variant="outline">
-                                        Discard
+                                        {t('common.discard', 'Discard')}
                                     </Button>
                                 </Link>
                             </div>
@@ -400,7 +404,7 @@ export default function LeaveRequestsCreate({
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <ClipboardCheck className="size-4 text-muted-foreground" />
-                                                Summary
+                                                {t('forms.summary', 'Summary')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3 text-sm">
@@ -425,7 +429,7 @@ export default function LeaveRequestsCreate({
 
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Employee signature</CardTitle>
+                                            <CardTitle>{t('forms.employee.signature', 'Employee signature')}</CardTitle>
                                             <CardDescription>
                                                 Draw and save your signature while creating the request.
                                             </CardDescription>
@@ -446,9 +450,12 @@ export default function LeaveRequestsCreate({
                                 <div className="lg:col-span-3">
                                     <ActivityLogTimeline
                                         entries={activityLogs}
-                                        title="Activity Log"
-                                        description="Track leave request updates by authorized users."
-                                        emptyDescription="Activity history will appear after this leave request is created and updated."
+                                        title={t('activity.title', 'Activity Log')}
+                                        description={t('activity.description.leave', 'Track leave request updates by authorized users.')}
+                                        emptyDescription={t(
+                                            'activity.emptyDescription.leaveCreate',
+                                            'Activity history will appear after this leave request is created and updated.',
+                                        )}
                                     />
                                 </div>
                             ) : null}

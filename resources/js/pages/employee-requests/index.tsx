@@ -31,16 +31,10 @@ import {
 } from '@/components/ui/select';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { create, index } from '@/routes/employee-requests';
 import type { BreadcrumbItem } from '@/types';
 import type { ModulePermissionsMap } from '@/types/permissions';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Employee Requests',
-        href: index().url,
-    },
-];
 
 type Employee = {
     id: number;
@@ -92,20 +86,6 @@ type EmployeeRequestStats = {
     approved: number;
     rejected: number;
 };
-
-const STATUS_FILTER_OPTIONS = [
-    { value: 'draft', label: 'Draft' },
-    { value: 'submitted', label: 'Submitted' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-] as const;
-
-const DATE_PRESET_OPTIONS = [
-    { value: 'today', label: 'Today' },
-    { value: 'yesterday', label: 'Yesterday' },
-    { value: 'last_7_days', label: 'Last 7 days' },
-    { value: 'this_month', label: 'This month' },
-] as const;
 
 function formatDateDdMmYyyy(value: string | null | undefined): string {
     if (value == null || value === '') return '—';
@@ -206,9 +186,34 @@ export default function Index({
         });
     };
 
+    const { t } = useI18n();
+
+    const pageTitle = t('sidebar.employeeRequests', 'Employee Requests');
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: pageTitle,
+            href: index().url,
+        },
+    ];
+
+    const statusFilterOptions = [
+        { value: 'draft', label: t('leaveRequests.filterStatus.draft', 'Draft') },
+        { value: 'submitted', label: t('leaveRequests.filterStatus.submitted', 'Submitted') },
+        { value: 'approved', label: t('leaveRequests.filterStatus.approved', 'Approved') },
+        { value: 'rejected', label: t('leaveRequests.filterStatus.rejected', 'Rejected') },
+    ];
+
+    const datePresetOptions = [
+        { value: 'today', label: t('leaveRequests.datePreset.today', 'Today') },
+        { value: 'yesterday', label: t('leaveRequests.datePreset.yesterday', 'Yesterday') },
+        { value: 'last_7_days', label: t('leaveRequests.datePreset.last7Days', 'Last 7 days') },
+        { value: 'this_month', label: t('leaveRequests.datePreset.thisMonth', 'This month') },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Employee Requests" />
+            <Head title={pageTitle} />
 
             <div className="flex h-full flex-1 flex-col">
                 <div className="border-b bg-gradient-to-b from-muted/30 to-background px-4 py-6 sm:px-6 lg:px-8">
@@ -230,17 +235,20 @@ export default function Index({
                                 </div>
                                 <div>
                                     <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                        Employee requests
+                                        {t('employeeRequestsIndex.heading', 'Employee requests')}
                                     </h1>
                                     <p className="text-muted-foreground mt-0.5 max-w-xl text-sm">
-                                        Track and manage employee ticket, passport, and encashment requests in one place.
+                                        {t(
+                                            'employeeRequestsIndex.subtitle',
+                                            'Track and manage employee ticket, passport, and encashment requests in one place.',
+                                        )}
                                     </p>
                                 </div>
                             </div>
                             <Button asChild className="shrink-0 gap-2 self-start lg:self-center">
                                 <Link href={create().url} prefetch>
                                     <Plus className="size-4" />
-                                    New request
+                                    {t('leaveRequests.newRequest', 'New request')}
                                 </Link>
                             </Button>
                         </div>
@@ -253,7 +261,7 @@ export default function Index({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Total
+                                            {t('leaveRequests.stats.total', 'Total')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.total}</p>
                                     </div>
@@ -266,7 +274,7 @@ export default function Index({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Drafts
+                                            {t('leaveRequests.stats.drafts', 'Drafts')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.draft}</p>
                                     </div>
@@ -279,7 +287,7 @@ export default function Index({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Pending review
+                                            {t('leaveRequests.stats.pendingReview', 'Pending review')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.submitted}</p>
                                     </div>
@@ -292,7 +300,7 @@ export default function Index({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Approved
+                                            {t('leaveRequests.stats.approved', 'Approved')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.approved}</p>
                                     </div>
@@ -305,7 +313,7 @@ export default function Index({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Rejected
+                                            {t('leaveRequests.stats.rejected', 'Rejected')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.rejected}</p>
                                     </div>
@@ -317,7 +325,10 @@ export default function Index({
                             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                                 <DataTableToolbar
                                     searchUrl={index().url}
-                                    searchPlaceholder="Search by employee name…"
+                                    searchPlaceholder={t(
+                                        'leaveRequests.searchPlaceholder',
+                                        'Search by employee name…',
+                                    )}
                                     filters={{ search: filters.search ?? undefined }}
                                     persistQuery={persistQuery}
                                     autoSearch
@@ -336,10 +347,14 @@ export default function Index({
                                         }}
                                     >
                                         <SelectTrigger className="w-full sm:w-[200px]">
-                                            <SelectValue placeholder="Department" />
+                                            <SelectValue
+                                                placeholder={t('leaveRequests.filter.department', 'Department')}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All departments</SelectItem>
+                                            <SelectItem value="all">
+                                                {t('leaveRequests.filter.allDepartments', 'All departments')}
+                                            </SelectItem>
                                             {departments.map((d) => (
                                                 <SelectItem key={d.id} value={String(d.id)}>
                                                     {d.name}
@@ -359,11 +374,15 @@ export default function Index({
                                         }}
                                     >
                                         <SelectTrigger className="w-full sm:w-[180px]">
-                                            <SelectValue placeholder="Status" />
+                                            <SelectValue
+                                                placeholder={t('leaveRequests.filter.status', 'Status')}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All statuses</SelectItem>
-                                            {STATUS_FILTER_OPTIONS.map((opt) => (
+                                            <SelectItem value="all">
+                                                {t('leaveRequests.filter.allStatuses', 'All statuses')}
+                                            </SelectItem>
+                                            {statusFilterOptions.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>
@@ -382,11 +401,13 @@ export default function Index({
                                         }}
                                     >
                                         <SelectTrigger className="w-full sm:w-[200px]">
-                                            <SelectValue placeholder="Date" />
+                                            <SelectValue placeholder={t('leaveRequests.filter.date', 'Date')} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">Any date</SelectItem>
-                                            {DATE_PRESET_OPTIONS.map((opt) => (
+                                            <SelectItem value="all">
+                                                {t('leaveRequests.filter.anyDate', 'Any date')}
+                                            </SelectItem>
+                                            {datePresetOptions.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>
@@ -403,7 +424,7 @@ export default function Index({
                                     className="shrink-0"
                                     onClick={clearAllFilters}
                                 >
-                                    Clear filters
+                                    {t('leaveRequests.clearFilters', 'Clear filters')}
                                 </Button>
                             )}
                         </div>
@@ -417,32 +438,35 @@ export default function Index({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Code
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('leaveRequests.table.code', 'Code')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Employee
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('leaveRequests.table.employee', 'Employee')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Job Position
+                                            <th className="hidden px-4 py-3.5 text-start font-medium lg:table-cell">
+                                                {t('employeeRequestsIndex.table.jobPosition', 'Job Position')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
-                                                Department
+                                            <th className="hidden px-4 py-3.5 text-start font-medium md:table-cell">
+                                                {t('leaveRequests.table.department', 'Department')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium xl:table-cell">
-                                                Company
+                                            <th className="hidden px-4 py-3.5 text-start font-medium xl:table-cell">
+                                                {t('leaveRequests.table.company', 'Company')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Date
+                                            <th className="hidden px-4 py-3.5 text-start font-medium lg:table-cell">
+                                                {t('employeeRequestsIndex.table.date', 'Date')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium xl:table-cell">
-                                                Date of Joining
+                                            <th className="hidden px-4 py-3.5 text-start font-medium xl:table-cell">
+                                                {t(
+                                                    'employeeRequestsIndex.table.dateOfJoining',
+                                                    'Date of Joining',
+                                                )}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">
-                                                Status
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('leaveRequests.table.status', 'Status')}
                                             </th>
-                                            <th className="w-36 px-4 py-3.5 text-right font-medium">
-                                                Actions
+                                            <th className="w-36 px-4 py-3.5 text-end font-medium">
+                                                {t('leaveRequests.table.actions', 'Actions')}
                                             </th>
                                         </tr>
                                     </thead>
@@ -459,14 +483,20 @@ export default function Index({
                                                         </div>
                                                         <p className="text-muted-foreground text-sm">
                                                             {hasActiveFilters
-                                                                ? 'No employee requests match your filters.'
-                                                                : 'No employee requests yet. Create the first request to get started.'}
+                                                                ? t(
+                                                                      'employeeRequestsIndex.empty.filtered',
+                                                                      'No employee requests match your filters.',
+                                                                  )
+                                                                : t(
+                                                                      'employeeRequestsIndex.empty.noData',
+                                                                      'No employee requests yet. Create the first request to get started.',
+                                                                  )}
                                                         </p>
                                                         {!hasActiveFilters && (
                                                             <Link href={create().url}>
                                                                 <Button size="sm" variant="outline" className="gap-2">
                                                                     <Plus className="size-4" />
-                                                                    New request
+                                                                    {t('leaveRequests.newRequest', 'New request')}
                                                                 </Button>
                                                             </Link>
                                                         )}
@@ -530,7 +560,7 @@ export default function Index({
                                                         <div className="flex justify-end gap-1">
                                                             <Link
                                                                 href={EmployeeRequestController.show.url(request.id)}
-                                                                aria-label="View"
+                                                                aria-label={t('leaveRequests.aria.view', 'View')}
                                                             >
                                                                 <Button
                                                                     variant="ghost"
@@ -542,7 +572,10 @@ export default function Index({
                                                             </Link>
                                                             <Link
                                                                 href={EmployeeRequestController.print.url(request.id)}
-                                                                aria-label="Print"
+                                                                aria-label={t(
+                                                                    'employeeRequestsIndex.aria.print',
+                                                                    'Print',
+                                                                )}
                                                             >
                                                                 <Button
                                                                     variant="ghost"
@@ -555,7 +588,7 @@ export default function Index({
                                                             {canUpdate && request.status === 'draft' && (
                                                                 <Link
                                                                     href={EmployeeRequestController.edit.url(request.id)}
-                                                                    aria-label="Edit"
+                                                                    aria-label={t('leaveRequests.aria.edit', 'Edit')}
                                                                 >
                                                                     <Button
                                                                         variant="ghost"

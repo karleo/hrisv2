@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\User;
+use App\Support\LocaleConfig;
 use App\Support\RequestApprovalScope;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -42,6 +43,8 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'locale' => app()->getLocale(),
+            'locales' => LocaleConfig::supported(),
             'csrf_token' => csrf_token(),
             'auth' => [
                 'user' => $request->user(),

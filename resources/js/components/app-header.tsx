@@ -1,9 +1,10 @@
 import { Link, router, usePage, usePoll } from '@inertiajs/react';
-import { Bell, BookOpen, Folder, LayoutGrid, Menu, Moon, Search, Sun } from 'lucide-react';
+import { Bell, BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
 import { NotificationBellListItem } from '@/components/notification-bell-list-item';
+import { ThemeToggleSwitch } from '@/components/theme-toggle-switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +35,7 @@ import {
 } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { useInitials } from '@/hooks/use-initials';
+import { getFirstNameLetter } from '@/hooks/use-initials';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
@@ -114,7 +115,6 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     );
     const unreadCount = notifications?.unread_count ?? 0;
     const hasUnread = unreadCount > 0;
-    const getInitials = useInitials();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
     return (
         <>
@@ -224,31 +224,14 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                     </div>
 
                     <div className="ml-auto flex items-center space-x-2">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() =>
-                                updateAppearance(resolvedAppearance === 'dark' ? 'light' : 'dark')
+                        <ThemeToggleSwitch
+                            resolvedAppearance={resolvedAppearance}
+                            onToggle={() =>
+                                updateAppearance(
+                                    resolvedAppearance === 'dark' ? 'light' : 'dark'
+                                )
                             }
-                            aria-label={
-                                resolvedAppearance === 'dark'
-                                    ? 'Switch to light mode'
-                                    : 'Switch to dark mode'
-                            }
-                            title={
-                                resolvedAppearance === 'dark'
-                                    ? 'Switch to light mode'
-                                    : 'Switch to dark mode'
-                            }
-                        >
-                            {resolvedAppearance === 'dark' ? (
-                                <Sun className="size-5 opacity-80" />
-                            ) : (
-                                <Moon className="size-5 opacity-80" />
-                            )}
-                        </Button>
+                        />
                         <NotificationArrivalToastShell notifications={notifications}>
                             <DropdownMenu
                                 open={notificationsMenuOpen}
@@ -371,11 +354,11 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 >
                                     <Avatar className="size-8 overflow-hidden rounded-full">
                                         <AvatarImage
-                                            src={auth.user.avatar}
+                                            src={auth.user.avatar ?? undefined}
                                             alt={auth.user.name}
                                         />
                                         <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
-                                            {getInitials(auth.user.name)}
+                                            {getFirstNameLetter(auth.user.name)}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>

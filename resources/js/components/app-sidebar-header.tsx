@@ -1,10 +1,12 @@
 import { router, usePage, usePoll } from '@inertiajs/react';
 import { ChevronsUpDown } from 'lucide-react';
-import { Bell, Moon, Sun } from 'lucide-react';
-import { useState } from 'react';
+import { Bell } from 'lucide-react';
+import { Languages } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
 import { NotificationBellListItem } from '@/components/notification-bell-list-item';
+import { ThemeToggleSwitch } from '@/components/theme-toggle-switch';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -18,6 +20,7 @@ import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -29,6 +32,7 @@ export function AppSidebarHeader({
     const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
     const notificationListRef = useNotificationListPointerGuard(notificationsMenuOpen);
     const { resolvedAppearance, updateAppearance } = useAppearance();
+    const { t, locale } = useI18n();
 
     usePoll(
         10000,
@@ -69,6 +73,30 @@ export function AppSidebarHeader({
     const unreadCount = notifications?.unread_count ?? 0;
     const hasUnread = unreadCount > 0;
 
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.document.documentElement.lang = locale;
+        window.document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    }, [locale]);
+
+    const changeLocale = (nextLocale: 'en' | 'ar') => {
+        if (nextLocale === locale) {
+            return;
+        }
+
+        router.post(
+            '/locale',
+            { locale: nextLocale },
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
+    };
+
     return (
         <header className="sticky top-0 z-30 shrink-0 border-b border-border/70 bg-background/95 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-6">
             <div className="flex h-16 items-center gap-3">
@@ -79,31 +107,47 @@ export function AppSidebarHeader({
                     </div>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5 rounded-xl border border-border/70 bg-card/80 p-1 shadow-xs">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg text-foreground/75 hover:bg-muted hover:text-foreground"
-                        onClick={() =>
-                            updateAppearance(resolvedAppearance === 'dark' ? 'light' : 'dark')
+                    <ThemeToggleSwitch
+                        resolvedAppearance={resolvedAppearance}
+                        onToggle={() =>
+                            updateAppearance(
+                                resolvedAppearance === 'dark' ? 'light' : 'dark'
+                            )
                         }
-                        aria-label={
-                            resolvedAppearance === 'dark'
-                                ? 'Switch to light mode'
-                                : 'Switch to dark mode'
-                        }
-                        title={
-                            resolvedAppearance === 'dark'
-                                ? 'Switch to light mode'
-                                : 'Switch to dark mode'
-                        }
-                    >
-                        {resolvedAppearance === 'dark' ? (
-                            <Sun className="size-5 opacity-80" />
-                        ) : (
-                            <Moon className="size-5 opacity-80" />
-                        )}
-                    </Button>
+                        className="h-10 w-[84px]"
+                    />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="relative h-9 w-9 rounded-lg border border-indigo-100/80 bg-indigo-50/70 text-indigo-600 hover:border-indigo-200 hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20"
+                                aria-label={t('language.switcher', 'Language')}
+                            >
+                                <Languages className="size-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-44 rounded-lg" align="end">
+                            <DropdownMenuLabel>{t('language.label', 'Language')}</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <Button
+                                type="button"
+                                variant={locale === 'en' ? 'secondary' : 'ghost'}
+                                className="h-8 w-full justify-start"
+                                onClick={() => changeLocale('en')}
+                            >
+                                {t('language.english', 'English')}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={locale === 'ar' ? 'secondary' : 'ghost'}
+                                className="h-8 w-full justify-start"
+                                onClick={() => changeLocale('ar')}
+                            >
+                                {t('language.arabic', 'Arabic')}
+                            </Button>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <NotificationArrivalToastShell notifications={notifications}>
                         <DropdownMenu
                             open={notificationsMenuOpen}
@@ -139,7 +183,9 @@ export function AppSidebarHeader({
                                 onOpenAutoFocus={(e) => e.preventDefault()}
                             >
                                 <DropdownMenuLabel className="flex items-center justify-between px-3 py-2.5">
-                                    <span className="text-sm font-semibold">Notifications</span>
+                                    <span className="text-sm font-semibold">
+                                        {t('header.notifications', 'Notifications')}
+                                    </span>
                                     <div className="flex items-center gap-2">
                                         {(notifications?.items?.length ?? 0) > 0 ? (
                                             <Button
@@ -154,11 +200,11 @@ export function AppSidebarHeader({
                                                     });
                                                 }}
                                             >
-                                                Clear all
+                                                {t('header.clearAll', 'Clear all')}
                                             </Button>
                                         ) : null}
                                         <span className="text-muted-foreground text-xs">
-                                            {notifications?.unread_count ?? 0} unread
+                                            {notifications?.unread_count ?? 0} {t('header.unread', 'unread')}
                                         </span>
                                     </div>
                                 </DropdownMenuLabel>
@@ -169,7 +215,7 @@ export function AppSidebarHeader({
                                 >
                                     {(notifications?.items?.length ?? 0) === 0 ? (
                                         <p className="text-muted-foreground px-2 py-4 text-center text-sm">
-                                            No notifications
+                                            {t('header.noNotifications', 'No notifications')}
                                         </p>
                                     ) : (
                                         notifications?.items?.map((item) => (

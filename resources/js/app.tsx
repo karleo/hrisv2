@@ -15,6 +15,12 @@ createInertiaApp({
             import.meta.glob('./pages/**/*.tsx'),
         ),
     setup({ el, App, props }) {
+        const initialLocale = String((props.initialPage.props as { locale?: string }).locale ?? 'en');
+        if (typeof window !== 'undefined') {
+            window.document.documentElement.lang = initialLocale;
+            window.document.documentElement.dir = initialLocale === 'ar' ? 'rtl' : 'ltr';
+        }
+
         const root = createRoot(el);
 
         root.render(

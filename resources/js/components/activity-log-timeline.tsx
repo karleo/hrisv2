@@ -1,5 +1,6 @@
 import { ChevronDown, History } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useI18n } from '@/lib/i18n';
 
 export type ActivityLogTimelineEntry = {
     id: number | string;
@@ -11,9 +12,9 @@ export type ActivityLogTimelineEntry = {
     performed_at: string | null;
 };
 
-function formatDateLabel(value: string | null): string {
+function formatDateLabel(value: string | null, locale: string, unknownDateLabel: string): string {
     if (!value) {
-        return 'Unknown date';
+        return unknownDateLabel;
     }
 
     const parsed = new Date(value);
@@ -21,13 +22,13 @@ function formatDateLabel(value: string | null): string {
         return value;
     }
 
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(locale, {
         month: 'short',
         day: 'numeric',
     }).format(parsed);
 }
 
-function formatTimeLabel(value: string | null): string {
+function formatTimeLabel(value: string | null, locale: string): string {
     if (!value) {
         return '—';
     }
@@ -37,7 +38,7 @@ function formatTimeLabel(value: string | null): string {
         return value;
     }
 
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(locale, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
@@ -107,7 +108,7 @@ function resolveImageUrl(value: string): string {
     return `/storage/${trimmed.replace(/^\/+/, '')}`;
 }
 
-function renderValueChip(label: 'from' | 'to', field: string, value: string | null) {
+function renderValueChip(label: string, field: string, value: string | null, viewLabel: string) {
     if (isImageLikeValue(value) && /signature|photo/i.test(field)) {
         const imageUrl = resolveImageUrl(value ?? '');
 
@@ -125,7 +126,7 @@ function renderValueChip(label: 'from' | 'to', field: string, value: string | nu
                     rel="noopener noreferrer"
                     className="text-primary underline underline-offset-2"
                 >
-                    View
+                    {viewLabel}
                 </a>
             </span>
         );
@@ -165,10 +166,10 @@ function actorInitials(actor: string): string {
 
 export function ActivityLogTimeline({
     entries,
-    title = 'Activity Log',
-    description = 'View record changes by authorized users.',
-    emptyTitle = 'No activity captured yet',
-    emptyDescription = 'Changes will appear here automatically once this record is updated.',
+    title,
+    description,
+    emptyTitle,
+    emptyDescription,
 }: {
     entries: ActivityLogTimelineEntry[];
     title?: string;
@@ -176,6 +177,22 @@ export function ActivityLogTimeline({
     emptyTitle?: string;
     emptyDescription?: string;
 }) {
+    const { t, locale } = useI18n();
+    const resolvedTitle = title ?? t('activity.title', 'Activity Log');
+    const resolvedDescription =
+        description ?? t('activity.description.default', 'View record changes by authorized users.');
+    const resolvedEmptyTitle = emptyTitle ?? t('activity.emptyTitle', 'No activity captured yet');
+    const resolvedEmptyDescription =
+        emptyDescription
+        ?? t('activity.emptyDescription.default', 'Changes will appear here automatically once this record is updated.');
+    const entriesLabel = t('activity.entries', 'entries');
+    const unknownDateLabel = t('activity.unknownDate', 'Unknown date');
+    const fieldLabel = t('activity.field', 'field');
+    const fromLabel = t('activity.from', 'from');
+    const toLabel = t('activity.to', 'to');
+    const viewLabel = t('activity.view', 'View');
+    const systemLabel = t('activity.system', 'System');
+
     const timelineGroups = Object.entries(
         entries.reduce<Record<string, ActivityLogTimelineEntry[]>>((groups, entry) => {
             const key = dayKey(entry.performed_at);
@@ -204,12 +221,12 @@ export function ActivityLogTimeline({
                         </span>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold tracking-tight">{title}</p>
+                                <p className="text-sm font-semibold tracking-tight">{resolvedTitle}</p>
                                 <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                    {entries.length} entries
+                                    {entries.length} {entriesLabel}
                                 </span>
                             </div>
-                            <p className="text-xs text-muted-foreground">{description}</p>
+                            <p className="text-xs text-muted-foreground">{resolvedDescription}</p>
                         </div>
                     </div>
                     <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -219,15 +236,15 @@ export function ActivityLogTimeline({
                 <div className="space-y-4 border-t border-border/70 px-5 pb-5 pt-4">
                     {entries.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center">
-                            <p className="text-sm font-medium">{emptyTitle}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{emptyDescription}</p>
+                            <p className="text-sm font-medium">{resolvedEmptyTitle}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{resolvedEmptyDescription}</p>
                         </div>
                     ) : (
                         <div className="max-h-[30rem] space-y-6 overflow-auto pr-1">
                             {timelineGroups.map(([groupKey, groupEntries]) => (
                                 <div key={groupKey} className="space-y-3">
                                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                        {formatDateLabel(groupEntries[0]?.performed_at ?? null)}
+                                        {formatDateLabel(groupEntries[0]?.performed_at ?? null, locale, unknownDateLabel)}
                                     </p>
                                     <div className="space-y-3">
                                         {groupEntries.map((entry, index) => (
@@ -243,28 +260,28 @@ export function ActivityLogTimeline({
                                                         <div className="min-w-0">
                                                             <div className="flex min-w-0 items-center gap-2">
                                                                 <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[11px] font-semibold text-primary">
-                                                                    {actorInitials(entry.performed_by || 'System')}
+                                                                    {actorInitials(entry.performed_by || systemLabel)}
                                                                 </span>
                                                                 <p className="min-w-0 truncate text-sm">
                                                                     <span className="font-semibold">
-                                                                        {entry.performed_by || 'System'}
+                                                                        {entry.performed_by || systemLabel}
                                                                     </span>{' '}
                                                                     <span className={`${actionTextClass(entry.action)} font-semibold capitalize`}>
                                                                         {entry.action}
                                                                     </span>{' '}
-                                                                    <span className="text-muted-foreground">field</span>{' '}
+                                                                    <span className="text-muted-foreground">{fieldLabel}</span>{' '}
                                                                     <span className="font-medium">
                                                                         {formatFieldName(entry.field)}
                                                                     </span>
                                                                 </p>
                                                             </div>
                                                             <div className="mt-2 ml-10 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                                                {renderValueChip('from', entry.field, entry.old_value)}
-                                                                {renderValueChip('to', entry.field, entry.new_value)}
+                                                                {renderValueChip(fromLabel, entry.field, entry.old_value, viewLabel)}
+                                                                {renderValueChip(toLabel, entry.field, entry.new_value, viewLabel)}
                                                             </div>
                                                         </div>
                                                         <span className="shrink-0 text-xs text-muted-foreground">
-                                                            {formatTimeLabel(entry.performed_at)}
+                                                            {formatTimeLabel(entry.performed_at, locale)}
                                                         </span>
                                                     </div>
                                                 </div>

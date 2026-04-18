@@ -15,6 +15,7 @@ enum PermissionModule: string
     case CompanyProfiles = 'company_profiles';
     case Software = 'software';
     case Hardware = 'hardware';
+    case DocumentTypes = 'document_types';
     case LeaveRequests = 'leave_requests';
     case ItRequests = 'it_requests';
     case EmployeeRequests = 'employee_requests';
@@ -38,6 +39,7 @@ enum PermissionModule: string
             self::CompanyProfiles => 'Company profiles',
             self::Software => 'Software',
             self::Hardware => 'Hardware',
+            self::DocumentTypes => 'Document types',
             self::LeaveRequests => 'Leave requests',
             self::ItRequests => 'IT requests',
             self::EmployeeRequests => 'Employee requests',

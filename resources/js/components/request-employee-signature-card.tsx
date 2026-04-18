@@ -135,7 +135,7 @@ export function RequestEmployeeSignatureCard({
                             <div className="space-y-2">
                                 <p className="text-sm font-medium">Employee signature</p>
                                 {signatureUrl ? (
-                                    <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                                    <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                                         <img
                                             src={signatureUrl}
                                             alt="Employee signature"
@@ -160,7 +160,7 @@ export function RequestEmployeeSignatureCard({
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium">{managerSignature.label}</p>
                                     {managerSignature.signatureUrl ? (
-                                        <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                                        <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                                             <img
                                                 src={managerSignature.signatureUrl}
                                                 alt={managerSignature.label}
@@ -212,7 +212,7 @@ export function RequestEmployeeSignatureCard({
                         <div key={signature.fieldName} className="space-y-2">
                             <p className="text-sm font-medium">{signature.label}</p>
                             {signature.signatureUrl ? (
-                                <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                                <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                                     <img
                                         src={signature.signatureUrl}
                                         alt={signature.label}

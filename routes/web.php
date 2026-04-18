@@ -4,6 +4,7 @@ use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
@@ -25,7 +27,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login')->name('home');
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('locale', [LocaleController::class, 'update'])->name('locale.update');
+});
+
 Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(function () {
+
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('departments', DepartmentController::class);
@@ -59,6 +66,11 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('company-profiles', CompanyProfileController::class);
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
+    Route::resource('document-types', DocumentTypeController::class)
+        ->except(['show'])
+        ->parameters([
+            'document-types' => 'document_type',
+        ]);
     Route::resource('time-attendance', EmployeeTimeEntryController::class)->parameters([
         'time-attendance' => 'employee_time_entry',
     ])->only(['index', 'store', 'update', 'destroy']);

@@ -1,8 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft, ChevronDown, Download, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Download, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
+import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { edit, index } from '@/routes/employees';
-import documents from '@/routes/employees/documents';
 import type { BreadcrumbItem } from '@/types';
 
 type Department = {
@@ -30,19 +31,40 @@ type JobPosition = {
 type CompanyProfile = {
     id: number;
     company_name: string;
+    company_address_1?: string | null;
+    company_address_2?: string | null;
+    website?: string | null;
+    signature_template?: string | null;
 };
 
 type EmployeeDocument = {
     id: number;
     name: string;
+    document_type_id?: number | null;
+    document_type?: {
+        id: number;
+        code: string;
+        name: string;
+        requires_expiry_date?: boolean;
+    } | null;
     original_name: string;
     path: string;
     url: string;
+    expiry_date?: string | null;
+    status?: 'active' | 'expired' | 'archived' | string | null;
+    version_number?: number | null;
 };
 
 type WorkTimetable = {
     id: number;
     name: string;
+};
+
+type DocumentType = {
+    id: number;
+    code: string;
+    name: string;
+    requires_expiry_date: boolean;
 };
 
 type LeaveUsageLineItem = {
@@ -61,6 +83,11 @@ type LeaveConfig = {
     approvedDaysUsed: number;
     liveRemainingBalance: number;
     usage: LeaveUsageLineItem[];
+};
+
+type EmployeeNavigation = {
+    previousId: number | null;
+    nextId: number | null;
 };
 
 type ActivityLogEntry = {
@@ -105,6 +132,43 @@ const employeeStatusDotStyleMap: Record<(typeof employeeStatuses)[number], strin
     Suspended: 'bg-purple-500',
     'Employment Cancelled': 'bg-zinc-500',
 };
+
+function formatDocumentDate(value: string | null | undefined): string {
+    if (!value) {
+        return '-';
+    }
+
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) {
+        return value;
+    }
+
+    const [, yyyy, mm, dd] = match;
+
+    return `${dd}/${mm}/${yyyy}`;
+}
+
+function documentStatusLabel(status: string | null | undefined): string {
+    switch (status) {
+        case 'expired':
+            return 'Expired';
+        case 'archived':
+            return 'Archived';
+        default:
+            return 'Active';
+    }
+}
+
+function documentStatusClasses(status: string | null | undefined): string {
+    switch (status) {
+        case 'expired':
+            return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300';
+        case 'archived':
+            return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300';
+        default:
+            return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300';
+    }
+}
 
 const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
 const MAX_EXCEL_PREVIEW_ROWS = 120;
@@ -159,9 +223,11 @@ export default function Edit({
     jobPositions,
     companyProfiles,
     workTimetables,
+    documentTypes,
     activityLogs,
     canViewActivityLogs = false,
     leaveConfig,
+    employeeNavigation,
     employeeLoginActive = null,
     viewMode = false,
 }: {
@@ -170,22 +236,26 @@ export default function Edit({
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
     workTimetables: WorkTimetable[];
+    documentTypes: DocumentType[];
     activityLogs: ActivityLogEntry[];
     canViewActivityLogs?: boolean;
     leaveConfig: LeaveConfig;
+    employeeNavigation: EmployeeNavigation;
     employeeLoginActive?: boolean | null;
     viewMode?: boolean;
 }) {
+    const { t, locale } = useI18n();
     const photoInputRef = useRef<HTMLInputElement>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(
         employee.photo_url ?? null
     );
     const [documentFiles, setDocumentFiles] = useState<Array<File | null>>([]);
-    const [documentLabels, setDocumentLabels] = useState<string[]>([]);
     const [documentRows, setDocumentRows] = useState<
-        Array<{ id: string; label: string; expiryDate: string }>
-    >([{ id: crypto.randomUUID(), label: '', expiryDate: '' }]);
+        Array<{ id: string; documentTypeId: string; expiryDate: string }>
+    >([{ id: crypto.randomUUID(), documentTypeId: '', expiryDate: '' }]);
     const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
+    const activeDocuments = (employee.documents ?? []).filter((doc) => (doc.status ?? 'active') === 'active');
+    const historicalDocuments = (employee.documents ?? []).filter((doc) => (doc.status ?? 'active') !== 'active');
     const [previewLocalDocument, setPreviewLocalDocument] = useState<{
         name: string;
         url: string;
@@ -203,7 +273,7 @@ export default function Edit({
         });
     const formatAuditDateLabel = (value: string | null): string => {
         if (!value) {
-            return 'Unknown date';
+            return t('activity.unknownDate', 'Unknown date');
         }
 
         const parsed = new Date(value);
@@ -211,7 +281,7 @@ export default function Edit({
             return value;
         }
 
-        return new Intl.DateTimeFormat('en-US', {
+        return new Intl.DateTimeFormat(locale, {
             month: 'short',
             day: 'numeric',
         }).format(parsed);
@@ -226,7 +296,7 @@ export default function Edit({
             return value;
         }
 
-        return new Intl.DateTimeFormat('en-US', {
+        return new Intl.DateTimeFormat(locale, {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
@@ -307,13 +377,37 @@ export default function Edit({
     const [tab, setTab] = useState<'employee_information' | 'work_information' | 'private_information' | 'documents' | 'leave_configuration'>(initialTab);
     const normalizedEmployeeStatus =
         employee.employee_status === 'Active' ? 'Employed' : employee.employee_status;
-    const employeeDesignation =
-        jobPositions.find((job) => job.id === employee.job_position_id)?.name ??
-        '';
     const employeeCompanyProfile =
         companyProfiles.find(
             (profile) => profile.id === employee.company_profile_id
         )?.company_name ?? '';
+    const [signatureFirstName, setSignatureFirstName] = useState(
+        employee.first_name
+    );
+    const [signatureLastName, setSignatureLastName] = useState(employee.last_name);
+    const [signatureEmail, setSignatureEmail] = useState(employee.email_address);
+    const [signatureMobile, setSignatureMobile] = useState(
+        employee.contact_number ?? employee.mobile ?? employee.phone ?? ''
+    );
+    const [signatureJobPositionId, setSignatureJobPositionId] = useState(
+        String(employee.job_position_id)
+    );
+    const [signatureCompanyProfileId, setSignatureCompanyProfileId] = useState(
+        employee.company_profile_id === null ? '' : String(employee.company_profile_id)
+    );
+    const employeeDesignation =
+        jobPositions.find((job) => String(job.id) === signatureJobPositionId)
+            ?.name ?? '';
+    const selectedCompanyProfile =
+        companyProfiles.find(
+            (profile) => String(profile.id) === signatureCompanyProfileId
+        ) ?? null;
+    const documentTypeNameById = Object.fromEntries(
+        documentTypes.map((documentType) => [String(documentType.id), documentType.name])
+    );
+    const documentTypeRequiresExpiryById = Object.fromEntries(
+        documentTypes.map((documentType) => [String(documentType.id), documentType.requires_expiry_date])
+    );
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employees', href: index().url },
@@ -338,18 +432,10 @@ export default function Edit({
         }
     }
 
-    function setDocumentLabelAt(index: number, value: string) {
-        setDocumentLabels((prev) => {
-            const next = [...prev];
-            next[index] = value;
-            return next;
-        });
-    }
-
     function addDocumentRow() {
         setDocumentRows((prev) => [
             ...prev,
-            { id: crypto.randomUUID(), label: '', expiryDate: '' },
+            { id: crypto.randomUUID(), documentTypeId: '', expiryDate: '' },
         ]);
     }
 
@@ -361,27 +447,30 @@ export default function Edit({
             }
             const nextRows = prev.filter((r) => r.id !== id);
             const nextFiles = [...documentFiles];
-            const nextLabels = [...documentLabels];
             nextFiles.splice(idx, 1);
-            nextLabels.splice(idx, 1);
             setDocumentFiles(nextFiles);
-            setDocumentLabels(nextLabels);
             return nextRows.length > 0
                 ? nextRows
-                : [{ id: crypto.randomUUID(), label: '', expiryDate: '' }];
+                : [{ id: crypto.randomUUID(), documentTypeId: '', expiryDate: '' }];
         });
     }
 
-    function setDocumentRowLabel(id: string, value: string) {
+    function setDocumentRowDocumentTypeId(id: string, value: string) {
         setDocumentRows((prev) =>
             prev.map((row) =>
-                row.id === id ? { ...row, label: value } : row
+                row.id === id
+                    ? {
+                          ...row,
+                          documentTypeId: value,
+                          expiryDate:
+                              value !== '' &&
+                              documentTypeRequiresExpiryById[value] === false
+                                  ? ''
+                                  : row.expiryDate,
+                      }
+                    : row
             )
         );
-        const idx = documentRows.findIndex((row) => row.id === id);
-        if (idx >= 0) {
-            setDocumentLabelAt(idx, value);
-        }
     }
 
     function setDocumentRowExpiryDate(id: string, value: string) {
@@ -402,27 +491,16 @@ export default function Edit({
             next[idx] = file;
             return next;
         });
-        if (file) {
-            const defaultLabel =
-                documentRows[idx]?.label.trim() ||
-                file.name.replace(/\.[^/.]+$/, '') ||
-                file.name;
-            setDocumentLabelAt(idx, defaultLabel);
-            setDocumentRows((prev) =>
-                prev.map((row, rowIdx) =>
-                    rowIdx === idx ? { ...row, label: defaultLabel } : row
-                )
-            );
-        }
     }
 
     function deleteDocument(doc: EmployeeDocument) {
         if (confirm(`Remove "${doc.original_name}"?`)) {
             router.delete(
-                documents.destroy.url({
-                    employee: employee.id,
-                    employee_document: doc.id,
-                })
+                `/employees/${employee.id}/documents/${doc.id}`,
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                }
             );
         }
     }
@@ -716,11 +794,57 @@ export default function Edit({
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         {readOnlyView ? (
-                            <Link
-                                href={`${edit({ employee: employee.id }).url}?tab=${tab}`}
-                            >
-                                <Button type="button">Edit</Button>
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                <Link
+                                    href={
+                                        employeeNavigation.previousId
+                                            ? `${edit({ employee: employeeNavigation.previousId }).url}?mode=view&tab=${tab}`
+                                            : '#'
+                                    }
+                                    className={
+                                        employeeNavigation.previousId
+                                            ? ''
+                                            : 'pointer-events-none'
+                                    }
+                                >
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        disabled={!employeeNavigation.previousId}
+                                        aria-label="View previous employee"
+                                    >
+                                        <ChevronLeft className="size-4" />
+                                    </Button>
+                                </Link>
+                                <Link
+                                    href={
+                                        employeeNavigation.nextId
+                                            ? `${edit({ employee: employeeNavigation.nextId }).url}?mode=view&tab=${tab}`
+                                            : '#'
+                                    }
+                                    className={
+                                        employeeNavigation.nextId
+                                            ? ''
+                                            : 'pointer-events-none'
+                                    }
+                                >
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        disabled={!employeeNavigation.nextId}
+                                        aria-label="View next employee"
+                                    >
+                                        <ChevronRight className="size-4" />
+                                    </Button>
+                                </Link>
+                                <Link
+                                    href={`${edit({ employee: employee.id }).url}?tab=${tab}`}
+                                >
+                                    <Button type="button">Edit</Button>
+                                </Link>
+                            </div>
                         ) : (
                             <div className="flex flex-wrap items-center gap-3">
                                 <Button
@@ -729,6 +853,13 @@ export default function Edit({
                                 >
                                     Save
                                 </Button>
+                                <Link
+                                    href={`${edit({ employee: employee.id }).url}?mode=view&tab=${tab}`}
+                                >
+                                    <Button type="button" variant="outline">
+                                        Discard
+                                    </Button>
+                                </Link>
                                 <Link href={index()}>
                                     <Button type="button" variant="outline">
                                         Cancel
@@ -911,6 +1042,11 @@ export default function Edit({
                                                     employee.first_name
                                                 }
                                                 placeholder="John"
+                                                onChange={(event) =>
+                                                    setSignatureFirstName(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.first_name}
@@ -927,6 +1063,11 @@ export default function Edit({
                                                 maxLength={255}
                                                 defaultValue={employee.last_name}
                                                 placeholder="Doe"
+                                                onChange={(event) =>
+                                                    setSignatureLastName(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.last_name}
@@ -949,6 +1090,11 @@ export default function Edit({
                                                     employee.email_address
                                                 }
                                                 placeholder="john.doe@example.com"
+                                                onChange={(event) =>
+                                                    setSignatureEmail(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.email_address}
@@ -967,6 +1113,11 @@ export default function Edit({
                                                     employee.contact_number ?? ''
                                                 }
                                                 placeholder="+1 234 567 8900"
+                                                onChange={(event) =>
+                                                    setSignatureMobile(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.contact_number}
@@ -1020,6 +1171,11 @@ export default function Edit({
                                                 name="company_profile_id"
                                                 defaultValue={
                                                     employee.company_profile_id ?? ''
+                                                }
+                                                onChange={(event) =>
+                                                    setSignatureCompanyProfileId(
+                                                        event.target.value
+                                                    )
                                                 }
                                                 className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
@@ -1118,6 +1274,11 @@ export default function Edit({
                                                 required
                                                 defaultValue={
                                                     employee.job_position_id
+                                                }
+                                                onChange={(event) =>
+                                                    setSignatureJobPositionId(
+                                                        event.target.value
+                                                    )
                                                 }
                                                 className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
@@ -1263,7 +1424,15 @@ export default function Edit({
                                             <InputError message={errors.employee_status} />
                                         </div>
                                     </div>
+
                                 </fieldset>
+                                <EmployeeEmailSignatureCard
+                                    fullName={`${signatureFirstName} ${signatureLastName}`.trim()}
+                                    designation={employeeDesignation}
+                                    email={signatureEmail}
+                                    phone={signatureMobile}
+                                    companyProfile={selectedCompanyProfile}
+                                />
                             </div>
 
                             <div className={`rounded-xl border border-border bg-card p-6 shadow-sm ${tab === 'leave_configuration' ? '' : 'hidden'}`}>
@@ -1384,82 +1553,177 @@ export default function Edit({
                                 </p>
                                 <input type="hidden" name="tab" value="documents" />
                                 {(employee.documents?.length > 0) && (
-                                    <div className="space-y-2">
-                                        {employee.documents?.map((doc) => (
+                                    <div className="space-y-5">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-sm font-semibold">Active Documents</h4>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {activeDocuments.length} item{activeDocuments.length === 1 ? '' : 's'}
+                                                </span>
+                                            </div>
+                                            {activeDocuments.length > 0 ? (
+                                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_104px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                                    <span>Document type</span>
+                                                    <span>Status</span>
+                                                    <span>File</span>
+                                                    <span>Expiry Date</span>
+                                                    <span className="text-right">Actions</span>
+                                                </div>
+                                            ) : null}
+                                            {activeDocuments.length > 0 ? activeDocuments.map((doc) => (
                                             <div
                                                 key={doc.id}
-                                                className="flex items-center justify-between gap-2 rounded-md border border-border/70 bg-background px-2 py-1.5"
+                                                className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_104px] items-center gap-3 rounded-md border border-border/70 bg-background px-3 py-2"
                                             >
-                                                <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
-                                                    <div className="min-w-0">
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            Document type
-                                                        </p>
-                                                        <p className="truncate text-xs font-medium text-foreground">
-                                                            {doc.name}
-                                                        </p>
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            File
-                                                        </p>
-                                                        <p className="truncate text-xs font-medium text-foreground">
-                                                            {doc.original_name}
-                                                        </p>
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            Expiry Date
-                                                        </p>
-                                                        <p className="truncate text-xs font-medium text-foreground">
-                                                            -
-                                                        </p>
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-xs font-medium text-foreground">
+                                                        {doc.document_type?.name ?? doc.name}
+                                                    </p>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${documentStatusClasses(doc.status)}`}>
+                                                            {documentStatusLabel(doc.status)}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            Version {doc.version_number ?? 1}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="size-7 shrink-0"
-                                                    onClick={() =>
-                                                        void openExistingDocumentPreview(
-                                                            doc
-                                                        )
-                                                    }
-                                                    aria-label="Preview document"
-                                                >
-                                                    <Eye className="size-4" />
-                                                </Button>
-                                                <a
-                                                    href={getDocumentViewUrl(doc.id)}
-                                                    download={doc.original_name}
-                                                >
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-xs font-medium text-foreground">
+                                                        {doc.original_name}
+                                                    </p>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-xs font-medium text-foreground">
+                                                        {formatDocumentDate(doc.expiry_date)}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center justify-end gap-1">
                                                     <Button
                                                         type="button"
                                                         variant="ghost"
                                                         size="icon"
                                                         className="size-7 shrink-0"
-                                                        aria-label="Download document"
-                                                    >
-                                                        <Download className="size-4" />
-                                                    </Button>
-                                                </a>
-                                                {!readOnlyView ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-7 shrink-0 text-destructive hover:text-destructive"
                                                         onClick={() =>
-                                                            deleteDocument(doc)
+                                                            void openExistingDocumentPreview(
+                                                                doc
+                                                            )
                                                         }
-                                                        aria-label="Remove document"
+                                                        aria-label="Preview document"
                                                     >
-                                                        <Trash2 className="size-4" />
+                                                        <Eye className="size-4" />
                                                     </Button>
-                                                ) : null}
+                                                    <a
+                                                        href={getDocumentViewUrl(doc.id)}
+                                                        download={doc.original_name}
+                                                    >
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="size-7 shrink-0"
+                                                            aria-label="Download document"
+                                                        >
+                                                            <Download className="size-4" />
+                                                        </Button>
+                                                    </a>
+                                                    {!readOnlyView ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="size-7 shrink-0 text-destructive hover:text-destructive"
+                                                            onClick={() =>
+                                                                deleteDocument(doc)
+                                                            }
+                                                            aria-label="Remove document"
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
                                             </div>
-                                        ))}
+                                            )) : (
+                                                <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                                                    No active documents.
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-sm font-semibold">Archived / Expired History</h4>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {historicalDocuments.length} item{historicalDocuments.length === 1 ? '' : 's'}
+                                                </span>
+                                            </div>
+                                            {historicalDocuments.length > 0 ? (
+                                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_72px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                                    <span>Document type</span>
+                                                    <span>Status</span>
+                                                    <span>File</span>
+                                                    <span>Expiry Date</span>
+                                                    <span className="text-right">Actions</span>
+                                                </div>
+                                            ) : null}
+                                            {historicalDocuments.length > 0 ? historicalDocuments.map((doc) => (
+                                                <div
+                                                    key={doc.id}
+                                                    className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_72px] items-center gap-3 rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-xs font-medium text-foreground">
+                                                            {doc.document_type?.name ?? doc.name}
+                                                        </p>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${documentStatusClasses(doc.status)}`}>
+                                                                {documentStatusLabel(doc.status)}
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                Version {doc.version_number ?? 1}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-xs font-medium text-foreground">{doc.original_name}</p>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-xs font-medium text-foreground">{formatDocumentDate(doc.expiry_date)}</p>
+                                                    </div>
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="size-7 shrink-0"
+                                                            onClick={() => void openExistingDocumentPreview(doc)}
+                                                            aria-label="Preview document"
+                                                        >
+                                                            <Eye className="size-4" />
+                                                        </Button>
+                                                        <a href={getDocumentViewUrl(doc.id)} download={doc.original_name}>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="size-7 shrink-0"
+                                                                aria-label="Download document"
+                                                            >
+                                                                <Download className="size-4" />
+                                                            </Button>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                                                    No archived or expired records yet.
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                                 {!readOnlyView ? (
@@ -1486,19 +1750,32 @@ export default function Edit({
                                                                 <Label className="text-xs">
                                                                     Document type
                                                                 </Label>
-                                                                <Input
-                                                                    name="document_labels[]"
-                                                                    value={row.label}
+                                                                <select
+                                                                    name="document_type_ids[]"
+                                                                    value={row.documentTypeId}
                                                                     onChange={(e) =>
-                                                                        setDocumentRowLabel(
+                                                                        setDocumentRowDocumentTypeId(
                                                                             row.id,
                                                                             e.target.value
                                                                         )
                                                                     }
-                                                                    placeholder="e.g. Employment Contract"
-                                                                    maxLength={255}
-                                                                    className="h-8 text-sm"
-                                                                />
+                                                                    className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+                                                                >
+                                                                    <option value="">
+                                                                        Select document type
+                                                                    </option>
+                                                                    {documentTypes.map((documentType) => (
+                                                                        <option
+                                                                            key={documentType.id}
+                                                                            value={String(
+                                                                                documentType.id
+                                                                            )}
+                                                                        >
+                                                                            {documentType.code} -{' '}
+                                                                            {documentType.name}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
                                                             </div>
                                                             <div className="grid gap-1.5">
                                                                 <Label className="text-xs">
@@ -1532,6 +1809,12 @@ export default function Edit({
                                                                         )
                                                                     }
                                                                     className="h-8 text-sm"
+                                                                    disabled={
+                                                                        row.documentTypeId !== '' &&
+                                                                        !documentTypeRequiresExpiryById[
+                                                                            row.documentTypeId
+                                                                        ]
+                                                                    }
                                                                 />
                                                             </div>
                                                             <Button
@@ -1608,7 +1891,8 @@ export default function Edit({
                                     message={
                                         errors.documents ??
                                         errors['documents.0'] ??
-                                        errors['document_labels.0']
+                                        errors['document_type_ids.0'] ??
+                                        errors['document_expiry_dates.0']
                                     }
                                 />
                             </div>
@@ -1773,14 +2057,17 @@ export default function Edit({
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <p className="text-sm font-semibold tracking-tight">
-                                                Activity Log
+                                                {t('activity.title', 'Activity Log')}
                                             </p>
                                             <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                                {activityLogs.length} entries
+                                                {activityLogs.length} {t('activity.entries', 'entries')}
                                             </span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            View employee record changes by HR/Admin users.
+                                            {t(
+                                                'activity.description.employeeView',
+                                                'View employee record changes by HR/Admin users.',
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -1791,9 +2078,12 @@ export default function Edit({
                             <div className="space-y-4 border-t border-border/70 px-5 pb-5 pt-4">
                                 {activityLogs.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center">
-                                        <p className="text-sm font-medium">No activity captured yet</p>
+                                        <p className="text-sm font-medium">{t('activity.emptyTitle', 'No activity captured yet')}</p>
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Changes will appear here automatically once employee details are updated.
+                                            {t(
+                                                'activity.emptyDescription.employeeEdit',
+                                                'Changes will appear here automatically once employee details are updated.',
+                                            )}
                                         </p>
                                     </div>
                                 ) : (
@@ -1815,23 +2105,23 @@ export default function Edit({
                                                                     <div className="min-w-0">
                                                                         <div className="flex min-w-0 items-center gap-2">
                                                                             <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[11px] font-semibold text-primary">
-                                                                                {getActorInitials(log.performed_by || 'System')}
+                                                                                {getActorInitials(log.performed_by || t('activity.system', 'System'))}
                                                                             </span>
                                                                             <p className="min-w-0 truncate text-sm">
-                                                                                <span className="font-semibold">{log.performed_by || 'System'}</span>{' '}
+                                                                                <span className="font-semibold">{log.performed_by || t('activity.system', 'System')}</span>{' '}
                                                                                 <span className={`${getAuditActionLabelClass(log.action)} font-semibold capitalize`}>
                                                                                     {log.action}
                                                                                 </span>{' '}
-                                                                                <span className="text-muted-foreground">field</span>{' '}
+                                                                                <span className="text-muted-foreground">{t('activity.field', 'field')}</span>{' '}
                                                                                 <span className="font-medium">{formatAuditFieldName(log.field)}</span>
                                                                             </p>
                                                                         </div>
                                                                         <div className="mt-2 ml-10 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                                                             <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-0.5">
-                                                                                from: {formatAuditValue(log.old_value)}
+                                                                                {t('activity.from', 'from')}: {formatAuditValue(log.old_value)}
                                                                             </span>
                                                                             <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-0.5">
-                                                                                to: {formatAuditValue(log.new_value)}
+                                                                                {t('activity.to', 'to')}: {formatAuditValue(log.new_value)}
                                                                             </span>
                                                                         </div>
                                                                     </div>

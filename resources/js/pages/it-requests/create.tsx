@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { index } from '@/routes/it-requests';
 import type { BreadcrumbItem } from '@/types';
 
@@ -68,6 +69,7 @@ export default function Create({
     hardware: HardwareOption[];
     defaultEmployeeId?: number | null;
 }) {
+    const { t } = useI18n();
     const initialEmployee =
         defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
@@ -97,7 +99,7 @@ export default function Create({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Create IT Request" />
+            <Head title={t('forms.it.createTitle', 'Create IT Request')} />
 
             <div className="flex min-h-screen flex-1 flex-col bg-muted/30">
                 <div className="border-b bg-card px-4 py-6 md:px-8">
@@ -107,11 +109,11 @@ export default function Create({
                             className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ArrowLeft className="size-4" />
-                            Back to IT Requests
+                            {t('forms.it.backToRequests', 'Back to IT Requests')}
                         </Link>
                         <Heading
-                            title="Create IT Request"
-                            description="Save a draft first, then open the request and use Submit when it is ready to send."
+                            title={t('forms.it.createTitle', 'Create IT Request')}
+                            description={t('forms.saveDraftHelp', 'Save a draft first, then open the request and use Submit when it is ready to send.')}
                         />
                         <div className="flex items-center gap-2">
                             <Button
@@ -120,11 +122,11 @@ export default function Create({
                                 onClick={saveDraft}
                             >
                                 <Send className="mr-2 size-4" />
-                                {processing ? 'Saving...' : 'Save'}
+                                {processing ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
                             </Button>
                             <Link href={index()}>
                                 <Button type="button" variant="outline">
-                                    Discard
+                                    {t('common.discard', 'Discard')}
                                 </Button>
                             </Link>
                         </div>
@@ -281,7 +283,7 @@ export default function Create({
                             <div className="sticky top-6 space-y-6">
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>Request Summary</CardTitle>
+                                        <CardTitle>{t('forms.summary', 'Summary')}</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3 text-sm">
                                         <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2">

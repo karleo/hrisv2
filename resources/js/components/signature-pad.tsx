@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
@@ -51,7 +51,23 @@ export function SignaturePad(props: SignaturePadProps) {
 
     const getContext = () => canvasRef.current?.getContext('2d');
 
+    const syncDrawingStyle = useCallback(() => {
+        const ctx = getContext();
+        if (!ctx) {
+            return;
+        }
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }, []);
+
+    useLayoutEffect(() => {
+        syncDrawingStyle();
+    }, [syncDrawingStyle]);
+
     const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+        syncDrawingStyle();
         const ctx = getContext();
         if (!ctx) return;
         const { offsetX, offsetY } = 'touches' in e ? { offsetX: e.touches[0].clientX - (e.currentTarget.getBoundingClientRect?.()?.left ?? 0), offsetY: e.touches[0].clientY - (e.currentTarget.getBoundingClientRect?.()?.top ?? 0) } : e.nativeEvent;
@@ -62,6 +78,7 @@ export function SignaturePad(props: SignaturePadProps) {
 
     const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
         if (!isDrawing) return;
+        syncDrawingStyle();
         const ctx = getContext();
         if (!ctx) return;
         const { offsetX, offsetY } = 'touches' in e ? { offsetX: e.touches[0].clientX - (e.currentTarget.getBoundingClientRect?.()?.left ?? 0), offsetY: e.touches[0].clientY - (e.currentTarget.getBoundingClientRect?.()?.top ?? 0) } : e.nativeEvent;
@@ -140,7 +157,7 @@ export function SignaturePad(props: SignaturePadProps) {
             {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
             {displaySignatureUrl ? (
                 <div className="flex min-w-0 max-w-[12rem] flex-shrink-0 flex-col gap-1">
-                    <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                    <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                         <img
                             src={displaySignatureUrl}
                             alt="Signature"
@@ -152,12 +169,13 @@ export function SignaturePad(props: SignaturePadProps) {
                     <p className="text-[10px] text-muted-foreground">On file. Draw below to replace.</p>
                 </div>
             ) : null}
-            <div className="inline-block min-w-0 max-w-[12rem] border border-input rounded-md bg-muted/30 overflow-hidden">
+            <div className="inline-block min-w-0 max-w-[12rem] overflow-hidden rounded-md border border-input bg-card">
                 <canvas
                     ref={canvasRef}
                     width={192}
                     height={48}
-                    className="block w-full cursor-crosshair touch-none border-b border-input bg-white dark:bg-background"
+                    className="block w-full cursor-crosshair touch-none border-b border-input bg-white"
+                    style={{ backgroundColor: '#ffffff' }}
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}

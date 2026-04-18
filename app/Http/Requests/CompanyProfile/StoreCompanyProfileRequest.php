@@ -21,6 +21,7 @@ class StoreCompanyProfileRequest extends FormRequest
             'company_address_2' => ['nullable', 'string', 'max:255'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'website' => ['nullable', 'string', 'url', 'max:255'],
+            'signature_template' => ['nullable', 'string'],
         ];
     }
 }

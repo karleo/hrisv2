@@ -31,6 +31,9 @@ class StoreItAssetRequestRequest extends FormRequest
             'date_issued' => ['nullable', 'date'],
             'hardware_ids' => ['nullable', 'array'],
             'hardware_ids.*' => ['integer', 'exists:'.Hardware::class.',id'],
+            'hardware_items' => ['nullable', 'array'],
+            'hardware_items.*.hardware_id' => ['required_with:hardware_items', 'integer', 'distinct', 'exists:'.Hardware::class.',id'],
+            'hardware_items.*.serial_number' => ['nullable', 'string', 'max:100'],
             'serial_number' => ['nullable', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:2000'],
         ];

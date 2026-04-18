@@ -31,16 +31,10 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { useI18n } from '@/lib/i18n';
 import AppLayout from '@/layouts/app-layout';
 import { create, edit, index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Employees',
-        href: index().url,
-    },
-];
 
 type Department = {
     id: number;
@@ -165,6 +159,13 @@ export default function Index({
     };
     filters?: { search?: string; department_id?: string | number; employee_status?: string };
 }) {
+    const { t } = useI18n();
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('sidebar.employees', 'Employees'),
+            href: index().url,
+        },
+    ];
     const { data: employeeList } = employees;
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const [businessCardEmployee, setBusinessCardEmployee] = useState<Employee | null>(null);
@@ -240,7 +241,7 @@ export default function Index({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Employees" />
+            <Head title={t('sidebar.employees', 'Employees')} />
 
             <div className="flex min-h-screen flex-1 flex-col bg-background">
                 {/* Page header */}
@@ -265,49 +266,49 @@ export default function Index({
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Total Employee</span>
+                                            <span>{t('employees.stats.totalEmployee', 'Total Employee')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">{stats.totalEmployees}</p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.totalEmployees === 0
-                                                ? 'No employees yet'
-                                                : 'Current total employee records'}
+                                                ? t('employees.stats.noEmployeesYet', 'No employees yet')
+                                                : t('employees.stats.currentTotalRecords', 'Current total employee records')}
                                         </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Active Employee</span>
+                                            <span>{t('employees.stats.activeEmployee', 'Active Employee')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">{stats.activeEmployees}</p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.activeEmployees === 0
-                                                ? 'No active employee accounts'
-                                                : 'Employees with active login access'}
+                                                ? t('employees.stats.noActiveAccounts', 'No active employee accounts')
+                                                : t('employees.stats.activeLoginAccess', 'Employees with active login access')}
                                         </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Total Department</span>
+                                            <span>{t('employees.stats.totalDepartment', 'Total Department')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">{stats.totalDepartments}</p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.totalDepartments === 0
-                                                ? 'No departments configured'
-                                                : 'Configured departments in the system'}
+                                                ? t('employees.stats.noDepartmentsConfigured', 'No departments configured')
+                                                : t('employees.stats.configuredDepartments', 'Configured departments in the system')}
                                         </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>No Login Access</span>
+                                            <span>{t('employees.stats.noLoginAccess', 'No Login Access')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">
@@ -315,8 +316,8 @@ export default function Index({
                                         </p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.noLoginAccessEmployees === 0
-                                                ? 'All employees have login access'
-                                                : 'Employees pending login access'}
+                                                ? t('employees.stats.allHaveLoginAccess', 'All employees have login access')
+                                                : t('employees.stats.pendingLoginAccess', 'Employees pending login access')}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -336,9 +337,11 @@ export default function Index({
                                 <div className="border-b bg-muted/20 px-4 py-4 sm:px-5">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div>
-                                            <h2 className="text-lg font-semibold tracking-tight">Employee List</h2>
+                                            <h2 className="text-lg font-semibold tracking-tight">
+                                                {t('employees.list.title', 'Employee List')}
+                                            </h2>
                                             <p className="text-xs text-muted-foreground">
-                                                Search, group, and manage employees quickly.
+                                                {t('employees.list.subtitle', 'Search, group, and manage employees quickly.')}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -377,7 +380,7 @@ export default function Index({
                                                     className="h-8 rounded-full px-3 text-xs"
                                                     onClick={() => setGroupMode((value) => (value === 'department' ? 'none' : 'department'))}
                                                 >
-                                                    By Department
+                                                    {t('employees.group.byDepartment', 'By Department')}
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -386,7 +389,7 @@ export default function Index({
                                                     className="h-8 rounded-full px-3 text-xs"
                                                     onClick={() => setGroupMode((value) => (value === 'manager' ? 'none' : 'manager'))}
                                                 >
-                                                    By Manager
+                                                    {t('employees.group.byManager', 'By Manager')}
                                                 </Button>
                                             </div>
                                         </div>

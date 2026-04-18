@@ -171,6 +171,23 @@
     }
 }
 
+@layer components {
+    /**
+     * Login page ambient (auth-login-split-layout).
+     * Defined here so the background always applies even if a stale Vite bundle omits Tailwind arbitrary classes.
+     * Rebuild: npm run build (or npm run dev).
+     */
+    .login-shell-bg {
+        background-color: #e9edf4;
+        background-image: linear-gradient(135deg, #f4f6fa 0%, #e9edf4 45%, #dde3ec 100%);
+    }
+
+    html.dark .login-shell-bg {
+        background-color: #0f172a;
+        background-image: linear-gradient(160deg, #0f172a 0%, #1a2332 48%, #0c1018 100%);
+    }
+}
+
 @layer utilities {
     .notification-toast-timer-bar {
         animation-name: notification-toast-timer;

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
+use App\Models\EmployeeRequestActivityLog;
 use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\User;
@@ -61,6 +62,70 @@ class RequestDraftSubmitTest extends TestCase
 
         $response->assertRedirect(route('employee-requests.show', $employeeRequest));
         $this->assertSame('draft', $employeeRequest->status);
+    }
+
+    public function test_employee_request_creation_writes_audit_log_rows(): void
+    {
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+        $jobPosition = JobPosition::factory()->create();
+
+        $employeeRequest = EmployeeRequest::query()->create([
+            'employee_id' => $employee->id,
+            'job_position_id' => $jobPosition->id,
+            'department_id' => $department->id,
+            'date' => '2026-04-01',
+            'date_of_joining' => '2026-04-15',
+            'status' => 'draft',
+        ]);
+
+        $this->assertDatabaseHas('employee_request_activity_logs', [
+            'employee_request_id' => $employeeRequest->id,
+            'action' => EmployeeRequestActivityLog::ACTION_CREATED,
+            'field_name' => 'status',
+            'new_value' => 'draft',
+        ]);
+    }
+
+    public function test_employee_request_update_writes_activity_log_for_changed_fields(): void
+    {
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create([
+            'department_id' => $department->id,
+        ]);
+        $jobPosition = JobPosition::factory()->create();
+
+        $employeeRequest = EmployeeRequest::query()->create([
+            'employee_id' => $employee->id,
+            'job_position_id' => $jobPosition->id,
+            'department_id' => $department->id,
+            'date' => '2026-04-01',
+            'date_of_joining' => '2026-04-15',
+            'status' => 'draft',
+            'bag_allowance' => null,
+        ]);
+
+        $employeeRequest->update([
+            'status' => 'submitted',
+            'bag_allowance' => '2 bags',
+        ]);
+
+        $this->assertDatabaseHas('employee_request_activity_logs', [
+            'employee_request_id' => $employeeRequest->id,
+            'action' => EmployeeRequestActivityLog::ACTION_UPDATED,
+            'field_name' => 'status',
+            'old_value' => 'draft',
+            'new_value' => 'submitted',
+        ]);
+        $this->assertDatabaseHas('employee_request_activity_logs', [
+            'employee_request_id' => $employeeRequest->id,
+            'action' => EmployeeRequestActivityLog::ACTION_UPDATED,
+            'field_name' => 'bag_allowance',
+            'old_value' => null,
+            'new_value' => '2 bags',
+        ]);
     }
 
     public function test_employee_request_store_persists_employee_signature_from_data_url(): void

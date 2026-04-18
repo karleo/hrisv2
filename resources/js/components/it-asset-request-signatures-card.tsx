@@ -89,7 +89,7 @@ function IssuedBySignatureBlock({
                 <div className="space-y-2">
                     <p className="text-sm font-medium">Issued by signature</p>
                     {itAssetRequest.issued_by_signature_url ? (
-                        <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                        <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                             <img
                                 src={itAssetRequest.issued_by_signature_url}
                                 alt="Issued by signature"
@@ -194,7 +194,7 @@ export function ItAssetRequestSignaturesCard({
                         <div className="space-y-2">
                             <p className="text-sm font-medium">Employee signature</p>
                             {itAssetRequest.employee_signature_url ? (
-                                <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-muted">
+                                <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                                     <img
                                         src={itAssetRequest.employee_signature_url}
                                         alt="Employee signature"

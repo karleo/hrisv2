@@ -13,6 +13,7 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class EmployeeTest extends TestCase
@@ -577,8 +578,66 @@ class EmployeeTest extends TestCase
         );
     }
 
+    public function test_my_profile_document_view_route_returns_inline_file(): void
+    {
+        Storage::fake('public');
+
+        /** @var User $user */
+        $user = auth()->user();
+        $this->assertInstanceOf(User::class, $user);
+
+        $employee = Employee::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $path = "employees/{$employee->id}/documents/test.pdf";
+        Storage::disk('public')->put($path, '%PDF-1.4 fake pdf content');
+
+        $document = $employee->documents()->create([
+            'name' => 'Test PDF',
+            'path' => $path,
+            'original_name' => 'shiplevel14710.pdf',
+        ]);
+
+        $response = $this->get(route('my-profile.documents.show', [
+            'employee_document' => $document->id,
+        ]));
+
+        $response->assertOk();
+        $contentDisposition = $response->headers->get('Content-Disposition', '');
+        $this->assertStringContainsString('inline', $contentDisposition);
+        $this->assertStringContainsString('shiplevel14710.pdf', $contentDisposition);
+    }
+
+    public function test_shared_auth_includes_avatar_url_when_employee_has_photo(): void
+    {
+        Storage::fake('public');
+        $photoPath = 'employees/1/face.png';
+        Storage::disk('public')->put($photoPath, 'fake-image');
+
+        /** @var User $user */
+        $user = auth()->user();
+        $this->assertInstanceOf(User::class, $user);
+
+        Employee::factory()->create([
+            'user_id' => $user->id,
+            'photo' => $photoPath,
+        ]);
+
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.avatar', '/storage/'.$photoPath)
+        );
+    }
+
     public function test_admin_without_employee_can_open_my_profile(): void
     {
+        /** @var User $user */
+        $user = auth()->user();
+        $this->assertInstanceOf(User::class, $user);
+
         $response = $this->get(route('my-profile.show'));
 
         $response->assertOk();
@@ -586,6 +645,8 @@ class EmployeeTest extends TestCase
             ->component('employees/profile')
             ->where('employee', null)
             ->where('hasEmployeeProfile', false)
+            ->has('emailSignaturePreview')
+            ->where('emailSignaturePreview.fullName', $user->name)
         );
     }
 

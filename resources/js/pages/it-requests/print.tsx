@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 type Employee = { id: number; first_name: string; last_name: string };
 type Department = { id: number; name: string };
@@ -100,6 +101,7 @@ export default function ItRequestPrint({
     itRequest: ItRequest;
     companyLogoUrl: string | null;
 }) {
+    const { t } = useI18n({ forceLocale: 'en' });
     const handlePrint = () => window.print();
 
     const softwareLabel = itRequest.software
@@ -130,7 +132,7 @@ export default function ItRequestPrint({
                         className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900"
                     >
                         <ArrowLeft className="size-4" />
-                        Back to request
+                        {t('print.backToRequest', 'Back to request')}
                     </Link>
                     <button
                         type="button"
@@ -138,7 +140,7 @@ export default function ItRequestPrint({
                         className="inline-flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
                     >
                         <Printer className="size-4" />
-                        Print
+                        {t('print.print', 'Print')}
                     </button>
                 </div>
 

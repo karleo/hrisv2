@@ -138,7 +138,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                             className={cn(
                                 'mr-[-6px] rounded-2xl',
                                 isItemActive &&
-                                    "relative rounded-l-[999px] rounded-r-none bg-[#1b2046] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] before:absolute before:-top-3 before:-right-3 before:size-6 before:rounded-full before:bg-[#2b2f66] before:content-[''] after:absolute after:-bottom-3 after:-right-3 after:size-6 after:rounded-full after:bg-[#2b2f66] after:content-['']",
+                                    "relative rounded-l-[999px] rounded-r-none bg-[#1b2046] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] before:pointer-events-none before:absolute before:-top-3 before:-right-3 before:size-6 before:rounded-full before:bg-[#2b2f66] before:content-[''] after:pointer-events-none after:absolute after:-bottom-3 after:-right-3 after:size-6 after:rounded-full after:bg-[#2b2f66] after:content-['']",
                             )}
                         >
                             <SidebarMenuButton

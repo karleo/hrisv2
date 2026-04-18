@@ -5,6 +5,8 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            locale: 'en' | 'ar';
+            locales: string[];
             auth: Auth;
             modulePermissions: ModulePermissionsMap;
             sidebarOpen: boolean;

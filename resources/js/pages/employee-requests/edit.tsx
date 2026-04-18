@@ -1,5 +1,6 @@
 import { Form, Head, Link, useForm } from '@inertiajs/react';
 import { Ban, Calendar, Save } from 'lucide-react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -30,6 +31,7 @@ import {
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 const inputClassName =
@@ -92,6 +94,8 @@ export default function Edit({
     canDecide,
     cancelUrl,
     canCancel = false,
+    canViewActivityLogs = false,
+    activityLogs,
 }: {
     employeeRequest: EmployeeRequest;
     employees: EmployeeOption[];
@@ -101,7 +105,10 @@ export default function Edit({
     canDecide: boolean;
     cancelUrl: string;
     canCancel?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employee Requests', href: '/employee-requests' },
         { title: `Edit #${employeeRequest.id}`, href: '#' },
@@ -672,6 +679,16 @@ export default function Edit({
                             employeeFullName(selectedEmployee)
                         }
                     />
+                    {canViewActivityLogs ? (
+                        <ActivityLogTimeline
+                            entries={activityLogs}
+                            title={t('activity.title', 'Activity Log')}
+                            description={t(
+                                'activity.description.employeeRequest',
+                                'Track employee request updates by authorized users.',
+                            )}
+                        />
+                    ) : null}
                 </form>
             </div>
         </AppLayout>

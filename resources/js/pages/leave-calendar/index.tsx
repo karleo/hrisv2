@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDays, Filter, Layers3, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type LeaveCalendarEntry = {
@@ -46,12 +47,7 @@ type CalendarFilters = {
     leave_type: string | null;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Leave Calendar', href: '/leave-calendar' },
-];
-
-const CALENDAR_WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const CALENDAR_WEEKDAY_LABEL_KEYS = ['weekdays.mon', 'weekdays.tue', 'weekdays.wed', 'weekdays.thu', 'weekdays.fri', 'weekdays.sat', 'weekdays.sun'] as const;
 
 const LEAVE_TYPE_TONE_CLASSES = [
     'bg-blue-500/12 text-blue-700 border-blue-500/30 dark:bg-blue-500/25 dark:text-blue-200 dark:border-blue-400/40',
@@ -136,31 +132,31 @@ function toIsoDate(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, locale: string): string {
     const date = new Date(`${dateString}T00:00:00`);
 
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleDateString(locale, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
     });
 }
 
-function formatDateShort(dateString: string): string {
+function formatDateShort(dateString: string, locale: string): string {
     const date = new Date(`${dateString}T00:00:00`);
 
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleDateString(locale, {
         day: '2-digit',
         month: 'short',
     });
 }
 
-function formatDateRange(from: string, to: string): string {
+function formatDateRange(from: string, to: string, locale: string): string {
     if (from === to) {
-        return formatDate(from);
+        return formatDate(from, locale);
     }
 
-    return `${formatDateShort(from)} - ${formatDateShort(to)}`;
+    return `${formatDateShort(from, locale)} - ${formatDateShort(to, locale)}`;
 }
 
 function dayLoadTone(dayCount: number): string {
@@ -223,6 +219,7 @@ export default function LeaveCalendarIndex({
     upcomingLeaves: LeaveCalendarEntry[];
     departmentSummary: DepartmentSummary[];
 }) {
+    const { t, locale } = useI18n();
     const [monthInput, setMonthInput] = useState(filters.month);
     const [departmentInput, setDepartmentInput] = useState(
         filters.department_id != null ? String(filters.department_id) : 'all',
@@ -230,6 +227,13 @@ export default function LeaveCalendarIndex({
     const [leaveTypeInput, setLeaveTypeInput] = useState(filters.leave_type ?? 'all');
 
     const calendarDates = useMemo(() => toCalendarGridDates(meta.monthStart), [meta.monthStart]);
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: t('sidebar.dashboard', 'Dashboard'), href: '/dashboard' },
+        { title: t('sidebar.leaveCalendar', 'Leave Calendar'), href: '/leave-calendar' },
+    ];
+    const weekdayLabels = CALENDAR_WEEKDAY_LABEL_KEYS.map((key) =>
+        t(`leaveCalendar.${key}`, key.split('.').at(-1)?.toUpperCase() ?? key),
+    );
 
     const summaryStats = useMemo(() => {
         const employeeCount = new Set(entries.map((entry) => entry.employee_name)).size;
@@ -274,43 +278,51 @@ export default function LeaveCalendarIndex({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Leave Calendar" />
+            <Head title={t('leaveCalendar.title', 'Leave Calendar')} />
 
             <div className="flex h-full flex-1 flex-col gap-5 p-4 md:p-6">
                 <section className="rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 shadow-sm dark:border-slate-700/70 dark:from-slate-800/90 dark:via-slate-800/45 dark:to-transparent">
                     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                         <div>
                             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                Workforce visibility
+                                {t('leaveCalendar.workforceVisibility', 'Workforce visibility')}
                             </p>
                             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-                                Leave Calendar
+                                {t('leaveCalendar.title', 'Leave Calendar')}
                             </h1>
                             <p className="text-muted-foreground mt-1 text-sm">
-                                Clear approved leave view for staffing and operational planning.
+                                {t('leaveCalendar.subtitle', 'Clear approved leave view for staffing and operational planning.')}
                             </p>
                         </div>
                         <Link href="/leave-requests" className="text-primary text-sm font-medium">
-                            Open leave requests
+                            {t('leaveCalendar.openLeaveRequests', 'Open leave requests')}
                         </Link>
                     </div>
                 </section>
 
                 <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
-                        <p className="text-muted-foreground text-xs uppercase tracking-wide">Approved entries</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                            {t('leaveCalendar.stats.approvedEntries', 'Approved entries')}
+                        </p>
                         <p className="mt-0.5 text-2xl font-bold">{summaryStats.approvedEntries}</p>
                     </div>
                     <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
-                        <p className="text-muted-foreground text-xs uppercase tracking-wide">Employees on leave</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                            {t('leaveCalendar.stats.employeesOnLeave', 'Employees on leave')}
+                        </p>
                         <p className="mt-0.5 text-2xl font-bold">{summaryStats.uniqueEmployees}</p>
                     </div>
                     <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
-                        <p className="text-muted-foreground text-xs uppercase tracking-wide">Total leave days</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                            {t('leaveCalendar.stats.totalLeaveDays', 'Total leave days')}
+                        </p>
                         <p className="mt-0.5 text-2xl font-bold">{summaryStats.totalDays}</p>
                     </div>
                     <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
-                        <p className="text-muted-foreground text-xs uppercase tracking-wide">Departments active</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                            {t('leaveCalendar.stats.departmentsActive', 'Departments active')}
+                        </p>
                         <p className="mt-0.5 text-2xl font-bold">{summaryStats.activeDepartments}</p>
                     </div>
                 </section>
@@ -318,11 +330,11 @@ export default function LeaveCalendarIndex({
                 <section className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/65 md:p-5">
                     <div className="mb-3 flex items-center gap-2">
                         <Filter className="text-muted-foreground size-4" />
-                        <h2 className="text-sm font-semibold">Filters</h2>
+                        <h2 className="text-sm font-semibold">{t('leaveCalendar.filters.title', 'Filters')}</h2>
                     </div>
                     <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
                         <label className="grid gap-1.5 text-sm">
-                            <span className="text-muted-foreground text-xs">Month</span>
+                            <span className="text-muted-foreground text-xs">{t('leaveCalendar.filters.month', 'Month')}</span>
                             <input
                                 type="month"
                                 className="border-input focus-visible:ring-ring h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-[3px] dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
@@ -366,14 +378,14 @@ export default function LeaveCalendarIndex({
                                 className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition hover:opacity-90"
                                 onClick={applyFilters}
                             >
-                                Apply
+                                {t('leaveCalendar.filters.apply', 'Apply')}
                             </button>
                             <button
                                 type="button"
                                 className="border-input inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition hover:bg-accent/60 dark:border-slate-700 dark:hover:bg-slate-800/70"
                                 onClick={resetFilters}
                             >
-                                Reset
+                                {t('leaveCalendar.filters.reset', 'Reset')}
                             </button>
                         </div>
                     </div>
@@ -387,12 +399,12 @@ export default function LeaveCalendarIndex({
                                 <h2 className="text-sm font-semibold">{meta.monthLabel}</h2>
                             </div>
                             <p className="text-muted-foreground text-xs">
-                                {formatDate(meta.monthStart)} - {formatDate(meta.monthEnd)}
+                                {formatDate(meta.monthStart, locale)} - {formatDate(meta.monthEnd, locale)}
                             </p>
                         </div>
 
                         <div className="mb-2 grid grid-cols-7 gap-1">
-                            {CALENDAR_WEEKDAY_LABELS.map((label) => (
+                            {weekdayLabels.map((label) => (
                                 <div
                                     key={label}
                                     className="text-muted-foreground px-1 py-1 text-center text-[11px] font-medium uppercase tracking-wide dark:text-slate-300"
@@ -421,7 +433,7 @@ export default function LeaveCalendarIndex({
                                         <div className="text-xs font-medium">{date.getDate()}</div>
                                         {leaveCount > 0 ? (
                                             <div className={`mt-1 inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${dayLoadTone(leaveCount)}`}>
-                                                {leaveCount} leave
+                                                {leaveCount} {t('leaveCalendar.leave', 'leave')}
                                             </div>
                                         ) : null}
                                     </div>
@@ -430,29 +442,29 @@ export default function LeaveCalendarIndex({
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-                            <span className="text-muted-foreground font-medium">Daily load:</span>
+                            <span className="text-muted-foreground font-medium">{t('leaveCalendar.dailyLoad', 'Daily load:')}</span>
                             <span className="inline-flex rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-blue-700 dark:text-blue-200">
-                                1 leave
+                                1 {t('leaveCalendar.leave', 'leave')}
                             </span>
                             <span className="inline-flex rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-200">
-                                2-3 leaves
+                                2-3 {t('leaveCalendar.leaves', 'leaves')}
                             </span>
                             <span className="inline-flex rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-rose-700 dark:text-rose-200">
-                                4+ leaves
+                                4+ {t('leaveCalendar.leaves', 'leaves')}
                             </span>
                             <span className="inline-flex rounded-full border border-primary/45 bg-primary/12 px-2 py-0.5 text-primary dark:border-primary/55 dark:bg-primary/22">
-                                Today
+                                {t('dashboard.today', 'Today')}
                             </span>
                         </div>
                     </div>
 
                     <div className="space-y-4">
                         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/65">
-                            <h3 className="mb-2 text-sm font-semibold">On Leave Today</h3>
+                            <h3 className="mb-2 text-sm font-semibold">{t('dashboard.onLeaveToday', 'On Leave Today')}</h3>
                             <div className="space-y-2">
                                 {todayOnLeave.length === 0 ? (
                                     <p className="text-muted-foreground text-xs">
-                                        No one is on leave today.
+                                        {t('leaveCalendar.noOneOnLeaveToday', 'No one is on leave today.')}
                                     </p>
                                 ) : (
                                     todayOnLeave.slice(0, 8).map((item) => (
@@ -464,7 +476,7 @@ export default function LeaveCalendarIndex({
                                                     {item.leave_type}
                                                 </span>
                                                 <span className="text-muted-foreground text-[11px]">
-                                                    {formatDateRange(item.period_from, item.period_to)}
+                                                    {formatDateRange(item.period_from, item.period_to, locale)}
                                                 </span>
                                             </div>
                                         </div>
@@ -474,11 +486,11 @@ export default function LeaveCalendarIndex({
                         </div>
 
                         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/65">
-                            <h3 className="mb-2 text-sm font-semibold">Upcoming (Next 7 Days)</h3>
+                            <h3 className="mb-2 text-sm font-semibold">{t('leaveCalendar.upcomingNext7Days', 'Upcoming (Next 7 Days)')}</h3>
                             <div className="space-y-2">
                                 {upcomingLeaves.length === 0 ? (
                                     <p className="text-muted-foreground text-xs">
-                                        No upcoming approved leaves in the next 7 days.
+                                        {t('leaveCalendar.noUpcoming7Days', 'No upcoming approved leaves in the next 7 days.')}
                                     </p>
                                 ) : (
                                     upcomingLeaves.slice(0, 8).map((item) => (
@@ -490,7 +502,7 @@ export default function LeaveCalendarIndex({
                                                     {item.leave_type}
                                                 </span>
                                                 <span className="text-muted-foreground text-[11px]">
-                                                    {formatDateRange(item.period_from, item.period_to)}
+                                                    {formatDateRange(item.period_from, item.period_to, locale)}
                                                 </span>
                                             </div>
                                         </div>
@@ -505,23 +517,23 @@ export default function LeaveCalendarIndex({
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/65 md:p-5">
                         <div className="mb-3 flex items-center gap-2">
                             <Users className="text-muted-foreground size-4" />
-                            <h3 className="text-sm font-semibold">Department Summary</h3>
+                            <h3 className="text-sm font-semibold">{t('leaveCalendar.departmentSummary', 'Department Summary')}</h3>
                         </div>
                         <div className="overflow-hidden rounded-lg border border-border dark:border-slate-700/70">
                             <table className="w-full text-sm">
                                 <thead className="bg-muted/40 text-left dark:bg-slate-800/75">
                                     <tr>
                                         <th className="px-3 py-2 font-medium">Department</th>
-                                        <th className="px-3 py-2 font-medium">Entries</th>
-                                        <th className="px-3 py-2 font-medium">Days</th>
-                                        <th className="px-3 py-2 font-medium">Employees</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.entries', 'Entries')}</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.days', 'Days')}</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.employees', 'Employees')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {departmentSummary.length === 0 ? (
                                         <tr>
                                             <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">
-                                                No leave records for selected filters.
+                                                {t('leaveCalendar.noRecordsForFilters', 'No leave records for selected filters.')}
                                             </td>
                                         </tr>
                                     ) : (
@@ -542,25 +554,25 @@ export default function LeaveCalendarIndex({
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/65 md:p-5">
                         <div className="mb-3 flex items-center gap-2">
                             <Layers3 className="text-muted-foreground size-4" />
-                            <h3 className="text-sm font-semibold">Approved Leave Entries</h3>
+                            <h3 className="text-sm font-semibold">{t('leaveCalendar.approvedLeaveEntries', 'Approved Leave Entries')}</h3>
                         </div>
                         <div className="max-h-96 overflow-auto rounded-lg border border-border dark:border-slate-700/70">
                             <table className="w-full text-sm">
                                 <thead className="sticky top-0 bg-muted/40 text-left dark:bg-slate-800/85">
                                     <tr>
-                                        <th className="px-3 py-2 font-medium">Employee</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.employee', 'Employee')}</th>
                                         <th className="px-3 py-2 font-medium">Department</th>
                                         <th className="px-3 py-2 font-medium">Leave Type</th>
-                                        <th className="px-3 py-2 font-medium">Category</th>
-                                        <th className="px-3 py-2 font-medium">Date Range</th>
-                                        <th className="px-3 py-2 font-medium">Days</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.category', 'Category')}</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.dateRange', 'Date Range')}</th>
+                                        <th className="px-3 py-2 font-medium">{t('leaveCalendar.table.days', 'Days')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {entries.length === 0 ? (
                                         <tr>
                                             <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
-                                                No approved leaves found for this view.
+                                                {t('leaveCalendar.noApprovedLeavesForView', 'No approved leaves found for this view.')}
                                             </td>
                                         </tr>
                                     ) : (
@@ -575,11 +587,13 @@ export default function LeaveCalendarIndex({
                                                 </td>
                                                 <td className="px-3 py-2">
                                                     <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] font-medium dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100">
-                                                        {entry.leave_category === 'unpaid' ? 'Unpaid' : 'Paid'}
+                                                        {entry.leave_category === 'unpaid'
+                                                            ? t('leaveCalendar.unpaid', 'Unpaid')
+                                                            : t('leaveCalendar.paid', 'Paid')}
                                                     </span>
                                                 </td>
                                                 <td className="px-3 py-2">
-                                                    {formatDateRange(entry.period_from, entry.period_to)}
+                                                    {formatDateRange(entry.period_from, entry.period_to, locale)}
                                                 </td>
                                                 <td className="px-3 py-2">{entry.days}</td>
                                             </tr>

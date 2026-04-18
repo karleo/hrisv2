@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -28,6 +29,13 @@ class User extends Authenticatable
         'password',
         'is_active',
         'role_id',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar',
     ];
 
     /**
@@ -71,6 +79,22 @@ class User extends Authenticatable
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class);
+    }
+
+    /**
+     * Public URL for the linked employee profile photo, when present.
+     */
+    protected function avatar(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            $this->loadMissing('employee');
+            $path = $this->employee?->photo;
+            if (! is_string($path) || $path === '') {
+                return null;
+            }
+
+            return '/storage/'.ltrim($path, '/');
+        });
     }
 
     public function isAdministrator(): bool
