@@ -131,7 +131,7 @@ const en = {
     'leaveRequests.headTitle': 'Leave Requests',
     'leaveRequests.heading': 'Leave requests',
     'leaveRequests.subtitle':
-        'Track time off, filter by team, and act on submissions from one place.',
+    'Track time off, filter by team, and act on submissions from one place.',
     'leaveRequests.newRequest': 'New request',
     'leaveRequests.stats.total': 'Total',
     'leaveRequests.stats.drafts': 'Drafts',
@@ -189,7 +189,7 @@ const en = {
     'itAssetRequestsIndex.newItAssetRequest': 'New IT Asset Request',
     'itAssetRequestsIndex.empty.search': 'No IT asset requests match your search.',
     'itAssetRequestsIndex.empty.noData':
-        'No IT asset requests yet. Create your first request to get started.',
+    'No IT asset requests yet. Create your first request to get started.',
     'itAssetRequestsIndex.table.code': 'Code',
     'itAssetRequestsIndex.table.date': 'Date',
     'itAssetRequestsIndex.table.employee': 'Employee',
@@ -202,13 +202,13 @@ const en = {
     'itAssetRequestsIndex.aria.print': 'Print',
     'employeeRequestsIndex.heading': 'Employee requests',
     'employeeRequestsIndex.subtitle':
-        'Track and manage employee ticket, passport, and encashment requests in one place.',
+    'Track and manage employee ticket, passport, and encashment requests in one place.',
     'employeeRequestsIndex.table.jobPosition': 'Job Position',
     'employeeRequestsIndex.table.date': 'Date',
     'employeeRequestsIndex.table.dateOfJoining': 'Date of Joining',
     'employeeRequestsIndex.empty.filtered': 'No employee requests match your filters.',
     'employeeRequestsIndex.empty.noData':
-        'No employee requests yet. Create the first request to get started.',
+    'No employee requests yet. Create the first request to get started.',
     'employeeRequestsIndex.aria.print': 'Print',
     'requestStatus.draft': 'Draft',
     'requestStatus.submitted': 'Submitted',

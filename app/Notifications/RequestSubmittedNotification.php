@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Services\Mail\MailSettingsManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -30,7 +31,12 @@ class RequestSubmittedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        $channels = ['database'];
+        if (app(MailSettingsManager::class)->isWorkflowEmailEnabled()) {
+            $channels[] = 'mail';
+        }
+
+        return $channels;
     }
 
     /**
@@ -38,9 +44,16 @@ class RequestSubmittedNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $requestType = (string) ($this->payload['request_type'] ?? 'request');
+        $requestCode = (string) ($this->payload['request_code'] ?? '');
+        $submittedBy = (string) ($this->payload['submitted_by'] ?? 'An employee');
+        $route = (string) ($this->payload['route'] ?? url('/'));
+
         return (new MailMessage)
-            ->line('A request has been submitted.')
-            ->line($this->payload['request_code']);
+            ->subject('New '.$requestCode.' submitted for approval')
+            ->line($submittedBy.' submitted a '.str_replace('_', ' ', $requestType).'.')
+            ->line('Request code: '.$requestCode)
+            ->action('Review request', $route);
     }
 
     /**

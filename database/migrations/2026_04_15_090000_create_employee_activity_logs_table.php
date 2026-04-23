@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('new_value')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['employee_id', 'created_at']);
+            $table->index(['employee_id', 'created_at'], 'eal_emp_created_at_idx');
         });
     }
 

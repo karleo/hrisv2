@@ -12,6 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('it_asset_request_activity_logs')) {
+            try {
+                Schema::table('it_asset_request_activity_logs', function (Blueprint $table): void {
+                    $table->index(['it_asset_request_id', 'created_at'], 'itarl_req_created_at_idx');
+                });
+            } catch (\Throwable) {
+                // Index already exists or table is not in a recoverable state.
+            }
+
             return;
         }
 
@@ -26,7 +34,7 @@ return new class extends Migration
             $table->text('new_value')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['it_asset_request_id', 'created_at']);
+            $table->index(['it_asset_request_id', 'created_at'], 'itarl_req_created_at_idx');
         });
     }
 
