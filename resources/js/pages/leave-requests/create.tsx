@@ -298,7 +298,7 @@ export default function LeaveRequestsCreate({
                                                 id="absence_type"
                                                 name="absence_type"
                                                 required
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select type</option>
                                                 {leaveTypes.map((t) => (
@@ -321,7 +321,7 @@ export default function LeaveRequestsCreate({
                                             <select
                                                 id="details"
                                                 name="details"
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 {DETAILS_OPTIONS.map((d) => (

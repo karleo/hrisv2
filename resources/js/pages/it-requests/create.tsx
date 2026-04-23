@@ -170,7 +170,7 @@ export default function Create({
                                                     department_id: employee?.department_id ?? '',
                                                 }));
                                             }}
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <option value="">Select employee</option>
                                             {employees.map((emp) => (
@@ -194,7 +194,7 @@ export default function Create({
                                             required
                                             value={data.date}
                                             onChange={(e) => setData('date', e.target.value)}
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         />
                                         <InputError message={errors.date} />
                                     </div>
@@ -243,7 +243,7 @@ export default function Create({
                                             onChange={(e) =>
                                                 setData('software_id', e.target.value ? Number(e.target.value) : '')
                                             }
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <option value="">Select software (optional)</option>
                                             {software.map((item) => (
@@ -264,7 +264,7 @@ export default function Create({
                                             onChange={(e) =>
                                                 setData('hardware_id', e.target.value ? Number(e.target.value) : '')
                                             }
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <option value="">Select hardware (optional)</option>
                                             {hardware.map((item) => (

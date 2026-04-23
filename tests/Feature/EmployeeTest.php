@@ -355,6 +355,19 @@ class EmployeeTest extends TestCase
         );
     }
 
+    public function test_edit_accepts_tab_query_string(): void
+    {
+        $employee = Employee::factory()->create();
+
+        $response = $this->get(route('employees.edit', $employee).'?tab=documents');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/edit')
+            ->where('employee.id', $employee->id)
+        );
+    }
+
     public function test_edit_includes_leave_configuration_and_usage(): void
     {
         $employee = Employee::factory()->create([

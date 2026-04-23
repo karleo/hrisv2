@@ -40,7 +40,9 @@ class LeaveRequestController extends Controller
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'department_id' => ['sometimes', 'nullable', 'integer', 'exists:departments,id'],
             'status' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month'])],
+            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month', 'custom'])],
+            'date_from' => ['sometimes', 'nullable', 'date'],
+            'date_to' => ['sometimes', 'nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
         $departmentId = $validated['department_id'] ?? null;
@@ -50,8 +52,14 @@ class LeaveRequestController extends Controller
         $datePreset = isset($validated['date_preset']) && $validated['date_preset'] !== ''
             ? $validated['date_preset']
             : null;
+        $dateFrom = isset($validated['date_from']) && $validated['date_from'] !== ''
+            ? $validated['date_from']
+            : null;
+        $dateTo = isset($validated['date_to']) && $validated['date_to'] !== ''
+            ? $validated['date_to']
+            : null;
 
-        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter, $datePreset): void {
+        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter, $datePreset, $dateFrom, $dateTo): void {
             $query->when(
                 $request->filled('search'),
                 fn ($q) => $q->whereHas('employee', function ($sub) use ($request): void {
@@ -73,6 +81,14 @@ class LeaveRequestController extends Controller
                         Carbon::now()->startOfMonth()->startOfDay(),
                         Carbon::now()->endOfMonth()->endOfDay(),
                     ]);
+                })
+                ->when($datePreset === 'custom', function ($q) use ($dateFrom, $dateTo): void {
+                    if ($dateFrom !== null) {
+                        $q->whereDate('created_at', '>=', $dateFrom);
+                    }
+                    if ($dateTo !== null) {
+                        $q->whereDate('created_at', '<=', $dateTo);
+                    }
                 });
         };
 
@@ -115,6 +131,8 @@ class LeaveRequestController extends Controller
                 'department_id' => $departmentId,
                 'status' => $statusFilter,
                 'date_preset' => $datePreset,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
             ],
             'departments' => Department::query()
                 ->orderBy('name')
@@ -553,8 +571,7 @@ class LeaveRequestController extends Controller
         ?string $periodTo,
         string $startDayType = 'full',
         string $endDayType = 'full',
-    ): ?float
-    {
+    ): ?float {
         if (empty($periodFrom) || empty($periodTo)) {
             return null;
         }

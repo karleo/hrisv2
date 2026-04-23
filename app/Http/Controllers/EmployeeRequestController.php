@@ -35,26 +35,49 @@ class EmployeeRequestController extends Controller
      */
     public function index(Request $request): Response
     {
+        $validated = $request->validate([
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'department_id' => ['sometimes', 'nullable', 'integer', 'exists:departments,id'],
+            'status' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month', 'custom'])],
+            'date_from' => ['sometimes', 'nullable', 'date'],
+            'date_to' => ['sometimes', 'nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $departmentId = isset($validated['department_id']) ? (int) $validated['department_id'] : null;
+        $statusFilter = isset($validated['status']) && $validated['status'] !== ''
+            ? $validated['status']
+            : null;
+        $datePreset = isset($validated['date_preset']) && $validated['date_preset'] !== ''
+            ? $validated['date_preset']
+            : null;
+        $dateFrom = isset($validated['date_from']) && $validated['date_from'] !== ''
+            ? $validated['date_from']
+            : null;
+        $dateTo = isset($validated['date_to']) && $validated['date_to'] !== ''
+            ? $validated['date_to']
+            : null;
+
         $visibleRequests = EmployeeRequest::query()
             ->with(['employee.companyProfile:id,company_name', 'department', 'jobPosition'])
             ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = (string) $request->input('search');
+            ->when(isset($validated['search']) && trim((string) $validated['search']) !== '', function ($query) use ($validated): void {
+                $search = (string) $validated['search'];
                 $query->whereHas('employee', function ($q) use ($search): void {
                     $q->where('first_name', 'like', '%'.$search.'%')
                         ->orWhere('last_name', 'like', '%'.$search.'%');
                 });
             })
             ->when(
-                $request->filled('department_id'),
-                fn ($query) => $query->where('department_id', (int) $request->input('department_id'))
+                $departmentId !== null,
+                fn ($query) => $query->where('department_id', $departmentId)
             )
             ->when(
-                $request->filled('status'),
-                fn ($query) => $query->where('status', (string) $request->input('status'))
+                $statusFilter !== null,
+                fn ($query) => $query->where('status', $statusFilter)
             );
 
-        $this->applyDatePresetFilter($visibleRequests, $request->input('date_preset'));
+        $this->applyDatePresetFilter($visibleRequests, $datePreset, $dateFrom, $dateTo);
 
         $statusCounts = (clone $visibleRequests)
             ->select('status')
@@ -68,7 +91,14 @@ class EmployeeRequestController extends Controller
 
         return Inertia::render('employee-requests/index', [
             'employeeRequests' => $employeeRequests,
-            'filters' => $request->only(['search', 'department_id', 'status', 'date_preset']),
+            'filters' => [
+                'search' => $validated['search'] ?? null,
+                'department_id' => $departmentId,
+                'status' => $statusFilter,
+                'date_preset' => $datePreset,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ],
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -82,8 +112,12 @@ class EmployeeRequestController extends Controller
         ]);
     }
 
-    private function applyDatePresetFilter(Builder $query, mixed $datePreset): void
-    {
+    private function applyDatePresetFilter(
+        Builder $query,
+        mixed $datePreset,
+        ?string $dateFrom = null,
+        ?string $dateTo = null
+    ): void {
         if (! is_string($datePreset) || $datePreset === '') {
             return;
         }
@@ -116,6 +150,17 @@ class EmployeeRequestController extends Controller
                 $today->copy()->startOfMonth(),
                 $today->copy()->endOfMonth(),
             ]);
+
+            return;
+        }
+
+        if ($datePreset === 'custom') {
+            if ($dateFrom !== null) {
+                $query->whereDate('date', '>=', $dateFrom);
+            }
+            if ($dateTo !== null) {
+                $query->whereDate('date', '<=', $dateTo);
+            }
         }
     }
 

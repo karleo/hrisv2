@@ -371,7 +371,7 @@ export default function LeaveRequestsEdit({
                                                 name="absence_type"
                                                 required
                                                 defaultValue={absenceType}
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select type</option>
                                                 {leaveTypes.map((t) => (
@@ -401,7 +401,7 @@ export default function LeaveRequestsEdit({
                                                 id="details"
                                                 name="details"
                                                 defaultValue={leaveRequest.details ?? ''}
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 {DETAILS_OPTIONS.map((d) => (

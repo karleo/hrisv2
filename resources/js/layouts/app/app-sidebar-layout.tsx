@@ -9,7 +9,7 @@ export default function AppSidebarLayout({
     breadcrumbs = [],
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.05';
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.06';
 
     return (
         <AppShell variant="sidebar">

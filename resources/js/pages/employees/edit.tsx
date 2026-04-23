@@ -133,6 +133,17 @@ const employeeStatusDotStyleMap: Record<(typeof employeeStatuses)[number], strin
     'Employment Cancelled': 'bg-zinc-500',
 };
 
+const employeeStatusTranslationKeyMap: Record<(typeof employeeStatuses)[number], string> = {
+    Employed: 'employees.status.employed',
+    'On Probation': 'employees.status.onProbation',
+    Resigned: 'employees.status.resigned',
+    'Serving Notice Period': 'employees.status.servingNoticePeriod',
+    Terminated: 'employees.status.terminated',
+    Absconded: 'employees.status.absconded',
+    Suspended: 'employees.status.suspended',
+    'Employment Cancelled': 'employees.status.employmentCancelled',
+};
+
 function formatDocumentDate(value: string | null | undefined): string {
     if (!value) {
         return '-';
@@ -362,8 +373,8 @@ export default function Edit({
     ).sort(([a], [b]) => (a < b ? 1 : -1));
     const page = usePage();
     const flash = (page.props as { flash?: { success?: string; error?: string } }).flash;
-    const query = (page.props as { ziggy?: { query?: { tab?: string } } }).ziggy?.query;
-    const tabFromQuery = query?.tab;
+    const queryString = page.url.includes('?') ? page.url.split('?', 2)[1] ?? '' : '';
+    const tabFromQuery = new URLSearchParams(queryString).get('tab');
     const readOnlyView = viewMode;
     const hasLinkedUser = employee.user_id !== null;
     const initialTab: 'employee_information' | 'work_information' | 'private_information' | 'documents' | 'leave_configuration' =
@@ -381,6 +392,10 @@ export default function Edit({
         companyProfiles.find(
             (profile) => profile.id === employee.company_profile_id
         )?.company_name ?? '';
+    const employeeStatusLabel = t(
+        employeeStatusTranslationKeyMap[normalizedEmployeeStatus],
+        normalizedEmployeeStatus,
+    );
     const [signatureFirstName, setSignatureFirstName] = useState(
         employee.first_name
     );
@@ -410,7 +425,7 @@ export default function Edit({
     );
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Employees', href: index().url },
+        { title: t('sidebar.employees', 'Employees'), href: index().url },
         {
             title: `${employee.first_name} ${employee.last_name}`,
             href: edit({ employee: employee.id }).url,
@@ -769,14 +784,14 @@ export default function Edit({
                     className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="size-4" />
-                    Back to Employees
+                    {t('employees.backToEmployees', 'Back to Employees')}
                 </Link>
 
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex flex-wrap items-start gap-3">
                         <Heading
-                            title={readOnlyView ? 'View Employee' : 'Edit Employee'}
-                            description={readOnlyView ? 'View employee details' : 'Update employee details'}
+                            title={readOnlyView ? t('employees.viewEmployee', 'View Employee') : t('employees.editEmployee', 'Edit Employee')}
+                            description={readOnlyView ? t('employees.viewEmployeeDetails', 'View employee details') : t('employees.updateEmployeeDetails', 'Update employee details')}
                         />
                         <div
                             className={`mt-0.5 inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium shadow-sm ${employeeStatusStyleMap[normalizedEmployeeStatus]}`}
@@ -785,10 +800,10 @@ export default function Edit({
                                 className={`size-2.5 rounded-full ${employeeStatusDotStyleMap[normalizedEmployeeStatus]}`}
                             />
                             <span className="text-[11px] uppercase tracking-wide opacity-80">
-                                Employment Status
+                                {t('employees.employmentStatus', 'Employment Status')}
                             </span>
                             <span className="font-semibold">
-                                {normalizedEmployeeStatus}
+                                {employeeStatusLabel}
                             </span>
                         </div>
                     </div>
@@ -1177,7 +1192,7 @@ export default function Edit({
                                                         event.target.value
                                                     )
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select company profile
@@ -1212,7 +1227,7 @@ export default function Edit({
                                                     employee.work_timetable?.id ??
                                                     ''
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select work timetable
@@ -1245,7 +1260,7 @@ export default function Edit({
                                                 defaultValue={
                                                     employee.department_id
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select department
@@ -1280,7 +1295,7 @@ export default function Edit({
                                                         event.target.value
                                                     )
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select job position
@@ -1393,7 +1408,7 @@ export default function Edit({
                                                         : ''
                                                 }
                                                 disabled={!hasLinkedUser}
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="1">Active (can login)</option>
                                                 <option value="0">Inactive (blocked from login)</option>
@@ -1407,17 +1422,20 @@ export default function Edit({
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="employee_status">
-                                                Employee Status
+                                                {t('employees.employmentStatus', 'Employment Status')}
                                             </Label>
                                             <select
                                                 id="employee_status"
                                                 name="employee_status"
                                                 defaultValue={normalizedEmployeeStatus}
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 {employeeStatuses.map((status) => (
                                                     <option key={status} value={status}>
-                                                        {status}
+                                                        {t(
+                                                            employeeStatusTranslationKeyMap[status],
+                                                            status,
+                                                        )}
                                                     </option>
                                                 ))}
                                             </select>
@@ -1759,7 +1777,7 @@ export default function Edit({
                                                                             e.target.value
                                                                         )
                                                                     }
-                                                                    className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+                                                                    className="border-input focus-visible:ring-ring flex h-8 w-full rounded-md border bg-background px-2 py-1 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                                                 >
                                                                     <option value="">
                                                                         Select document type
@@ -1999,7 +2017,7 @@ export default function Edit({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="gender">Gender</Label>
-                                        <select id="gender" name="gender" defaultValue={employee.gender ?? ''} className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">
+                                        <select id="gender" name="gender" defaultValue={employee.gender ?? ''} className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50">
                                             <option value="">Select</option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
@@ -2011,7 +2029,7 @@ export default function Edit({
                                 <div className="grid gap-2 md:grid-cols-2 md:gap-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="marital_status">Marital Status</Label>
-                                        <select id="marital_status" name="marital_status" defaultValue={employee.marital_status ?? ''} className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">
+                                        <select id="marital_status" name="marital_status" defaultValue={employee.marital_status ?? ''} className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50">
                                             <option value="">Select</option>
                                             <option value="Single">Single</option>
                                             <option value="Married">Married</option>

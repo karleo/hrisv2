@@ -110,6 +110,8 @@ function navigateIndex(params: {
     department_id?: number;
     status?: string;
     date_preset?: string;
+    date_from?: string;
+    date_to?: string;
 }) {
     const cleaned: Record<string, string | number> = { page: 1 };
     if (params.search?.trim()) {
@@ -123,6 +125,12 @@ function navigateIndex(params: {
     }
     if (params.date_preset) {
         cleaned.date_preset = params.date_preset;
+    }
+    if (params.date_from) {
+        cleaned.date_from = params.date_from;
+    }
+    if (params.date_to) {
+        cleaned.date_to = params.date_to;
     }
     router.get(index().url, cleaned, {
         preserveState: true,
@@ -142,6 +150,8 @@ export default function Index({
         department_id?: number | null;
         status?: string | null;
         date_preset?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
     };
     departments: Department[];
     stats: EmployeeRequestStats;
@@ -160,19 +170,29 @@ export default function Index({
         if (filters.date_preset) {
             q.date_preset = filters.date_preset;
         }
+        if (filters.date_from) {
+            q.date_from = filters.date_from;
+        }
+        if (filters.date_to) {
+            q.date_to = filters.date_to;
+        }
         return q;
-    }, [filters.department_id, filters.status, filters.date_preset]);
+    }, [filters.department_id, filters.status, filters.date_from, filters.date_preset, filters.date_to]);
 
     const departmentSelectValue =
         filters.department_id != null ? String(filters.department_id) : 'all';
     const statusSelectValue = filters.status && filters.status !== '' ? filters.status : 'all';
     const datePresetSelectValue =
         filters.date_preset && filters.date_preset !== '' ? filters.date_preset : 'all';
+    const dateFromValue = filters.date_from && filters.date_from !== '' ? filters.date_from : '';
+    const dateToValue = filters.date_to && filters.date_to !== '' ? filters.date_to : '';
     const hasActiveFilters =
         Boolean(filters.search?.trim()) ||
         filters.department_id != null ||
         Boolean(filters.status) ||
-        Boolean(filters.date_preset);
+        Boolean(filters.date_preset) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to);
 
     const { flash, modulePermissions } = usePage().props as {
         flash?: { success?: string; error?: string };
@@ -209,6 +229,7 @@ export default function Index({
         { value: 'yesterday', label: t('leaveRequests.datePreset.yesterday', 'Yesterday') },
         { value: 'last_7_days', label: t('leaveRequests.datePreset.last7Days', 'Last 7 days') },
         { value: 'this_month', label: t('leaveRequests.datePreset.thisMonth', 'This month') },
+        { value: 'custom', label: t('leaveRequests.datePreset.customRange', 'Custom range') },
     ];
 
     return (
@@ -343,6 +364,8 @@ export default function Index({
                                                 department_id: v === 'all' ? undefined : Number(v),
                                                 status: filters.status ?? undefined,
                                                 date_preset: filters.date_preset ?? undefined,
+                                                date_from: filters.date_from ?? undefined,
+                                                date_to: filters.date_to ?? undefined,
                                             });
                                         }}
                                     >
@@ -370,6 +393,8 @@ export default function Index({
                                                 department_id: filters.department_id ?? undefined,
                                                 status: v === 'all' ? undefined : v,
                                                 date_preset: filters.date_preset ?? undefined,
+                                                date_from: filters.date_from ?? undefined,
+                                                date_to: filters.date_to ?? undefined,
                                             });
                                         }}
                                     >
@@ -397,6 +422,14 @@ export default function Index({
                                                 department_id: filters.department_id ?? undefined,
                                                 status: filters.status ?? undefined,
                                                 date_preset: v === 'all' ? undefined : v,
+                                                date_from:
+                                                    v === 'custom'
+                                                        ? filters.date_from ?? undefined
+                                                        : undefined,
+                                                date_to:
+                                                    v === 'custom'
+                                                        ? filters.date_to ?? undefined
+                                                        : undefined,
                                             });
                                         }}
                                     >
@@ -414,6 +447,42 @@ export default function Index({
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {datePresetSelectValue === 'custom' && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <input
+                                                type="date"
+                                                className="border-input focus-visible:ring-ring h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
+                                                value={dateFromValue}
+                                                onChange={(event) =>
+                                                    navigateIndex({
+                                                        search: filters.search?.trim() || undefined,
+                                                        department_id: filters.department_id ?? undefined,
+                                                        status: filters.status ?? undefined,
+                                                        date_preset: 'custom',
+                                                        date_from: event.target.value || undefined,
+                                                        date_to: dateToValue || undefined,
+                                                    })
+                                                }
+                                                aria-label={t('leaveRequests.filter.customDateFrom', 'From date')}
+                                            />
+                                            <input
+                                                type="date"
+                                                className="border-input focus-visible:ring-ring h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
+                                                value={dateToValue}
+                                                onChange={(event) =>
+                                                    navigateIndex({
+                                                        search: filters.search?.trim() || undefined,
+                                                        department_id: filters.department_id ?? undefined,
+                                                        status: filters.status ?? undefined,
+                                                        date_preset: 'custom',
+                                                        date_from: dateFromValue || undefined,
+                                                        date_to: event.target.value || undefined,
+                                                    })
+                                                }
+                                                aria-label={t('leaveRequests.filter.customDateTo', 'To date')}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             {hasActiveFilters && (

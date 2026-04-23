@@ -207,8 +207,13 @@ export default function Index({
     function toggleGroup(groupName: string) {
         setExpandedGroups((previous) => ({
             ...previous,
-            [groupName]: !(previous[groupName] ?? true),
+            [groupName]: !(previous[groupName] ?? false),
         }));
+    }
+
+    function toggleGroupMode(nextMode: 'department' | 'manager'): void {
+        setExpandedGroups({});
+        setGroupMode((value) => (value === nextMode ? 'none' : nextMode));
     }
 
     function submitImport(e: FormEvent<HTMLFormElement>) {
@@ -378,7 +383,7 @@ export default function Index({
                                                     type="button"
                                                     variant={groupMode === 'department' ? 'default' : 'ghost'}
                                                     className="h-8 rounded-full px-3 text-xs"
-                                                    onClick={() => setGroupMode((value) => (value === 'department' ? 'none' : 'department'))}
+                                                    onClick={() => toggleGroupMode('department')}
                                                 >
                                                     {t('employees.group.byDepartment', 'By Department')}
                                                 </Button>
@@ -387,7 +392,7 @@ export default function Index({
                                                     type="button"
                                                     variant={groupMode === 'manager' ? 'default' : 'ghost'}
                                                     className="h-8 rounded-full px-3 text-xs"
-                                                    onClick={() => setGroupMode((value) => (value === 'manager' ? 'none' : 'manager'))}
+                                                    onClick={() => toggleGroupMode('manager')}
                                                 >
                                                     {t('employees.group.byManager', 'By Manager')}
                                                 </Button>
@@ -536,7 +541,16 @@ export default function Index({
                                             groupMode === 'none' && employeeList.map((employee, indexOnPage) => (
                                                 <tr
                                                 key={employee.id}
-                                                    className="border-b odd:bg-muted/10 transition-colors hover:bg-muted/25"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => openEmployeeView(employee.id)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            openEmployeeView(employee.id);
+                                                        }
+                                                    }}
+                                                    className="cursor-pointer border-b odd:bg-muted/10 transition-colors hover:bg-muted/25"
                                             >
                                                     <td className="px-4 py-3 text-xs font-medium text-muted-foreground sm:px-5">
                                                         {Math.max((employees.from ?? 1) + indexOnPage, 1)}
@@ -598,7 +612,11 @@ export default function Index({
                                                         {employee.contact_number ?? '—'}
                                                     </td>
                                                     <td className="px-4 py-3 sm:pr-5">
-                                                        <div className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs">
+                                                        <div
+                                                            className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs"
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            onKeyDown={(event) => event.stopPropagation()}
+                                                        >
                                                             <Link
                                                                 href={`${edit({
                                                                     employee: employee.id,
@@ -688,7 +706,7 @@ export default function Index({
                                         {employeeList.length > 0 && groupMode !== 'none' && (
                                             sortedGroupNames.map((groupName) => {
                                                 const groupItems = groupedEmployees[groupName] ?? [];
-                                                const isExpanded = expandedGroups[groupName] ?? true;
+                                                const isExpanded = expandedGroups[groupName] ?? false;
 
                                                 return (
                                                     <Fragment key={`group-wrap-${groupName}`}>
@@ -709,7 +727,16 @@ export default function Index({
                                                         {isExpanded && groupItems.map((employee) => (
                                                             <tr
                                                                 key={employee.id}
-                                                            className="border-b bg-background/60 odd:bg-muted/10 transition-colors hover:bg-muted/20"
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                onClick={() => openEmployeeView(employee.id)}
+                                                                onKeyDown={(event) => {
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                        openEmployeeView(employee.id);
+                                                                    }
+                                                                }}
+                                                                className="cursor-pointer border-b bg-background/60 odd:bg-muted/10 transition-colors hover:bg-muted/20"
                                                             >
                                                                 <td className="px-4 py-3 text-xs text-muted-foreground sm:px-5">•</td>
                                                                 <td className="px-4 py-3 sm:px-5">
@@ -769,7 +796,11 @@ export default function Index({
                                                                     {employee.contact_number ?? '—'}
                                                                 </td>
                                                                 <td className="px-4 py-3 sm:pr-5">
-                                                                    <div className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs">
+                                                                    <div
+                                                                        className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs"
+                                                                        onClick={(event) => event.stopPropagation()}
+                                                                        onKeyDown={(event) => event.stopPropagation()}
+                                                                    >
                                                                         <Link
                                                                             href={`${edit({
                                                                                 employee: employee.id,

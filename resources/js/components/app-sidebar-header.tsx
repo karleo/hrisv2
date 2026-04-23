@@ -114,7 +114,7 @@ export function AppSidebarHeader({
                                 resolvedAppearance === 'dark' ? 'light' : 'dark'
                             )
                         }
-                        className="h-10 w-[84px]"
+                        className="origin-center scale-75"
                     />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

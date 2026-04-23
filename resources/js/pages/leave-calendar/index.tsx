@@ -198,6 +198,27 @@ function dayCardBaseTone(
     return 'border-blue-500/35 bg-blue-500/[0.10] dark:border-blue-400/35 dark:bg-blue-500/[0.18]';
 }
 
+function parseMonthValue(monthValue: string): { year: number; month: number } {
+    const [rawYear, rawMonth] = monthValue.split('-');
+    const year = Number(rawYear);
+    const month = Number(rawMonth);
+
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+        const now = new Date();
+
+        return {
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+        };
+    }
+
+    return { year, month };
+}
+
+function toMonthValue(year: number, month: number): string {
+    return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 export default function LeaveCalendarIndex({
     filters,
     meta,
@@ -225,6 +246,27 @@ export default function LeaveCalendarIndex({
         filters.department_id != null ? String(filters.department_id) : 'all',
     );
     const [leaveTypeInput, setLeaveTypeInput] = useState(filters.leave_type ?? 'all');
+    const selectedMonthParts = useMemo(
+        () => parseMonthValue(monthInput || meta.month),
+        [meta.month, monthInput],
+    );
+    const monthOptions = useMemo(
+        () =>
+            Array.from({ length: 12 }, (_, index) => {
+                const month = index + 1;
+                const label = new Date(2000, index, 1).toLocaleDateString(locale, {
+                    month: 'long',
+                });
+
+                return { value: month, label };
+            }),
+        [locale],
+    );
+    const yearOptions = useMemo(() => {
+        const start = selectedMonthParts.year - 3;
+
+        return Array.from({ length: 7 }, (_, index) => start + index);
+    }, [selectedMonthParts.year]);
 
     const calendarDates = useMemo(() => toCalendarGridDates(meta.monthStart), [meta.monthStart]);
     const breadcrumbs: BreadcrumbItem[] = [
@@ -335,12 +377,44 @@ export default function LeaveCalendarIndex({
                     <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
                         <label className="grid gap-1.5 text-sm">
                             <span className="text-muted-foreground text-xs">{t('leaveCalendar.filters.month', 'Month')}</span>
-                            <input
-                                type="month"
-                                className="border-input focus-visible:ring-ring h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-[3px] dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
-                                value={monthInput}
-                                onChange={(event) => setMonthInput(event.target.value)}
-                            />
+                            <div className="grid grid-cols-2 gap-2">
+                                <select
+                                    className="border-input focus-visible:ring-ring h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
+                                    value={selectedMonthParts.month}
+                                    onChange={(event) =>
+                                        setMonthInput(
+                                            toMonthValue(
+                                                selectedMonthParts.year,
+                                                Number(event.target.value),
+                                            ),
+                                        )
+                                    }
+                                >
+                                    {monthOptions.map((monthOption) => (
+                                        <option key={monthOption.value} value={monthOption.value}>
+                                            {monthOption.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    className="border-input focus-visible:ring-ring h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
+                                    value={selectedMonthParts.year}
+                                    onChange={(event) =>
+                                        setMonthInput(
+                                            toMonthValue(
+                                                Number(event.target.value),
+                                                selectedMonthParts.month,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    {yearOptions.map((yearOption) => (
+                                        <option key={yearOption} value={yearOption}>
+                                            {yearOption}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </label>
                         <label className="grid gap-1.5 text-sm">
                             <span className="text-muted-foreground text-xs">Department</span>

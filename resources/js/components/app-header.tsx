@@ -231,6 +231,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                     resolvedAppearance === 'dark' ? 'light' : 'dark'
                                 )
                             }
+                            className="origin-center scale-75"
                         />
                         <NotificationArrivalToastShell notifications={notifications}>
                             <DropdownMenu

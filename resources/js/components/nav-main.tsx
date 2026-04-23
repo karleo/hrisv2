@@ -42,7 +42,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                     >
                         <Link href={item.href ?? '#'} prefetch>
                             {item.icon && <item.icon />}
-                            <span className="min-w-0 flex-1 whitespace-nowrap">
+                            <span className="min-w-0 flex-1 truncate">
                                 {item.title}
                             </span>
                         </Link>
@@ -60,7 +60,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                             className="h-8 rounded-full border border-transparent bg-transparent px-3 text-xs font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground data-[active=true]:bg-[#1b2046] data-[active=true]:font-semibold data-[active=true]:text-white"
                         >
                             {item.icon && <item.icon />}
-                            <span className="min-w-0 flex-1 whitespace-nowrap">
+                            <span className="min-w-0 flex-1 truncate">
                                 {item.title}
                             </span>
                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90" />

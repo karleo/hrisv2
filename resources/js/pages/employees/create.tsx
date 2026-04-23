@@ -1,7 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
-import { Form } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, ChevronDown, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import Heading from '@/components/heading';
@@ -66,6 +65,102 @@ const employeeStatuses = [
     'Employment Cancelled',
 ] as const;
 
+type CreateEmployeeTab =
+    | 'employee_information'
+    | 'work_information'
+    | 'documents'
+    | 'personal_information'
+    | 'leave_configuration';
+
+const createEmployeeTabOrder: CreateEmployeeTab[] = [
+    'employee_information',
+    'work_information',
+    'documents',
+    'personal_information',
+    'leave_configuration',
+];
+
+const createEmployeeTabFields: Record<CreateEmployeeTab, readonly string[]> = {
+    employee_information: [
+        'photo',
+        'employee_code',
+        'first_name',
+        'last_name',
+        'email_address',
+        'contact_number',
+        'address_1',
+        'address_2',
+        'company_profile_id',
+        'work_timetable_id',
+        'department_id',
+        'job_position_id',
+    ],
+    work_information: [
+        'joining_date',
+        'first_contract_date',
+        'start_date',
+        'end_date',
+        'employee_status',
+    ],
+    documents: ['documents', 'document_type_ids', 'document_expiry_dates'],
+    personal_information: [
+        'phone',
+        'mobile',
+        'date_of_birth',
+        'gender',
+        'marital_status',
+        'emergency_contact_name',
+        'emergency_contact_phone',
+    ],
+    leave_configuration: ['leave_opening_balance'],
+};
+
+function validationErrorKeys(
+    errors: Record<string, string | string[] | undefined> | undefined,
+): string[] {
+    if (!errors || typeof errors !== 'object') {
+        return [];
+    }
+
+    return Object.keys(errors).filter((key) => {
+        const value = errors[key];
+        if (value === undefined || value === null) {
+            return false;
+        }
+        if (Array.isArray(value)) {
+            return value.some((item) => String(item ?? '').length > 0);
+        }
+        if (typeof value === 'string') {
+            return value.length > 0;
+        }
+
+        return true;
+    });
+}
+
+function firstCreateEmployeeTabForValidationErrors(errorKeys: string[]): CreateEmployeeTab | null {
+    const roots = new Set(
+        errorKeys.map((key) => {
+            const dot = key.indexOf('.');
+
+            return dot === -1 ? key : key.slice(0, dot);
+        }),
+    );
+
+    if (roots.size === 0) {
+        return null;
+    }
+
+    for (const tab of createEmployeeTabOrder) {
+        const fields = createEmployeeTabFields[tab];
+        if (fields.some((field) => roots.has(field))) {
+            return tab;
+        }
+    }
+
+    return null;
+}
+
 export default function Create({
     departments,
     jobPositions,
@@ -82,6 +177,19 @@ export default function Create({
     canViewActivityLogs?: boolean;
 }) {
     const { t } = useI18n();
+    const page = usePage<{
+        errors?: Record<string, string | string[] | undefined>;
+    }>();
+    const pageRef = useRef(page);
+    pageRef.current = page;
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+        isMountedRef.current = true;
+
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
     const photoInputRef = useRef<HTMLInputElement>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [documentRows, setDocumentRows] = useState<
@@ -131,15 +239,9 @@ export default function Create({
     const [signatureCompanyProfileId, setSignatureCompanyProfileId] = useState('');
     const [signatureJobPositionId, setSignatureJobPositionId] = useState('');
     const [joiningDate, setJoiningDate] = useState('');
-    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'documents' | 'personal_information' | 'leave_configuration'>('employee_information');
-    const tabOrder: Array<'employee_information' | 'work_information' | 'documents' | 'personal_information' | 'leave_configuration'> = [
-        'employee_information',
-        'work_information',
-        'documents',
-        'personal_information',
-        'leave_configuration',
-    ];
-    const tabLabel: Record<typeof tabOrder[number], string> = {
+    const [tab, setTab] = useState<CreateEmployeeTab>('employee_information');
+    const tabOrder = createEmployeeTabOrder;
+    const tabLabel: Record<CreateEmployeeTab, string> = {
         employee_information: 'Employee Information',
         work_information: 'Employement',
         documents: 'Documents',
@@ -370,40 +472,109 @@ export default function Create({
                     Back to Employees
                 </Link>
 
-                <Heading
-                    title="Create Employee"
-                    description="Add a new employee to the master list"
-                />
-
-                <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                        {tabOrder.map((item, index) => (
-                            <Button
-                                key={item}
-                                type="button"
-                                variant={tab === item ? 'default' : 'outline'}
-                                onClick={() => setTab(item)}
-                                className="gap-2"
-                            >
-                                <span className="inline-flex size-5 items-center justify-center rounded-full border border-current/30 text-xs">
-                                    {index + 1}
-                                </span>
-                                {tabLabel[item]}
-                            </Button>
-                        ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Step {tabOrder.indexOf(tab) + 1} of {tabOrder.length}: {tabLabel[tab]}
-                    </p>
-                </div>
-
                 <Form
+                    id="employee-create-form"
                     {...EmployeeController.store.form()}
                     className="flex flex-1 flex-col gap-8"
                     encType="multipart/form-data"
+                    options={{
+                        preserveScroll: true,
+                        onFinish: () => {
+                            window.setTimeout(() => {
+                                if (!isMountedRef.current) {
+                                    return;
+                                }
+                                const keys = validationErrorKeys(
+                                    pageRef.current.props.errors,
+                                );
+                                if (keys.length === 0) {
+                                    return;
+                                }
+                                const nextTab =
+                                    firstCreateEmployeeTabForValidationErrors(
+                                        keys,
+                                    ) ?? 'employee_information';
+                                setTab(nextTab);
+                            }, 0);
+                        },
+                    }}
                 >
                     {({ processing, errors }) => (
                         <>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+                            <div className="min-w-0 flex-1 [&_header]:mb-0">
+                                <Heading
+                                    title="Create Employee"
+                                    description="Add a new employee to the master list"
+                                />
+                            </div>
+                            <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto lg:max-w-none lg:shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={tab === 'employee_information'}
+                                    onClick={() => {
+                                        const current = tabOrder.indexOf(tab);
+                                        if (current > 0) {
+                                            setTab(tabOrder[current - 1]);
+                                        }
+                                    }}
+                                >
+                                    Previous
+                                </Button>
+                                {tab !== 'leave_configuration' && (
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            const current = tabOrder.indexOf(tab);
+                                            if (current < tabOrder.length - 1) {
+                                                setTab(tabOrder[current + 1]);
+                                            }
+                                        }}
+                                    >
+                                        Next
+                                    </Button>
+                                )}
+                                {tab === 'leave_configuration' && (
+                                    <Button disabled={processing} type="submit">
+                                        Create Employee
+                                    </Button>
+                                )}
+                                <Link href={index()}>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        className="min-w-[7.5rem]"
+                                    >
+                                        Discard
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap gap-2">
+                                {tabOrder.map((item, index) => (
+                                    <Button
+                                        key={item}
+                                        type="button"
+                                        variant={tab === item ? 'default' : 'outline'}
+                                        onClick={() => setTab(item)}
+                                        className="gap-2"
+                                    >
+                                        <span className="inline-flex size-5 items-center justify-center rounded-full border border-current/30 text-xs">
+                                            {index + 1}
+                                        </span>
+                                        {tabLabel[item]}
+                                    </Button>
+                                ))}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Step {tabOrder.indexOf(tab) + 1} of {tabOrder.length}:{' '}
+                                {tabLabel[tab]}
+                            </p>
+                        </div>
+
                         <div className="grid flex-1 gap-6 lg:grid-cols-[280px_1fr] lg:items-start">
                             {/* Left column: Photo + Documents */}
                             <div className="flex flex-col gap-6">
@@ -610,7 +781,7 @@ export default function Create({
                                                         event.target.value
                                                     )
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select company profile
@@ -643,7 +814,7 @@ export default function Create({
                                                 defaultValue={
                                                     workTimetables[0]?.id ?? ''
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select work timetable
@@ -673,7 +844,7 @@ export default function Create({
                                                 id="department_id"
                                                 name="department_id"
                                                 required
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select department
@@ -705,7 +876,7 @@ export default function Create({
                                                         event.target.value
                                                     )
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select job position
@@ -808,7 +979,7 @@ export default function Create({
                                             id="employee_status"
                                             name="employee_status"
                                             defaultValue="Employed"
-                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             {employeeStatuses.map((status) => (
                                                 <option key={status} value={status}>
@@ -873,7 +1044,7 @@ export default function Create({
                                                                             e.target.value
                                                                         )
                                                                     }
-                                                                    className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+                                                                    className="border-input focus-visible:ring-ring flex h-8 w-full rounded-md border bg-background px-2 py-1 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                                                 >
                                                                     <option value="">
                                                                         Select document type
@@ -1066,7 +1237,7 @@ export default function Create({
                                             <select
                                                 id="gender"
                                                 name="gender"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 <option value="Male">Male</option>
@@ -1082,7 +1253,7 @@ export default function Create({
                                             <select
                                                 id="marital_status"
                                                 name="marital_status"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 <option value="Single">Single</option>
@@ -1136,51 +1307,9 @@ export default function Create({
                                 </CardContent>
                             </Card>
                         </div>
-                        <Card>
-                            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span>Complete each step, then click Create Employee.</span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={tab === 'employee_information'}
-                                        onClick={() => {
-                                            const current = tabOrder.indexOf(tab);
-                                            if (current > 0) {
-                                                setTab(tabOrder[current - 1]);
-                                            }
-                                        }}
-                                    >
-                                        Previous
-                                    </Button>
-                                    {tab !== 'leave_configuration' && (
-                                        <Button
-                                            type="button"
-                                            onClick={() => {
-                                                const current = tabOrder.indexOf(tab);
-                                                if (current < tabOrder.length - 1) {
-                                                    setTab(tabOrder[current + 1]);
-                                                }
-                                            }}
-                                        >
-                                            Next
-                                        </Button>
-                                    )}
-                                    {tab === 'leave_configuration' && (
-                                        <Button disabled={processing} type="submit">
-                                            Create Employee
-                                        </Button>
-                                    )}
-                                    <Link href={index()}>
-                                        <Button type="button" variant="outline">
-                                            Cancel
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <p className="text-sm text-muted-foreground">
+                            Complete each step, then click Create Employee.
+                        </p>
                         <Dialog
                             open={previewDocument !== null}
                             onOpenChange={(open) =>
