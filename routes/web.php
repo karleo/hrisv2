@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\BiometricPushController;
+use App\Http\Controllers\BiometricSettingController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DashboardController;
@@ -21,9 +23,17 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\WorkTimetableController;
 use App\Http\Middleware\EnforceModulePermissions;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login')->name('home');
+
+Route::match(['get', 'post'], '/iclock/getrequest', [BiometricPushController::class, 'handshake'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('biometric-push.handshake');
+Route::post('/iclock/cdata', [BiometricPushController::class, 'cdata'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('biometric-push.cdata');
 
 Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -67,6 +77,14 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('work-timetables', WorkTimetableController::class)->parameters([
         'work-timetables' => 'work_timetable',
     ]);
+    Route::get('biometric-settings', [BiometricSettingController::class, 'index'])
+        ->name('biometric-settings.index');
+    Route::put('biometric-settings', [BiometricSettingController::class, 'update'])
+        ->name('biometric-settings.update');
+    Route::post('biometric-settings/test-connection', [BiometricSettingController::class, 'testConnection'])
+        ->name('biometric-settings.test-connection');
+    Route::post('biometric-settings/sync-now', [BiometricSettingController::class, 'syncNow'])
+        ->name('biometric-settings.sync-now');
     Route::resource('leave-requests', LeaveRequestController::class);
     Route::get('leave-calendar', [LeaveCalendarController::class, 'index'])
         ->name('leave-calendar.index');

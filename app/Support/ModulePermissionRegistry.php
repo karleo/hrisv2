@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use App\Http\Controllers\BiometricSettingController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
@@ -14,8 +15,8 @@ use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
-use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveCalendarController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
@@ -197,6 +198,12 @@ final class ModulePermissionRegistry
             'edit' => [PermissionModule::WorkTimetables, ModuleAbility::Update],
             'update' => [PermissionModule::WorkTimetables, ModuleAbility::Update],
             'destroy' => [PermissionModule::WorkTimetables, ModuleAbility::Delete],
+        ],
+        BiometricSettingController::class => [
+            'index' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
+            'update' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
+            'testConnection' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
+            'syncNow' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
         ],
     ];
 

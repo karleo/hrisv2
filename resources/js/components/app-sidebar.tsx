@@ -151,6 +151,12 @@ const mainNavItemsSource: NavItem[] = [
                 module: 'work_timetables',
             },
             {
+                title: 'Biometric settings',
+                href: '/biometric-settings',
+                icon: Clock,
+                module: 'time_attendance',
+            },
+            {
                 title: 'User config',
                 icon: UserCog,
                 items: [
