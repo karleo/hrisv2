@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Monitor, Package } from 'lucide-react';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import { useI18n } from '@/lib/i18n';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
@@ -118,7 +117,6 @@ export default function Dashboard({
     leaveCalendarWidget: LeaveCalendarWidget | null;
     canViewLeaveCalendar: boolean;
 }) {
-    useRequestStatusPoll(['pending', 'recentPending', 'leaveCalendarWidget']);
     const { t } = useI18n();
     const breadcrumbs: BreadcrumbItem[] = [
         {

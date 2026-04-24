@@ -77,11 +77,16 @@ class SmtpController extends Controller
             'settings' => [
                 'mail_enabled' => $settings?->mail_enabled ?? true,
                 'workflow_email_enabled' => $settings?->workflow_email_enabled ?? false,
+                'transport_mode' => $settings?->transport_mode ?? 'smtp',
                 'provider_preset' => $settings?->provider_preset ?? 'custom',
                 'host' => $settings?->host ?? (string) config('mail.mailers.smtp.host'),
                 'port' => $settings?->port ?? (int) config('mail.mailers.smtp.port'),
                 'encryption' => $settings?->encryption,
                 'username' => $settings?->username,
+                'graph_tenant_id' => $settings?->graph_tenant_id,
+                'graph_client_id' => $settings?->graph_client_id,
+                'graph_sender' => $settings?->graph_sender,
+                'has_graph_client_secret' => is_string($settings?->getRawOriginal('graph_client_secret')) && $settings->getRawOriginal('graph_client_secret') !== '',
                 'timeout' => $settings?->timeout,
                 'from_address' => $settings?->from_address ?? (string) config('mail.from.address'),
                 'from_name' => $settings?->from_name ?? (string) config('mail.from.name'),
@@ -108,18 +113,23 @@ class SmtpController extends Controller
         $settings = MailSetting::singletonOrCreate([
             'mail_enabled' => true,
             'workflow_email_enabled' => false,
+            'transport_mode' => 'smtp',
             'mailer' => 'smtp',
         ]);
 
         $settings->fill([
             'mail_enabled' => (bool) $validated['mail_enabled'],
             'workflow_email_enabled' => (bool) $validated['workflow_email_enabled'],
+            'transport_mode' => (string) ($validated['transport_mode'] ?? 'smtp'),
             'mailer' => 'smtp',
             'provider_preset' => $validated['provider_preset'] ?? 'custom',
             'host' => $validated['host'],
             'port' => (int) $validated['port'],
             'encryption' => $validated['encryption'] ?? null,
             'username' => $validated['username'] ?: null,
+            'graph_tenant_id' => $validated['graph_tenant_id'] ?: null,
+            'graph_client_id' => $validated['graph_client_id'] ?: null,
+            'graph_sender' => $validated['graph_sender'] ?: null,
             'timeout' => isset($validated['timeout']) ? (int) $validated['timeout'] : null,
             'from_address' => $validated['from_address'],
             'from_name' => $validated['from_name'],
@@ -128,6 +138,9 @@ class SmtpController extends Controller
 
         if (array_key_exists('password', $validated) && is_string($validated['password']) && $validated['password'] !== '') {
             $settings->password = $validated['password'];
+        }
+        if (array_key_exists('graph_client_secret', $validated) && is_string($validated['graph_client_secret']) && $validated['graph_client_secret'] !== '') {
+            $settings->graph_client_secret = $validated['graph_client_secret'];
         }
 
         $settings->save();
@@ -148,11 +161,15 @@ class SmtpController extends Controller
         $settings = MailSetting::singletonOrCreate([
             'mail_enabled' => true,
             'workflow_email_enabled' => false,
+            'transport_mode' => 'smtp',
             'mailer' => 'smtp',
         ]);
 
         if (! array_key_exists('password', $validated) || ! is_string($validated['password']) || $validated['password'] === '') {
             $validated['password'] = $settings->password;
+        }
+        if (! array_key_exists('graph_client_secret', $validated) || ! is_string($validated['graph_client_secret']) || $validated['graph_client_secret'] === '') {
+            $validated['graph_client_secret'] = $settings->graph_client_secret;
         }
 
         try {

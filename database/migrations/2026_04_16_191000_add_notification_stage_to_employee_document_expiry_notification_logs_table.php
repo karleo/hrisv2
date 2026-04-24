@@ -26,19 +26,31 @@ return new class extends Migration
             ->whereNull('notification_stage')
             ->update(['notification_stage' => 'reminder_daily']);
 
-        Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
-            $indexes = collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all();
-            if (in_array('employee_document_expiry_notification_unique', $indexes, true)) {
-                $table->dropUnique('employee_document_expiry_notification_unique');
-            }
+        $indexes = collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all();
 
-            if (! in_array('employee_doc_expiry_notification_stage_unique', collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all(), true)) {
-                $table->unique(
-                    ['employee_document_id', 'user_id', 'notified_on', 'notification_stage'],
-                    'employee_doc_expiry_notification_stage_unique'
-                );
+        if (in_array('employee_document_expiry_notification_unique', $indexes, true)) {
+            try {
+                Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
+                    $table->dropUnique('employee_document_expiry_notification_unique');
+                });
+            } catch (\Throwable) {
+                // Some environments may have an FK dependency on this index; keep migration non-blocking.
             }
-        });
+        }
+
+        $indexes = collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all();
+        if (! in_array('employee_doc_expiry_notification_stage_unique', $indexes, true)) {
+            try {
+                Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
+                    $table->unique(
+                        ['employee_document_id', 'user_id', 'notified_on', 'notification_stage'],
+                        'employee_doc_expiry_notification_stage_unique'
+                    );
+                });
+            } catch (\Throwable) {
+                // Keep migration resilient when legacy indexes/constraints already enforce uniqueness.
+            }
+        }
     }
 
     /**
@@ -50,21 +62,35 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
-            $indexes = collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all();
-            if (in_array('employee_doc_expiry_notification_stage_unique', $indexes, true)) {
-                $table->dropUnique('employee_doc_expiry_notification_stage_unique');
+        $indexes = collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all();
+        if (in_array('employee_doc_expiry_notification_stage_unique', $indexes, true)) {
+            try {
+                Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
+                    $table->dropUnique('employee_doc_expiry_notification_stage_unique');
+                });
+            } catch (\Throwable) {
+                // Ignore if dependent constraints prevent dropping in this environment.
             }
-            if (! in_array('employee_document_expiry_notification_unique', collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all(), true)) {
-                $table->unique(
-                    ['employee_document_id', 'user_id', 'notified_on'],
-                    'employee_document_expiry_notification_unique'
-                );
-            }
+        }
 
-            if (Schema::hasColumn('employee_document_expiry_notification_logs', 'notification_stage')) {
-                $table->dropColumn('notification_stage');
+        $indexes = collect(Schema::getIndexes('employee_document_expiry_notification_logs'))->pluck('name')->all();
+        if (! in_array('employee_document_expiry_notification_unique', $indexes, true)) {
+            try {
+                Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
+                    $table->unique(
+                        ['employee_document_id', 'user_id', 'notified_on'],
+                        'employee_document_expiry_notification_unique'
+                    );
+                });
+            } catch (\Throwable) {
+                // Ignore if an equivalent index/constraint already exists.
             }
-        });
+        }
+
+        if (Schema::hasColumn('employee_document_expiry_notification_logs', 'notification_stage')) {
+            Schema::table('employee_document_expiry_notification_logs', function (Blueprint $table): void {
+                $table->dropColumn('notification_stage');
+            });
+        }
     }
 };

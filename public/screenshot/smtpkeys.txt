@@ -1,0 +1,4 @@
+Tenant ID : b1d45110-6fba-4ac0-8b18-74462ecba396
+Client ID : 2b1da101-7d62-475c-8dce-4d14b9d905a2
+client Secret : c9da968a-4170-4d02-b6bc-1549abff5965
+Send mailbox :notifications@primelogistics.ae

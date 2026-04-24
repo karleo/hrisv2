@@ -2,6 +2,7 @@ import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     approveRequiresManagerSignatureMessage,
     rejectRequiresRemarksMessage,
@@ -79,6 +80,7 @@ export default function Show({
     canDecide,
     canCancel = false,
     canEdit = false,
+    emailLogs,
 }: {
     itRequest: ItRequest;
     signaturesUrl: string;
@@ -88,6 +90,7 @@ export default function Show({
     canDecide: boolean;
     canCancel?: boolean;
     canEdit?: boolean;
+    emailLogs: RequestEmailLogEntry[];
 }) {
     useRequestStatusPoll(['itRequest', 'canDecide']);
 
@@ -351,6 +354,7 @@ export default function Show({
                     }
                     employeeName={employeeFullName(itRequest.employee)}
                 />
+                <RequestEmailLogList entries={emailLogs} />
                 </div>
             </div>
         </AppLayout>

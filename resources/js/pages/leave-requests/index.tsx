@@ -25,7 +25,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -139,7 +138,6 @@ export default function LeaveRequestsIndex({
     departments: Department[];
     stats: LeaveStats;
 }) {
-    useRequestStatusPoll(['leaveRequests', 'stats']);
 
     const { data: items } = leaveRequests;
 

@@ -23,11 +23,16 @@ type Preset = {
 type SettingsPayload = {
     mail_enabled: boolean;
     workflow_email_enabled: boolean;
+    transport_mode: 'smtp' | 'graph';
     provider_preset: string;
     host: string;
     port: number;
     encryption: 'tls' | 'ssl' | null;
     username: string | null;
+    graph_tenant_id: string | null;
+    graph_client_id: string | null;
+    graph_sender: string | null;
+    has_graph_client_secret: boolean;
     timeout: number | null;
     from_address: string;
     from_name: string;
@@ -57,11 +62,16 @@ export default function SmtpSettings({
     const form = useForm({
         mail_enabled: settings.mail_enabled,
         workflow_email_enabled: settings.workflow_email_enabled,
+        transport_mode: settings.transport_mode || 'smtp',
         provider_preset: settings.provider_preset || 'custom',
         host: settings.host || '',
         port: settings.port || 587,
         encryption: settings.encryption || 'tls',
         username: settings.username || '',
+        graph_tenant_id: settings.graph_tenant_id || '',
+        graph_client_id: settings.graph_client_id || '',
+        graph_client_secret: '',
+        graph_sender: settings.graph_sender || '',
         password: '',
         timeout: settings.timeout || 30,
         from_address: settings.from_address || '',
@@ -160,6 +170,22 @@ export default function SmtpSettings({
                         </div>
 
                         <div className="grid gap-2">
+                            <Label htmlFor="transport_mode">Email transport</Label>
+                            <Select
+                                value={form.data.transport_mode}
+                                onValueChange={(value) => form.setData('transport_mode', value as 'smtp' | 'graph')}
+                            >
+                                <SelectTrigger id="transport_mode">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="smtp">SMTP</SelectItem>
+                                    <SelectItem value="graph">Microsoft Graph</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid gap-2">
                             <Label htmlFor="provider_preset">Provider preset</Label>
                             <Select
                                 value={form.data.provider_preset}
@@ -181,7 +207,9 @@ export default function SmtpSettings({
                             )}
                         </div>
 
-                            <div className="grid gap-4 md:grid-cols-2">
+                        {form.data.transport_mode === 'smtp' && (
+                            <>
+                                <div className="grid gap-4 md:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="host">SMTP host</Label>
                                     <Input
@@ -254,6 +282,56 @@ export default function SmtpSettings({
                                     <InputError message={form.errors.password} />
                                 </div>
                             </div>
+                            </>
+                        )}
+
+                        {form.data.transport_mode === 'graph' && (
+                            <>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="graph_tenant_id">Tenant ID</Label>
+                                        <Input
+                                            id="graph_tenant_id"
+                                            value={form.data.graph_tenant_id}
+                                            onChange={(event) => form.setData('graph_tenant_id', event.target.value)}
+                                        />
+                                        <InputError message={form.errors.graph_tenant_id} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="graph_client_id">Client ID</Label>
+                                        <Input
+                                            id="graph_client_id"
+                                            value={form.data.graph_client_id}
+                                            onChange={(event) => form.setData('graph_client_id', event.target.value)}
+                                        />
+                                        <InputError message={form.errors.graph_client_id} />
+                                    </div>
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="graph_client_secret">Client secret</Label>
+                                        <Input
+                                            id="graph_client_secret"
+                                            type="password"
+                                            value={form.data.graph_client_secret}
+                                            onChange={(event) => form.setData('graph_client_secret', event.target.value)}
+                                            placeholder={settings.has_graph_client_secret ? 'Stored securely (leave blank to keep current)' : 'Enter app client secret'}
+                                        />
+                                        <InputError message={form.errors.graph_client_secret} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="graph_sender">Sender mailbox</Label>
+                                        <Input
+                                            id="graph_sender"
+                                            value={form.data.graph_sender}
+                                            onChange={(event) => form.setData('graph_sender', event.target.value)}
+                                            placeholder="notifications@yourdomain.com"
+                                        />
+                                        <InputError message={form.errors.graph_sender} />
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="grid gap-2">

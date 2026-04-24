@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Services\Mail\MailSettingsManager;
+use App\Support\RequestEmailLogger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -32,7 +33,25 @@ class RequestSubmittedNotification extends Notification
     public function via(object $notifiable): array
     {
         $channels = ['database'];
-        if (app(MailSettingsManager::class)->isWorkflowEmailEnabled()) {
+        $mailSettings = app(MailSettingsManager::class);
+        $recipientEmail = (string) ($notifiable->email ?? '');
+        if (! $mailSettings->isWorkflowEmailEnabled()) {
+            if ($recipientEmail !== '') {
+                RequestEmailLogger::skipped($this->payload, $recipientEmail, 'request_submitted', 'workflow_email_disabled');
+            }
+
+            return $channels;
+        }
+
+        if (! $mailSettings->isMailEnabled()) {
+            if ($recipientEmail !== '') {
+                RequestEmailLogger::skipped($this->payload, $recipientEmail, 'request_submitted', 'mail_disabled');
+            }
+
+            return $channels;
+        }
+
+        if ($recipientEmail !== '') {
             $channels[] = 'mail';
         }
 
@@ -62,6 +81,14 @@ class RequestSubmittedNotification extends Notification
      * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
+    {
+        return $this->payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function payload(): array
     {
         return $this->payload;
     }

@@ -16,7 +16,6 @@ import {
     Card,
     CardContent,
 } from '@/components/ui/card';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import { create, index } from '@/routes/it-asset-requests';
@@ -73,7 +72,6 @@ export default function Index({
     itAssetRequests: PaginatedItAssetRequests;
     filters?: { search?: string };
 }) {
-    useRequestStatusPoll(['itAssetRequests']);
 
     const { data: requestList } = itAssetRequests;
     const { flash, modulePermissions } = usePage().props as {

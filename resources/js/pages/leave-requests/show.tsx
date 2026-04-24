@@ -2,6 +2,7 @@ import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { Ban, ChevronLeft, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     approveRequiresManagerSignatureMessage,
     rejectRequiresRemarksMessage,
@@ -84,6 +85,7 @@ export default function LeaveRequestsShow({
     canEdit = false,
     canViewActivityLogs = false,
     activityLogs,
+    emailLogs,
 }: {
     leaveRequest: LeaveRequest;
     signaturesUrl: string;
@@ -95,6 +97,7 @@ export default function LeaveRequestsShow({
     canEdit?: boolean;
     canViewActivityLogs?: boolean;
     activityLogs: ActivityLogTimelineEntry[];
+    emailLogs: RequestEmailLogEntry[];
 }) {
     const { t } = useI18n();
     useRequestStatusPoll(['leaveRequest', 'canDecide']);
@@ -351,6 +354,7 @@ export default function LeaveRequestsShow({
                     }
                     employeeName={employeeFullName(leaveRequest.employee)}
                 />
+                <RequestEmailLogList entries={emailLogs} />
 
                 {canViewActivityLogs ? (
                     <ActivityLogTimeline

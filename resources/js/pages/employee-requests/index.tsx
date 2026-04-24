@@ -29,7 +29,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import { create, index } from '@/routes/employee-requests';
@@ -156,7 +155,6 @@ export default function Index({
     departments: Department[];
     stats: EmployeeRequestStats;
 }) {
-    useRequestStatusPoll(['employeeRequests', 'stats']);
 
     const { data: requestList } = employeeRequests;
     const persistQuery = useMemo(() => {

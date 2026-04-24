@@ -2,6 +2,7 @@ import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     ItAssetRequestSignaturesCard,
     itAssetRequestShowSignatureVisitOnly,
@@ -97,6 +98,7 @@ export default function Show({
     canEdit = false,
     canViewActivityLogs = false,
     activityLogs,
+    emailLogs,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
@@ -111,6 +113,7 @@ export default function Show({
     canEdit?: boolean;
     canViewActivityLogs?: boolean;
     activityLogs: ActivityLogTimelineEntry[];
+    emailLogs: RequestEmailLogEntry[];
 }) {
     const { t } = useI18n();
     useRequestStatusPoll(['itAssetRequest', 'canDecide']);
@@ -471,6 +474,7 @@ export default function Show({
                                 </div>
                             </div>
                         </div>
+                        <RequestEmailLogList entries={emailLogs} />
                         {canViewActivityLogs ? (
                             <ActivityLogTimeline
                                 entries={activityLogs}

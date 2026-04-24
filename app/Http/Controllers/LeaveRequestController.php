@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestActivityLog;
 use App\Models\LeaveType;
+use App\Models\RequestEmailLog;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
@@ -255,6 +256,7 @@ class LeaveRequestController extends Controller
             'canEdit' => $this->canEdit($actor, $leave_request),
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => $canViewActivityLogs ? $this->activityLogsForLeaveRequest($leave_request) : [],
+            'emailLogs' => $this->emailLogsForRequest('leave_request', (int) $leave_request->id),
         ]);
     }
 
@@ -396,6 +398,7 @@ class LeaveRequestController extends Controller
             'canCancel' => $this->canCancel($actor, $leave_request),
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => $canViewActivityLogs ? $this->activityLogsForLeaveRequest($leave_request) : [],
+            'emailLogs' => $this->emailLogsForRequest('leave_request', (int) $leave_request->id),
         ]);
     }
 
@@ -714,6 +717,31 @@ class LeaveRequestController extends Controller
                     'performed_at' => $log->created_at?->toIso8601String(),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function emailLogsForRequest(string $requestType, int $requestId): array
+    {
+        return RequestEmailLog::query()
+            ->where('request_type', $requestType)
+            ->where('request_id', $requestId)
+            ->latest('performed_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (RequestEmailLog $log): array => [
+                'id' => (int) $log->id,
+                'status' => (string) $log->status,
+                'channel' => (string) $log->channel,
+                'notification_type' => (string) $log->notification_type,
+                'recipient_email' => (string) $log->recipient_email,
+                'reason' => $log->reason,
+                'error_message' => $log->error_message,
+                'performed_at' => $log->performed_at?->toIso8601String(),
+            ])
             ->values()
             ->all();
     }

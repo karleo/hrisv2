@@ -3,6 +3,7 @@ import { ArrowLeft, Ban, Check, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import Heading from '@/components/heading';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     approveRequiresManagerSignatureMessage,
     rejectRequiresRemarksMessage,
@@ -103,6 +104,7 @@ export default function Show({
     canEdit = false,
     canViewActivityLogs = false,
     activityLogs,
+    emailLogs,
 }: {
     employeeRequest: EmployeeRequest;
     signaturesUrl: string;
@@ -114,6 +116,7 @@ export default function Show({
     canEdit?: boolean;
     canViewActivityLogs?: boolean;
     activityLogs: ActivityLogTimelineEntry[];
+    emailLogs: RequestEmailLogEntry[];
 }) {
     const { t } = useI18n();
     useRequestStatusPoll(['employeeRequest', 'canDecide']);
@@ -520,6 +523,7 @@ export default function Show({
                     }
                     employeeName={employeeFullName(employeeRequest.employee)}
                 />
+                <RequestEmailLogList entries={emailLogs} />
                 {canViewActivityLogs ? (
                     <ActivityLogTimeline
                         entries={activityLogs}

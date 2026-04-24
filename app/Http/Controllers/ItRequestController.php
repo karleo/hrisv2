@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
 use App\Models\ItRequest;
+use App\Models\RequestEmailLog;
 use App\Models\Software;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
@@ -128,6 +129,7 @@ class ItRequestController extends Controller
             'canDecide' => $this->approvalScope->canDecide($actor, $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
             'canCancel' => $this->canCancel($actor, $it_request),
             'canEdit' => $this->canEdit($actor, $it_request),
+            'emailLogs' => $this->emailLogsForRequest('it_request', (int) $it_request->id),
         ]);
     }
 
@@ -484,5 +486,30 @@ class ItRequestController extends Controller
         foreach ($uniqueRecipients as $recipient) {
             $recipient->notify(new RequestSubmittedNotification($payload));
         }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function emailLogsForRequest(string $requestType, int $requestId): array
+    {
+        return RequestEmailLog::query()
+            ->where('request_type', $requestType)
+            ->where('request_id', $requestId)
+            ->latest('performed_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (RequestEmailLog $log): array => [
+                'id' => (int) $log->id,
+                'status' => (string) $log->status,
+                'channel' => (string) $log->channel,
+                'notification_type' => (string) $log->notification_type,
+                'recipient_email' => (string) $log->recipient_email,
+                'reason' => $log->reason,
+                'error_message' => $log->error_message,
+                'performed_at' => $log->performed_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 }

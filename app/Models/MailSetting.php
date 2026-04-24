@@ -11,6 +11,7 @@ class MailSetting extends Model
     protected $fillable = [
         'mail_enabled',
         'workflow_email_enabled',
+        'transport_mode',
         'mailer',
         'provider_preset',
         'host',
@@ -18,6 +19,10 @@ class MailSetting extends Model
         'encryption',
         'username',
         'password',
+        'graph_tenant_id',
+        'graph_client_id',
+        'graph_client_secret',
+        'graph_sender',
         'timeout',
         'from_address',
         'from_name',
@@ -32,6 +37,7 @@ class MailSetting extends Model
         return [
             'mail_enabled' => 'boolean',
             'workflow_email_enabled' => 'boolean',
+            'graph_client_secret' => 'encrypted',
             'port' => 'integer',
             'timeout' => 'integer',
             'password' => 'encrypted',
@@ -67,16 +73,34 @@ class MailSetting extends Model
             && $this->from_address !== '';
     }
 
+    public function isValidForGraph(): bool
+    {
+        return is_string($this->graph_tenant_id)
+            && $this->graph_tenant_id !== ''
+            && is_string($this->graph_client_id)
+            && $this->graph_client_id !== ''
+            && is_string($this->graph_client_secret)
+            && $this->graph_client_secret !== ''
+            && is_string($this->graph_sender)
+            && $this->graph_sender !== '';
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function toMailConfig(): array
     {
+        $scheme = match ($this->encryption) {
+            'ssl' => 'smtps',
+            'tls' => 'smtp',
+            default => null,
+        };
+
         return [
             'default' => 'smtp',
             'mailers.smtp' => [
                 'transport' => 'smtp',
-                'scheme' => $this->encryption ?: null,
+                'scheme' => $scheme,
                 'host' => $this->host,
                 'port' => $this->port,
                 'username' => $this->username,
