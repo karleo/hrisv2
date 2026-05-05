@@ -356,11 +356,17 @@ export default function Create({
                                                         department_id: employee?.department_id ?? '',
                                                     }));
                                                 }}
-                                                className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input text-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                <option value="">Select employee</option>
+                                                <option value="" className="bg-background text-foreground">
+                                                    Select employee
+                                                </option>
                                                 {employees.map((emp) => (
-                                                    <option key={emp.id} value={emp.id}>
+                                                    <option
+                                                        key={emp.id}
+                                                        value={emp.id}
+                                                        className="bg-background text-foreground"
+                                                    >
                                                         {emp.first_name} {emp.last_name}
                                                     </option>
                                                 ))}

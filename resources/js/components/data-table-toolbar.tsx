@@ -74,6 +74,11 @@ export function DataTableToolbar({
     useEffect(() => {
         if (!autoSearch) return;
 
+        const currentSearch = (filters.search ?? '').trim();
+        if (trimmedSearch === currentSearch) {
+            return;
+        }
+
         const handle = setTimeout(() => {
             const params = mergePersistQuery({ page: 1 }, persistQuery);
             if (trimmedSearch) params.search = trimmedSearch;
@@ -86,7 +91,7 @@ export function DataTableToolbar({
         }, debounceMs);
 
         return () => clearTimeout(handle);
-    }, [autoSearch, debounceMs, searchUrl, trimmedSearch, persistQuery]);
+    }, [autoSearch, debounceMs, searchUrl, trimmedSearch, persistQuery, filters.search]);
 
     return (
         <form

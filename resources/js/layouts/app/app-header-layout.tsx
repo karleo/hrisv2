@@ -8,7 +8,7 @@ export default function AppHeaderLayout({
     breadcrumbs,
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.07';
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.08';
 
     return (
         <AppShell>
