@@ -111,12 +111,18 @@ export default function Edit({ department, employees }: { department: Department
                                     <select
                                         id="manager_employee_id"
                                         name="manager_employee_id"
-                                        className="border-input focus-visible:ring-ring h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="border-input text-foreground focus-visible:ring-ring h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                         defaultValue={department.manager_employee_id ?? ''}
                                     >
-                                        <option value="">Select manager (optional)</option>
+                                        <option value="" className="bg-background text-foreground">
+                                            Select manager (optional)
+                                        </option>
                                         {employees.map((employee) => (
-                                            <option key={employee.id} value={employee.id}>
+                                            <option
+                                                key={employee.id}
+                                                value={employee.id}
+                                                className="bg-background text-foreground"
+                                            >
                                                 {employee.first_name} {employee.last_name}
                                             </option>
                                         ))}
