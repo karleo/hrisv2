@@ -209,7 +209,7 @@ export function parseBuilderStateFromTemplate(
     const defaultState = defaultBuilderStateFromCompanyProfile(null);
 
     const addressMatch = template.match(
-        /font-size:12px; line-height:1\.35; margin:0 0 4px 0;">([\s\S]*?)<\/div>/
+        /<div style="font-size:12px;[^"]*">([\s\S]*?)<\/div>/
     );
     const phoneMatch = template.match(
         /<span style="font-weight:700;">T<\/span>&nbsp;([\s\S]*?)\s*<span style="color:#f2b400; font-weight:700;">&nbsp;([I|])&nbsp;<\/span>/

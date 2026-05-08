@@ -61,6 +61,16 @@ const signatureTokens = [
     '{{website}}',
 ];
 
+type SignatureAddressSource = 'company_address_1' | 'company_address_2';
+
+function signatureAddressValue(
+    source: SignatureAddressSource,
+    companyAddress1: string,
+    companyAddress2: string,
+): string {
+    return source === 'company_address_2' ? companyAddress2 : companyAddress1;
+}
+
 export default function Edit({
     companyProfile,
     countries,
@@ -90,7 +100,6 @@ export default function Edit({
     const [companyWebsite, setCompanyWebsite] = useState(
         companyProfile.website ?? ''
     );
-    const [signatureAddressEdited, setSignatureAddressEdited] = useState(false);
     const [signatureWebsiteEdited, setSignatureWebsiteEdited] = useState(false);
 
     const defaultStateFromCompany = useMemo(
@@ -107,11 +116,22 @@ export default function Edit({
         isBuilderSignatureTemplate(companyProfile.signature_template)
             ? parseBuilderStateFromTemplate(companyProfile.signature_template)
             : null;
+    const initialSignatureAddressSource: SignatureAddressSource =
+        parsedBuilderState?.addressLine.trim() === companyAddress2.trim() &&
+        companyAddress2.trim() !== ''
+            ? 'company_address_2'
+            : 'company_address_1';
+    const [signatureAddressSource, setSignatureAddressSource] =
+        useState<SignatureAddressSource>(initialSignatureAddressSource);
     const [builderState, setBuilderState] = useState<SignatureBuilderState>(
         parsedBuilderState
             ? {
                   ...parsedBuilderState,
-                  addressLine: defaultStateFromCompany.addressLine,
+                  addressLine: signatureAddressValue(
+                      initialSignatureAddressSource,
+                      companyAddress1,
+                      companyAddress2,
+                  ),
                   website: defaultStateFromCompany.website,
               }
             : defaultStateFromCompany
@@ -138,13 +158,15 @@ export default function Edit({
     );
 
     useEffect(() => {
-        if (!signatureAddressEdited) {
-            setBuilderState((previous) => ({
-                ...previous,
-                addressLine: defaultStateFromCompany.addressLine,
-            }));
-        }
-    }, [defaultStateFromCompany.addressLine, signatureAddressEdited]);
+        setBuilderState((previous) => ({
+            ...previous,
+            addressLine: signatureAddressValue(
+                signatureAddressSource,
+                companyAddress1,
+                companyAddress2,
+            ),
+        }));
+    }, [companyAddress1, companyAddress2, signatureAddressSource]);
 
     useEffect(() => {
         if (!signatureWebsiteEdited) {
@@ -379,6 +401,67 @@ export default function Edit({
                                             />
                                         </div>
 
+                                        <div className="rounded-lg border border-border/80 bg-muted/25 p-3">
+                                            <p className="text-sm font-medium text-foreground">
+                                                Signature Address
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Choose which company address appears in the email signature.
+                                            </p>
+                                            <div className="mt-3 grid gap-2">
+                                                <label className="flex items-start gap-2 rounded-md border border-border/70 bg-background/60 px-3 py-2 text-sm">
+                                                    <input
+                                                        type="radio"
+                                                        name="signature_address_source"
+                                                        value="company_address_1"
+                                                        checked={
+                                                            signatureAddressSource ===
+                                                            'company_address_1'
+                                                        }
+                                                        onChange={() =>
+                                                            setSignatureAddressSource(
+                                                                'company_address_1'
+                                                            )
+                                                        }
+                                                        className="mt-1"
+                                                    />
+                                                    <span>
+                                                        <span className="block font-medium">
+                                                            Use Company Address 1
+                                                        </span>
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {companyAddress1 || 'No address entered'}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                                <label className="flex items-start gap-2 rounded-md border border-border/70 bg-background/60 px-3 py-2 text-sm">
+                                                    <input
+                                                        type="radio"
+                                                        name="signature_address_source"
+                                                        value="company_address_2"
+                                                        checked={
+                                                            signatureAddressSource ===
+                                                            'company_address_2'
+                                                        }
+                                                        onChange={() =>
+                                                            setSignatureAddressSource(
+                                                                'company_address_2'
+                                                            )
+                                                        }
+                                                        className="mt-1"
+                                                    />
+                                                    <span>
+                                                        <span className="block font-medium">
+                                                            Use Company Address 2
+                                                        </span>
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {companyAddress2 || 'No address entered'}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+
                                         <div className="grid gap-2">
                                             <Label htmlFor="country_id">
                                                 Country
@@ -467,32 +550,6 @@ export default function Edit({
                                                 Existing saved template is custom HTML. Advanced HTML mode is enabled by default to prevent accidental overwrite.
                                             </div>
                                         ) : null}
-
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="signature_address_line">
-                                                Address Line
-                                            </Label>
-                                            <Input
-                                                id="signature_address_line"
-                                                value={builderState.addressLine}
-                                                onChange={(event) =>
-                                                    {
-                                                        setSignatureAddressEdited(
-                                                            true
-                                                        );
-                                                        setBuilderState(
-                                                            (previous) => ({
-                                                                ...previous,
-                                                                addressLine:
-                                                                    event.target
-                                                                        .value,
-                                                            })
-                                                        );
-                                                    }
-                                                }
-                                                placeholder="Warehouse G-09, DAFZA, Po Box: 371961, Dubai ,UAE"
-                                            />
-                                        </div>
 
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <div className="grid gap-2">
@@ -613,23 +670,27 @@ export default function Edit({
                                                 variant="outline"
                                                 onClick={() =>
                                                     {
-                                                        setSignatureAddressEdited(
-                                                            false
-                                                        );
                                                         setSignatureWebsiteEdited(
                                                             false
                                                         );
+                                                        setSignatureAddressSource(
+                                                            'company_address_1'
+                                                        );
                                                         setBuilderState(
-                                                            defaultBuilderStateFromCompanyProfile(
-                                                                {
-                                                                    company_address_1:
-                                                                        companyAddress1,
-                                                                    company_address_2:
-                                                                        companyAddress2,
-                                                                    website:
-                                                                        companyWebsite,
-                                                                }
-                                                            )
+                                                            {
+                                                                ...defaultBuilderStateFromCompanyProfile(
+                                                                    {
+                                                                        company_address_1:
+                                                                            companyAddress1,
+                                                                        company_address_2:
+                                                                            companyAddress2,
+                                                                        website:
+                                                                            companyWebsite,
+                                                                    }
+                                                                ),
+                                                                addressLine:
+                                                                    companyAddress1,
+                                                            }
                                                         );
                                                     }
                                                 }
