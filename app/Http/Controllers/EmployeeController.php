@@ -17,6 +17,8 @@ use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use App\Models\Hardware;
+use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -557,13 +559,26 @@ class EmployeeController extends Controller
             ->when(
                 $request->filled('search'),
                 function (Builder $innerQuery) use ($request): void {
-                    $search = (string) $request->input('search');
-                    $innerQuery->where(function (Builder $searchQuery) use ($search): void {
+                    $search = trim((string) $request->input('search'));
+                    $nameTerms = preg_split('/\s+/', $search) ?: [];
+
+                    $innerQuery->where(function (Builder $searchQuery) use ($search, $nameTerms): void {
                         $searchQuery->where('employee_code', 'like', '%'.$search.'%')
                             ->orWhere('first_name', 'like', '%'.$search.'%')
                             ->orWhere('last_name', 'like', '%'.$search.'%')
                             ->orWhere('email_address', 'like', '%'.$search.'%')
                             ->orWhere('contact_number', 'like', '%'.$search.'%');
+
+                        if (count($nameTerms) > 1) {
+                            $searchQuery->orWhere(function (Builder $nameQuery) use ($nameTerms): void {
+                                foreach ($nameTerms as $term) {
+                                    $nameQuery->where(function (Builder $termQuery) use ($term): void {
+                                        $termQuery->where('first_name', 'like', '%'.$term.'%')
+                                            ->orWhere('last_name', 'like', '%'.$term.'%');
+                                    });
+                                }
+                            });
+                        }
                     });
                 }
             )
@@ -990,6 +1005,7 @@ class EmployeeController extends Controller
             'employeeLoginActive' => $employee->user?->is_active ?? null,
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => $activityLogs,
+            'asset' => $this->approvedAssetPayload($employee),
             'leaveConfig' => [
                 'openingBalance' => $openingBalance,
                 'approvedDaysUsed' => $approvedDaysUsed,
@@ -1208,6 +1224,112 @@ class EmployeeController extends Controller
                 'replaces_document_id' => $previousDocument?->id,
             ]);
         });
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function approvedAssetPayload(Employee $employee): array
+    {
+        return ItAssetRequest::query()
+            ->with([
+                'issuedByEmployee:id,first_name,last_name',
+                'hardwareItems.hardware:id,code,name',
+            ])
+            ->where('employee_id', $employee->id)
+            ->where('status', 'approved')
+            ->orderByDesc('decided_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (ItAssetRequest $request): array {
+                return [
+                    'id' => (int) $request->id,
+                    'code' => (string) $request->code,
+                    'url' => route('it-asset-requests.show', $request, false),
+                    'issued_date' => $request->date_issued?->toDateString(),
+                    'approved_date' => $request->decided_at?->toDateString(),
+                    'issued_by' => $request->issuedByEmployee !== null
+                        ? trim($request->issuedByEmployee->first_name.' '.$request->issuedByEmployee->last_name)
+                        : null,
+                    'remarks' => $request->remarks,
+                    'hardware_items' => $this->assetHardwareItems($request),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, serial_number: string|null}>
+     */
+    private function assetHardwareItems(ItAssetRequest $request): array
+    {
+        $items = $request->hardwareItems
+            ->map(function ($item): ?array {
+                $hardwareName = $item->hardware?->name ?? $item->hardware_name_snapshot;
+                $hardwareCode = $item->hardware?->code ?? $item->hardware_code_snapshot;
+
+                if (! is_string($hardwareName) || trim($hardwareName) === '') {
+                    return null;
+                }
+
+                return [
+                    'hardware_id' => $item->hardware?->id !== null ? (int) $item->hardware->id : (int) $item->hardware_id,
+                    'hardware_code' => is_string($hardwareCode) ? $hardwareCode : '',
+                    'hardware_name' => $hardwareName,
+                    'serial_number' => $item->hardware !== null
+                        ? (filled($item->serial_number) ? (string) $item->serial_number : null)
+                        : (filled($item->serial_number_snapshot)
+                            ? (string) $item->serial_number_snapshot
+                            : (filled($item->serial_number) ? (string) $item->serial_number : null)),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($items !== []) {
+            return $items;
+        }
+
+        return $this->legacyAssetHardwareItems($request);
+    }
+
+    /**
+     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, serial_number: string|null}>
+     */
+    private function legacyAssetHardwareItems(ItAssetRequest $request): array
+    {
+        $legacyHardwareIds = is_array($request->hardware_ids) ? $request->hardware_ids : [];
+        if ($legacyHardwareIds === []) {
+            return [];
+        }
+
+        $hardwareById = Hardware::withTrashed()
+            ->whereIn('id', $legacyHardwareIds)
+            ->get(['id', 'code', 'name'])
+            ->keyBy('id');
+        $singleLegacySerial = count($legacyHardwareIds) === 1 && filled($request->serial_number)
+            ? (string) $request->serial_number
+            : null;
+
+        $items = [];
+        foreach ($legacyHardwareIds as $index => $hardwareIdRaw) {
+            $hardwareId = (int) $hardwareIdRaw;
+            $hardware = $hardwareById->get($hardwareId);
+            if ($hardware === null) {
+                continue;
+            }
+
+            $items[] = [
+                'hardware_id' => $hardwareId,
+                'hardware_code' => (string) $hardware->code,
+                'hardware_name' => (string) $hardware->name,
+                'serial_number' => $index === 0 ? $singleLegacySerial : null,
+            ];
+        }
+
+        return $items;
     }
 
     private function normalizeDocumentExpiryDate(mixed $value): ?string

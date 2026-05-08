@@ -161,6 +161,44 @@ function firstCreateEmployeeTabForValidationErrors(errorKeys: string[]): CreateE
     return null;
 }
 
+function firstCreateEmployeeFieldForValidationErrors(errorKeys: string[]): string | null {
+    const roots = new Set(
+        errorKeys.map((key) => {
+            const dot = key.indexOf('.');
+
+            return dot === -1 ? key : key.slice(0, dot);
+        }),
+    );
+
+    for (const tab of createEmployeeTabOrder) {
+        const fields = createEmployeeTabFields[tab];
+        const field = fields.find((candidate) => roots.has(candidate));
+        if (field) {
+            return field;
+        }
+    }
+
+    return errorKeys[0] ?? null;
+}
+
+function focusCreateEmployeeField(field: string | null): void {
+    if (!field) {
+        return;
+    }
+
+    const rootField = field.split('.', 1)[0];
+    const target = document.querySelector<HTMLElement>(
+        `[name="${rootField}"], [name="${rootField}[]"], #${rootField}`,
+    );
+
+    if (!target) {
+        return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.focus({ preventScroll: true });
+}
+
 export default function Create({
     departments,
     jobPositions,
@@ -256,6 +294,21 @@ export default function Create({
         jobPositions.find(
             (jobPosition) => String(jobPosition.id) === signatureJobPositionId
         )?.name ?? '';
+
+    function showFirstValidationError(errorKeys: string[]): void {
+        if (errorKeys.length === 0) {
+            return;
+        }
+
+        const nextTab =
+            firstCreateEmployeeTabForValidationErrors(errorKeys) ??
+            'employee_information';
+        const field = firstCreateEmployeeFieldForValidationErrors(errorKeys);
+        setTab(nextTab);
+        window.setTimeout(() => {
+            focusCreateEmployeeField(field);
+        }, 0);
+    }
 
     function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -475,10 +528,16 @@ export default function Create({
                 <Form
                     id="employee-create-form"
                     {...EmployeeController.store.form()}
+                    noValidate
                     className="flex flex-1 flex-col gap-8"
                     encType="multipart/form-data"
                     options={{
                         preserveScroll: true,
+                        onError: (validationErrors) => {
+                            showFirstValidationError(
+                                validationErrorKeys(validationErrors),
+                            );
+                        },
                         onFinish: () => {
                             window.setTimeout(() => {
                                 if (!isMountedRef.current) {
@@ -490,11 +549,7 @@ export default function Create({
                                 if (keys.length === 0) {
                                     return;
                                 }
-                                const nextTab =
-                                    firstCreateEmployeeTabForValidationErrors(
-                                        keys,
-                                    ) ?? 'employee_information';
-                                setTab(nextTab);
+                                showFirstValidationError(keys);
                             }, 0);
                         },
                     }}
@@ -723,11 +778,12 @@ export default function Create({
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="contact_number">
-                                                Contact Number
+                                                Contact Number <span className="text-destructive">*</span>
                                             </Label>
                                             <Input
                                                 id="contact_number"
                                                 name="contact_number"
+                                                required
                                                 maxLength={50}
                                                 placeholder="+1 234 567 8900"
                                                 onChange={(event) =>

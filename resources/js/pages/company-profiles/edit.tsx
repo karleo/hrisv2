@@ -657,7 +657,7 @@ export default function Edit({
                                             </p>
                                             <div className="mt-3">
                                                 <EmployeeEmailSignatureCard
-                                                    fullName="Ahamed Mansoor"
+                                                    fullName="Test"
                                                     designation="IT Executive"
                                                     email="ahamed.mansoor@primelogistics.ae"
                                                     phone="+971 56 402 3643"

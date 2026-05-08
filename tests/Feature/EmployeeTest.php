@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Hardware;
+use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -57,6 +59,32 @@ class EmployeeTest extends TestCase
             ->where('stats.activeEmployees', 0)
             ->where('stats.totalDepartments', Department::query()->count())
             ->where('stats.noLoginAccessEmployees', 0)
+        );
+    }
+
+    public function test_index_search_matches_employee_full_name(): void
+    {
+        Employee::factory()->create([
+            'first_name' => 'Treva',
+            'last_name' => 'Lind',
+            'email_address' => 'treva.lind@example.com',
+        ]);
+        Employee::factory()->create([
+            'first_name' => 'Other',
+            'last_name' => 'Person',
+            'email_address' => 'other.person@example.com',
+        ]);
+
+        $response = $this->get(route('employees.index', [
+            'search' => 'Treva Lind',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/index')
+            ->has('employees.data', 1)
+            ->where('employees.data.0.first_name', 'Treva')
+            ->where('employees.data.0.last_name', 'Lind')
         );
     }
 
@@ -290,6 +318,7 @@ class EmployeeTest extends TestCase
             'first_name',
             'last_name',
             'email_address',
+            'contact_number',
             'department_id',
             'job_position_id',
             'work_timetable_id',
@@ -308,6 +337,7 @@ class EmployeeTest extends TestCase
             'first_name' => 'Jane',
             'last_name' => 'Doe',
             'email_address' => 'jane.doe@example.com',
+            'contact_number' => '+1 555 0100',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
             'work_timetable_id' => $timetable->id,
@@ -328,6 +358,7 @@ class EmployeeTest extends TestCase
             'first_name' => 'Jane',
             'last_name' => 'Doe',
             'email_address' => 'same@example.com',
+            'contact_number' => '+1 555 0101',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
             'work_timetable_id' => $timetable->id,
@@ -403,6 +434,148 @@ class EmployeeTest extends TestCase
         );
     }
 
+    public function test_edit_includes_approved_assets_with_nested_hardware_items(): void
+    {
+        $employee = Employee::factory()->create();
+        $issuer = Employee::factory()->create([
+            'first_name' => 'Asset',
+            'last_name' => 'Issuer',
+        ]);
+        $laptop = Hardware::factory()->create([
+            'code' => 'LAP',
+            'name' => 'Laptop',
+        ]);
+        $monitor = Hardware::factory()->create([
+            'code' => 'MON',
+            'name' => 'Monitor',
+        ]);
+
+        $approvedRequest = ItAssetRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $employee->department_id,
+            'date' => '2026-05-01',
+            'date_issued' => '2026-05-02',
+            'status' => 'approved',
+            'decided_at' => '2026-05-03 10:00:00',
+            'issued_by_employee_id' => $issuer->id,
+            'remarks' => 'Issued for onboarding.',
+        ]);
+        $approvedRequest->hardwareItems()->createMany([
+            [
+                'hardware_id' => $laptop->id,
+                'serial_number' => 'LAP-001',
+                'hardware_code_snapshot' => 'LAP',
+                'hardware_name_snapshot' => 'Laptop',
+                'serial_number_snapshot' => 'LAP-001',
+            ],
+            [
+                'hardware_id' => $monitor->id,
+                'serial_number' => 'MON-001',
+                'hardware_code_snapshot' => 'MON',
+                'hardware_name_snapshot' => 'Monitor',
+                'serial_number_snapshot' => 'MON-001',
+            ],
+        ]);
+
+        ItAssetRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $employee->department_id,
+            'date' => '2026-05-04',
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->get(route('employees.edit', $employee).'?tab=asset');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/edit')
+            ->has('asset', 1)
+            ->where('asset.0.id', $approvedRequest->id)
+            ->where('asset.0.code', $approvedRequest->code)
+            ->where('asset.0.url', route('it-asset-requests.show', $approvedRequest, false))
+            ->where('asset.0.issued_date', '2026-05-02')
+            ->where('asset.0.approved_date', '2026-05-03')
+            ->where('asset.0.issued_by', 'Asset Issuer')
+            ->where('asset.0.remarks', 'Issued for onboarding.')
+            ->has('asset.0.hardware_items', 2)
+            ->where('asset.0.hardware_items.0.hardware_name', 'Laptop')
+            ->where('asset.0.hardware_items.0.hardware_code', 'LAP')
+            ->where('asset.0.hardware_items.0.serial_number', 'LAP-001')
+            ->where('asset.0.hardware_items.1.hardware_name', 'Monitor')
+            ->where('asset.0.hardware_items.1.hardware_code', 'MON')
+            ->where('asset.0.hardware_items.1.serial_number', 'MON-001')
+        );
+    }
+
+    public function test_edit_asset_payload_supports_legacy_hardware_fallback(): void
+    {
+        $employee = Employee::factory()->create();
+        $hardware = Hardware::factory()->create([
+            'code' => 'PHN',
+            'name' => 'Phone',
+        ]);
+
+        $assetRequest = ItAssetRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $employee->department_id,
+            'date' => '2026-05-01',
+            'status' => 'approved',
+            'decided_at' => '2026-05-02 10:00:00',
+            'hardware_ids' => [$hardware->id],
+            'serial_number' => 'PHN-123',
+        ]);
+
+        $response = $this->get(route('employees.edit', $employee));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/edit')
+            ->has('asset', 1)
+            ->where('asset.0.id', $assetRequest->id)
+            ->where('asset.0.hardware_items.0.hardware_name', 'Phone')
+            ->where('asset.0.hardware_items.0.hardware_code', 'PHN')
+            ->where('asset.0.hardware_items.0.serial_number', 'PHN-123')
+        );
+    }
+
+    public function test_edit_asset_payload_uses_snapshot_when_hardware_is_deleted(): void
+    {
+        $employee = Employee::factory()->create();
+        $hardware = Hardware::factory()->create([
+            'code' => 'TAB',
+            'name' => 'Tablet',
+        ]);
+
+        $assetRequest = ItAssetRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $employee->department_id,
+            'date' => '2026-05-01',
+            'status' => 'approved',
+            'decided_at' => '2026-05-02 10:00:00',
+        ]);
+        $assetRequest->hardwareItems()->create([
+            'hardware_id' => $hardware->id,
+            'serial_number' => 'CURRENT-SERIAL',
+            'hardware_code_snapshot' => 'TAB-HIST',
+            'hardware_name_snapshot' => 'Historical Tablet',
+            'serial_number_snapshot' => 'TAB-HIST-001',
+        ]);
+
+        $hardware->delete();
+
+        $response = $this->get(route('employees.edit', $employee));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/edit')
+            ->has('asset', 1)
+            ->where('asset.0.id', $assetRequest->id)
+            ->where('asset.0.hardware_items.0.hardware_name', 'Historical Tablet')
+            ->where('asset.0.hardware_items.0.hardware_code', 'TAB-HIST')
+            ->where('asset.0.hardware_items.0.serial_number', 'TAB-HIST-001')
+        );
+    }
+
     public function test_update_modifies_employee(): void
     {
         $employee = Employee::factory()->create([
@@ -421,7 +594,7 @@ class EmployeeTest extends TestCase
             'first_name' => 'Jane',
             'last_name' => 'Smith',
             'email_address' => 'jane.smith@example.com',
-            'contact_number' => null,
+            'contact_number' => '+1 555 0102',
             'address_1' => '456 Oak Ave',
             'address_2' => null,
             'department_id' => $department->id,
@@ -449,6 +622,7 @@ class EmployeeTest extends TestCase
             'first_name' => $employee->first_name,
             'last_name' => $employee->last_name,
             'email_address' => $employee->email_address,
+            'contact_number' => $employee->contact_number ?? '+1 555 0103',
             'department_id' => $employee->department_id,
             'job_position_id' => $employee->job_position_id,
             'work_timetable_id' => $employee->work_timetable_id,
@@ -482,6 +656,7 @@ class EmployeeTest extends TestCase
             'first_name' => 'John',
             'last_name' => 'Doe',
             'email_address' => 'john.doe@example.com',
+            'contact_number' => '+1 555 0104',
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
             'work_timetable_id' => $timetable->id,

@@ -46,7 +46,7 @@ class StoreEmployeeRequest extends FormRequest
                 'max:255',
                 Rule::unique(Employee::class, 'email_address'),
             ],
-            'contact_number' => ['nullable', 'string', 'max:50'],
+            'contact_number' => ['required', 'string', 'max:50'],
             'address_1' => ['nullable', 'string', 'max:255'],
             'address_2' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'regex:/^[0-9+\-\s()]+$/', 'max:50'],

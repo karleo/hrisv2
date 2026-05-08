@@ -126,7 +126,7 @@ class HardwareTest extends TestCase
         $response = $this->delete(route('hardware.destroy', $hardware));
 
         $response->assertRedirect(route('hardware.index'));
-        $this->assertDatabaseMissing('hardware', ['id' => $hardware->id]);
+        $this->assertSoftDeleted('hardware', ['id' => $hardware->id]);
     }
 
     public function test_hardware_require_authentication(): void

@@ -49,7 +49,7 @@ class UpdateEmployeeRequest extends FormRequest
                 'max:255',
                 Rule::unique(Employee::class, 'email_address')->ignore($employee->id),
             ],
-            'contact_number' => ['nullable', 'string', 'max:50'],
+            'contact_number' => ['required', 'string', 'max:50'],
             'address_1' => ['nullable', 'string', 'max:255'],
             'address_2' => ['nullable', 'string', 'max:255'],
             'company_profile_id' => ['nullable', 'integer', 'exists:company_profiles,id'],

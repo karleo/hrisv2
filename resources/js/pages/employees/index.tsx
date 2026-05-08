@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage, useRemember } from '@inertiajs/react';
 import {
     ChevronRight,
     CircleAlert,
@@ -170,7 +170,7 @@ export default function Index({
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const [businessCardEmployee, setBusinessCardEmployee] = useState<Employee | null>(null);
     const [groupMode, setGroupMode] = useState<'none' | 'department' | 'manager'>('none');
-    const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
+    const [viewMode, setViewMode] = useRemember<'table' | 'grid'>('grid', 'employees:index:view-mode');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({
         file: null,

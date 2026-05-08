@@ -85,6 +85,24 @@ type LeaveConfig = {
     usage: LeaveUsageLineItem[];
 };
 
+type EmployeeAssetHardwareItem = {
+    hardware_id: number | null;
+    hardware_code: string;
+    hardware_name: string;
+    serial_number: string | null;
+};
+
+type EmployeeAssetRequest = {
+    id: number;
+    code: string;
+    url: string;
+    issued_date: string | null;
+    approved_date: string | null;
+    issued_by: string | null;
+    remarks: string | null;
+    hardware_items: EmployeeAssetHardwareItem[];
+};
+
 type EmployeeNavigation = {
     previousId: number | null;
     nextId: number | null;
@@ -99,6 +117,14 @@ type ActivityLogEntry = {
     performed_by: string;
     performed_at: string | null;
 };
+
+type EmployeeTab =
+    | 'employee_information'
+    | 'work_information'
+    | 'private_information'
+    | 'documents'
+    | 'leave_configuration'
+    | 'asset';
 
 const employeeStatuses = [
     'Employed',
@@ -238,6 +264,7 @@ export default function Edit({
     activityLogs,
     canViewActivityLogs = false,
     leaveConfig,
+    asset,
     employeeNavigation,
     employeeLoginActive = null,
     viewMode = false,
@@ -251,6 +278,7 @@ export default function Edit({
     activityLogs: ActivityLogEntry[];
     canViewActivityLogs?: boolean;
     leaveConfig: LeaveConfig;
+    asset: EmployeeAssetRequest[];
     employeeNavigation: EmployeeNavigation;
     employeeLoginActive?: boolean | null;
     viewMode?: boolean;
@@ -377,7 +405,8 @@ export default function Edit({
     const tabFromQuery = new URLSearchParams(queryString).get('tab');
     const readOnlyView = viewMode;
     const hasLinkedUser = employee.user_id !== null;
-    const initialTab: 'employee_information' | 'work_information' | 'private_information' | 'documents' | 'leave_configuration' =
+    const initialTab: EmployeeTab =
+        tabFromQuery === 'asset' ||
         tabFromQuery === 'documents' ||
         tabFromQuery === 'leave_configuration' ||
         tabFromQuery === 'private_information' ||
@@ -385,7 +414,7 @@ export default function Edit({
         tabFromQuery === 'employee_information'
             ? tabFromQuery
             : 'employee_information';
-    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'private_information' | 'documents' | 'leave_configuration'>(initialTab);
+    const [tab, setTab] = useState<EmployeeTab>(initialTab);
     const normalizedEmployeeStatus =
         employee.employee_status === 'Active' ? 'Employed' : employee.employee_status;
     const employeeCompanyProfile =
@@ -862,12 +891,14 @@ export default function Edit({
                             </div>
                         ) : (
                             <div className="flex flex-wrap items-center gap-3">
-                                <Button
-                                    type="submit"
-                                    form={tab === 'private_information' ? 'employee-private-form' : 'employee-main-form'}
-                                >
-                                    Save
-                                </Button>
+                                {tab !== 'asset' ? (
+                                    <Button
+                                        type="submit"
+                                        form={tab === 'private_information' ? 'employee-private-form' : 'employee-main-form'}
+                                    >
+                                        Save
+                                    </Button>
+                                ) : null}
                                 <Link
                                     href={`${edit({ employee: employee.id }).url}?mode=view&tab=${tab}`}
                                 >
@@ -931,9 +962,16 @@ export default function Edit({
                     >
                         Leave Policy
                     </Button>
+                    <Button
+                        type="button"
+                        variant={tab === 'asset' ? 'default' : 'outline'}
+                        onClick={() => setTab('asset')}
+                    >
+                        Asset
+                    </Button>
                 </div>
 
-                {tab !== 'private_information' ? (
+                {tab !== 'private_information' && tab !== 'asset' ? (
                     <Form
                         {...EmployeeController.update.form(employee.id)}
                         id="employee-main-form"
@@ -1118,11 +1156,12 @@ export default function Edit({
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="contact_number">
-                                                Contact Number
+                                                Contact Number <span className="text-destructive">*</span>
                                             </Label>
                                             <Input
                                                 id="contact_number"
                                                 name="contact_number"
+                                                required
                                                 maxLength={50}
                                                 defaultValue={
                                                     employee.contact_number ?? ''
@@ -2056,6 +2095,100 @@ export default function Edit({
                             </>
                         )}
                     </Form>
+                ) : null}
+
+                {tab === 'asset' ? (
+                    <div className="space-y-4">
+                        {asset.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-10 text-center">
+                                <p className="text-sm font-medium text-foreground">
+                                    {t('employees.asset.empty', 'No approved assets found.')}
+                                </p>
+                            </div>
+                        ) : (
+                            asset.map((assetRequest) => (
+                                <div
+                                    key={assetRequest.id}
+                                    className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
+                                >
+                                    <div className="border-b bg-muted/20 px-5 py-4">
+                                        <div>
+                                            <Link
+                                                href={assetRequest.url}
+                                                className="text-sm font-semibold text-primary hover:underline"
+                                            >
+                                                {assetRequest.code}
+                                            </Link>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {assetRequest.remarks || 'No remarks'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[980px] text-sm">
+                                            <thead>
+                                                <tr className="border-b bg-muted/40">
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Hardware
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Code
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Serial Number
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Issued Date
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Approved Date
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Issued By
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {assetRequest.hardware_items.length > 0 ? (
+                                                    assetRequest.hardware_items.map((hardwareItem, itemIndex) => (
+                                                        <tr
+                                                            key={`${assetRequest.id}-${hardwareItem.hardware_id ?? 'snapshot'}-${itemIndex}`}
+                                                            className="border-b last:border-0"
+                                                        >
+                                                            <td className="px-5 py-3 font-medium text-foreground">
+                                                                {hardwareItem.hardware_name}
+                                                            </td>
+                                                            <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
+                                                                {hardwareItem.hardware_code || '—'}
+                                                            </td>
+                                                            <td className="px-5 py-3 text-muted-foreground">
+                                                                {hardwareItem.serial_number || '—'}
+                                                            </td>
+                                                            <td className="px-5 py-3 text-muted-foreground">
+                                                                {formatDocumentDate(assetRequest.issued_date)}
+                                                            </td>
+                                                            <td className="px-5 py-3 text-muted-foreground">
+                                                                {formatDocumentDate(assetRequest.approved_date)}
+                                                            </td>
+                                                            <td className="px-5 py-3 text-muted-foreground">
+                                                                {assetRequest.issued_by || '—'}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={6} className="px-5 py-6 text-center text-sm text-muted-foreground">
+                                                            No hardware items found.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 ) : null}
 
                 {canViewActivityLogs ? (

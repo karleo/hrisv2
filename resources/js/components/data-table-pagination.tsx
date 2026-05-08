@@ -41,7 +41,7 @@ export function DataTablePagination({
             <p className="text-muted-foreground text-sm">{summary}</p>
             <div className="flex items-center gap-2">
                 {prevLink?.url ? (
-                    <Link href={prevLink.url}>
+                    <Link href={prevLink.url} preserveState preserveScroll>
                         <Button variant="outline" size="sm">
                             <ChevronLeft className="size-4" />
                             {t('pagination.previous', 'Previous')}
@@ -54,7 +54,7 @@ export function DataTablePagination({
                     </Button>
                 )}
                 {nextLink?.url ? (
-                    <Link href={nextLink.url}>
+                    <Link href={nextLink.url} preserveState preserveScroll>
                         <Button variant="outline" size="sm">
                             {t('pagination.next', 'Next')}
                             <ChevronRight className="size-4" />

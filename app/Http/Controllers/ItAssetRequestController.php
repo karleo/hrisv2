@@ -86,6 +86,7 @@ class ItAssetRequestController extends Controller
     {
         $data = $request->validated();
         $hardwareItems = $this->normalizeHardwareItemsInput($data);
+        $hardwareItems = $this->withHardwareSnapshots($hardwareItems);
         $hardwareIds = array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems);
         $legacySerialNumber = $this->deriveLegacySerialNumber($hardwareItems, $data['serial_number'] ?? null);
 
@@ -201,6 +202,10 @@ class ItAssetRequestController extends Controller
 
         $approverEmployeeId = $request->user()?->employee?->id;
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
+        if ($validated['decision'] === 'approved') {
+            $this->fillMissingHardwareSnapshots($it_asset_request);
+        }
+
         $it_asset_request->update([
             'status' => $validated['decision'],
             'decision_remarks' => $remarks !== '' ? $remarks : null,
@@ -306,6 +311,7 @@ class ItAssetRequestController extends Controller
         $this->assertEditableStatus($it_asset_request);
         $data = $request->validated();
         $hardwareItems = $this->normalizeHardwareItemsInput($data);
+        $hardwareItems = $this->withHardwareSnapshots($hardwareItems);
         $hardwareIds = array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems);
         $legacySerialNumber = $this->deriveLegacySerialNumber($hardwareItems, $data['serial_number'] ?? null);
         $status = $data['status'] ?? $it_asset_request->status;
@@ -617,25 +623,34 @@ class ItAssetRequestController extends Controller
     }
 
     /**
-     * @return array<int, array{hardware_id: int, serial_number: string|null, hardware: array{id: int, code: string, name: string}}>
+     * @return array<int, array{hardware_id: int, serial_number: string|null, hardware: array{id: int|null, code: string, name: string}}>
      */
     private function resolvedHardwareItemsForDisplay(ItAssetRequest $itAssetRequest): array
     {
         $items = $itAssetRequest->hardwareItems
-            ->filter(fn ($item) => $item->hardware !== null)
-            ->map(function ($item): array {
+            ->map(function ($item): ?array {
+                $hardwareName = $item->hardware?->name ?? $item->hardware_name_snapshot;
+                $hardwareCode = $item->hardware?->code ?? $item->hardware_code_snapshot;
+
+                if (! is_string($hardwareName) || trim($hardwareName) === '') {
+                    return null;
+                }
+
                 return [
                     'hardware_id' => (int) $item->hardware_id,
-                    'serial_number' => $item->serial_number !== null && $item->serial_number !== ''
-                        ? (string) $item->serial_number
-                        : null,
+                    'serial_number' => $item->hardware !== null
+                        ? ($item->serial_number !== null && $item->serial_number !== '' ? (string) $item->serial_number : null)
+                        : ($item->serial_number_snapshot !== null && $item->serial_number_snapshot !== ''
+                            ? (string) $item->serial_number_snapshot
+                            : ($item->serial_number !== null && $item->serial_number !== '' ? (string) $item->serial_number : null)),
                     'hardware' => [
-                        'id' => (int) $item->hardware->id,
-                        'code' => (string) $item->hardware->code,
-                        'name' => (string) $item->hardware->name,
+                        'id' => $item->hardware?->id !== null ? (int) $item->hardware->id : null,
+                        'code' => is_string($hardwareCode) ? $hardwareCode : '',
+                        'name' => $hardwareName,
                     ],
                 ];
             })
+            ->filter()
             ->values()
             ->all();
 
@@ -677,6 +692,65 @@ class ItAssetRequestController extends Controller
         }
 
         return $resolved;
+    }
+
+    /**
+     * @param  array<int, array{hardware_id: int, serial_number: string|null}>  $hardwareItems
+     * @return array<int, array{hardware_id: int, serial_number: string|null, hardware_code_snapshot: string|null, hardware_name_snapshot: string|null, serial_number_snapshot: string|null}>
+     */
+    private function withHardwareSnapshots(array $hardwareItems): array
+    {
+        if ($hardwareItems === []) {
+            return [];
+        }
+
+        $hardwareById = Hardware::withTrashed()
+            ->whereIn('id', array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems))
+            ->get(['id', 'code', 'name'])
+            ->keyBy('id');
+
+        return array_map(function (array $item) use ($hardwareById): array {
+            $hardware = $hardwareById->get($item['hardware_id']);
+
+            return [
+                ...$item,
+                'hardware_code_snapshot' => $hardware?->code,
+                'hardware_name_snapshot' => $hardware?->name,
+                'serial_number_snapshot' => $item['serial_number'],
+            ];
+        }, $hardwareItems);
+    }
+
+    private function fillMissingHardwareSnapshots(ItAssetRequest $itAssetRequest): void
+    {
+        $itAssetRequest->loadMissing('hardwareItems.hardware');
+
+        foreach ($itAssetRequest->hardwareItems as $item) {
+            if (
+                filled($item->hardware_code_snapshot)
+                && filled($item->hardware_name_snapshot)
+                && filled($item->serial_number_snapshot)
+            ) {
+                continue;
+            }
+
+            $updates = [];
+            if (blank($item->hardware_code_snapshot) && filled($item->hardware?->code)) {
+                $updates['hardware_code_snapshot'] = $item->hardware->code;
+            }
+
+            if (blank($item->hardware_name_snapshot) && filled($item->hardware?->name)) {
+                $updates['hardware_name_snapshot'] = $item->hardware->name;
+            }
+
+            if (blank($item->serial_number_snapshot) && filled($item->serial_number)) {
+                $updates['serial_number_snapshot'] = $item->serial_number;
+            }
+
+            if ($updates !== []) {
+                $item->forceFill($updates)->save();
+            }
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property int $id
@@ -17,6 +18,8 @@ class Hardware extends Model
 {
     /** @use HasFactory<\Database\Factories\HardwareFactory> */
     use HasFactory;
+
+    use SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
