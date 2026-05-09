@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -31,4 +32,9 @@ class Hardware extends Model
         'name',
         'description',
     ];
+
+    public function assetValues(): HasMany
+    {
+        return $this->hasMany(HardwareAssetValue::class);
+    }
 }

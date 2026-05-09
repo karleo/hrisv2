@@ -49,7 +49,15 @@ type Hardware = {
 type HardwareItem = {
     hardware_id: number;
     serial_number: string | null;
+    asset_value: string | null;
+    asset_currency: string | null;
     hardware: Hardware;
+};
+
+type AssetTotal = {
+    currency: string;
+    total: string;
+    count: number;
 };
 
 type ItAssetRequest = {
@@ -84,10 +92,22 @@ function formatDateDdMmYyyy(value: string | null | undefined): string {
     return value;
 }
 
+function formatAssetValue(value: string | null, currency: string | null): string {
+    if (!value || !currency) {
+        return '—';
+    }
+
+    return `${currency} ${Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
+}
+
 export default function Show({
     itAssetRequest,
     hardware = [],
     hardwareItems = [],
+    assetTotals = [],
     employees = [],
     submitUrl,
     cancelUrl,
@@ -103,6 +123,7 @@ export default function Show({
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
     hardwareItems?: HardwareItem[];
+    assetTotals?: AssetTotal[];
     employees?: Employee[];
     submitUrl: string;
     cancelUrl: string;
@@ -142,6 +163,8 @@ export default function Show({
         return hardware.map((item, index) => ({
             hardware_id: item.id,
             serial_number: index === 0 ? fallbackSerial : null,
+            asset_value: null,
+            asset_currency: null,
             hardware: item,
         }));
     }, [hardware, hardwareItems, itAssetRequest.hardware_items, itAssetRequest.serial_number]);
@@ -311,7 +334,7 @@ export default function Show({
                     </div>
 
                     <div className="mt-5 rounded-lg border p-4">
-                        <div className="text-xs text-muted-foreground">Hardware and serial numbers</div>
+                        <div className="text-xs text-muted-foreground">Hardware, serial numbers, and values</div>
                         <div className="mt-2">
                             {resolvedHardwareItems.length > 0 ? (
                                 <ul className="space-y-2 text-sm">
@@ -323,6 +346,9 @@ export default function Show({
                                             <div className="text-xs text-muted-foreground">
                                                 Serial: {item.serial_number ?? '—'}
                                             </div>
+                                            <div className="text-xs font-medium text-foreground">
+                                                Value: {formatAssetValue(item.asset_value, item.asset_currency)}
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
@@ -331,6 +357,25 @@ export default function Show({
                             )}
                         </div>
                     </div>
+
+                    {assetTotals.length > 0 ? (
+                        <div className="mt-5 rounded-lg border p-4">
+                            <div className="text-xs text-muted-foreground">Total asset value</div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {assetTotals.map((total) => (
+                                    <div
+                                        key={total.currency}
+                                        className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-semibold"
+                                    >
+                                        {formatAssetValue(total.total, total.currency)}
+                                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                            ({total.count} counted)
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
 
                     <div className="mt-5 rounded-lg border p-4">
                         <div className="text-xs text-muted-foreground">Remarks</div>

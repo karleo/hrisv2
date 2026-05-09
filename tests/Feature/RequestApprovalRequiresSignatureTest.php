@@ -135,6 +135,31 @@ class RequestApprovalRequiresSignatureTest extends TestCase
         $this->assertSame('submitted', strtolower((string) $itAssetRequest->status));
     }
 
+    public function test_it_asset_request_cannot_be_approved_without_issued_by_employee(): void
+    {
+        [$department, $employee] = $this->departmentEmployeeAndRequester();
+
+        $itAssetRequest = ItAssetRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-04-10',
+            'status' => 'submitted',
+            'issued_by_signature' => 'it-asset-requests/test/signatures/issued-by.png',
+            'issued_by_employee_id' => null,
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('it-asset-requests.decide', $itAssetRequest), [
+                'decision' => 'approved',
+            ])
+            ->assertSessionHas('error')
+            ->assertRedirect();
+
+        $itAssetRequest->refresh();
+        $this->assertSame('submitted', strtolower((string) $itAssetRequest->status));
+        $this->assertNull($itAssetRequest->issued_by_employee_id);
+    }
+
     public function test_leave_request_can_be_rejected_without_manager_signature(): void
     {
         [$department, $employee] = $this->departmentEmployeeAndRequester();

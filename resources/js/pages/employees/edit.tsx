@@ -90,6 +90,14 @@ type EmployeeAssetHardwareItem = {
     hardware_code: string;
     hardware_name: string;
     serial_number: string | null;
+    asset_value: string | null;
+    asset_currency: string | null;
+};
+
+type EmployeeAssetTotal = {
+    currency: string;
+    total: string;
+    count: number;
 };
 
 type EmployeeAssetRequest = {
@@ -101,6 +109,7 @@ type EmployeeAssetRequest = {
     issued_by: string | null;
     remarks: string | null;
     hardware_items: EmployeeAssetHardwareItem[];
+    asset_totals: EmployeeAssetTotal[];
 };
 
 type EmployeeNavigation = {
@@ -183,6 +192,17 @@ function formatDocumentDate(value: string | null | undefined): string {
     const [, yyyy, mm, dd] = match;
 
     return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatAssetValue(value: string | null | undefined, currency: string | null | undefined): string {
+    if (!value || !currency) {
+        return '—';
+    }
+
+    return `${currency} ${Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
 }
 
 function documentStatusLabel(status: string | null | undefined): string {
@@ -2122,10 +2142,22 @@ export default function Edit({
                                             <p className="mt-1 text-xs text-muted-foreground">
                                                 {assetRequest.remarks || 'No remarks'}
                                             </p>
+                                            {assetRequest.asset_totals.length > 0 ? (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {assetRequest.asset_totals.map((total) => (
+                                                        <span
+                                                            key={total.currency}
+                                                            className="rounded-full border bg-background px-3 py-1 text-xs font-semibold text-foreground"
+                                                        >
+                                                            Total {formatAssetValue(total.total, total.currency)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full min-w-[980px] text-sm">
+                                        <table className="w-full min-w-[1100px] text-sm">
                                             <thead>
                                                 <tr className="border-b bg-muted/40">
                                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -2136,6 +2168,9 @@ export default function Edit({
                                                     </th>
                                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                         Serial Number
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Value
                                                     </th>
                                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                         Issued Date
@@ -2164,6 +2199,9 @@ export default function Edit({
                                                             <td className="px-5 py-3 text-muted-foreground">
                                                                 {hardwareItem.serial_number || '—'}
                                                             </td>
+                                                            <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
+                                                                {formatAssetValue(hardwareItem.asset_value, hardwareItem.asset_currency)}
+                                                            </td>
                                                             <td className="px-5 py-3 text-muted-foreground">
                                                                 {formatDocumentDate(assetRequest.issued_date)}
                                                             </td>
@@ -2177,7 +2215,7 @@ export default function Edit({
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={6} className="px-5 py-6 text-center text-sm text-muted-foreground">
+                                                        <td colSpan={7} className="px-5 py-6 text-center text-sm text-muted-foreground">
                                                             No hardware items found.
                                                         </td>
                                                     </tr>

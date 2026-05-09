@@ -40,7 +40,7 @@ import { index as jobPositionsIndex } from '@/routes/job-positions';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { index as leaveTypesIndex } from '@/routes/leave-types';
 import { index as softwareIndex } from '@/routes/software';
-import type { NavItem } from '@/types';
+import type { ModulePermissionsMap, NavItem } from '@/types';
 import AppLogo from './app-logo';
 
 function buildMainNavItems(t: (key: string, fallback?: string) => string): NavItem[] {
@@ -134,6 +134,12 @@ function buildMainNavItems(t: (key: string, fallback?: string) => string): NavIt
                         module: 'hardware',
                     },
                     {
+                        title: t('sidebar.assetValues', 'Asset Values'),
+                        href: '/hardware-asset-values',
+                        icon: Cpu,
+                        module: 'hardware',
+                    },
+                    {
                         title: t('sidebar.documentTypes', 'Document Types'),
                         href: '/document-types',
                         icon: Table2,
@@ -205,7 +211,7 @@ function hrefToUrl(href: NavItem['href']): string {
 export function AppSidebar() {
     const { t } = useI18n();
     const { modulePermissions, auth } = usePage().props as {
-        modulePermissions: unknown;
+        modulePermissions?: ModulePermissionsMap;
         auth?: {
             has_employee_profile?: boolean;
             has_my_profile_access?: boolean;

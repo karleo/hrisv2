@@ -8,6 +8,7 @@ use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
+use App\Http\Controllers\HardwareAssetValueController;
 use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
@@ -66,6 +67,7 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::resource('company-profiles', CompanyProfileController::class);
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
+    Route::resource('hardware-asset-values', HardwareAssetValueController::class)->except(['show']);
     Route::resource('document-types', DocumentTypeController::class)
         ->except(['show'])
         ->parameters([

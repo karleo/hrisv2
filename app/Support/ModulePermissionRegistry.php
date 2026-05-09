@@ -11,6 +11,7 @@ use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
+use App\Http\Controllers\HardwareAssetValueController;
 use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
@@ -106,6 +107,14 @@ final class ModulePermissionRegistry
             'create' => [PermissionModule::Hardware, ModuleAbility::Create],
             'store' => [PermissionModule::Hardware, ModuleAbility::Create],
             'show' => [PermissionModule::Hardware, ModuleAbility::View],
+            'edit' => [PermissionModule::Hardware, ModuleAbility::Update],
+            'update' => [PermissionModule::Hardware, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Hardware, ModuleAbility::Delete],
+        ],
+        HardwareAssetValueController::class => [
+            'index' => [PermissionModule::Hardware, ModuleAbility::View],
+            'create' => [PermissionModule::Hardware, ModuleAbility::Create],
+            'store' => [PermissionModule::Hardware, ModuleAbility::Create],
             'edit' => [PermissionModule::Hardware, ModuleAbility::Update],
             'update' => [PermissionModule::Hardware, ModuleAbility::Update],
             'destroy' => [PermissionModule::Hardware, ModuleAbility::Delete],

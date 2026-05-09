@@ -21,6 +21,8 @@ class ItAssetRequestHardwareItem extends Model
         'hardware_code_snapshot',
         'hardware_name_snapshot',
         'serial_number_snapshot',
+        'asset_value_snapshot',
+        'asset_currency_snapshot',
     ];
 
     public function itAssetRequest(): BelongsTo

@@ -9,7 +9,15 @@ type Hardware = { id: number; code: string; name: string };
 type HardwareItem = {
     hardware_id: number;
     serial_number: string | null;
+    asset_value: string | null;
+    asset_currency: string | null;
     hardware: Hardware;
+};
+
+type AssetTotal = {
+    currency: string;
+    total: string;
+    count: number;
 };
 
 type ItAssetRequest = {
@@ -45,6 +53,17 @@ function fullName(emp?: Employee | null): string {
         return '';
     }
     return `${emp.first_name} ${emp.last_name}`.trim();
+}
+
+function formatAssetValue(value: string | null, currency: string | null): string {
+    if (!value || !currency) {
+        return '—';
+    }
+
+    return `${currency} ${Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
 }
 
 function FormInputBox({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -144,11 +163,13 @@ export default function ItAssetRequestPrint({
     itAssetRequest,
     hardware,
     hardwareItems = [],
+    assetTotals = [],
     companyLogoUrl,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware: Hardware[];
     hardwareItems?: HardwareItem[];
+    assetTotals?: AssetTotal[];
     companyLogoUrl: string | null;
 }) {
     const { t } = useI18n({ forceLocale: 'en' });
@@ -162,6 +183,8 @@ export default function ItAssetRequestPrint({
               : hardware.map((item, index) => ({
                     hardware_id: item.id,
                     serial_number: hardware.length === 1 && index === 0 ? (itAssetRequest.serial_number ?? null) : null,
+                    asset_value: null,
+                    asset_currency: null,
                     hardware: item,
                 }));
 
@@ -173,9 +196,18 @@ export default function ItAssetRequestPrint({
     const hardwareLabel =
         resolvedHardwareItems.length > 0
             ? resolvedHardwareItems
-                  .map((item) => `${item.hardware.code} - ${item.hardware.name} (Serial: ${item.serial_number ?? '—'})`)
+                  .map(
+                      (item) =>
+                          `${item.hardware.code} - ${item.hardware.name} (Serial: ${item.serial_number ?? '—'}, Value: ${formatAssetValue(item.asset_value, item.asset_currency)})`,
+                  )
                   .join('\n')
             : '';
+
+    const totalsLabel = assetTotals.length > 0
+        ? assetTotals
+              .map((total) => `${formatAssetValue(total.total, total.currency)} (${total.count} counted)`)
+              .join('\n')
+        : '';
 
     const statusNorm = (itAssetRequest.status ?? '').toLowerCase();
     const isDraft = statusNorm === 'draft';
@@ -302,6 +334,18 @@ export default function ItAssetRequestPrint({
                                     <FormInputBox>
                                         {itAssetRequest.asset_type?.trim() ? (
                                             itAssetRequest.asset_type.trim()
+                                        ) : (
+                                            <span className="text-neutral-400 normal-case">—</span>
+                                        )}
+                                    </FormInputBox>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="min-w-0">
+                                    <p className="mb-1 text-xs font-semibold text-[#1c287f]">Total Asset Value</p>
+                                    <FormInputBox>
+                                        {totalsLabel ? (
+                                            <span className="whitespace-pre-wrap">{totalsLabel}</span>
                                         ) : (
                                             <span className="text-neutral-400 normal-case">—</span>
                                         )}

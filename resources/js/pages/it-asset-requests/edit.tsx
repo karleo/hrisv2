@@ -50,6 +50,8 @@ type HardwareOption = {
     id: number;
     code: string;
     name: string;
+    asset_value: string | null;
+    asset_currency: string | null;
 };
 
 type HardwareItemInput = {
@@ -85,6 +87,38 @@ function toDdMmYyyy(iso: string): string {
     const [, yyyy, mm, dd] = match;
 
     return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatAssetValue(value: string | null, currency: string | null): string {
+    if (!value || !currency) {
+        return 'Value not set';
+    }
+
+    return `${currency} ${Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
+}
+
+function groupedAssetTotals(hardwareItems: HardwareOption[]): { currency: string; total: number; count: number }[] {
+    const totals = new Map<string, { currency: string; total: number; count: number }>();
+
+    hardwareItems.forEach((item) => {
+        if (!item.asset_value || !item.asset_currency) {
+            return;
+        }
+
+        const existing = totals.get(item.asset_currency) ?? {
+            currency: item.asset_currency,
+            total: 0,
+            count: 0,
+        };
+        existing.total += Number(item.asset_value);
+        existing.count += 1;
+        totals.set(item.asset_currency, existing);
+    });
+
+    return [...totals.values()].sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
 export default function Edit({
@@ -233,6 +267,7 @@ export default function Edit({
     const selectedHardware = hardware.filter((hw) =>
         data.hardware_ids.includes(hw.id),
     );
+    const assetTotals = useMemo(() => groupedAssetTotals(selectedHardware), [selectedHardware]);
 
     const filteredHardware = useMemo(() => {
         const keyword = hardwareSearch.trim().toLowerCase();
@@ -557,6 +592,9 @@ export default function Edit({
                                                                         <p className="mt-1 text-sm text-muted-foreground">
                                                                             {hw.name}
                                                                         </p>
+                                                                        <p className="mt-1 text-xs font-medium text-foreground">
+                                                                            {formatAssetValue(hw.asset_value, hw.asset_currency)}
+                                                                        </p>
                                                                     </div>
                                                                     <input
                                                                         type="checkbox"
@@ -596,6 +634,9 @@ export default function Edit({
                                                             <div className="text-sm">
                                                                 <div className="font-medium">{hw.code}</div>
                                                                 <div className="text-muted-foreground">{hw.name}</div>
+                                                                <div className="text-xs font-medium text-foreground">
+                                                                    {formatAssetValue(hw.asset_value, hw.asset_currency)}
+                                                                </div>
                                                             </div>
                                                             <div>
                                                                 <Input
@@ -680,12 +721,40 @@ export default function Edit({
                                                                     <div className="text-xs text-muted-foreground">
                                                                         {hw.name}
                                                                     </div>
+                                                                    <div className="text-xs font-medium text-foreground">
+                                                                        {formatAssetValue(hw.asset_value, hw.asset_currency)}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {assetTotals.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    <Label className="text-sm font-medium text-muted-foreground">
+                                                        Total Asset Value
+                                                    </Label>
+                                                    <div className="space-y-2">
+                                                        {assetTotals.map((total) => (
+                                                            <div
+                                                                key={total.currency}
+                                                                className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-semibold"
+                                                            >
+                                                                {total.currency}{' '}
+                                                                {total.total.toLocaleString('en-US', {
+                                                                    minimumFractionDigits: 2,
+                                                                    maximumFractionDigits: 2,
+                                                                })}
+                                                                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                                                    ({total.count} counted)
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
 
                                             {data.date && (
                                                 <div className="space-y-2">

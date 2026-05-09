@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
+use App\Models\HardwareAssetValue;
 use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
@@ -449,6 +450,12 @@ class EmployeeTest extends TestCase
             'code' => 'MON',
             'name' => 'Monitor',
         ]);
+        HardwareAssetValue::factory()->create([
+            'hardware_id' => $laptop->id,
+            'asset_value' => '2500.00',
+            'asset_currency' => 'AED',
+            'effective_from' => now()->subDay()->toDateString(),
+        ]);
 
         $approvedRequest = ItAssetRequest::query()->create([
             'employee_id' => $employee->id,
@@ -467,6 +474,8 @@ class EmployeeTest extends TestCase
                 'hardware_code_snapshot' => 'LAP',
                 'hardware_name_snapshot' => 'Laptop',
                 'serial_number_snapshot' => 'LAP-001',
+                'asset_value_snapshot' => '2500.00',
+                'asset_currency_snapshot' => 'AED',
             ],
             [
                 'hardware_id' => $monitor->id,
@@ -501,6 +510,10 @@ class EmployeeTest extends TestCase
             ->where('asset.0.hardware_items.0.hardware_name', 'Laptop')
             ->where('asset.0.hardware_items.0.hardware_code', 'LAP')
             ->where('asset.0.hardware_items.0.serial_number', 'LAP-001')
+            ->where('asset.0.hardware_items.0.asset_value', '2500.00')
+            ->where('asset.0.hardware_items.0.asset_currency', 'AED')
+            ->where('asset.0.asset_totals.0.total', '2500.00')
+            ->where('asset.0.asset_totals.0.currency', 'AED')
             ->where('asset.0.hardware_items.1.hardware_name', 'Monitor')
             ->where('asset.0.hardware_items.1.hardware_code', 'MON')
             ->where('asset.0.hardware_items.1.serial_number', 'MON-001')

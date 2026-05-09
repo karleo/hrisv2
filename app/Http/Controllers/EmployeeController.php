@@ -17,12 +17,12 @@ use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
-use App\Models\Hardware;
 use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\WorkTimetable;
+use App\Support\ItAssetValuation;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -42,6 +42,7 @@ class EmployeeController extends Controller
 {
     public function __construct(
         private readonly FaceVerificationContract $faceVerification,
+        private readonly ItAssetValuation $valuation,
     ) {}
 
     public function profile(Request $request): Response
@@ -1242,6 +1243,8 @@ class EmployeeController extends Controller
             ->orderByDesc('id')
             ->get()
             ->map(function (ItAssetRequest $request): array {
+                $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($request);
+
                 return [
                     'id' => (int) $request->id,
                     'code' => (string) $request->code,
@@ -1252,7 +1255,8 @@ class EmployeeController extends Controller
                         ? trim($request->issuedByEmployee->first_name.' '.$request->issuedByEmployee->last_name)
                         : null,
                     'remarks' => $request->remarks,
-                    'hardware_items' => $this->assetHardwareItems($request),
+                    'hardware_items' => $this->assetHardwareItems($hardwareItems),
+                    'asset_totals' => $this->valuation->totalsForHardwareItems($hardwareItems),
                 ];
             })
             ->values()
@@ -1260,76 +1264,22 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, serial_number: string|null}>
+     * @param  array<int, array<string, mixed>>  $hardwareItems
+     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, serial_number: string|null, asset_value: string|null, asset_currency: string|null}>
      */
-    private function assetHardwareItems(ItAssetRequest $request): array
+    private function assetHardwareItems(array $hardwareItems): array
     {
-        $items = $request->hardwareItems
-            ->map(function ($item): ?array {
-                $hardwareName = $item->hardware?->name ?? $item->hardware_name_snapshot;
-                $hardwareCode = $item->hardware?->code ?? $item->hardware_code_snapshot;
-
-                if (! is_string($hardwareName) || trim($hardwareName) === '') {
-                    return null;
-                }
-
-                return [
-                    'hardware_id' => $item->hardware?->id !== null ? (int) $item->hardware->id : (int) $item->hardware_id,
-                    'hardware_code' => is_string($hardwareCode) ? $hardwareCode : '',
-                    'hardware_name' => $hardwareName,
-                    'serial_number' => $item->hardware !== null
-                        ? (filled($item->serial_number) ? (string) $item->serial_number : null)
-                        : (filled($item->serial_number_snapshot)
-                            ? (string) $item->serial_number_snapshot
-                            : (filled($item->serial_number) ? (string) $item->serial_number : null)),
-                ];
-            })
-            ->filter()
-            ->values()
-            ->all();
-
-        if ($items !== []) {
-            return $items;
-        }
-
-        return $this->legacyAssetHardwareItems($request);
-    }
-
-    /**
-     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, serial_number: string|null}>
-     */
-    private function legacyAssetHardwareItems(ItAssetRequest $request): array
-    {
-        $legacyHardwareIds = is_array($request->hardware_ids) ? $request->hardware_ids : [];
-        if ($legacyHardwareIds === []) {
-            return [];
-        }
-
-        $hardwareById = Hardware::withTrashed()
-            ->whereIn('id', $legacyHardwareIds)
-            ->get(['id', 'code', 'name'])
-            ->keyBy('id');
-        $singleLegacySerial = count($legacyHardwareIds) === 1 && filled($request->serial_number)
-            ? (string) $request->serial_number
-            : null;
-
-        $items = [];
-        foreach ($legacyHardwareIds as $index => $hardwareIdRaw) {
-            $hardwareId = (int) $hardwareIdRaw;
-            $hardware = $hardwareById->get($hardwareId);
-            if ($hardware === null) {
-                continue;
-            }
-
-            $items[] = [
-                'hardware_id' => $hardwareId,
-                'hardware_code' => (string) $hardware->code,
-                'hardware_name' => (string) $hardware->name,
-                'serial_number' => $index === 0 ? $singleLegacySerial : null,
-            ];
-        }
-
-        return $items;
+        return array_map(
+            fn (array $item): array => [
+                'hardware_id' => $item['hardware']['id'] ?? $item['hardware_id'] ?? null,
+                'hardware_code' => (string) ($item['hardware']['code'] ?? ''),
+                'hardware_name' => (string) ($item['hardware']['name'] ?? ''),
+                'serial_number' => $item['serial_number'] ?? null,
+                'asset_value' => $item['asset_value'] ?? null,
+                'asset_currency' => $item['asset_currency'] ?? null,
+            ],
+            $hardwareItems
+        );
     }
 
     private function normalizeDocumentExpiryDate(mixed $value): ?string
