@@ -9,6 +9,8 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeMessageController;
+use App\Http\Controllers\EmployeeMessageTypingController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\HardwareAssetValueController;
@@ -56,6 +58,17 @@ final class ModulePermissionRegistry
             'showDocument' => [PermissionModule::Employees, ModuleAbility::View],
             'destroy' => [PermissionModule::Employees, ModuleAbility::Delete],
             'destroyDocument' => [PermissionModule::Employees, ModuleAbility::Delete],
+        ],
+        EmployeeMessageController::class => [
+            'index' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'searchEmployees' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'showConversation' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'showEmployee' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'store' => [PermissionModule::EmployeeMessages, ModuleAbility::Create],
+            'markRead' => [PermissionModule::EmployeeMessages, ModuleAbility::Update],
+        ],
+        EmployeeMessageTypingController::class => [
+            'store' => [PermissionModule::EmployeeMessages, ModuleAbility::Create],
         ],
         JobPositionController::class => [
             'index' => [PermissionModule::JobPositions, ModuleAbility::View],

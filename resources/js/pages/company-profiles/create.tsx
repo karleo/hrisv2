@@ -45,20 +45,37 @@ const signatureTokens = [
     '{{website}}',
 ];
 
+const businessCardBackLogoSlots = [1, 2, 3, 4] as const;
+
+type BusinessCardBackLogoSlot = (typeof businessCardBackLogoSlots)[number];
+type BackLogoPreviewState = Record<BusinessCardBackLogoSlot, string | null>;
+
+const emptyBackLogoPreviews: BackLogoPreviewState = {
+    1: null,
+    2: null,
+    3: null,
+    4: null,
+};
+
 type Country = {
     id: number;
     code: string;
     name: string;
 };
 
-export default function Create({
-    countries,
-}: {
-    countries: Country[];
-}) {
+export default function Create({ countries }: { countries: Country[] }) {
     const logoInputRef = useRef<HTMLInputElement>(null);
+    const businessCardLogoInputRef = useRef<HTMLInputElement>(null);
+    const businessCardBackLogoInputRefs = useRef<
+        Partial<Record<BusinessCardBackLogoSlot, HTMLInputElement | null>>
+    >({});
     const advancedTemplateRef = useRef<HTMLTextAreaElement>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [businessCardLogoPreview, setBusinessCardLogoPreview] = useState<
+        string | null
+    >(null);
+    const [businessCardBackLogoPreviews, setBusinessCardBackLogoPreviews] =
+        useState<BackLogoPreviewState>(emptyBackLogoPreviews);
     const [companyAddress1, setCompanyAddress1] = useState('');
     const [companyAddress2, setCompanyAddress2] = useState('');
     const [companyWebsite, setCompanyWebsite] = useState('');
@@ -71,20 +88,20 @@ export default function Create({
                 company_address_2: companyAddress2,
                 website: companyWebsite,
             }),
-        [companyAddress1, companyAddress2, companyWebsite]
+        [companyAddress1, companyAddress2, companyWebsite],
     );
     const [builderState, setBuilderState] = useState<SignatureBuilderState>(
-        defaultBuilderStateFromCompanyProfile(null)
+        defaultBuilderStateFromCompanyProfile(null),
     );
     const [useAdvancedTemplate, setUseAdvancedTemplate] = useState(false);
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
     const [advancedTemplate, setAdvancedTemplate] = useState(
-        buildDefaultSignatureTemplate()
+        buildDefaultSignatureTemplate(),
     );
 
     const generatedTemplate = useMemo(
         () => applyBuilderStateToTemplate(builderState),
-        [builderState]
+        [builderState],
     );
 
     useEffect(() => {
@@ -131,10 +148,10 @@ export default function Create({
     }
 
     async function handleSignatureTemplatePaste(
-        event: React.ClipboardEvent<HTMLTextAreaElement>
+        event: React.ClipboardEvent<HTMLTextAreaElement>,
     ): Promise<void> {
         const imageItem = Array.from(event.clipboardData.items).find((item) =>
-            item.type.startsWith('image/')
+            item.type.startsWith('image/'),
         );
         if (!imageItem) {
             return;
@@ -147,7 +164,9 @@ export default function Create({
         }
 
         if (imageFile.size > 1024 * 1024) {
-            window.alert('Pasted image is too large. Please use an image under 1 MB.');
+            window.alert(
+                'Pasted image is too large. Please use an image under 1 MB.',
+            );
 
             return;
         }
@@ -155,7 +174,8 @@ export default function Create({
         const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(String(reader.result ?? ''));
-            reader.onerror = () => reject(new Error('Failed to read pasted image.'));
+            reader.onerror = () =>
+                reject(new Error('Failed to read pasted image.'));
             reader.readAsDataURL(imageFile);
         });
 
@@ -165,7 +185,7 @@ export default function Create({
             .replaceAll('<', '&lt;')
             .replaceAll('>', '&gt;');
         insertIntoAdvancedTemplate(
-            `<img src="${dataUrl}" alt="${alt}" style="display:block; height:18px; width:auto; object-fit:contain;" />`
+            `<img src="${dataUrl}" alt="${alt}" style="display:block; height:18px; width:auto; object-fit:contain;" />`,
         );
     }
 
@@ -188,6 +208,28 @@ export default function Create({
         } else {
             setLogoPreview(null);
         }
+    }
+
+    function handleBusinessCardLogoChange(
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) {
+        const file = e.target.files?.[0];
+        if (file) {
+            setBusinessCardLogoPreview(URL.createObjectURL(file));
+        } else {
+            setBusinessCardLogoPreview(null);
+        }
+    }
+
+    function handleBusinessCardBackLogoChange(
+        slot: BusinessCardBackLogoSlot,
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) {
+        const file = e.target.files?.[0];
+        setBusinessCardBackLogoPreviews((previous) => ({
+            ...previous,
+            [slot]: file ? URL.createObjectURL(file) : null,
+        }));
     }
 
     return (
@@ -218,7 +260,9 @@ export default function Create({
                             <>
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>Company Information</CardTitle>
+                                        <CardTitle>
+                                            Company Information
+                                        </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
                                         <div className="grid gap-2">
@@ -260,14 +304,172 @@ export default function Create({
                                                         ? 'Change logo'
                                                         : 'Upload logo'}
                                                 </Button>
-                                                <InputError message={errors.logo} />
+                                                <InputError
+                                                    message={errors.logo}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label>
+                                                Business Card Front Logo
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                This logo appears on the front
+                                                side of employee business cards.
+                                            </p>
+                                            <div className="flex flex-col items-start gap-4">
+                                                <div className="relative flex size-28 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30">
+                                                    {businessCardLogoPreview ? (
+                                                        <img
+                                                            src={
+                                                                businessCardLogoPreview
+                                                            }
+                                                            alt="Business card logo preview"
+                                                            className="size-full object-contain p-1"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-muted-foreground">
+                                                            <ImagePlus className="mx-auto size-8" />
+                                                            <span className="mt-1 block text-xs">
+                                                                No logo
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <input
+                                                    ref={
+                                                        businessCardLogoInputRef
+                                                    }
+                                                    type="file"
+                                                    name="business_card_logo"
+                                                    accept="image/*"
+                                                    className="sr-only"
+                                                    onChange={
+                                                        handleBusinessCardLogoChange
+                                                    }
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        businessCardLogoInputRef.current?.click()
+                                                    }
+                                                >
+                                                    {businessCardLogoPreview
+                                                        ? 'Change business card logo'
+                                                        : 'Upload business card logo'}
+                                                </Button>
+                                                <InputError
+                                                    message={
+                                                        errors.business_card_logo
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-3 rounded-lg border border-border/80 bg-muted/20 p-3">
+                                            <div>
+                                                <Label>
+                                                    Business Card Back Logos
+                                                </Label>
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    Upload up to four logos for
+                                                    the back side of the
+                                                    employee business card.
+                                                </p>
+                                            </div>
+                                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                {businessCardBackLogoSlots.map(
+                                                    (slot) => (
+                                                        <div
+                                                            key={slot}
+                                                            className="flex flex-col items-start gap-3"
+                                                        >
+                                                            <p className="text-xs font-medium text-foreground">
+                                                                Back Logo {slot}
+                                                            </p>
+                                                            <div className="relative flex size-24 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/25 bg-background/70">
+                                                                {businessCardBackLogoPreviews[
+                                                                    slot
+                                                                ] ? (
+                                                                    <img
+                                                                        src={
+                                                                            businessCardBackLogoPreviews[
+                                                                                slot
+                                                                            ] ??
+                                                                            ''
+                                                                        }
+                                                                        alt={`Back logo ${slot} preview`}
+                                                                        className="size-full object-contain p-1"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-muted-foreground">
+                                                                        <ImagePlus className="mx-auto size-7" />
+                                                                        <span className="mt-1 block text-xs">
+                                                                            No
+                                                                            logo
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <input
+                                                                ref={(
+                                                                    element,
+                                                                ) => {
+                                                                    businessCardBackLogoInputRefs.current[
+                                                                        slot
+                                                                    ] = element;
+                                                                }}
+                                                                type="file"
+                                                                name={`business_card_back_logo_${slot}`}
+                                                                accept="image/*"
+                                                                className="sr-only"
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    handleBusinessCardBackLogoChange(
+                                                                        slot,
+                                                                        event,
+                                                                    )
+                                                                }
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    businessCardBackLogoInputRefs.current[
+                                                                        slot
+                                                                    ]?.click()
+                                                                }
+                                                            >
+                                                                {businessCardBackLogoPreviews[
+                                                                    slot
+                                                                ]
+                                                                    ? 'Change logo'
+                                                                    : 'Upload logo'}
+                                                            </Button>
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `business_card_back_logo_${slot}`
+                                                                    ]
+                                                                }
+                                                            />
+                                                        </div>
+                                                    ),
+                                                )}
                                             </div>
                                         </div>
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="company_name">
                                                 Company Name{' '}
-                                                <span className="text-destructive">*</span>
+                                                <span className="text-destructive">
+                                                    *
+                                                </span>
                                             </Label>
                                             <Input
                                                 id="company_name"
@@ -292,7 +494,7 @@ export default function Create({
                                                 value={companyAddress1}
                                                 onChange={(event) =>
                                                     setCompanyAddress1(
-                                                        event.target.value
+                                                        event.target.value,
                                                     )
                                                 }
                                                 placeholder="Street, number"
@@ -315,7 +517,7 @@ export default function Create({
                                                 value={companyAddress2}
                                                 onChange={(event) =>
                                                     setCompanyAddress2(
-                                                        event.target.value
+                                                        event.target.value,
                                                     )
                                                 }
                                                 placeholder="Suite, floor, etc."
@@ -334,7 +536,7 @@ export default function Create({
                                             <select
                                                 id="country_id"
                                                 name="country_id"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark]"
                                             >
                                                 <option value="">
                                                     Select country
@@ -365,7 +567,7 @@ export default function Create({
                                                 value={companyWebsite}
                                                 onChange={(event) =>
                                                     setCompanyWebsite(
-                                                        event.target.value
+                                                        event.target.value,
                                                     )
                                                 }
                                                 placeholder="https://example.com"
@@ -396,7 +598,8 @@ export default function Create({
                                     <CardHeader>
                                         <CardTitle>Signature Builder</CardTitle>
                                         <p className="text-sm text-muted-foreground">
-                                            Configure the signature visually. HTML is generated automatically.
+                                            Configure the signature visually.
+                                            HTML is generated automatically.
                                         </p>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
@@ -415,21 +618,19 @@ export default function Create({
                                             <Input
                                                 id="signature_address_line"
                                                 value={builderState.addressLine}
-                                                onChange={(event) =>
-                                                    {
-                                                        setSignatureAddressEdited(
-                                                            true
-                                                        );
-                                                        setBuilderState(
-                                                            (previous) => ({
-                                                                ...previous,
-                                                                addressLine:
-                                                                    event.target
-                                                                        .value,
-                                                            })
-                                                        );
-                                                    }
-                                                }
+                                                onChange={(event) => {
+                                                    setSignatureAddressEdited(
+                                                        true,
+                                                    );
+                                                    setBuilderState(
+                                                        (previous) => ({
+                                                            ...previous,
+                                                            addressLine:
+                                                                event.target
+                                                                    .value,
+                                                        }),
+                                                    );
+                                                }}
                                                 placeholder="Warehouse G-09, DAFZA, Po Box: 371961, Dubai ,UAE"
                                             />
                                         </div>
@@ -441,7 +642,9 @@ export default function Create({
                                                 </Label>
                                                 <Input
                                                     id="signature_office_phone"
-                                                    value={builderState.officePhone}
+                                                    value={
+                                                        builderState.officePhone
+                                                    }
                                                     onChange={(event) =>
                                                         setBuilderState(
                                                             (previous) => ({
@@ -449,7 +652,7 @@ export default function Create({
                                                                 officePhone:
                                                                     event.target
                                                                         .value,
-                                                            })
+                                                            }),
                                                         )
                                                     }
                                                     placeholder="+971 4 299 0060"
@@ -462,22 +665,19 @@ export default function Create({
                                                 <Input
                                                     id="signature_website"
                                                     value={builderState.website}
-                                                    onChange={(event) =>
-                                                        {
-                                                            setSignatureWebsiteEdited(
-                                                                true
-                                                            );
-                                                            setBuilderState(
-                                                                (previous) => ({
-                                                                    ...previous,
-                                                                    website:
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                })
-                                                            );
-                                                        }
-                                                    }
+                                                    onChange={(event) => {
+                                                        setSignatureWebsiteEdited(
+                                                            true,
+                                                        );
+                                                        setBuilderState(
+                                                            (previous) => ({
+                                                                ...previous,
+                                                                website:
+                                                                    event.target
+                                                                        .value,
+                                                            }),
+                                                        );
+                                                    }}
                                                     placeholder="primelogistics.ae"
                                                 />
                                             </div>
@@ -489,7 +689,9 @@ export default function Create({
                                             </Label>
                                             <select
                                                 id="signature_separator"
-                                                value={builderState.separatorStyle}
+                                                value={
+                                                    builderState.separatorStyle
+                                                }
                                                 onChange={(event) =>
                                                     setBuilderState(
                                                         (previous) => ({
@@ -500,10 +702,10 @@ export default function Create({
                                                                 'pipe'
                                                                     ? 'pipe'
                                                                     : 'letter_i',
-                                                        })
+                                                        }),
                                                     )
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px]"
+                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
                                             >
                                                 <option value="letter_i">
                                                     I
@@ -521,7 +723,7 @@ export default function Create({
                                                     (logo) => {
                                                         const active =
                                                             builderState.enabledLogoIds.includes(
-                                                                logo.id
+                                                                logo.id,
                                                             );
                                                         return (
                                                             <Button
@@ -535,14 +737,14 @@ export default function Create({
                                                                 size="sm"
                                                                 onClick={() =>
                                                                     toggleLogo(
-                                                                        logo.id
+                                                                        logo.id,
                                                                     )
                                                                 }
                                                             >
                                                                 {logo.label}
                                                             </Button>
                                                         );
-                                                    }
+                                                    },
                                                 )}
                                             </div>
                                         </div>
@@ -551,28 +753,26 @@ export default function Create({
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                onClick={() =>
-                                                    {
-                                                        setSignatureAddressEdited(
-                                                            false
-                                                        );
-                                                        setSignatureWebsiteEdited(
-                                                            false
-                                                        );
-                                                        setBuilderState(
-                                                            defaultBuilderStateFromCompanyProfile(
-                                                                {
-                                                                    company_address_1:
-                                                                        companyAddress1,
-                                                                    company_address_2:
-                                                                        companyAddress2,
-                                                                    website:
-                                                                        companyWebsite,
-                                                                }
-                                                            )
-                                                        );
-                                                    }
-                                                }
+                                                onClick={() => {
+                                                    setSignatureAddressEdited(
+                                                        false,
+                                                    );
+                                                    setSignatureWebsiteEdited(
+                                                        false,
+                                                    );
+                                                    setBuilderState(
+                                                        defaultBuilderStateFromCompanyProfile(
+                                                            {
+                                                                company_address_1:
+                                                                    companyAddress1,
+                                                                company_address_2:
+                                                                    companyAddress2,
+                                                                website:
+                                                                    companyWebsite,
+                                                            },
+                                                        ),
+                                                    );
+                                                }}
                                             >
                                                 Reset to Default Design
                                             </Button>
@@ -581,9 +781,11 @@ export default function Create({
                                                 variant="outline"
                                                 onClick={() => {
                                                     setIsAdvancedOpen(true);
-                                                    setUseAdvancedTemplate(true);
+                                                    setUseAdvancedTemplate(
+                                                        true,
+                                                    );
                                                     setAdvancedTemplate(
-                                                        generatedTemplate
+                                                        generatedTemplate,
                                                     );
                                                 }}
                                             >
@@ -612,7 +814,7 @@ export default function Create({
                                             open={isAdvancedOpen}
                                             onToggle={(event) => {
                                                 setIsAdvancedOpen(
-                                                    event.currentTarget.open
+                                                    event.currentTarget.open,
                                                 );
                                             }}
                                             className="rounded-lg border border-border/80 bg-muted/25 p-3"
@@ -630,7 +832,7 @@ export default function Create({
                                                         onChange={(event) =>
                                                             setUseAdvancedTemplate(
                                                                 event.target
-                                                                    .checked
+                                                                    .checked,
                                                             )
                                                         }
                                                     />
@@ -648,17 +850,20 @@ export default function Create({
                                                     value={advancedTemplate}
                                                     onChange={(event) =>
                                                         setAdvancedTemplate(
-                                                            event.target.value
+                                                            event.target.value,
                                                         )
                                                     }
                                                     onPaste={(event) => {
                                                         void handleSignatureTemplatePaste(
-                                                            event
+                                                            event,
                                                         );
                                                     }}
                                                 />
                                                 <p className="text-xs text-muted-foreground">
-                                                    Available placeholders: {signatureTokens.join(' , ')}
+                                                    Available placeholders:{' '}
+                                                    {signatureTokens.join(
+                                                        ' , ',
+                                                    )}
                                                 </p>
                                             </div>
                                         </details>
@@ -668,8 +873,10 @@ export default function Create({
                                         />
                                         <div className="rounded-lg border border-border/80 bg-muted/25 p-3">
                                             <p className="text-xs text-muted-foreground">
-                                                Name and designation style are fixed to your approved design.
-                                                Use the builder controls above without writing HTML.
+                                                Name and designation style are
+                                                fixed to your approved design.
+                                                Use the builder controls above
+                                                without writing HTML.
                                             </p>
                                         </div>
                                     </CardContent>

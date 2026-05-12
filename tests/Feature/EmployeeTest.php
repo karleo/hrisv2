@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
@@ -450,8 +451,9 @@ class EmployeeTest extends TestCase
             'code' => 'MON',
             'name' => 'Monitor',
         ]);
-        HardwareAssetValue::factory()->create([
+        $laptopValue = HardwareAssetValue::factory()->create([
             'hardware_id' => $laptop->id,
+            'asset_model' => 'Latitude 5440',
             'asset_value' => '2500.00',
             'asset_currency' => 'AED',
             'effective_from' => now()->subDay()->toDateString(),
@@ -469,10 +471,12 @@ class EmployeeTest extends TestCase
         ]);
         $approvedRequest->hardwareItems()->createMany([
             [
+                'hardware_asset_value_id' => $laptopValue->id,
                 'hardware_id' => $laptop->id,
                 'serial_number' => 'LAP-001',
                 'hardware_code_snapshot' => 'LAP',
                 'hardware_name_snapshot' => 'Laptop',
+                'asset_model_snapshot' => 'Latitude 5440',
                 'serial_number_snapshot' => 'LAP-001',
                 'asset_value_snapshot' => '2500.00',
                 'asset_currency_snapshot' => 'AED',
@@ -509,6 +513,7 @@ class EmployeeTest extends TestCase
             ->has('asset.0.hardware_items', 2)
             ->where('asset.0.hardware_items.0.hardware_name', 'Laptop')
             ->where('asset.0.hardware_items.0.hardware_code', 'LAP')
+            ->where('asset.0.hardware_items.0.asset_model', 'Latitude 5440')
             ->where('asset.0.hardware_items.0.serial_number', 'LAP-001')
             ->where('asset.0.hardware_items.0.asset_value', '2500.00')
             ->where('asset.0.hardware_items.0.asset_currency', 'AED')
@@ -516,6 +521,7 @@ class EmployeeTest extends TestCase
             ->where('asset.0.asset_totals.0.currency', 'AED')
             ->where('asset.0.hardware_items.1.hardware_name', 'Monitor')
             ->where('asset.0.hardware_items.1.hardware_code', 'MON')
+            ->where('asset.0.hardware_items.1.asset_model', null)
             ->where('asset.0.hardware_items.1.serial_number', 'MON-001')
         );
     }
@@ -722,19 +728,27 @@ class EmployeeTest extends TestCase
 
         $department = Department::factory()->create();
         $jobPosition = JobPosition::factory()->create();
+        $companyProfile = CompanyProfile::factory()->create();
         $employee = Employee::factory()->create([
             'department_id' => $department->id,
             'job_position_id' => $jobPosition->id,
+            'company_profile_id' => $companyProfile->id,
         ]);
 
         $photoPath = UploadedFile::fake()->create('photo.jpg', 100, 'image/jpeg')
             ->store("employees/{$employee->id}", 'public');
         $logoPath = UploadedFile::fake()->create('logo.png', 120, 'image/png')
             ->store("employees/{$employee->id}", 'public');
+        $businessCardLogoPath = UploadedFile::fake()->create('business-card-logo.png', 120, 'image/png')
+            ->store("employees/{$employee->id}", 'public');
+        $businessCardBackLogoPath = UploadedFile::fake()->create('business-card-back-logo.png', 120, 'image/png')
+            ->store("employees/{$employee->id}", 'public');
 
-        $employee->update([
-            'photo' => $photoPath,
-            'company_logo' => $logoPath,
+        $employee->update(['photo' => $photoPath]);
+        $companyProfile->update([
+            'logo' => $logoPath,
+            'business_card_logo' => $businessCardLogoPath,
+            'business_card_back_logo_1' => $businessCardBackLogoPath,
         ]);
 
         $response = $this->get(route('employees.business-card', $employee));
@@ -744,7 +758,35 @@ class EmployeeTest extends TestCase
             ->component('employees/business-card')
             ->where('employee.id', $employee->id)
             ->where('employee.photo_url', '/storage/'.$photoPath)
-            ->where('employee.company_logo_url', '/storage/'.$logoPath)
+            ->where('employee.company_profile.logo_url', '/storage/'.$logoPath)
+            ->where('employee.company_profile.business_card_logo_url', '/storage/'.$businessCardLogoPath)
+            ->where('employee.company_profile.business_card_back_logo_urls.0', '/storage/'.$businessCardBackLogoPath)
+        );
+    }
+
+    public function test_business_card_uses_company_master_when_employee_has_no_company_profile(): void
+    {
+        $companyProfile = CompanyProfile::factory()->create([
+            'company_name' => 'Prime Logistics',
+            'company_address_1' => '605, Business Avenue',
+            'company_address_2' => 'Port Saeed, Deira',
+            'website' => 'https://www.primelogistics.ae',
+        ]);
+        $employee = Employee::factory()->create([
+            'company_profile_id' => null,
+        ]);
+
+        $response = $this->get(route('employees.business-card', $employee));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('employees/business-card')
+            ->where('employee.id', $employee->id)
+            ->where('employee.company_profile.id', $companyProfile->id)
+            ->where('employee.company_profile.company_name', 'Prime Logistics')
+            ->where('employee.company_profile.company_address_1', '605, Business Avenue')
+            ->where('employee.company_profile.company_address_2', 'Port Saeed, Deira')
+            ->where('employee.company_profile.website', 'https://www.primelogistics.ae')
         );
     }
 

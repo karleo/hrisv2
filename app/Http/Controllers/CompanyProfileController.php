@@ -8,12 +8,23 @@ use App\Models\CompanyProfile;
 use App\Models\Country;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CompanyProfileController extends Controller
 {
+    /**
+     * @var list<string>
+     */
+    private const BUSINESS_CARD_BACK_LOGO_COLUMNS = [
+        'business_card_back_logo_1',
+        'business_card_back_logo_2',
+        'business_card_back_logo_3',
+        'business_card_back_logo_4',
+    ];
+
     /**
      * Display a listing of the company profiles.
      */
@@ -34,9 +45,7 @@ class CompanyProfileController extends Controller
             ->withQueryString();
 
         $companyProfiles->getCollection()->transform(function (CompanyProfile $profile) {
-            $profile->logo_url = $profile->logo
-                ? '/storage/'.ltrim($profile->logo, '/')
-                : null;
+            $this->attachLogoUrls($profile);
 
             return $profile;
         });
@@ -64,14 +73,16 @@ class CompanyProfileController extends Controller
     {
         $data = $request->validated();
         $logo = $data['logo'] ?? null;
-        unset($data['logo']);
+        $businessCardLogo = $data['business_card_logo'] ?? null;
+        $businessCardBackLogos = $this->extractBusinessCardBackLogos($data);
+        unset($data['logo'], $data['business_card_logo']);
+        foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
+            unset($data[$column]);
+        }
 
         $companyProfile = CompanyProfile::query()->create($data);
 
-        if ($logo) {
-            $path = $logo->store('company-profiles/'.$companyProfile->id, 'public');
-            $companyProfile->update(['logo' => $path]);
-        }
+        $this->storeUploadedLogos($companyProfile, $logo, $businessCardLogo, $businessCardBackLogos);
 
         return to_route('company-profiles.index');
     }
@@ -82,9 +93,7 @@ class CompanyProfileController extends Controller
     public function edit(CompanyProfile $companyProfile): Response
     {
         $companyProfile->load('country');
-        $companyProfile->logo_url = $companyProfile->logo
-            ? '/storage/'.ltrim($companyProfile->logo, '/')
-            : null;
+        $this->attachLogoUrls($companyProfile);
 
         return Inertia::render('company-profiles/edit', [
             'companyProfile' => $companyProfile,
@@ -99,17 +108,16 @@ class CompanyProfileController extends Controller
     {
         $data = $request->validated();
         $logo = $data['logo'] ?? null;
-        unset($data['logo']);
+        $businessCardLogo = $data['business_card_logo'] ?? null;
+        $businessCardBackLogos = $this->extractBusinessCardBackLogos($data);
+        unset($data['logo'], $data['business_card_logo']);
+        foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
+            unset($data[$column]);
+        }
 
         $companyProfile->update($data);
 
-        if ($logo) {
-            if ($companyProfile->logo) {
-                Storage::disk('public')->delete($companyProfile->logo);
-            }
-            $path = $logo->store('company-profiles/'.$companyProfile->id, 'public');
-            $companyProfile->update(['logo' => $path]);
-        }
+        $this->storeUploadedLogos($companyProfile, $logo, $businessCardLogo, $businessCardBackLogos, deleteExisting: true);
 
         return to_route('company-profiles.index');
     }
@@ -122,9 +130,99 @@ class CompanyProfileController extends Controller
         if ($companyProfile->logo) {
             Storage::disk('public')->delete($companyProfile->logo);
         }
+        if ($companyProfile->business_card_logo) {
+            Storage::disk('public')->delete($companyProfile->business_card_logo);
+        }
+        foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
+            if ($companyProfile->{$column}) {
+                Storage::disk('public')->delete($companyProfile->{$column});
+            }
+        }
         Storage::disk('public')->deleteDirectory('company-profiles/'.$companyProfile->id);
         $companyProfile->delete();
 
         return to_route('company-profiles.index');
+    }
+
+    private function attachLogoUrls(CompanyProfile $companyProfile): void
+    {
+        $companyProfile->logo_url = $companyProfile->logo
+            ? '/storage/'.ltrim($companyProfile->logo, '/')
+            : null;
+        $companyProfile->business_card_logo_url = $companyProfile->business_card_logo
+            ? '/storage/'.ltrim($companyProfile->business_card_logo, '/')
+            : null;
+        $companyProfile->business_card_back_logo_urls = array_map(
+            static fn (string $column): ?string => $companyProfile->{$column}
+                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                : null,
+            self::BUSINESS_CARD_BACK_LOGO_COLUMNS,
+        );
+        foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
+            $companyProfile->{$column.'_url'} = $companyProfile->{$column}
+                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                : null;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, UploadedFile|null>
+     */
+    private function extractBusinessCardBackLogos(array $data): array
+    {
+        $businessCardBackLogos = [];
+
+        foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
+            $file = $data[$column] ?? null;
+            $businessCardBackLogos[$column] = $file instanceof UploadedFile ? $file : null;
+        }
+
+        return $businessCardBackLogos;
+    }
+
+    /**
+     * @param  array<string, UploadedFile|null>  $businessCardBackLogos
+     */
+    private function storeUploadedLogos(
+        CompanyProfile $companyProfile,
+        ?UploadedFile $logo,
+        ?UploadedFile $businessCardLogo,
+        array $businessCardBackLogos = [],
+        bool $deleteExisting = false,
+    ): void {
+        $updates = [];
+
+        if ($logo instanceof UploadedFile) {
+            if ($deleteExisting && $companyProfile->logo) {
+                Storage::disk('public')->delete($companyProfile->logo);
+            }
+
+            $updates['logo'] = $logo->store('company-profiles/'.$companyProfile->id, 'public');
+        }
+
+        if ($businessCardLogo instanceof UploadedFile) {
+            if ($deleteExisting && $companyProfile->business_card_logo) {
+                Storage::disk('public')->delete($companyProfile->business_card_logo);
+            }
+
+            $updates['business_card_logo'] = $businessCardLogo->store('company-profiles/'.$companyProfile->id, 'public');
+        }
+
+        foreach ($businessCardBackLogos as $column => $businessCardBackLogo) {
+            if (! in_array($column, self::BUSINESS_CARD_BACK_LOGO_COLUMNS, true) || ! $businessCardBackLogo instanceof UploadedFile) {
+                continue;
+            }
+
+            if ($deleteExisting && $companyProfile->{$column}) {
+                Storage::disk('public')->delete($companyProfile->{$column});
+            }
+
+            $updates[$column] = $businessCardBackLogo->store('company-profiles/'.$companyProfile->id, 'public');
+        }
+
+        if ($updates !== []) {
+            $companyProfile->update($updates);
+        }
     }
 }

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Hardware;
+use App\Models\HardwareAssetValue;
 use App\Models\ItAssetRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,12 +30,28 @@ class ItAssetRequestSignaturesTest extends TestCase
             'department_id' => $department->id,
         ]);
 
-        /** @var ItAssetRequest $itAssetRequest */
-        $itAssetRequest = ItAssetRequest::factory()->create([
+        $itAssetRequest = ItAssetRequest::query()->create([
             'employee_id' => $employee->id,
             'department_id' => $department->id,
             'date' => '2026-03-31',
             'status' => 'submitted',
+        ]);
+        $hardware = Hardware::factory()->create([
+            'code' => 'CASE',
+            'name' => 'Computer Case',
+        ]);
+        $assetValue = HardwareAssetValue::factory()->create([
+            'hardware_id' => $hardware->id,
+            'asset_model' => 'Computer Case Model X',
+        ]);
+        $itAssetRequest->hardwareItems()->create([
+            'hardware_asset_value_id' => $assetValue->id,
+            'hardware_id' => $hardware->id,
+            'serial_number' => 'CASE-001',
+            'hardware_code_snapshot' => 'CASE',
+            'hardware_name_snapshot' => 'Computer Case',
+            'asset_model_snapshot' => 'Computer Case Model X',
+            'serial_number_snapshot' => 'CASE-001',
         ]);
 
         $response = $this->get(route('it-asset-requests.print', $itAssetRequest));
@@ -44,6 +62,8 @@ class ItAssetRequestSignaturesTest extends TestCase
             ->has('itAssetRequest')
             ->has('companyLogoUrl')
             ->where('itAssetRequest.id', $itAssetRequest->id)
+            ->where('hardwareItems.0.asset_model', 'Computer Case Model X')
+            ->where('hardwareItems.0.hardware.name', 'Computer Case')
         );
     }
 

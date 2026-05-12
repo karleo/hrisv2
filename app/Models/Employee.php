@@ -110,6 +110,16 @@ class Employee extends Model
         return $this->hasMany(EmployeeDocument::class);
     }
 
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(EmployeeMessage::class, 'sender_employee_id');
+    }
+
+    public function receivedMessages(): HasMany
+    {
+        return $this->hasMany(EmployeeMessage::class, 'recipient_employee_id');
+    }
+
     public function jobPosition(): BelongsTo
     {
         return $this->belongsTo(JobPosition::class);

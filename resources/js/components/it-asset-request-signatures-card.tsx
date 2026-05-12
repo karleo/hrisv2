@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { SignaturePad } from '@/components/signature-pad';
@@ -46,15 +47,23 @@ function IssuedBySignatureBlock({
     );
 
     return (
-        <div className="space-y-4 border-t border-border pt-8 md:border-t-0 md:border-l md:pl-8 md:pt-0">
+        <div className="space-y-4 border-t border-border pt-8 md:border-t-0 md:border-l md:pt-0 md:pl-8">
             <div className="grid min-w-0 gap-2">
-                <Label htmlFor="issued_by_employee_id">Issued by employee</Label>
+                <Label htmlFor="issued_by_employee_id">
+                    Issued by employee
+                </Label>
                 <select
                     id="issued_by_employee_id"
                     name="issued_by_employee_id"
-                    value={issuedByEmployeeId === '' ? '' : String(issuedByEmployeeId)}
+                    value={
+                        issuedByEmployeeId === ''
+                            ? ''
+                            : String(issuedByEmployeeId)
+                    }
                     onChange={(e) =>
-                        setIssuedByEmployeeId(e.target.value ? Number(e.target.value) : '')
+                        setIssuedByEmployeeId(
+                            e.target.value ? Number(e.target.value) : '',
+                        )
                     }
                     disabled={!allowIssuedBySignatureEdit}
                     className={selectClassName}
@@ -77,12 +86,17 @@ function IssuedBySignatureBlock({
             {allowIssuedBySignatureEdit ? (
                 <SignaturePad
                     label="Issued by signature"
-                    signatureUrl={itAssetRequest.issued_by_signature_url ?? null}
+                    signatureUrl={
+                        itAssetRequest.issued_by_signature_url ?? null
+                    }
                     submitUrl={signaturesUrl}
                     fieldName="issued_by_signature"
                     extraFormData={
                         issuedByEmployeeId !== ''
-                            ? { issued_by_employee_id: String(issuedByEmployeeId) }
+                            ? {
+                                  issued_by_employee_id:
+                                      String(issuedByEmployeeId),
+                              }
                             : undefined
                     }
                     visitOptions={{
@@ -106,13 +120,20 @@ function IssuedBySignatureBlock({
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">
-                            {issuedByReadonlyEmptyMessage ?? 'No signature on file.'}
+                            {issuedByReadonlyEmptyMessage ??
+                                'No signature on file.'}
                         </p>
                     )}
                     {itAssetRequest.issued_by_signature_url ? (
-                        <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                        <p className="text-xs text-muted-foreground">
+                            This signature is saved with the request and is
+                            locked after a decision.
+                        </p>
                     ) : issuedByReadonlyEmptyMessage ? null : (
-                        <p className="text-xs text-muted-foreground">Locked after decision.</p>
+                        <p className="text-xs text-muted-foreground">
+                            The issued-by signature can be added when the
+                            request is ready for approval.
+                        </p>
                     )}
                 </div>
             )}
@@ -121,8 +142,12 @@ function IssuedBySignatureBlock({
                     ? `${itAssetRequest.issued_by_employee.first_name} ${itAssetRequest.issued_by_employee.last_name}`
                     : issuedByEmployeeId !== ''
                       ? (() => {
-                            const emp = employees.find((e) => e.id === issuedByEmployeeId);
-                            return emp ? `${emp.first_name} ${emp.last_name}` : 'Issued by';
+                            const emp = employees.find(
+                                (e) => e.id === issuedByEmployeeId,
+                            );
+                            return emp
+                                ? `${emp.first_name} ${emp.last_name}`
+                                : 'Issued by';
                         })()
                       : 'Issued by'}
             </p>
@@ -161,6 +186,7 @@ export function ItAssetRequestSignaturesCard({
     allowEmployeeSignatureEdit = true,
     allowIssuedBySignatureEdit = true,
     issuedByReadonlyEmptyMessage,
+    approvalDecision,
 }: {
     itAssetRequest: ItAssetRequestSignatureProps;
     employees: SignatureEmployee[];
@@ -170,16 +196,18 @@ export function ItAssetRequestSignaturesCard({
     allowEmployeeSignatureEdit?: boolean;
     allowIssuedBySignatureEdit?: boolean;
     issuedByReadonlyEmptyMessage?: string;
+    approvalDecision?: ReactNode;
 }) {
     const only = [...visitOnly];
 
     return (
         <Card className={cn('print:hidden', className)}>
             <CardHeader>
-                <CardTitle>Signatures (sign in web portal)</CardTitle>
-                <p className="text-muted-foreground text-sm">
-                    Draw a signature below or replace an existing one. Click Save signature to store it. For issued-by,
-                    choose the employee first if needed, then save that signature.
+                <CardTitle>Request Signatures</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                    Employee signatures are captured while the request is still
+                    a draft. After submission, approval needs an issued-by
+                    employee and their saved signature before approving.
                 </p>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-start md:gap-10">
@@ -187,7 +215,9 @@ export function ItAssetRequestSignaturesCard({
                     {allowEmployeeSignatureEdit ? (
                         <SignaturePad
                             label="Employee signature"
-                            signatureUrl={itAssetRequest.employee_signature_url ?? null}
+                            signatureUrl={
+                                itAssetRequest.employee_signature_url ?? null
+                            }
                             submitUrl={signaturesUrl}
                             fieldName="employee_signature"
                             visitOptions={{
@@ -198,11 +228,15 @@ export function ItAssetRequestSignaturesCard({
                         />
                     ) : (
                         <div className="space-y-2">
-                            <p className="text-sm font-medium">Employee signature</p>
+                            <p className="text-sm font-medium">
+                                Employee signature
+                            </p>
                             {itAssetRequest.employee_signature_url ? (
                                 <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                                     <img
-                                        src={itAssetRequest.employee_signature_url}
+                                        src={
+                                            itAssetRequest.employee_signature_url
+                                        }
                                         alt="Employee signature"
                                         className="absolute inset-0 h-full w-full object-contain object-left-top"
                                         loading="eager"
@@ -210,9 +244,15 @@ export function ItAssetRequestSignaturesCard({
                                     />
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">No employee signature on file.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    No employee signature on file.
+                                </p>
                             )}
-                            <p className="text-xs text-muted-foreground">Locked after submission.</p>
+                            <p className="text-xs text-muted-foreground">
+                                Employee signature is locked after submission.
+                                Move the request back to draft if it must be
+                                changed.
+                            </p>
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground">
@@ -221,15 +261,20 @@ export function ItAssetRequestSignaturesCard({
                             : 'Employee'}
                     </p>
                 </div>
-                <IssuedBySignatureBlock
-                    key={`ib-${itAssetRequest.id}-${itAssetRequest.issued_by_employee_id ?? 'none'}`}
-                    itAssetRequest={itAssetRequest}
-                    employees={employees}
-                    signaturesUrl={signaturesUrl}
-                    visitOnly={only}
-                    allowIssuedBySignatureEdit={allowIssuedBySignatureEdit}
-                    issuedByReadonlyEmptyMessage={issuedByReadonlyEmptyMessage}
-                />
+                <div className="space-y-6">
+                    <IssuedBySignatureBlock
+                        key={`ib-${itAssetRequest.id}-${itAssetRequest.issued_by_employee_id ?? 'none'}`}
+                        itAssetRequest={itAssetRequest}
+                        employees={employees}
+                        signaturesUrl={signaturesUrl}
+                        visitOnly={only}
+                        allowIssuedBySignatureEdit={allowIssuedBySignatureEdit}
+                        issuedByReadonlyEmptyMessage={
+                            issuedByReadonlyEmptyMessage
+                        }
+                    />
+                    {approvalDecision}
+                </div>
             </CardContent>
         </Card>
     );

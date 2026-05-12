@@ -89,6 +89,7 @@ type EmployeeAssetHardwareItem = {
     hardware_id: number | null;
     hardware_code: string;
     hardware_name: string;
+    asset_model: string | null;
     serial_number: string | null;
     asset_value: string | null;
     asset_currency: string | null;
@@ -2157,7 +2158,7 @@ export default function Edit({
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full min-w-[1100px] text-sm">
+                                        <table className="w-full min-w-[1200px] text-sm">
                                             <thead>
                                                 <tr className="border-b bg-muted/40">
                                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -2165,6 +2166,9 @@ export default function Edit({
                                                     </th>
                                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                         Code
+                                                    </th>
+                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Model
                                                     </th>
                                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                         Serial Number
@@ -2197,6 +2201,9 @@ export default function Edit({
                                                                 {hardwareItem.hardware_code || '—'}
                                                             </td>
                                                             <td className="px-5 py-3 text-muted-foreground">
+                                                                {hardwareItem.asset_model || '—'}
+                                                            </td>
+                                                            <td className="px-5 py-3 text-muted-foreground">
                                                                 {hardwareItem.serial_number || '—'}
                                                             </td>
                                                             <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
@@ -2215,7 +2222,7 @@ export default function Edit({
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={7} className="px-5 py-6 text-center text-sm text-muted-foreground">
+                                                        <td colSpan={8} className="px-5 py-6 text-center text-sm text-muted-foreground">
                                                             No hardware items found.
                                                         </td>
                                                     </tr>

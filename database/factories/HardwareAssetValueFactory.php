@@ -20,8 +20,13 @@ class HardwareAssetValueFactory extends Factory
     {
         return [
             'hardware_id' => Hardware::factory(),
+            'asset_model' => fake()->optional()->bothify('Model-###'),
             'asset_value' => fake()->randomFloat(2, 100, 10000),
             'asset_currency' => 'AED',
+            'purchase_date' => fake()->optional()->dateTimeBetween('-3 years', 'now')?->format('Y-m-d'),
+            'vendor' => fake()->optional()->company(),
+            'serial_number' => fake()->optional()->bothify('SN-#####'),
+            'specs' => fake()->optional()->sentence(),
             'effective_from' => fake()->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
             'effective_to' => null,
             'is_active' => true,

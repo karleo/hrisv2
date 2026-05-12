@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -18,9 +19,14 @@ type Hardware = {
 type AssetValue = {
     id: number;
     hardware_id: number;
+    asset_model: string | null;
     asset_value: string | null;
     asset_currency: string | null;
-    effective_from: string;
+    purchase_date: string | null;
+    vendor: string | null;
+    serial_number: string | null;
+    specs: string | null;
+    effective_from: string | null;
     effective_to: string | null;
     is_active: boolean;
 };
@@ -61,7 +67,7 @@ export default function Edit({
 
                 <Heading
                     title="Edit Asset Value"
-                    description="Update hardware value, currency, and effective date"
+                    description="Update hardware valuation and asset details"
                 />
 
                 <div className="max-w-2xl">
@@ -106,9 +112,71 @@ export default function Edit({
 
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="asset_value">
-                                                    Asset Value <span className="text-destructive">*</span>
-                                                </Label>
+                                                <Label htmlFor="asset_model">Model</Label>
+                                                <Input
+                                                    id="asset_model"
+                                                    name="asset_model"
+                                                    maxLength={255}
+                                                    defaultValue={assetValue.asset_model ?? ''}
+                                                    placeholder="e.g. Latitude 5440"
+                                                />
+                                                <InputError message={errors.asset_model} />
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="serial_number">Serial Number</Label>
+                                                <Input
+                                                    id="serial_number"
+                                                    name="serial_number"
+                                                    maxLength={255}
+                                                    defaultValue={assetValue.serial_number ?? ''}
+                                                    placeholder="Asset serial number"
+                                                />
+                                                <InputError message={errors.serial_number} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="purchase_date">Purchase Date</Label>
+                                                <Input
+                                                    id="purchase_date"
+                                                    name="purchase_date"
+                                                    type="date"
+                                                    defaultValue={dateValue(assetValue.purchase_date)}
+                                                />
+                                                <InputError message={errors.purchase_date} />
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="vendor">Vendor</Label>
+                                                <Input
+                                                    id="vendor"
+                                                    name="vendor"
+                                                    maxLength={255}
+                                                    defaultValue={assetValue.vendor ?? ''}
+                                                    placeholder="Supplier or vendor"
+                                                />
+                                                <InputError message={errors.vendor} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="specs">Specs</Label>
+                                            <Textarea
+                                                id="specs"
+                                                name="specs"
+                                                rows={4}
+                                                maxLength={5000}
+                                                defaultValue={assetValue.specs ?? ''}
+                                                placeholder="Processor, RAM, storage, accessories, or other specifications"
+                                            />
+                                            <InputError message={errors.specs} />
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="asset_value">Asset Value</Label>
                                                 <Input
                                                     id="asset_value"
                                                     name="asset_value"
@@ -122,9 +190,7 @@ export default function Edit({
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="asset_currency">
-                                                    Currency <span className="text-destructive">*</span>
-                                                </Label>
+                                                <Label htmlFor="asset_currency">Currency</Label>
                                                 <select
                                                     id="asset_currency"
                                                     name="asset_currency"
@@ -145,33 +211,6 @@ export default function Edit({
                                                     ))}
                                                 </select>
                                                 <InputError message={errors.asset_currency} />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="effective_from">
-                                                    Effective From <span className="text-destructive">*</span>
-                                                </Label>
-                                                <Input
-                                                    id="effective_from"
-                                                    name="effective_from"
-                                                    type="date"
-                                                    required
-                                                    defaultValue={dateValue(assetValue.effective_from)}
-                                                />
-                                                <InputError message={errors.effective_from} />
-                                            </div>
-
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="effective_to">Effective To</Label>
-                                                <Input
-                                                    id="effective_to"
-                                                    name="effective_to"
-                                                    type="date"
-                                                    defaultValue={dateValue(assetValue.effective_to)}
-                                                />
-                                                <InputError message={errors.effective_to} />
                                             </div>
                                         </div>
 

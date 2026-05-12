@@ -16,8 +16,13 @@ class HardwareAssetValue extends Model
      */
     protected $fillable = [
         'hardware_id',
+        'asset_model',
         'asset_value',
         'asset_currency',
+        'purchase_date',
+        'vendor',
+        'serial_number',
+        'specs',
         'effective_from',
         'effective_to',
         'is_active',
@@ -30,6 +35,7 @@ class HardwareAssetValue extends Model
     {
         return [
             'asset_value' => 'decimal:2',
+            'purchase_date' => 'date',
             'effective_from' => 'date',
             'effective_to' => 'date',
             'is_active' => 'boolean',

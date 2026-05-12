@@ -30,9 +30,14 @@ type Hardware = {
 
 type AssetValue = {
     id: number;
+    asset_model: string | null;
     asset_value: string | null;
     asset_currency: string | null;
-    effective_from: string;
+    purchase_date: string | null;
+    vendor: string | null;
+    serial_number: string | null;
+    specs: string | null;
+    effective_from: string | null;
     effective_to: string | null;
     is_active: boolean;
     hardware: Hardware | null;
@@ -96,13 +101,13 @@ export default function Index({
                         <div>
                             <CardTitle>Asset Value Master</CardTitle>
                             <CardDescription>
-                                Manage hardware value, currency, and effective dates
+                                Manage hardware valuation, serials, vendors, and specifications
                             </CardDescription>
                         </div>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                             <DataTableToolbar
                                 searchUrl="/hardware-asset-values"
-                                searchPlaceholder="Search hardware or currency..."
+                                searchPlaceholder="Search hardware, serial, vendor, model..."
                                 filters={filters}
                                 autoSearch
                                 showSearchButton={false}
@@ -122,6 +127,9 @@ export default function Index({
                                     <tr className="border-b bg-muted/50">
                                         <th className="px-4 py-3 text-left font-medium">
                                             Hardware
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Asset Details
                                         </th>
                                         <th className="px-4 py-3 text-left font-medium">
                                             Value
@@ -144,7 +152,7 @@ export default function Index({
                                     {assetValues.data.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={6}
+                                                colSpan={7}
                                                 className="px-4 py-8 text-center text-muted-foreground"
                                             >
                                                 No asset values found.
@@ -162,6 +170,34 @@ export default function Index({
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
                                                         {item.hardware?.name ?? 'Hardware unavailable'}
+                                                    </div>
+                                                </td>
+                                                <td className="max-w-[260px] px-4 py-3 text-xs text-muted-foreground">
+                                                    <div className="space-y-1">
+                                                        <div>
+                                                            <span className="font-medium text-foreground">Model:</span>{' '}
+                                                            {item.asset_model ?? '—'}
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-foreground">Serial:</span>{' '}
+                                                            <span title={item.serial_number ?? undefined}>
+                                                                {item.serial_number ?? '—'}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-foreground">Vendor:</span>{' '}
+                                                            {item.vendor ?? '—'}
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-foreground">Purchased:</span>{' '}
+                                                            {formatDate(item.purchase_date)}
+                                                        </div>
+                                                        {item.specs ? (
+                                                            <div className="truncate" title={item.specs}>
+                                                                <span className="font-medium text-foreground">Specs:</span>{' '}
+                                                                {item.specs}
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 font-mono text-xs">

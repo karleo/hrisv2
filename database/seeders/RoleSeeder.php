@@ -83,6 +83,7 @@ class RoleSeeder extends Seeder
         foreach (PermissionModule::cases() as $module) {
             $isDashboard = $module === PermissionModule::Dashboard;
             $isTimeAttendance = $module === PermissionModule::TimeAttendance;
+            $isEmployeeMessages = $module === PermissionModule::EmployeeMessages;
 
             RoleModulePermission::query()->updateOrCreate(
                 [
@@ -90,10 +91,10 @@ class RoleSeeder extends Seeder
                     'module' => $module,
                 ],
                 [
-                    'can_access' => $isDashboard || $isTimeAttendance,
-                    'can_view' => $isDashboard || $isTimeAttendance,
-                    'can_create' => false,
-                    'can_update' => false,
+                    'can_access' => $isDashboard || $isTimeAttendance || $isEmployeeMessages,
+                    'can_view' => $isDashboard || $isTimeAttendance || $isEmployeeMessages,
+                    'can_create' => $isEmployeeMessages,
+                    'can_update' => $isEmployeeMessages,
                     'can_delete' => false,
                     'can_check_in' => false,
                     'can_check_out' => false,

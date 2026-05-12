@@ -73,7 +73,7 @@ class ItAssetRequestController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'hardware' => $this->valuation->hardwareOptions(),
+            'hardware' => $this->valuation->assetOptions(),
             'defaultEmployeeId' => $request->user()?->employee?->id,
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => [],
@@ -88,7 +88,7 @@ class ItAssetRequestController extends Controller
         $data = $request->validated();
         $hardwareItems = $this->normalizeHardwareItemsInput($data);
         $hardwareItems = $this->valuation->withSnapshots($hardwareItems);
-        $hardwareIds = array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems);
+        $hardwareIds = array_values(array_unique(array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems)));
         $legacySerialNumber = $this->deriveLegacySerialNumber($hardwareItems, $data['serial_number'] ?? null);
 
         $itAssetRequest = DB::transaction(function () use ($data, $hardwareItems, $hardwareIds, $legacySerialNumber): ItAssetRequest {
@@ -110,6 +110,14 @@ class ItAssetRequestController extends Controller
             return $itAssetRequest;
         });
 
+        $signaturePath = $this->storeSignatureFromDataUrl(
+            $data['employee_signature_data_url'] ?? null,
+            "it-asset-requests/{$itAssetRequest->id}/signatures",
+        );
+        if ($signaturePath !== null) {
+            $itAssetRequest->update(['employee_signature' => $signaturePath]);
+        }
+
         return to_route('it-asset-requests.show', $itAssetRequest);
     }
 
@@ -120,7 +128,7 @@ class ItAssetRequestController extends Controller
     {
         $actor = request()->user();
         $this->assertCanView($actor, $it_asset_request);
-        $it_asset_request->load(['employee', 'department', 'issuedByEmployee', 'hardwareItems.hardware']);
+        $it_asset_request->load(['employee', 'department', 'issuedByEmployee', 'hardwareItems.hardware', 'hardwareItems.hardwareAssetValue']);
         $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
         $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($it_asset_request);
 
@@ -207,6 +215,7 @@ class ItAssetRequestController extends Controller
         }
 
         $remarks = isset($validated['remarks']) ? trim((string) $validated['remarks']) : null;
+        $decidedAt = now();
         if ($validated['decision'] === 'approved') {
             $this->valuation->fillMissingSnapshots($it_asset_request);
         }
@@ -214,7 +223,8 @@ class ItAssetRequestController extends Controller
         $it_asset_request->update([
             'status' => $validated['decision'],
             'decision_remarks' => $remarks !== '' ? $remarks : null,
-            'decided_at' => now(),
+            'decided_at' => $decidedAt,
+            'date_issued' => $validated['decision'] === 'approved' ? $decidedAt->toDateString() : $it_asset_request->date_issued,
             'issued_by_employee_id' => $it_asset_request->issued_by_employee_id,
         ]);
 
@@ -245,7 +255,7 @@ class ItAssetRequestController extends Controller
     public function print(ItAssetRequest $it_asset_request): Response
     {
         $this->assertCanView(request()->user(), $it_asset_request);
-        $it_asset_request->load(['employee.companyProfile', 'department', 'issuedByEmployee', 'hardwareItems.hardware']);
+        $it_asset_request->load(['employee.companyProfile', 'department', 'issuedByEmployee', 'hardwareItems.hardware', 'hardwareItems.hardwareAssetValue']);
         $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($it_asset_request);
         $hardware = array_map(fn (array $item): array => $item['hardware'], $hardwareItems);
 
@@ -273,7 +283,7 @@ class ItAssetRequestController extends Controller
         $actor = request()->user();
         $this->assertCanModify($actor, $it_asset_request);
         $this->assertEditableStatus($it_asset_request);
-        $it_asset_request->load(['employee', 'department', 'issuedByEmployee', 'hardwareItems.hardware']);
+        $it_asset_request->load(['employee', 'department', 'issuedByEmployee', 'hardwareItems.hardware', 'hardwareItems.hardwareAssetValue']);
         $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
         $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($it_asset_request);
 
@@ -294,7 +304,7 @@ class ItAssetRequestController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'hardware' => $this->valuation->hardwareOptions(),
+            'hardware' => $this->valuation->assetOptions(),
             'hardwareItems' => $hardwareItems,
             'assetTotals' => $this->valuation->totalsForHardwareItems($hardwareItems),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
@@ -317,7 +327,7 @@ class ItAssetRequestController extends Controller
         $data = $request->validated();
         $hardwareItems = $this->normalizeHardwareItemsInput($data);
         $hardwareItems = $this->valuation->withSnapshots($hardwareItems);
-        $hardwareIds = array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems);
+        $hardwareIds = array_values(array_unique(array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems)));
         $legacySerialNumber = $this->deriveLegacySerialNumber($hardwareItems, $data['serial_number'] ?? null);
         $status = $data['status'] ?? $it_asset_request->status;
 
@@ -393,6 +403,27 @@ class ItAssetRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Signatures updated successfully.');
+    }
+
+    private function storeSignatureFromDataUrl(?string $dataUrl, string $directory): ?string
+    {
+        if ($dataUrl === null || $dataUrl === '') {
+            return null;
+        }
+
+        if (! preg_match('/^data:image\/png;base64,(.+)$/', $dataUrl, $matches)) {
+            return null;
+        }
+
+        $binary = base64_decode($matches[1], true);
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        $path = $directory.'/signature-'.uniqid().'.png';
+        Storage::disk('public')->put($path, $binary);
+
+        return $path;
     }
 
     /**
@@ -558,7 +589,7 @@ class ItAssetRequestController extends Controller
 
     /**
      * @param  array<string, mixed>  $data
-     * @return array<int, array{hardware_id: int, serial_number: string|null}>
+     * @return array<int, array{hardware_asset_value_id: int|null, hardware_id: int, serial_number: string|null}>
      */
     private function normalizeHardwareItemsInput(array $data): array
     {
@@ -572,12 +603,17 @@ class ItAssetRequestController extends Controller
                 }
 
                 $hardwareId = (int) $item['hardware_id'];
-                if ($hardwareId <= 0 || isset($items[$hardwareId])) {
+                $assetValueId = isset($item['hardware_asset_value_id']) && $item['hardware_asset_value_id'] !== null
+                    ? (int) $item['hardware_asset_value_id']
+                    : null;
+                $itemKey = $assetValueId !== null ? 'asset:'.$assetValueId : 'hardware:'.$hardwareId;
+                if ($hardwareId <= 0 || isset($items[$itemKey])) {
                     continue;
                 }
 
                 $serialNumber = isset($item['serial_number']) ? trim((string) $item['serial_number']) : '';
-                $items[$hardwareId] = [
+                $items[$itemKey] = [
+                    'hardware_asset_value_id' => $assetValueId,
                     'hardware_id' => $hardwareId,
                     'serial_number' => $serialNumber !== '' ? $serialNumber : null,
                 ];
@@ -601,6 +637,7 @@ class ItAssetRequestController extends Controller
             }
 
             $items[$hardwareId] = [
+                'hardware_asset_value_id' => null,
                 'hardware_id' => $hardwareId,
                 'serial_number' => count($legacyHardwareIds) === 1 ? $legacySerial : null,
             ];
@@ -610,7 +647,7 @@ class ItAssetRequestController extends Controller
     }
 
     /**
-     * @param  array<int, array{hardware_id: int, serial_number: string|null}>  $hardwareItems
+     * @param  array<int, array{hardware_asset_value_id: int|null, hardware_id: int, serial_number: string|null}>  $hardwareItems
      */
     private function deriveLegacySerialNumber(array $hardwareItems, mixed $fallback): ?string
     {

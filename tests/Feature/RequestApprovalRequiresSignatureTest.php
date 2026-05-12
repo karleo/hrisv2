@@ -12,6 +12,7 @@ use App\Models\LeaveType;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class RequestApprovalRequiresSignatureTest extends TestCase
@@ -158,6 +159,36 @@ class RequestApprovalRequiresSignatureTest extends TestCase
         $itAssetRequest->refresh();
         $this->assertSame('submitted', strtolower((string) $itAssetRequest->status));
         $this->assertNull($itAssetRequest->issued_by_employee_id);
+    }
+
+    public function test_it_asset_request_approval_sets_issued_date(): void
+    {
+        Carbon::setTestNow('2026-05-11 14:15:00');
+        [$department, $employee] = $this->departmentEmployeeAndRequester();
+        $issuer = Employee::factory()->create();
+
+        $itAssetRequest = ItAssetRequest::query()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $department->id,
+            'date' => '2026-04-10',
+            'date_issued' => null,
+            'status' => 'submitted',
+            'issued_by_signature' => 'it-asset-requests/test/signatures/issued-by.png',
+            'issued_by_employee_id' => $issuer->id,
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('it-asset-requests.decide', $itAssetRequest), [
+                'decision' => 'approved',
+            ])
+            ->assertSessionMissing('error')
+            ->assertRedirect();
+
+        $itAssetRequest->refresh();
+        $this->assertSame('approved', strtolower((string) $itAssetRequest->status));
+        $this->assertSame('2026-05-11', $itAssetRequest->date_issued?->toDateString());
+
+        Carbon::setTestNow();
     }
 
     public function test_leave_request_can_be_rejected_without_manager_signature(): void

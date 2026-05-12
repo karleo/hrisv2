@@ -18,8 +18,8 @@ class ItAssetValuation
     }
 
     /**
-     * @param  array<int, array{hardware_id: int, serial_number: string|null}>  $hardwareItems
-     * @return array<int, array{hardware_id: int, serial_number: string|null, hardware_code_snapshot: string|null, hardware_name_snapshot: string|null, serial_number_snapshot: string|null, asset_value_snapshot: string|null, asset_currency_snapshot: string|null}>
+     * @param  array<int, array{hardware_asset_value_id?: int|null, hardware_id: int, serial_number: string|null}>  $hardwareItems
+     * @return array<int, array{hardware_asset_value_id: int|null, hardware_id: int, serial_number: string|null, hardware_code_snapshot: string|null, hardware_name_snapshot: string|null, asset_model_snapshot: string|null, serial_number_snapshot: string|null, asset_value_snapshot: string|null, asset_currency_snapshot: string|null}>
      */
     public function withSnapshots(array $hardwareItems): array
     {
@@ -28,21 +28,42 @@ class ItAssetValuation
         }
 
         $hardwareIds = array_map(fn (array $item): int => $item['hardware_id'], $hardwareItems);
+        $assetValueIds = array_values(array_unique(array_filter(
+            array_map(fn (array $item): ?int => isset($item['hardware_asset_value_id']) ? (int) $item['hardware_asset_value_id'] : null, $hardwareItems),
+            fn (?int $id): bool => $id !== null && $id > 0,
+        )));
         $hardwareById = Hardware::withTrashed()
             ->whereIn('id', $hardwareIds)
             ->get(['id', 'code', 'name'])
             ->keyBy('id');
+        $assetValuesById = HardwareAssetValue::with('hardware:id,code,name')
+            ->whereIn('id', $assetValueIds)
+            ->get()
+            ->keyBy('id');
         $assetValuesByHardwareId = $this->latestActiveValuesForHardwareIds($hardwareIds);
 
-        return array_map(function (array $item) use ($hardwareById, $assetValuesByHardwareId): array {
-            $hardware = $hardwareById->get($item['hardware_id']);
-            $assetValue = $assetValuesByHardwareId->get($item['hardware_id']);
+        return array_map(function (array $item) use ($hardwareById, $assetValuesById, $assetValuesByHardwareId): array {
+            $assetValueId = isset($item['hardware_asset_value_id']) && $item['hardware_asset_value_id'] !== null
+                ? (int) $item['hardware_asset_value_id']
+                : null;
+            $selectedAssetValue = $assetValueId !== null ? $assetValuesById->get($assetValueId) : null;
+            $hardwareId = $selectedAssetValue !== null ? (int) $selectedAssetValue->hardware_id : (int) $item['hardware_id'];
+            $hardware = $selectedAssetValue?->hardware ?? $hardwareById->get($hardwareId);
+            $assetValue = $selectedAssetValue ?? $assetValuesByHardwareId->get($hardwareId);
+            $serialNumber = $item['serial_number'] ?? null;
+            if (blank($serialNumber) && filled($selectedAssetValue?->serial_number)) {
+                $serialNumber = (string) $selectedAssetValue->serial_number;
+            }
 
             return [
                 ...$item,
+                'hardware_asset_value_id' => $assetValueId,
+                'hardware_id' => $hardwareId,
+                'serial_number' => $serialNumber,
                 'hardware_code_snapshot' => $hardware?->code,
                 'hardware_name_snapshot' => $hardware?->name,
-                'serial_number_snapshot' => $item['serial_number'],
+                'asset_model_snapshot' => $assetValue?->asset_model,
+                'serial_number_snapshot' => $serialNumber,
                 'asset_value_snapshot' => $assetValue?->asset_value,
                 'asset_currency_snapshot' => $this->normalizeCurrency($assetValue?->asset_currency),
             ];
@@ -51,13 +72,13 @@ class ItAssetValuation
 
     public function fillMissingSnapshots(ItAssetRequest $itAssetRequest): void
     {
-        $itAssetRequest->loadMissing('hardwareItems.hardware');
+        $itAssetRequest->loadMissing('hardwareItems.hardware', 'hardwareItems.hardwareAssetValue');
         $assetValuesByHardwareId = $this->latestActiveValuesForHardwareIds(
             $itAssetRequest->hardwareItems->pluck('hardware_id')->map(fn ($id): int => (int) $id)->all()
         );
 
         foreach ($itAssetRequest->hardwareItems as $item) {
-            $assetValue = $assetValuesByHardwareId->get((int) $item->hardware_id);
+            $assetValue = $item->hardwareAssetValue ?? $assetValuesByHardwareId->get((int) $item->hardware_id);
             $updates = [];
 
             if (blank($item->hardware_code_snapshot) && filled($item->hardware?->code)) {
@@ -70,6 +91,10 @@ class ItAssetValuation
 
             if (blank($item->serial_number_snapshot) && filled($item->serial_number)) {
                 $updates['serial_number_snapshot'] = $item->serial_number;
+            }
+
+            if (blank($item->asset_model_snapshot) && filled($assetValue?->asset_model)) {
+                $updates['asset_model_snapshot'] = $assetValue->asset_model;
             }
 
             if ($item->asset_value_snapshot === null && $assetValue?->asset_value !== null) {
@@ -87,7 +112,7 @@ class ItAssetValuation
     }
 
     /**
-     * @return array<int, array{hardware_id: int|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null, hardware: array{id: int|null, code: string, name: string}}>
+     * @return array<int, array{hardware_asset_value_id: int|null, hardware_id: int|null, asset_model: string|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null, hardware: array{id: int|null, code: string, name: string}}>
      */
     public function resolvedHardwareItemsForDisplay(ItAssetRequest $itAssetRequest): array
     {
@@ -101,7 +126,9 @@ class ItAssetValuation
                 }
 
                 return [
+                    'hardware_asset_value_id' => $item->hardware_asset_value_id !== null ? (int) $item->hardware_asset_value_id : null,
                     'hardware_id' => (int) $item->hardware_id,
+                    'asset_model' => $item->asset_model_snapshot ?: $item->hardwareAssetValue?->asset_model,
                     'serial_number' => $item->hardware !== null
                         ? ($item->serial_number !== null && $item->serial_number !== '' ? (string) $item->serial_number : null)
                         : ($item->serial_number_snapshot !== null && $item->serial_number_snapshot !== ''
@@ -189,6 +216,34 @@ class ItAssetValuation
     }
 
     /**
+     * @return array<int, array{id: int, hardware_id: int, code: string, name: string, asset_model: string|null, serial_number: string|null, vendor: string|null, specs: string|null, asset_value: string|null, asset_currency: string|null}>
+     */
+    public function assetOptions(): array
+    {
+        return $this->activeAssetValueQuery()
+            ->with('hardware:id,code,name')
+            ->orderBy('asset_model')
+            ->orderBy('serial_number')
+            ->orderByDesc('id')
+            ->get()
+            ->filter(fn (HardwareAssetValue $assetValue): bool => $assetValue->hardware !== null)
+            ->map(fn (HardwareAssetValue $assetValue): array => [
+                'id' => (int) $assetValue->id,
+                'hardware_id' => (int) $assetValue->hardware_id,
+                'code' => (string) $assetValue->hardware->code,
+                'name' => (string) $assetValue->hardware->name,
+                'asset_model' => $assetValue->asset_model,
+                'serial_number' => $assetValue->serial_number,
+                'vendor' => $assetValue->vendor,
+                'specs' => $assetValue->specs,
+                'asset_value' => $assetValue->asset_value !== null ? (string) $assetValue->asset_value : null,
+                'asset_currency' => $this->normalizeCurrency($assetValue->asset_currency),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<int, int>  $hardwareIds
      * @return Collection<int, HardwareAssetValue>
      */
@@ -201,15 +256,10 @@ class ItAssetValuation
 
         $today = now()->toDateString();
 
-        return HardwareAssetValue::query()
+        return $this->activeAssetValueQuery()
             ->whereIn('hardware_id', $hardwareIds)
-            ->where('is_active', true)
-            ->whereDate('effective_from', '<=', $today)
-            ->where(function ($query) use ($today): void {
-                $query->whereNull('effective_to')
-                    ->orWhereDate('effective_to', '>=', $today);
-            })
             ->orderBy('hardware_id')
+            ->orderByRaw('CASE WHEN effective_from IS NULL THEN 1 ELSE 0 END')
             ->orderByDesc('effective_from')
             ->orderByDesc('id')
             ->get()
@@ -217,8 +267,24 @@ class ItAssetValuation
             ->keyBy('hardware_id');
     }
 
+    private function activeAssetValueQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $today = now()->toDateString();
+
+        return HardwareAssetValue::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($today): void {
+                $query->whereNull('effective_from')
+                    ->orWhereDate('effective_from', '<=', $today);
+            })
+            ->where(function ($query) use ($today): void {
+                $query->whereNull('effective_to')
+                    ->orWhereDate('effective_to', '>=', $today);
+            });
+    }
+
     /**
-     * @return array<int, array{hardware_id: int|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null, hardware: array{id: int|null, code: string, name: string}}>
+     * @return array<int, array{hardware_asset_value_id: int|null, hardware_id: int|null, asset_model: string|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null, hardware: array{id: int|null, code: string, name: string}}>
      */
     private function legacyHardwareItemsForDisplay(ItAssetRequest $itAssetRequest): array
     {
@@ -244,7 +310,9 @@ class ItAssetValuation
             }
 
             $resolved[] = [
+                'hardware_asset_value_id' => null,
                 'hardware_id' => $hardwareId,
+                'asset_model' => null,
                 'serial_number' => $index === 0 ? $singleLegacySerial : null,
                 'asset_value' => null,
                 'asset_currency' => null,

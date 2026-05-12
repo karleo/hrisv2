@@ -15,7 +15,7 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->decimal('asset_value', 14, 2)->nullable();
             $table->string('asset_currency', 3)->nullable();
-            $table->date('effective_from');
+            $table->date('effective_from')->nullable();
             $table->date('effective_to')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

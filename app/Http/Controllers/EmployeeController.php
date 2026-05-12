@@ -845,14 +845,13 @@ class EmployeeController extends Controller
     public function businessCard(Request $request, Employee $employee): Response
     {
         $employee->load(['department', 'jobPosition', 'companyProfile']);
+        $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
-        if ($employee->relationLoaded('companyProfile') && $employee->companyProfile) {
-            $employee->companyProfile->logo_url = $employee->companyProfile->logo
-                ? '/storage/'.ltrim($employee->companyProfile->logo, '/')
-                : null;
-        }
+        $employee->company_logo_url = $employee->getAttribute('company_logo')
+            ? '/storage/'.ltrim((string) $employee->getAttribute('company_logo'), '/')
+            : null;
 
         return Inertia::render('employees/business-card', [
             'employee' => $employee,
@@ -864,24 +863,66 @@ class EmployeeController extends Controller
     public function businessCardEmbed(Employee $employee): ViewContract
     {
         $employee->load(['department', 'jobPosition', 'companyProfile']);
+        $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
-        if ($employee->relationLoaded('companyProfile') && $employee->companyProfile) {
-            $employee->companyProfile->logo_url = $employee->companyProfile->logo
-                ? '/storage/'.ltrim($employee->companyProfile->logo, '/')
-                : null;
-        }
-
+        $employee->company_logo_url = $employee->getAttribute('company_logo')
+            ? '/storage/'.ltrim((string) $employee->getAttribute('company_logo'), '/')
+            : null;
         $appName = (string) config('app.name');
         $vCard = $this->buildEmployeeVCard($employee, $appName);
-        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=52x52&data='.rawurlencode($vCard);
+        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data='.rawurlencode($vCard);
 
         return view('employees.business-card-embed', [
             'employee' => $employee,
             'appName' => $appName,
             'qrCodeUrl' => $qrCodeUrl,
         ]);
+    }
+
+    private function attachBusinessCardCompanyProfile(Employee $employee): void
+    {
+        if ($employee->companyProfile !== null) {
+            $this->attachCompanyProfileBusinessCardLogoUrls($employee->companyProfile);
+
+            return;
+        }
+
+        $companyProfile = CompanyProfile::query()
+            ->orderBy('id')
+            ->first();
+
+        if ($companyProfile === null) {
+            return;
+        }
+
+        $this->attachCompanyProfileBusinessCardLogoUrls($companyProfile);
+        $employee->setRelation('companyProfile', $companyProfile);
+    }
+
+    private function attachCompanyProfileBusinessCardLogoUrls(CompanyProfile $companyProfile): void
+    {
+        $companyProfile->logo_url = $companyProfile->logo
+            ? '/storage/'.ltrim($companyProfile->logo, '/')
+            : null;
+        $companyProfile->business_card_logo_url = $companyProfile->business_card_logo
+            ? '/storage/'.ltrim($companyProfile->business_card_logo, '/')
+            : null;
+
+        $businessCardBackLogoColumns = [
+            'business_card_back_logo_1',
+            'business_card_back_logo_2',
+            'business_card_back_logo_3',
+            'business_card_back_logo_4',
+        ];
+
+        $companyProfile->business_card_back_logo_urls = array_map(
+            static fn (string $column): ?string => $companyProfile->{$column}
+                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                : null,
+            $businessCardBackLogoColumns,
+        );
     }
 
     /**
@@ -1236,6 +1277,7 @@ class EmployeeController extends Controller
             ->with([
                 'issuedByEmployee:id,first_name,last_name',
                 'hardwareItems.hardware:id,code,name',
+                'hardwareItems.hardwareAssetValue:id,asset_model',
             ])
             ->where('employee_id', $employee->id)
             ->where('status', 'approved')
@@ -1265,7 +1307,7 @@ class EmployeeController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $hardwareItems
-     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, serial_number: string|null, asset_value: string|null, asset_currency: string|null}>
+     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, asset_model: string|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null}>
      */
     private function assetHardwareItems(array $hardwareItems): array
     {
@@ -1274,6 +1316,7 @@ class EmployeeController extends Controller
                 'hardware_id' => $item['hardware']['id'] ?? $item['hardware_id'] ?? null,
                 'hardware_code' => (string) ($item['hardware']['code'] ?? ''),
                 'hardware_name' => (string) ($item['hardware']['name'] ?? ''),
+                'asset_model' => $item['asset_model'] ?? null,
                 'serial_number' => $item['serial_number'] ?? null,
                 'asset_value' => $item['asset_value'] ?? null,
                 'asset_currency' => $item['asset_currency'] ?? null,

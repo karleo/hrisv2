@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property string|null $logo
+ * @property string|null $business_card_logo
+ * @property string|null $business_card_back_logo_1
+ * @property string|null $business_card_back_logo_2
+ * @property string|null $business_card_back_logo_3
+ * @property string|null $business_card_back_logo_4
  * @property string $company_name
  * @property string|null $company_address_1
  * @property string|null $company_address_2
@@ -30,6 +35,11 @@ class CompanyProfile extends Model
      */
     protected $fillable = [
         'logo',
+        'business_card_logo',
+        'business_card_back_logo_1',
+        'business_card_back_logo_2',
+        'business_card_back_logo_3',
+        'business_card_back_logo_4',
         'company_name',
         'company_address_1',
         'company_address_2',

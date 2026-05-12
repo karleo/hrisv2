@@ -22,6 +22,9 @@ class HardwareAssetValueController extends Controller
                 fn ($query) => $query->where(function ($searchQuery) use ($request): void {
                     $search = (string) $request->search;
                     $searchQuery->where('asset_currency', 'like', '%'.$search.'%')
+                        ->orWhere('asset_model', 'like', '%'.$search.'%')
+                        ->orWhere('vendor', 'like', '%'.$search.'%')
+                        ->orWhere('serial_number', 'like', '%'.$search.'%')
                         ->orWhereHas('hardware', function ($hardwareQuery) use ($search): void {
                             $hardwareQuery->where('code', 'like', '%'.$search.'%')
                                 ->orWhere('name', 'like', '%'.$search.'%');

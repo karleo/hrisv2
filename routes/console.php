@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\PruneOldEmployeeMessages;
 use App\Console\Commands\SendEmployeeDocumentExpiryNotifications;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -11,4 +12,8 @@ Artisan::command('inspire', function () {
 
 Schedule::command(SendEmployeeDocumentExpiryNotifications::class)
     ->daily()
+    ->withoutOverlapping();
+
+Schedule::command(PruneOldEmployeeMessages::class)
+    ->hourly()
     ->withoutOverlapping();

@@ -29,19 +29,35 @@ type ControlledSignaturePadProps = {
     onSave?: (dataUrl: string | null) => void;
 };
 
-type SignaturePadProps = AutoSubmitSignaturePadProps | ControlledSignaturePadProps;
+type SignaturePadProps =
+    | AutoSubmitSignaturePadProps
+    | ControlledSignaturePadProps;
+
+function isAutoSubmitSignaturePadProps(
+    props: SignaturePadProps,
+): props is AutoSubmitSignaturePadProps {
+    return (
+        'submitUrl' in props &&
+        'fieldName' in props &&
+        typeof props.submitUrl === 'string' &&
+        props.submitUrl.length > 0
+    );
+}
 
 export function SignaturePad(props: SignaturePadProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const isAutoSubmitMode = 'submitUrl' in props && 'fieldName' in props && typeof props.submitUrl === 'string' && props.submitUrl.length > 0;
+    const isAutoSubmitMode = isAutoSubmitSignaturePadProps(props);
 
     const page = usePage();
     const { errors, csrf_token: csrfFromPage } = page.props as {
         errors?: Partial<
             Record<
-                'employee_signature' | 'approved_by_signature' | 'issued_by_signature' | 'ceo_signature',
+                | 'employee_signature'
+                | 'approved_by_signature'
+                | 'issued_by_signature'
+                | 'ceo_signature',
                 string
             >
         >;
@@ -66,22 +82,52 @@ export function SignaturePad(props: SignaturePadProps) {
         syncDrawingStyle();
     }, [syncDrawingStyle]);
 
-    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const startDrawing = (
+        e:
+            | React.MouseEvent<HTMLCanvasElement>
+            | React.TouchEvent<HTMLCanvasElement>,
+    ) => {
         syncDrawingStyle();
         const ctx = getContext();
         if (!ctx) return;
-        const { offsetX, offsetY } = 'touches' in e ? { offsetX: e.touches[0].clientX - (e.currentTarget.getBoundingClientRect?.()?.left ?? 0), offsetY: e.touches[0].clientY - (e.currentTarget.getBoundingClientRect?.()?.top ?? 0) } : e.nativeEvent;
+        const { offsetX, offsetY } =
+            'touches' in e
+                ? {
+                      offsetX:
+                          e.touches[0].clientX -
+                          (e.currentTarget.getBoundingClientRect?.()?.left ??
+                              0),
+                      offsetY:
+                          e.touches[0].clientY -
+                          (e.currentTarget.getBoundingClientRect?.()?.top ?? 0),
+                  }
+                : e.nativeEvent;
         ctx.beginPath();
         ctx.moveTo(offsetX, offsetY);
         setIsDrawing(true);
     };
 
-    const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const draw = (
+        e:
+            | React.MouseEvent<HTMLCanvasElement>
+            | React.TouchEvent<HTMLCanvasElement>,
+    ) => {
         if (!isDrawing) return;
         syncDrawingStyle();
         const ctx = getContext();
         if (!ctx) return;
-        const { offsetX, offsetY } = 'touches' in e ? { offsetX: e.touches[0].clientX - (e.currentTarget.getBoundingClientRect?.()?.left ?? 0), offsetY: e.touches[0].clientY - (e.currentTarget.getBoundingClientRect?.()?.top ?? 0) } : e.nativeEvent;
+        const { offsetX, offsetY } =
+            'touches' in e
+                ? {
+                      offsetX:
+                          e.touches[0].clientX -
+                          (e.currentTarget.getBoundingClientRect?.()?.left ??
+                              0),
+                      offsetY:
+                          e.touches[0].clientY -
+                          (e.currentTarget.getBoundingClientRect?.()?.top ?? 0),
+                  }
+                : e.nativeEvent;
         ctx.lineTo(offsetX, offsetY);
         ctx.stroke();
     };
@@ -113,40 +159,48 @@ export function SignaturePad(props: SignaturePadProps) {
             return;
         }
 
-        canvas.toBlob((blob) => {
-            if (!blob) return;
-            const formData = new FormData();
-            formData.append(props.fieldName, blob, 'signature.png');
-            if (props.extraFormData) {
-                for (const [key, value] of Object.entries(props.extraFormData)) {
-                    if (value !== '') {
-                        formData.append(key, value);
+        canvas.toBlob(
+            (blob) => {
+                if (!blob) return;
+                const formData = new FormData();
+                formData.append(props.fieldName, blob, 'signature.png');
+                if (props.extraFormData) {
+                    for (const [key, value] of Object.entries(
+                        props.extraFormData,
+                    )) {
+                        if (value !== '') {
+                            formData.append(key, value);
+                        }
                     }
                 }
-            }
-            const token =
-                (typeof csrfFromPage === 'string' && csrfFromPage.length > 0
-                    ? csrfFromPage
-                    : undefined) ??
-                document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
-            if (token) {
-                formData.append('_token', token);
-            }
-            setIsSubmitting(true);
-            const visit = isAutoSubmitMode ? props.visitOptions : undefined;
-            router.post(props.submitUrl, formData, {
-                forceFormData: true,
-                headers: token ? { 'X-CSRF-TOKEN': token } : {},
-                preserveScroll: visit?.preserveScroll ?? true,
-                preserveState: visit?.preserveState ?? true,
-                ...(visit?.only?.length ? { only: visit.only } : {}),
-                onFinish: () => setIsSubmitting(false),
-                onSuccess: () => {
-                    clear();
-                    props.onSuccess?.();
-                },
-            });
-        }, 'image/png', 0.9);
+                const token =
+                    (typeof csrfFromPage === 'string' && csrfFromPage.length > 0
+                        ? csrfFromPage
+                        : undefined) ??
+                    document.querySelector<HTMLMetaElement>(
+                        'meta[name="csrf-token"]',
+                    )?.content;
+                if (token) {
+                    formData.append('_token', token);
+                }
+                setIsSubmitting(true);
+                const visit = isAutoSubmitMode ? props.visitOptions : undefined;
+                router.post(props.submitUrl, formData, {
+                    forceFormData: true,
+                    headers: token ? { 'X-CSRF-TOKEN': token } : {},
+                    preserveScroll: visit?.preserveScroll ?? true,
+                    preserveState: visit?.preserveState ?? true,
+                    ...(visit?.only?.length ? { only: visit.only } : {}),
+                    onFinish: () => setIsSubmitting(false),
+                    onSuccess: () => {
+                        clear();
+                        props.onSuccess?.();
+                    },
+                });
+            },
+            'image/png',
+            0.9,
+        );
     };
 
     const displaySignatureUrl = isAutoSubmitMode ? props.signatureUrl : null;
@@ -154,9 +208,11 @@ export function SignaturePad(props: SignaturePadProps) {
     return (
         <div className="space-y-2">
             <Label className="block">{props.label}</Label>
-            {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
+            {fieldError ? (
+                <p className="text-sm text-destructive">{fieldError}</p>
+            ) : null}
             {displaySignatureUrl ? (
-                <div className="flex min-w-0 max-w-[12rem] flex-shrink-0 flex-col gap-1">
+                <div className="flex max-w-[12rem] min-w-0 flex-shrink-0 flex-col gap-1">
                     <div className="relative h-12 w-48 overflow-hidden rounded border border-input bg-white">
                         <img
                             src={displaySignatureUrl}
@@ -166,10 +222,12 @@ export function SignaturePad(props: SignaturePadProps) {
                             decoding="async"
                         />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">On file. Draw below to replace.</p>
+                    <p className="text-[10px] text-muted-foreground">
+                        On file. Draw below to replace.
+                    </p>
                 </div>
             ) : null}
-            <div className="inline-block min-w-0 max-w-[12rem] overflow-hidden rounded-md border border-input bg-card">
+            <div className="inline-block max-w-[12rem] min-w-0 overflow-hidden rounded-md border border-input bg-card">
                 <canvas
                     ref={canvasRef}
                     width={192}
@@ -198,7 +256,12 @@ export function SignaturePad(props: SignaturePadProps) {
                     >
                         Clear
                     </Button>
-                    <Button type="button" size="sm" onClick={save} disabled={isSubmitting}>
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={save}
+                        disabled={isSubmitting}
+                    >
                         {isSubmitting ? 'Saving…' : 'Save signature'}
                     </Button>
                 </div>

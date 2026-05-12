@@ -16,10 +16,12 @@ class ItAssetRequestHardwareItem extends Model
      */
     protected $fillable = [
         'it_asset_request_id',
+        'hardware_asset_value_id',
         'hardware_id',
         'serial_number',
         'hardware_code_snapshot',
         'hardware_name_snapshot',
+        'asset_model_snapshot',
         'serial_number_snapshot',
         'asset_value_snapshot',
         'asset_currency_snapshot',
@@ -33,5 +35,10 @@ class ItAssetRequestHardwareItem extends Model
     public function hardware(): BelongsTo
     {
         return $this->belongsTo(Hardware::class);
+    }
+
+    public function hardwareAssetValue(): BelongsTo
+    {
+        return $this->belongsTo(HardwareAssetValue::class);
     }
 }

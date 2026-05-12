@@ -4,6 +4,7 @@ namespace App\Http\Requests\HardwareAssetValue;
 
 use App\Models\Hardware;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreHardwareAssetValueRequest extends FormRequest
 {
@@ -28,10 +29,15 @@ class StoreHardwareAssetValueRequest extends FormRequest
     {
         return [
             'hardware_id' => ['required', 'integer', 'exists:'.Hardware::class.',id'],
+            'asset_model' => ['nullable', 'string', 'max:255'],
             'asset_value' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'required_with:asset_currency'],
-            'asset_currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/', 'required_with:asset_value'],
-            'effective_from' => ['required', 'date'],
-            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'asset_currency' => ['nullable', 'string', Rule::in(['AED', 'USD', 'SAR']), 'required_with:asset_value'],
+            'purchase_date' => ['nullable', 'date', 'before_or_equal:today'],
+            'vendor' => ['nullable', 'string', 'max:255'],
+            'serial_number' => ['nullable', 'string', 'max:255'],
+            'specs' => ['nullable', 'string', 'max:5000'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_to' => ['nullable', 'date', Rule::when($this->filled('effective_from'), ['after_or_equal:effective_from'])],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

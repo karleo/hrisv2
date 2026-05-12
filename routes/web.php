@@ -6,6 +6,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeMessageController;
+use App\Http\Controllers\EmployeeMessageTypingController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\HardwareAssetValueController;
@@ -61,6 +63,20 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employees.documents.show');
     Route::delete('employees/{employee}/documents/{employee_document}', [EmployeeController::class, 'destroyDocument'])
         ->name('employees.documents.destroy');
+    Route::get('employee-messages', [EmployeeMessageController::class, 'index'])
+        ->name('employee-messages.index');
+    Route::get('employee-messages/search', [EmployeeMessageController::class, 'searchEmployees'])
+        ->name('employee-messages.search');
+    Route::get('employee-messages/conversations/{conversation}', [EmployeeMessageController::class, 'showConversation'])
+        ->name('employee-messages.conversations.show');
+    Route::get('employee-messages/employees/{employee}', [EmployeeMessageController::class, 'showEmployee'])
+        ->name('employee-messages.employees.show');
+    Route::post('employee-messages', [EmployeeMessageController::class, 'store'])
+        ->name('employee-messages.store');
+    Route::post('employee-messages/conversations/{conversation}/read', [EmployeeMessageController::class, 'markRead'])
+        ->name('employee-messages.conversations.read');
+    Route::post('employee-messages/typing', [EmployeeMessageTypingController::class, 'store'])
+        ->name('employee-messages.typing');
     Route::resource('job-positions', JobPositionController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('countries', CountryController::class);
