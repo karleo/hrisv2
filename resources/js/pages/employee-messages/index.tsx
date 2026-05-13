@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     CheckCheck,
@@ -37,6 +37,7 @@ type Message = {
     read_at: string | null;
     created_at: string;
     pending?: boolean;
+    client_message_id?: string;
 };
 
 type Conversation = {
@@ -65,10 +66,7 @@ type TypingPayload = {
     is_typing: boolean;
 };
 
-type PresenceEmployee = {
-    id: number;
-    full_name: string;
-};
+type PresenceEmployee = EmployeeProfile;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Messages', href: '/employee-messages' },
@@ -122,6 +120,7 @@ function upsertConversation(
 export default function Index({
     currentEmployee,
     conversations: initialConversations,
+    selectedConversation: initialSelectedConversation,
     messages: initialMessages,
 }: {
     currentEmployee: EmployeeProfile;
@@ -135,7 +134,7 @@ export default function Index({
     const [conversations, setConversations] =
         useState<Conversation[]>(initialConversations);
     const [selectedConversation, setSelectedConversation] =
-        useState<Conversation | null>(null);
+        useState<Conversation | null>(initialSelectedConversation);
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [body, setBody] = useState('');
     const [search, setSearch] = useState('');
@@ -143,15 +142,40 @@ export default function Index({
     const [onlineEmployeeIds, setOnlineEmployeeIds] = useState<Set<number>>(
         new Set(),
     );
+    const [onlineEmployees, setOnlineEmployees] = useState<EmployeeProfile[]>(
+        [],
+    );
     const [typingEmployeeId, setTypingEmployeeId] = useState<number | null>(
         null,
     );
     const [toast, setToast] = useState<string | null>(null);
-    const [mobileListOpen, setMobileListOpen] = useState(true);
+    const [mobileListOpen, setMobileListOpen] = useState(
+        initialSelectedConversation === null,
+    );
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<number | null>(null);
+    const typingSentAtRef = useRef<number>(0);
+    const typingActiveRef = useRef<boolean>(false);
+    const employeeMessagesReloadedAtRef = useRef<number>(0);
+
+    const refreshEmployeeMessagesSharedProp = () => {
+        const now = Date.now();
+        if (now - employeeMessagesReloadedAtRef.current < 800) {
+            return;
+        }
+
+        employeeMessagesReloadedAtRef.current = now;
+        router.reload({
+            only: ['employeeMessages'],
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
 
     const selectedEmployee = selectedConversation?.employee ?? null;
+    const onlineEmployeesWithoutSelf = onlineEmployees.filter(
+        (employee) => employee.id !== currentEmployee.id,
+    );
     const selectedMessages = selectedConversation?.id
         ? messages.filter(
               (message) => message.conversation_id === selectedConversation.id,
@@ -217,6 +241,8 @@ export default function Index({
                         `New message from ${payload.conversation.employee.full_name}`,
                     );
                 }
+
+                refreshEmployeeMessagesSharedProp();
             })
             .listen('.employee.message.read', (payload: MessageReadPayload) => {
                 setMessages((current) =>
@@ -242,11 +268,22 @@ export default function Index({
                 setOnlineEmployeeIds(
                     new Set(employees.map((employee) => employee.id)),
                 );
+                setOnlineEmployees(
+                    employees.filter(
+                        (employee) => employee.id !== currentEmployee.id,
+                    ),
+                );
             })
             .joining((employee: PresenceEmployee) => {
                 setOnlineEmployeeIds(
                     (current) => new Set([...current, employee.id]),
                 );
+                if (employee.id !== currentEmployee.id) {
+                    setOnlineEmployees((current) => [
+                        employee,
+                        ...current.filter((item) => item.id !== employee.id),
+                    ]);
+                }
             })
             .leaving((employee: PresenceEmployee) => {
                 setOnlineEmployeeIds((current) => {
@@ -254,6 +291,9 @@ export default function Index({
                     next.delete(employee.id);
                     return next;
                 });
+                setOnlineEmployees((current) =>
+                    current.filter((item) => item.id !== employee.id),
+                );
             });
 
         return () => {
@@ -367,14 +407,25 @@ export default function Index({
 
     const handleBodyChange = (value: string) => {
         setBody(value);
-        sendTyping(true);
+        const now = Date.now();
+        const shouldSendTyping =
+            !typingActiveRef.current || now - typingSentAtRef.current > 1200;
+
+        if (shouldSendTyping) {
+            typingActiveRef.current = true;
+            typingSentAtRef.current = now;
+            sendTyping(true);
+        }
 
         if (typingTimeoutRef.current) {
             window.clearTimeout(typingTimeoutRef.current);
         }
 
         typingTimeoutRef.current = window.setTimeout(
-            () => sendTyping(false),
+            () => {
+                typingActiveRef.current = false;
+                sendTyping(false);
+            },
             1200,
         );
     };
@@ -387,7 +438,25 @@ export default function Index({
             return;
         }
 
+        const clientMessageId = crypto.randomUUID();
+
         setBody('');
+
+        if (selectedConversation?.id) {
+            const pendingMessage: Message = {
+                id: -Date.now(),
+                conversation_id: selectedConversation.id,
+                sender_employee_id: currentEmployee.id,
+                recipient_employee_id: selectedEmployee.id,
+                body: text,
+                read_at: null,
+                created_at: new Date().toISOString(),
+                pending: true,
+                client_message_id: clientMessageId,
+            };
+
+            setMessages((current) => [...current, pendingMessage]);
+        }
 
         fetch('/employee-messages', {
             method: 'POST',
@@ -395,23 +464,39 @@ export default function Index({
             body: JSON.stringify({
                 recipient_employee_id: selectedEmployee.id,
                 body: text,
-                client_message_id: crypto.randomUUID(),
+                client_message_id: clientMessageId,
             }),
         })
             .then((response) => response.json())
             .then(
-                (payload: { message: Message; conversation: Conversation }) => {
+                (payload: {
+                    message: Message;
+                    conversation: Conversation;
+                    client_message_id?: string;
+                }) => {
                     setSelectedConversation(payload.conversation);
-                    setMessages((current) =>
-                        current.some(
-                            (message) => message.id === payload.message.id,
-                        )
-                            ? current
-                            : [...current, payload.message],
-                    );
+                    setMessages((current) => {
+                        const withoutPending = current.filter(
+                            (message) =>
+                                message.client_message_id !==
+                                payload.client_message_id,
+                        );
+
+                        if (
+                            withoutPending.some(
+                                (message) => message.id === payload.message.id,
+                            )
+                        ) {
+                            return withoutPending;
+                        }
+
+                        return [...withoutPending, payload.message];
+                    });
                     setConversations((current) =>
                         upsertConversation(current, payload.conversation),
                     );
+
+                    refreshEmployeeMessagesSharedProp();
                 },
             );
     };
@@ -484,34 +569,74 @@ export default function Index({
                                         ))
                                     )}
                                 </div>
-                            ) : conversations.length === 0 ? (
+                            ) : conversations.length === 0 &&
+                              onlineEmployeesWithoutSelf.length === 0 ? (
                                 <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-muted-foreground">
                                     <MessageCircle className="mb-3 size-10 opacity-50" />
-                                    Search for an employee to start a
-                                    conversation.
+                                    No employees are online right now. Search
+                                    for an employee to start a conversation.
                                 </div>
                             ) : (
-                                <div className="p-2">
-                                    {conversations.map((conversation) => (
-                                        <ConversationRow
-                                            key={
-                                                conversation.id ??
-                                                conversation.employee.id
-                                            }
-                                            conversation={conversation}
-                                            active={
-                                                selectedConversation?.employee
-                                                    .id ===
-                                                conversation.employee.id
-                                            }
-                                            isOnline={onlineEmployeeIds.has(
-                                                conversation.employee.id,
+                                <div className="space-y-4 p-2">
+                                    {onlineEmployeesWithoutSelf.length > 0 ? (
+                                        <div>
+                                            <div className="px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                Online now
+                                            </div>
+                                            {onlineEmployeesWithoutSelf.map(
+                                                (employee) => (
+                                                    <EmployeeRow
+                                                        key={employee.id}
+                                                        employee={employee}
+                                                        isOnline
+                                                        onClick={() =>
+                                                            openEmployee(
+                                                                employee,
+                                                            )
+                                                        }
+                                                    />
+                                                ),
                                             )}
-                                            onClick={() =>
-                                                openConversation(conversation)
-                                            }
-                                        />
-                                    ))}
+                                        </div>
+                                    ) : null}
+
+                                    {conversations.length > 0 ? (
+                                        <div>
+                                            <div className="px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                Conversations
+                                            </div>
+                                            {conversations.map(
+                                                (conversation) => (
+                                                    <ConversationRow
+                                                        key={
+                                                            conversation.id ??
+                                                            conversation
+                                                                .employee.id
+                                                        }
+                                                        conversation={
+                                                            conversation
+                                                        }
+                                                        active={
+                                                            selectedConversation
+                                                                ?.employee
+                                                                .id ===
+                                                            conversation
+                                                                .employee.id
+                                                        }
+                                                        isOnline={onlineEmployeeIds.has(
+                                                            conversation
+                                                                .employee.id,
+                                                        )}
+                                                        onClick={() =>
+                                                            openConversation(
+                                                                conversation,
+                                                            )
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </div>
+                                    ) : null}
                                 </div>
                             )}
                         </div>

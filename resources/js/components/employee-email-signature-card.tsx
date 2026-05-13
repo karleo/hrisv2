@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { buildSignatureTokenMap, renderSanitizedSignatureHtml, signatureHtmlToPlainText } from '@/lib/signature-template';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { buildSignatureTokenMap, renderSanitizedSignatureHtml, signatureHtmlToPlainText } from '@/lib/signature-template';
 
 type SignatureCompanyProfile = {
     company_name: string;

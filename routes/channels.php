@@ -17,7 +17,15 @@ Broadcast::channel('employees.online', function (User $user): array|bool {
 
     return [
         'id' => $employee->id,
+        'employee_code' => $employee->employee_code,
+        'first_name' => $employee->first_name,
+        'last_name' => $employee->last_name,
         'full_name' => trim("{$employee->first_name} {$employee->last_name}"),
+        'department' => $employee->department?->name,
+        'job_position' => $employee->jobPosition?->name,
+        'photo_url' => is_string($employee->photo) && $employee->photo !== ''
+            ? '/storage/'.ltrim($employee->photo, '/')
+            : null,
     ];
 });
 

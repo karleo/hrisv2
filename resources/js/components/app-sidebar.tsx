@@ -48,18 +48,18 @@ function buildMainNavItems(
 ): NavItem[] {
     return [
         {
-            title: t('sidebar.dashboard', 'Dashboard'),
-            description: 'Overview and quick metrics',
-            href: dashboard(),
-            icon: LayoutGrid,
-            module: 'dashboard',
-        },
-        {
             title: t('sidebar.messages', 'Messages'),
             description: 'Internal employee chat',
             href: '/employee-messages',
             icon: Mail,
             module: 'employee_messages',
+        },
+        {
+            title: t('sidebar.dashboard', 'Dashboard'),
+            description: 'Overview and quick metrics',
+            href: dashboard(),
+            icon: LayoutGrid,
+            module: 'dashboard',
         },
         {
             title: t('sidebar.employees', 'Employees'),
@@ -256,14 +256,37 @@ export function AppSidebar() {
             }
         }
 
-        if (auth?.has_my_profile_access) {
-            return withLeaveCalendar;
-        }
+        const messageHref = '/employee-messages';
+        const dashboardHref = dashboard().url;
+        const leaveCalendarHref = '/leave-calendar';
 
-        return withLeaveCalendar;
+        const messageItem = withLeaveCalendar.find(
+            (item) => hrefToUrl(item.href) === messageHref,
+        );
+        const dashboardItem = withLeaveCalendar.find(
+            (item) => hrefToUrl(item.href) === dashboardHref,
+        );
+        const leaveCalendar = withLeaveCalendar.find(
+            (item) => hrefToUrl(item.href) === leaveCalendarHref,
+        );
+
+        const remaining = withLeaveCalendar.filter((item) => {
+            const href = hrefToUrl(item.href);
+            return (
+                href !== messageHref &&
+                href !== dashboardHref &&
+                href !== leaveCalendarHref
+            );
+        });
+
+        return [
+            ...(messageItem ? [messageItem] : []),
+            ...(dashboardItem ? [dashboardItem] : []),
+            ...(leaveCalendar ? [leaveCalendar] : []),
+            ...remaining,
+        ];
     }, [
         modulePermissions,
-        auth?.has_my_profile_access,
         auth?.has_leave_calendar_access,
         t,
     ]);

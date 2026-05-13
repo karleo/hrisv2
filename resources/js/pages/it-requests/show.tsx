@@ -2,13 +2,13 @@ import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
-import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     approveRequiresManagerSignatureMessage,
     rejectRequiresRemarksMessage,
     RequestDecisionClientMessage,
     visibleRequestDecisionMessage,
 } from '@/components/request-decision-client-message';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     RequestEmployeeSignatureCard,
     itRequestShowSignatureVisitOnly,

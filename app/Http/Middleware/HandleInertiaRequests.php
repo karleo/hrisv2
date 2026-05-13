@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\User;
+use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
 use App\Support\LocaleConfig;
 use App\Support\RequestApprovalScope;
 use Illuminate\Http\Request;
@@ -52,6 +53,9 @@ class HandleInertiaRequests extends Middleware
                 'has_my_profile_access' => $this->hasMyProfileAccess($request->user()),
                 'has_leave_calendar_access' => $this->hasLeaveCalendarAccess($request->user()),
             ],
+            ...($this->shouldShareEmployeeMessages($request)
+                ? ['employeeMessages' => fn () => $this->employeeMessagesPayload($request)]
+                : []),
             'modulePermissions' => (object) ($request->user()?->modulePermissionsPayload() ?? []),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'notifications' => $request->user()
@@ -76,6 +80,37 @@ class HandleInertiaRequests extends Middleware
                 'error' => $request->session()->get('error'),
             ],
         ];
+    }
+
+    /**
+     * @return array{unread_count:int,conversations:array<int,array<string,mixed>>}
+     */
+    private function employeeMessagesPayload(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || $user->is_active !== true) {
+            return ['unread_count' => 0, 'conversations' => []];
+        }
+
+        $employee = $user->employee;
+
+        if ($employee === null) {
+            return ['unread_count' => 0, 'conversations' => []];
+        }
+
+        return app(EmployeeMessagesHeaderData::class)->forEmployee($employee);
+    }
+
+    private function shouldShareEmployeeMessages(Request $request): bool
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || $user->is_active !== true) {
+            return false;
+        }
+
+        return $user->employee()->exists();
     }
 
     private function hasLeaveCalendarAccess(?User $user): bool

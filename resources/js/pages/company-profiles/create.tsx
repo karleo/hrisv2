@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
 import {
     applyBuilderStateToTemplate,
     buildDefaultSignatureTemplate,
@@ -25,7 +26,6 @@ import {
     type SignatureBuilderState,
     type SignatureLogoId,
 } from '@/lib/signature-template';
-import AppLayout from '@/layouts/app-layout';
 import { index } from '@/routes/company-profiles';
 import type { BreadcrumbItem } from '@/types';
 

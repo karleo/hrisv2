@@ -31,8 +31,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { useI18n } from '@/lib/i18n';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { create, edit, index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 

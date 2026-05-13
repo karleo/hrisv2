@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Monitor, Package } from 'lucide-react';
-import { useI18n } from '@/lib/i18n';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 

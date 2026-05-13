@@ -40,6 +40,27 @@ class EmployeeMessagesTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_inactive_user_does_not_receive_employee_messages_shared_prop(): void
+    {
+        $user = User::factory()->create(['is_active' => false]);
+        Employee::factory()->create(['user_id' => $user->id]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->missing('employeeMessages'));
+    }
+
+    public function test_user_without_employee_profile_does_not_receive_employee_messages_shared_prop(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->missing('employeeMessages'));
+    }
+
     public function test_employee_search_returns_only_active_linked_employees(): void
     {
         $currentUser = User::factory()->create();
@@ -140,6 +161,82 @@ class EmployeeMessagesTest extends TestCase
             ->assertJsonPath('message_ids.0', $message->id);
 
         $this->assertNotNull($message->refresh()->read_at);
+    }
+
+    public function test_employee_messages_page_preloads_selected_conversation_and_limits_messages(): void
+    {
+        $employeeOneUser = User::factory()->create();
+        $employeeOne = $this->linkedEmployee($employeeOneUser);
+        $employeeTwo = $this->linkedEmployee();
+        [$employeeOneId, $employeeTwoId] = EmployeeConversation::orderedEmployeePair($employeeOne->id, $employeeTwo->id);
+        $conversation = EmployeeConversation::factory()->create([
+            'employee_one_id' => $employeeOneId,
+            'employee_two_id' => $employeeTwoId,
+        ]);
+
+        EmployeeMessage::factory()->count(55)->create([
+            'conversation_id' => $conversation->id,
+            'sender_employee_id' => $employeeTwo->id,
+            'recipient_employee_id' => $employeeOne->id,
+            'read_at' => null,
+        ]);
+
+        $this->actingAs($employeeOneUser)
+            ->get(route('employee-messages.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('employee-messages/index')
+                ->where('selectedConversation.id', $conversation->id)
+                ->has('messages', 50)
+            );
+    }
+
+    public function test_unread_count_is_aggregated_across_multiple_conversations(): void
+    {
+        $viewerUser = User::factory()->create();
+        $viewer = $this->linkedEmployee($viewerUser);
+        $otherOne = $this->linkedEmployee();
+        $otherTwo = $this->linkedEmployee();
+
+        [$pairOneA, $pairOneB] = EmployeeConversation::orderedEmployeePair($viewer->id, $otherOne->id);
+        [$pairTwoA, $pairTwoB] = EmployeeConversation::orderedEmployeePair($viewer->id, $otherTwo->id);
+
+        $conversationOne = EmployeeConversation::factory()->create([
+            'employee_one_id' => $pairOneA,
+            'employee_two_id' => $pairOneB,
+        ]);
+        $conversationTwo = EmployeeConversation::factory()->create([
+            'employee_one_id' => $pairTwoA,
+            'employee_two_id' => $pairTwoB,
+        ]);
+
+        EmployeeMessage::factory()->count(2)->create([
+            'conversation_id' => $conversationOne->id,
+            'sender_employee_id' => $otherOne->id,
+            'recipient_employee_id' => $viewer->id,
+            'read_at' => null,
+        ]);
+        EmployeeMessage::factory()->count(1)->create([
+            'conversation_id' => $conversationOne->id,
+            'sender_employee_id' => $otherOne->id,
+            'recipient_employee_id' => $viewer->id,
+            'read_at' => now(),
+        ]);
+        EmployeeMessage::factory()->count(3)->create([
+            'conversation_id' => $conversationTwo->id,
+            'sender_employee_id' => $otherTwo->id,
+            'recipient_employee_id' => $viewer->id,
+            'read_at' => null,
+        ]);
+
+        $this->actingAs($viewerUser)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('employeeMessages')
+                ->where('employeeMessages.unread_count', 5)
+                ->has('employeeMessages.conversations')
+            );
     }
 
     public function test_prune_command_deletes_messages_older_than_seven_days(): void

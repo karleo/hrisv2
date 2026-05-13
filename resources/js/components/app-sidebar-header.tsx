@@ -3,6 +3,7 @@ import { ChevronsUpDown } from 'lucide-react';
 import { Bell } from 'lucide-react';
 import { Languages } from 'lucide-react';
 import { MessageCircle } from 'lucide-react';
+import { MessageSquareText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
@@ -25,12 +26,37 @@ import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
+type EmployeeMessagesShared = {
+    unread_count: number;
+    conversations: Array<{
+        id: number;
+        employee: {
+            id: number;
+            full_name: string;
+            photo_url: string | null;
+        };
+        last_message: { body: string } | null;
+        last_message_at: string | null;
+        unread_count: number;
+    }>;
+};
+
+function initials(name: string): string {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+}
+
 export function AppSidebarHeader({
     breadcrumbs = [],
 }: {
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
+    const [messagesMenuOpen, setMessagesMenuOpen] = useState(false);
     const notificationListRef = useNotificationListPointerGuard(
         notificationsMenuOpen,
     );
@@ -47,7 +73,17 @@ export function AppSidebarHeader({
         { keepAlive: true },
     );
 
-    const { notifications, auth } = usePage().props as {
+    usePoll(
+        10000,
+        {
+            only: ['employeeMessages'],
+            preserveScroll: true,
+            preserveState: true,
+        },
+        { keepAlive: true },
+    );
+
+    const { notifications, auth, employeeMessages } = usePage().props as {
         notifications?: {
             unread_count: number;
             items: Array<{
@@ -72,9 +108,12 @@ export function AppSidebarHeader({
                 avatar?: string | null;
             };
         };
+        employeeMessages?: EmployeeMessagesShared;
     };
     const unreadCount = notifications?.unread_count ?? 0;
     const hasUnread = unreadCount > 0;
+    const messagesUnread = employeeMessages?.unread_count ?? 0;
+    const hasUnreadMessages = messagesUnread > 0;
 
     useEffect(() => {
         if (typeof window === 'undefined') {
@@ -121,15 +160,105 @@ export function AppSidebarHeader({
                         }
                         className="origin-center scale-75"
                     />
-                    <Button
-                        asChild
-                        className="h-9 rounded-lg px-3 text-xs font-semibold"
+                    <DropdownMenu
+                        open={messagesMenuOpen}
+                        onOpenChange={setMessagesMenuOpen}
                     >
-                        <Link href="/employee-messages">
-                            <MessageCircle className="size-4" />
-                            <span className="hidden sm:inline">Chat</span>
-                        </Link>
-                    </Button>
+                        <DropdownMenuTrigger asChild>
+                            <Button className="relative h-9 rounded-lg px-3 text-xs font-semibold">
+                                <MessageCircle className="size-4" />
+                                <span className="hidden sm:inline">Chat</span>
+                                {hasUnreadMessages ? (
+                                    <span className="absolute -top-1.5 -right-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[11px] leading-none font-bold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.6)] dark:shadow-[0_0_0_2px_rgba(15,23,42,0.8)]">
+                                        {messagesUnread > 99
+                                            ? '99+'
+                                            : messagesUnread}
+                                    </span>
+                                ) : null}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                            align="end"
+                            className="w-[min(24rem,calc(100vw-2rem))] max-w-[min(24rem,calc(100vw-2rem))] rounded-xl p-0"
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
+                            <DropdownMenuLabel className="flex items-center justify-between px-3 py-2.5">
+                                <span className="text-sm font-semibold">
+                                    Unread messages
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {messagesUnread}{' '}
+                                    {t('header.unread', 'unread')}
+                                </span>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <div className="max-h-96 space-y-2 overflow-y-auto p-2.5">
+                                {(employeeMessages?.conversations?.length ??
+                                    0) === 0 ? (
+                                    <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                                        No unread messages
+                                    </p>
+                                ) : (
+                                    employeeMessages?.conversations?.map(
+                                        (conversation) => (
+                                            <Link
+                                                key={conversation.id}
+                                                href={`/employee-messages?conversation=${conversation.id}`}
+                                                className="flex items-start gap-3 rounded-xl border bg-card/60 px-3 py-2.5 text-sm hover:bg-muted"
+                                                onClick={() =>
+                                                    setMessagesMenuOpen(false)
+                                                }
+                                            >
+                                                <div className="mt-0.5 flex size-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                                    {initials(
+                                                        conversation.employee
+                                                            .full_name,
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="truncate font-semibold">
+                                                            {
+                                                                conversation
+                                                                    .employee
+                                                                    .full_name
+                                                            }
+                                                        </div>
+                                                        {conversation.unread_count >
+                                                        0 ? (
+                                                            <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                                                                {
+                                                                    conversation.unread_count
+                                                                }
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                        {conversation
+                                                            .last_message?.body ??
+                                                            'New messages'}
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ),
+                                    )
+                                )}
+                            </div>
+                            <DropdownMenuSeparator />
+                            <div className="p-2.5">
+                                <Button
+                                    asChild
+                                    variant="secondary"
+                                    className="h-9 w-full justify-center rounded-lg"
+                                >
+                                    <Link href="/employee-messages">
+                                        <MessageSquareText className="mr-2 size-4" />
+                                        View all messages
+                                    </Link>
+                                </Button>
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button

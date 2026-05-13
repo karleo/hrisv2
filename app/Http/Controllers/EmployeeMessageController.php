@@ -21,12 +21,38 @@ class EmployeeMessageController extends Controller
     public function index(Request $request): Response
     {
         $employee = $this->currentEmployee($request);
+        $selectedConversationId = $request->integer('conversation');
+        $selectedConversation = null;
+        $messages = collect();
+
+        if (is_int($selectedConversationId) && $selectedConversationId > 0) {
+            $selectedConversation = EmployeeConversation::query()
+                ->forEmployee($employee->id)
+                ->with([
+                    'employeeOne.department',
+                    'employeeOne.jobPosition',
+                    'employeeTwo.department',
+                    'employeeTwo.jobPosition',
+                    'lastMessage',
+                ])
+                ->withCount([
+                    'messages as unread_messages_count' => fn (Builder $query) => $query
+                        ->where('recipient_employee_id', $employee->id)
+                        ->whereNull('read_at'),
+                ])
+                ->whereKey($selectedConversationId)
+                ->firstOrFail();
+
+            $messages = $this->messagesPayload($selectedConversation);
+        }
 
         return Inertia::render('employee-messages/index', [
             'currentEmployee' => $this->employeePayload($employee),
             'conversations' => $this->conversationList($employee),
-            'selectedConversation' => null,
-            'messages' => [],
+            'selectedConversation' => $selectedConversation instanceof EmployeeConversation
+                ? $this->conversationPayload($selectedConversation, $employee)
+                : null,
+            'messages' => $messages,
         ]);
     }
 
@@ -240,6 +266,11 @@ class EmployeeMessageController extends Controller
         return EmployeeConversation::query()
             ->forEmployee($employee->id)
             ->with(['employeeOne.department', 'employeeOne.jobPosition', 'employeeTwo.department', 'employeeTwo.jobPosition', 'lastMessage'])
+            ->withCount([
+                'messages as unread_messages_count' => fn (Builder $query) => $query
+                    ->where('recipient_employee_id', $employee->id)
+                    ->whereNull('read_at'),
+            ])
             ->orderByDesc('last_message_at')
             ->limit(50)
             ->get()
@@ -257,15 +288,19 @@ class EmployeeMessageController extends Controller
             ? $conversation->employeeTwo
             : $conversation->employeeOne;
 
+        $unreadCount = $conversation->getAttribute('unread_messages_count');
+
         return [
             'id' => $conversation->id,
             'employee' => $this->employeePayload($other),
             'last_message' => $conversation->lastMessage ? $this->messagePayload($conversation->lastMessage) : null,
             'last_message_at' => $conversation->last_message_at?->toIso8601String(),
-            'unread_count' => $conversation->messages()
-                ->where('recipient_employee_id', $viewer->id)
-                ->whereNull('read_at')
-                ->count(),
+            'unread_count' => is_numeric($unreadCount)
+                ? (int) $unreadCount
+                : $conversation->messages()
+                    ->where('recipient_employee_id', $viewer->id)
+                    ->whereNull('read_at')
+                    ->count(),
         ];
     }
 
@@ -278,7 +313,7 @@ class EmployeeMessageController extends Controller
             ->messages()
             ->with(['sender.department', 'sender.jobPosition', 'recipient'])
             ->latest()
-            ->limit(100)
+            ->limit(50)
             ->get()
             ->reverse()
             ->values()

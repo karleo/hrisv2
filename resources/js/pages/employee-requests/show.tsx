@@ -3,13 +3,13 @@ import { ArrowLeft, Ban, Check, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import Heading from '@/components/heading';
-import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     approveRequiresManagerSignatureMessage,
     rejectRequiresRemarksMessage,
     RequestDecisionClientMessage,
     visibleRequestDecisionMessage,
 } from '@/components/request-decision-client-message';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     RequestEmployeeSignatureCard,
     employeeRequestShowSignatureVisitOnly,

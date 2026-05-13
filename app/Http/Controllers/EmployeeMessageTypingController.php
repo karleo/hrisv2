@@ -12,17 +12,18 @@ class EmployeeMessageTypingController extends Controller
 {
     public function store(TypingEmployeeMessageRequest $request): JsonResponse
     {
-        $employee = $request->user()?->employee;
+        $user = $request->user();
+        $employee = $user?->employee;
 
-        if (! $employee instanceof Employee) {
+        if (! $employee instanceof Employee || $user?->is_active !== true) {
             abort(403);
         }
 
-        $conversation = EmployeeConversation::query()->findOrFail((int) $request->integer('conversation_id'));
-
-        if (! in_array($employee->id, [$conversation->employee_one_id, $conversation->employee_two_id], true)) {
-            abort(404);
-        }
+        $conversationId = (int) $request->integer('conversation_id');
+        $conversation = EmployeeConversation::query()
+            ->forEmployee($employee->id)
+            ->whereKey($conversationId)
+            ->firstOrFail();
 
         $recipientEmployeeId = $conversation->otherEmployeeId($employee->id);
 
