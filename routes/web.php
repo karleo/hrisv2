@@ -8,6 +8,7 @@ use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeMessageController;
 use App\Http\Controllers\EmployeeMessageTypingController;
+use App\Http\Controllers\EmployeePresenceStatusController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\HardwareAssetValueController;
@@ -26,12 +27,22 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\WorkTimetableController;
 use App\Http\Middleware\EnforceModulePermissions;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login')->name('home');
 
+Broadcast::routes(['middleware' => ['web', 'auth', 'verified']]);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('locale', [LocaleController::class, 'update'])->name('locale.update');
+
+    Route::post('employee-presence/heartbeat', [EmployeePresenceStatusController::class, 'heartbeat'])
+        ->middleware('throttle:60,1')
+        ->name('employee-presence.heartbeat');
+    Route::get('employee-presence', [EmployeePresenceStatusController::class, 'index'])
+        ->middleware('throttle:120,1')
+        ->name('employee-presence.index');
 });
 
 Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(function () {

@@ -22,6 +22,7 @@ import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
+import { useNotificationsLiveSync } from '@/hooks/use-notifications-live-sync';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -63,15 +64,7 @@ export function AppSidebarHeader({
     const { resolvedAppearance, updateAppearance } = useAppearance();
     const { t, locale } = useI18n();
 
-    usePoll(
-        10000,
-        {
-            only: ['notifications'],
-            preserveScroll: true,
-            preserveState: true,
-        },
-        { keepAlive: true },
-    );
+    useNotificationsLiveSync();
 
     usePoll(
         10000,

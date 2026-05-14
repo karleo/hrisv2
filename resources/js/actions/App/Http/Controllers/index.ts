@@ -1,4 +1,5 @@
 import LocaleController from './LocaleController'
+import EmployeePresenceStatusController from './EmployeePresenceStatusController'
 import DashboardController from './DashboardController'
 import DepartmentController from './DepartmentController'
 import EmployeeController from './EmployeeController'
@@ -26,6 +27,7 @@ import UserController from './UserController'
 import Settings from './Settings'
 const Controllers = {
     LocaleController: Object.assign(LocaleController, LocaleController),
+EmployeePresenceStatusController: Object.assign(EmployeePresenceStatusController, EmployeePresenceStatusController),
 DashboardController: Object.assign(DashboardController, DashboardController),
 DepartmentController: Object.assign(DepartmentController, DepartmentController),
 EmployeeController: Object.assign(EmployeeController, EmployeeController),

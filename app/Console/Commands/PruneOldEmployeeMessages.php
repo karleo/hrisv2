@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\EmployeeConversation;
 use App\Models\EmployeeMessage;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 class PruneOldEmployeeMessages extends Command
 {
@@ -17,9 +18,21 @@ class PruneOldEmployeeMessages extends Command
         $days = max(1, (int) $this->option('days'));
         $cutoff = now()->subDays($days);
 
-        $deleted = EmployeeMessage::query()
+        $deleted = 0;
+
+        EmployeeMessage::query()
             ->where('created_at', '<', $cutoff)
-            ->delete();
+            ->chunkById(100, function ($messages) use (&$deleted): void {
+                foreach ($messages as $message) {
+                    if (is_string($message->attachment_path) && $message->attachment_path !== '') {
+                        Storage::disk('public')->delete($message->attachment_path);
+                    }
+                }
+
+                $deleted += EmployeeMessage::query()
+                    ->whereKey($messages->pluck('id'))
+                    ->delete();
+            });
 
         EmployeeConversation::query()
             ->with('messages')

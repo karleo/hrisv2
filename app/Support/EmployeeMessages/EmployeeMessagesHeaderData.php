@@ -4,6 +4,7 @@ namespace App\Support\EmployeeMessages;
 
 use App\Models\Employee;
 use App\Models\EmployeeConversation;
+use App\Models\EmployeeMessage;
 use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeMessagesHeaderData
@@ -73,8 +74,10 @@ class EmployeeMessagesHeaderData
     /**
      * @return array<string, mixed>
      */
-    private function messagePayload($message): array
+    private function messagePayload(EmployeeMessage $message): array
     {
+        $path = $message->attachment_path;
+
         return [
             'id' => $message->id,
             'conversation_id' => $message->conversation_id,
@@ -83,6 +86,10 @@ class EmployeeMessagesHeaderData
             'body' => $message->body,
             'read_at' => $message->read_at?->toIso8601String(),
             'created_at' => $message->created_at?->toIso8601String(),
+            'attachment_url' => is_string($path) && $path !== ''
+                ? '/storage/'.ltrim($path, '/')
+                : null,
+            'attachment_original_name' => $message->attachment_original_name,
         ];
     }
 

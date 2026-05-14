@@ -1,4 +1,5 @@
 import type { Auth } from '@/types/auth';
+import type { EmployeePresencePayload } from '@/types/employee-presence';
 import type { ModulePermissionsMap } from '@/types/permissions';
 
 declare module '@inertiajs/core' {
@@ -8,6 +9,8 @@ declare module '@inertiajs/core' {
             locale: 'en' | 'ar';
             locales: string[];
             auth: Auth;
+            viewerEmployeeId: number | null;
+            employeePresence: EmployeePresencePayload;
             modulePermissions: ModulePermissionsMap;
             sidebarOpen: boolean;
             notifications: {

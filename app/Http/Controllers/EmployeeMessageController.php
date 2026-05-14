@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class EmployeeMessageController extends Controller
 {
@@ -133,19 +134,27 @@ class EmployeeMessageController extends Controller
         }
 
         $body = trim((string) $request->string('body'));
+        $bodyForStore = $body !== '' ? $body : 'Sent an attachment.';
 
-        if ($body === '') {
-            abort(422);
+        $attachmentPath = null;
+        $attachmentOriginalName = null;
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $attachmentOriginalName = $file->getClientOriginalName();
+            $attachmentPath = $file->store('employee-message-attachments', 'public');
         }
 
-        [$conversation, $message] = DB::transaction(function () use ($sender, $recipient, $body): array {
+        [$conversation, $message] = DB::transaction(function () use ($sender, $recipient, $bodyForStore, $attachmentPath, $attachmentOriginalName): array {
             $conversation = $this->findOrCreateConversation($sender->id, $recipient->id);
 
             $message = EmployeeMessage::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_employee_id' => $sender->id,
                 'recipient_employee_id' => $recipient->id,
-                'body' => $body,
+                'body' => $bodyForStore,
+                'attachment_path' => $attachmentPath,
+                'attachment_original_name' => $attachmentOriginalName,
             ]);
 
             $conversation->forceFill([
@@ -159,11 +168,15 @@ class EmployeeMessageController extends Controller
         $conversation->refresh();
         $message->load(['sender.department', 'sender.jobPosition', 'recipient']);
 
-        broadcast(new EmployeeMessageSent(
-            message: $this->messagePayload($message),
-            conversation: $this->conversationPayload($conversation, $recipient),
-            recipientEmployeeId: $recipient->id,
-        ))->toOthers();
+        try {
+            broadcast(new EmployeeMessageSent(
+                message: $this->messagePayload($message),
+                conversation: $this->conversationPayload($conversation, $recipient),
+                recipientEmployeeId: $recipient->id,
+            ))->toOthers();
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return response()->json([
             'message' => $this->messagePayload($message),
@@ -191,13 +204,17 @@ class EmployeeMessageController extends Controller
 
             $senderEmployeeId = $conversation->otherEmployeeId($employee->id);
 
-            broadcast(new EmployeeMessageRead(
-                conversationId: $conversation->id,
-                readerEmployeeId: $employee->id,
-                senderEmployeeId: $senderEmployeeId,
-                messageIds: $messages->pluck('id')->map(fn ($id) => (int) $id)->all(),
-                readAt: $readAt->toIso8601String(),
-            ))->toOthers();
+            try {
+                broadcast(new EmployeeMessageRead(
+                    conversationId: $conversation->id,
+                    readerEmployeeId: $employee->id,
+                    senderEmployeeId: $senderEmployeeId,
+                    messageIds: $messages->pluck('id')->map(fn ($id) => (int) $id)->all(),
+                    readAt: $readAt->toIso8601String(),
+                ))->toOthers();
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
 
         return response()->json([
@@ -325,6 +342,8 @@ class EmployeeMessageController extends Controller
      */
     private function messagePayload(EmployeeMessage $message): array
     {
+        $path = $message->attachment_path;
+
         return [
             'id' => $message->id,
             'conversation_id' => $message->conversation_id,
@@ -333,6 +352,10 @@ class EmployeeMessageController extends Controller
             'body' => $message->body,
             'read_at' => $message->read_at?->toIso8601String(),
             'created_at' => $message->created_at?->toIso8601String(),
+            'attachment_url' => is_string($path) && $path !== ''
+                ? '/storage/'.ltrim($path, '/')
+                : null,
+            'attachment_original_name' => $message->attachment_original_name,
         ];
     }
 

@@ -9,7 +9,9 @@ use App\Models\EmployeeMessage;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EmployeeMessagesTest extends TestCase
@@ -118,6 +120,71 @@ class EmployeeMessagesTest extends TestCase
             'recipient_employee_id' => $recipient->id,
             'body' => 'Hello from HRIS chat',
         ]);
+    }
+
+    public function test_employee_can_send_message_with_unicode_emoji(): void
+    {
+        $senderUser = User::factory()->create();
+        $this->linkedEmployee($senderUser);
+        $recipient = $this->linkedEmployee();
+
+        $body = 'Hello 😀 and 👍';
+
+        $this->actingAs($senderUser)
+            ->postJson(route('employee-messages.store'), [
+                'recipient_employee_id' => $recipient->id,
+                'body' => $body,
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('employee_messages', [
+            'recipient_employee_id' => $recipient->id,
+            'body' => $body,
+        ]);
+    }
+
+    public function test_employee_can_send_message_with_file_attachment(): void
+    {
+        Storage::fake('public');
+
+        $senderUser = User::factory()->create();
+        $this->linkedEmployee($senderUser);
+        $recipient = $this->linkedEmployee();
+
+        $file = UploadedFile::fake()->create('report.pdf', 100, 'application/pdf');
+
+        $response = $this->actingAs($senderUser)
+            ->post(route('employee-messages.store'), [
+                'recipient_employee_id' => $recipient->id,
+                'body' => 'See attached',
+                'attachment' => $file,
+            ], [
+                'Accept' => 'application/json',
+            ]);
+
+        $response->assertCreated();
+
+        $message = EmployeeMessage::query()->latest('id')->first();
+        $this->assertNotNull($message);
+        $this->assertSame('See attached', $message->body);
+        $this->assertSame('report.pdf', $message->attachment_original_name);
+        $this->assertIsString($message->attachment_path);
+        Storage::disk('public')->assertExists($message->attachment_path);
+    }
+
+    public function test_store_requires_body_or_attachment(): void
+    {
+        $senderUser = User::factory()->create();
+        $this->linkedEmployee($senderUser);
+        $recipient = $this->linkedEmployee();
+
+        $this->actingAs($senderUser)
+            ->postJson(route('employee-messages.store'), [
+                'recipient_employee_id' => $recipient->id,
+                'body' => '   ',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['body']);
     }
 
     public function test_employee_cannot_open_conversation_they_do_not_belong_to(): void

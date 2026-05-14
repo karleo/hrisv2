@@ -6,9 +6,11 @@ use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\User;
 use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
+use App\Support\EmployeePresence\EmployeePresenceOnlineData;
 use App\Support\LocaleConfig;
 use App\Support\RequestApprovalScope;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -50,12 +52,17 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'has_employee_profile' => $request->user()?->employee()->exists() ?? false,
+                'employee_id' => $this->employeeIdForPresence($request->user()),
                 'has_my_profile_access' => $this->hasMyProfileAccess($request->user()),
                 'has_leave_calendar_access' => $this->hasLeaveCalendarAccess($request->user()),
             ],
             ...($this->shouldShareEmployeeMessages($request)
                 ? ['employeeMessages' => fn () => $this->employeeMessagesPayload($request)]
                 : []),
+            // Always: partial reloads must still ship viewer id + presence (see employee-presence-context).
+            'viewerEmployeeId' => Inertia::always(fn () => $this->employeeIdForPresence($request->user())),
+            // Always: partial reloads (e.g. only: ['conversations']) must still ship presence data.
+            'employeePresence' => Inertia::always(fn () => $this->employeePresenceSharedPayload($request)),
             'modulePermissions' => (object) ($request->user()?->modulePermissionsPayload() ?? []),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'notifications' => $request->user()
@@ -111,6 +118,37 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $user->employee()->exists();
+    }
+
+    /**
+     * @return array{employee_ids: list<int>, employees: list<array<string, mixed>>}
+     */
+    private function employeePresenceSharedPayload(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || $user->is_active !== true) {
+            return ['employee_ids' => [], 'employees' => []];
+        }
+
+        $employee = $user->employee;
+
+        if ($employee === null) {
+            return ['employee_ids' => [], 'employees' => []];
+        }
+
+        return app(EmployeePresenceOnlineData::class)->onlinePeersForViewer($employee);
+    }
+
+    private function employeeIdForPresence(?User $user): ?int
+    {
+        if (! $user instanceof User || $user->is_active !== true) {
+            return null;
+        }
+
+        $id = filter_var($user->employee?->id, FILTER_VALIDATE_INT);
+
+        return $id !== false && $id > 0 ? $id : null;
     }
 
     private function hasLeaveCalendarAccess(?User $user): bool

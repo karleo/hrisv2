@@ -1,24 +1,22 @@
 import axios from 'axios';
+import { getJsonRequestIntegrityHeaders } from '@/lib/request-integrity-headers';
 
 type PageWithCsrf = {
-    props?: {
-        csrf_token?: unknown;
-    };
+    props?: Record<string, unknown>;
 };
 
 /**
- * Inertia posts via axios without a hidden `_token` field. Laravel accepts the
- * token via the `X-CSRF-TOKEN` header instead.
+ * Keeps Axios defaults aligned with Laravel CSRF expectations (meta + XSRF cookie),
+ * matching how Inertia-driven forms behave.
  */
-export function syncAxiosCsrfFromPage(page: PageWithCsrf | null | undefined): void {
-    const fromProps =
-        page?.props && typeof page.props.csrf_token === 'string' ? page.props.csrf_token : '';
-    const fromMeta =
-        typeof document !== 'undefined'
-            ? (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')
-            : '';
-    const token = fromProps || fromMeta;
-    if (token.length > 0) {
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
-    }
+export function syncAxiosCsrfFromPage(page: unknown): void {
+    const p = page as PageWithCsrf | null | undefined;
+    const raw = p?.props?.csrf_token;
+    const fromProps = typeof raw === 'string' ? raw : '';
+
+    const headers = getJsonRequestIntegrityHeaders(
+        fromProps.length > 0 ? fromProps : undefined,
+    );
+
+    Object.assign(axios.defaults.headers.common, headers);
 }

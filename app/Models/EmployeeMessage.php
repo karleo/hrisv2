@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $conversation_id
  * @property int $sender_employee_id
  * @property int $recipient_employee_id
- * @property string $body
+ * @property string|null $attachment_path
+ * @property string|null $attachment_original_name
  * @property \Illuminate\Support\Carbon|null $read_at
  * @property \Illuminate\Support\Carbon $created_at
  */
@@ -26,6 +27,8 @@ class EmployeeMessage extends Model
         'recipient_employee_id',
         'body',
         'read_at',
+        'attachment_path',
+        'attachment_original_name',
     ];
 
     protected function casts(): array

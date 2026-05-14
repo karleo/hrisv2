@@ -1,4 +1,4 @@
-import { Link, router, usePage, usePoll } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     BookOpen,
@@ -46,6 +46,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { getFirstNameLetter } from '@/hooks/use-initials';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
+import { useNotificationsLiveSync } from '@/hooks/use-notifications-live-sync';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -89,15 +90,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     );
     const { resolvedAppearance, updateAppearance } = useAppearance();
 
-    usePoll(
-        10000,
-        {
-            only: ['notifications'],
-            preserveScroll: true,
-            preserveState: true,
-        },
-        { keepAlive: true },
-    );
+    useNotificationsLiveSync();
 
     const page = usePage();
     const { auth, modulePermissions, notifications } =

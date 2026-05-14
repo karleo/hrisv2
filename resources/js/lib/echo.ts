@@ -1,5 +1,6 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
+import { getJsonRequestIntegrityHeaders } from '@/lib/request-integrity-headers';
 
 declare global {
     interface Window {
@@ -23,6 +24,7 @@ export function getEcho(): Echo<'reverb'> | null {
     }
 
     window.Pusher = Pusher;
+
     window.Echo = new Echo({
         broadcaster: 'reverb',
         key,
@@ -31,6 +33,10 @@ export function getEcho(): Echo<'reverb'> | null {
         wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 8080),
         forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
         enabledTransports: ['ws', 'wss'],
+        authEndpoint: `${window.location.origin}/broadcasting/auth`,
+        auth: {
+            headers: getJsonRequestIntegrityHeaders(null),
+        },
     });
 
     return window.Echo;

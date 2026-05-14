@@ -7,6 +7,7 @@ HRIS System build by Prime Team
 
 
 ****chat****
+
 Install dependencies (first time):
 
 composer install
@@ -31,3 +32,10 @@ For your project specifically, also ensure:
 
 PHP is 8.3+ (your earlier test run failed on 8.2.12)
 Queue worker if features depend on jobs: php artisan queue:work
+
+Employee presence (online / offline in Messages):
+
+- Heartbeat writes cache keys `employee_app_active_v1_{employeeId}` (Unix timestamp of last ping; TTL 90s). Inspect with `php artisan tinker` or Redis CLI (`KEYS *employee_app_active*`).
+- In the browser, `POST /employee-presence/heartbeat` should return **302** (Inertia) or **200** (JSON), never **419** (CSRF). If you see 419, clear caches and retry: `php artisan optimize:clear`.
+- For **multiple PHP workers or servers**, use **`CACHE_STORE=redis`** (or another shared cache). The `file` driver is per-machine and can miss heartbeats written by another worker.
+- Dev-only presence logging: in the browser console run `localStorage.setItem('debug_employee_presence', '1')` then reload; remove with `localStorage.removeItem('debug_employee_presence')`.

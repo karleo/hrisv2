@@ -16,7 +16,7 @@ Broadcast::channel('employees.online', function (User $user): array|bool {
     }
 
     return [
-        'id' => $employee->id,
+        'id' => (int) $employee->id,
         'employee_code' => $employee->employee_code,
         'first_name' => $employee->first_name,
         'last_name' => $employee->last_name,
