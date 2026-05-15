@@ -102,6 +102,24 @@ class EmployeePresenceStatusTest extends TestCase
         $this->assertSame($employeeA->id, $response->json('employees.0.id'));
     }
 
+    public function test_logout_clears_presence_cache_for_employee(): void
+    {
+        $user = User::factory()->create();
+        $employee = Employee::factory()->create(['user_id' => $user->id]);
+
+        $this->actingAs($user)
+            ->postJson(route('employee-presence.heartbeat'))
+            ->assertOk();
+
+        $this->assertTrue(EmployeePresenceOnlineData::hasActiveHeartbeat($employee->id));
+
+        $this->actingAs($user)
+            ->post(route('logout'))
+            ->assertRedirect(route('home'));
+
+        $this->assertFalse(EmployeePresenceOnlineData::hasActiveHeartbeat($employee->id));
+    }
+
     public function test_guest_cannot_heartbeat_or_list_presence(): void
     {
         $this->postJson(route('employee-presence.heartbeat'))

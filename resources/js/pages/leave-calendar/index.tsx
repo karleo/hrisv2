@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, Filter, Layers3, Users } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Filter, Layers3, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -26,6 +27,12 @@ type LeaveTypeOption = {
     leave_category: 'paid' | 'unpaid' | string;
 };
 
+type CalendarDayLeave = {
+    id: number;
+    employee_name: string;
+    leave_type: string;
+};
+
 type DepartmentSummary = {
     department_name: string;
     leave_entries: number;
@@ -48,6 +55,8 @@ type CalendarFilters = {
 };
 
 const CALENDAR_WEEKDAY_LABEL_KEYS = ['weekdays.mon', 'weekdays.tue', 'weekdays.wed', 'weekdays.thu', 'weekdays.fri', 'weekdays.sat', 'weekdays.sun'] as const;
+
+const UPCOMING_LEAVES_PAGE_SIZE = 5;
 
 const LEAVE_TYPE_TONE_CLASSES = [
     'bg-blue-500/12 text-blue-700 border-blue-500/30 dark:bg-blue-500/25 dark:text-blue-200 dark:border-blue-400/40',
@@ -159,17 +168,6 @@ function formatDateRange(from: string, to: string, locale: string): string {
     return `${formatDateShort(from, locale)} - ${formatDateShort(to, locale)}`;
 }
 
-function dayLoadTone(dayCount: number): string {
-    if (dayCount >= 4) {
-        return 'border-rose-500/50 bg-rose-500/10 text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/20 dark:text-rose-200';
-    }
-    if (dayCount >= 2) {
-        return 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/20 dark:text-amber-200';
-    }
-
-    return 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200';
-}
-
 function dayCardBaseTone(
     inCurrentMonth: boolean,
     isToday: boolean,
@@ -226,6 +224,7 @@ export default function LeaveCalendarIndex({
     leaveTypes,
     entries,
     calendarDayCounts,
+    calendarDayLeaves,
     todayOnLeave,
     upcomingLeaves,
     departmentSummary,
@@ -236,6 +235,7 @@ export default function LeaveCalendarIndex({
     leaveTypes: LeaveTypeOption[];
     entries: LeaveCalendarEntry[];
     calendarDayCounts: Record<string, number>;
+    calendarDayLeaves: Record<string, CalendarDayLeave[]>;
     todayOnLeave: LeaveCalendarEntry[];
     upcomingLeaves: LeaveCalendarEntry[];
     departmentSummary: DepartmentSummary[];
@@ -246,6 +246,32 @@ export default function LeaveCalendarIndex({
         filters.department_id != null ? String(filters.department_id) : 'all',
     );
     const [leaveTypeInput, setLeaveTypeInput] = useState(filters.leave_type ?? 'all');
+    const [upcomingPage, setUpcomingPage] = useState(1);
+
+    useEffect(() => {
+        setUpcomingPage(1);
+    }, [upcomingLeaves, filters.department_id, filters.leave_type, filters.month]);
+
+    const upcomingPagination = useMemo(() => {
+        const total = upcomingLeaves.length;
+        const totalPages = Math.max(1, Math.ceil(total / UPCOMING_LEAVES_PAGE_SIZE));
+        const page = Math.min(Math.max(1, upcomingPage), totalPages);
+        const startIndex = (page - 1) * UPCOMING_LEAVES_PAGE_SIZE;
+        const items = upcomingLeaves.slice(
+            startIndex,
+            startIndex + UPCOMING_LEAVES_PAGE_SIZE,
+        );
+
+        return {
+            items,
+            page,
+            totalPages,
+            total,
+            from: total === 0 ? 0 : startIndex + 1,
+            to: Math.min(startIndex + UPCOMING_LEAVES_PAGE_SIZE, total),
+        };
+    }, [upcomingLeaves, upcomingPage]);
+
     const selectedMonthParts = useMemo(
         () => parseMonthValue(monthInput || meta.month),
         [meta.month, monthInput],
@@ -492,23 +518,35 @@ export default function LeaveCalendarIndex({
                                 const iso = toIsoDate(date);
                                 const inCurrentMonth = iso >= meta.monthStart
                                     && iso <= meta.monthEnd;
-                                const leaveCount = calendarDayCounts[iso] ?? 0;
+                                const dayLeaves = calendarDayLeaves[iso] ?? [];
+                                const leaveCount = dayLeaves.length || (calendarDayCounts[iso] ?? 0);
                                 const isToday = iso === meta.today;
 
                                 return (
                                     <div
                                         key={iso}
-                                        className={`min-h-16 rounded-md border px-1.5 py-1 ${dayCardBaseTone(
+                                        className={`flex min-h-16 flex-col rounded-md border px-1.5 py-1 ${dayCardBaseTone(
                                             inCurrentMonth,
                                             isToday,
                                             leaveCount,
-                                        )} ${isToday ? 'ring-1 ring-primary/60' : ''}`}
+                                        )} ${isToday ? 'ring-1 ring-primary/60' : ''} ${leaveCount > 0 ? 'min-h-24' : ''}`}
                                     >
                                         <div className="text-xs font-medium">{date.getDate()}</div>
-                                        {leaveCount > 0 ? (
-                                            <div className={`mt-1 inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${dayLoadTone(leaveCount)}`}>
-                                                {leaveCount} {t('leaveCalendar.leave', 'leave')}
-                                            </div>
+                                        {dayLeaves.length > 0 ? (
+                                            <ul
+                                                className="mt-1 max-h-24 flex-1 space-y-0.5 overflow-y-auto pr-0.5"
+                                                aria-label={t('leaveCalendar.employeesOnLeave', 'Employees on leave')}
+                                            >
+                                                {dayLeaves.map((leave) => (
+                                                    <li
+                                                        key={`${iso}-${leave.id}`}
+                                                        className="truncate text-[10px] leading-tight text-foreground/90 dark:text-slate-100"
+                                                        title={`${leave.employee_name} · ${leave.leave_type}`}
+                                                    >
+                                                        {leave.employee_name}
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         ) : null}
                                     </div>
                                 );
@@ -562,12 +600,12 @@ export default function LeaveCalendarIndex({
                         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/65">
                             <h3 className="mb-2 text-sm font-semibold">{t('leaveCalendar.upcomingNext7Days', 'Upcoming (Next 7 Days)')}</h3>
                             <div className="space-y-2">
-                                {upcomingLeaves.length === 0 ? (
+                                {upcomingPagination.total === 0 ? (
                                     <p className="text-muted-foreground text-xs">
                                         {t('leaveCalendar.noUpcoming7Days', 'No upcoming approved leaves in the next 7 days.')}
                                     </p>
                                 ) : (
-                                    upcomingLeaves.slice(0, 8).map((item) => (
+                                    upcomingPagination.items.map((item) => (
                                         <div key={`upcoming-${item.id}`} className="rounded-md border border-border px-2 py-2 dark:border-slate-700/70 dark:bg-slate-950/45">
                                             <p className="text-sm font-medium">{item.employee_name}</p>
                                             <p className="text-muted-foreground text-xs">{item.department_name}</p>
@@ -583,6 +621,58 @@ export default function LeaveCalendarIndex({
                                     ))
                                 )}
                             </div>
+                            {upcomingPagination.total > UPCOMING_LEAVES_PAGE_SIZE ? (
+                                <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 dark:border-slate-700/70">
+                                    <p className="text-muted-foreground text-center text-xs">
+                                        {t('pagination.summary', 'Showing {from} to {to} of {total} results', {
+                                            from: upcomingPagination.from,
+                                            to: upcomingPagination.to,
+                                            total: upcomingPagination.total,
+                                        })}
+                                    </p>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 flex-1"
+                                            disabled={upcomingPagination.page <= 1}
+                                            onClick={() =>
+                                                setUpcomingPage((current) =>
+                                                    Math.max(1, current - 1),
+                                                )
+                                            }
+                                        >
+                                            <ChevronLeft className="size-4" />
+                                            {t('pagination.previous', 'Previous')}
+                                        </Button>
+                                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                            {upcomingPagination.page} / {upcomingPagination.totalPages}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 flex-1"
+                                            disabled={
+                                                upcomingPagination.page >=
+                                                upcomingPagination.totalPages
+                                            }
+                                            onClick={() =>
+                                                setUpcomingPage((current) =>
+                                                    Math.min(
+                                                        upcomingPagination.totalPages,
+                                                        current + 1,
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            {t('pagination.next', 'Next')}
+                                            <ChevronRight className="size-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </section>

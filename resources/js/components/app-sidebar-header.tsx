@@ -4,7 +4,7 @@ import { Bell } from 'lucide-react';
 import { Languages } from 'lucide-react';
 import { MessageCircle } from 'lucide-react';
 import { MessageSquareText } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
 import { NotificationBellListItem } from '@/components/notification-bell-list-item';
@@ -24,6 +24,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
 import { useNotificationsLiveSync } from '@/hooks/use-notifications-live-sync';
 import { useI18n } from '@/lib/i18n';
+import { playEmployeeMessageUnreadChime } from '@/lib/play-employee-message-unread-chime';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -107,6 +108,32 @@ export function AppSidebarHeader({
     const hasUnread = unreadCount > 0;
     const messagesUnread = employeeMessages?.unread_count ?? 0;
     const hasUnreadMessages = messagesUnread > 0;
+
+    const headerChatSoundReadyRef = useRef(false);
+    const headerChatSoundPrevUnreadRef = useRef(0);
+
+    useEffect(() => {
+        if (employeeMessages === undefined) {
+            return;
+        }
+
+        const unread = employeeMessages.unread_count ?? 0;
+
+        if (!headerChatSoundReadyRef.current) {
+            headerChatSoundReadyRef.current = true;
+            headerChatSoundPrevUnreadRef.current = unread;
+
+            return;
+        }
+
+        if (unread > headerChatSoundPrevUnreadRef.current) {
+            queueMicrotask(() => {
+                playEmployeeMessageUnreadChime();
+            });
+        }
+
+        headerChatSoundPrevUnreadRef.current = unread;
+    }, [employeeMessages]);
 
     useEffect(() => {
         if (typeof window === 'undefined') {

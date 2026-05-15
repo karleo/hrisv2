@@ -103,6 +103,7 @@ class LeaveCalendarController extends Controller
         })->values();
 
         $calendarDayCounts = [];
+        $calendarDayLeaves = [];
         foreach ($entries as $entry) {
             $from = Carbon::parse((string) $entry['period_from']);
             $to = Carbon::parse((string) $entry['period_to']);
@@ -112,8 +113,25 @@ class LeaveCalendarController extends Controller
             for ($cursor = (clone $effectiveStart); $cursor->lte($effectiveEnd); $cursor->addDay()) {
                 $key = $cursor->toDateString();
                 $calendarDayCounts[$key] = ($calendarDayCounts[$key] ?? 0) + 1;
+                $calendarDayLeaves[$key] ??= [];
+                $calendarDayLeaves[$key][] = [
+                    'id' => (int) $entry['id'],
+                    'employee_name' => (string) $entry['employee_name'],
+                    'leave_type' => (string) $entry['leave_type'],
+                ];
             }
         }
+
+        foreach ($calendarDayLeaves as &$dayLeaves) {
+            usort(
+                $dayLeaves,
+                static fn (array $a, array $b): int => strcmp(
+                    (string) $a['employee_name'],
+                    (string) $b['employee_name'],
+                ),
+            );
+        }
+        unset($dayLeaves);
 
         $todayOnLeave = $entries
             ->filter(static function (array $entry) use ($today): bool {
@@ -195,6 +213,7 @@ class LeaveCalendarController extends Controller
             'leaveTypes' => $leaveTypes,
             'entries' => $entries,
             'calendarDayCounts' => $calendarDayCounts,
+            'calendarDayLeaves' => $calendarDayLeaves,
             'todayOnLeave' => $todayOnLeave,
             'upcomingLeaves' => $upcomingLeaves,
             'departmentSummary' => $departmentSummary,
@@ -231,4 +250,3 @@ class LeaveCalendarController extends Controller
         }
     }
 }
-

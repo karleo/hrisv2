@@ -23,12 +23,17 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             DepartmentSeeder::class,
             JobPositionSeeder::class,
-            EmployeeSeeder::class,
-            LeaveTypeSeeder::class,
             CountrySeeder::class,
             CompanyProfileSeeder::class,
+            LeaveTypeSeeder::class,
             SoftwareSeeder::class,
             HardwareSeeder::class,
+            DocumentTypeSeeder::class,
+            WorkTimetableSeeder::class,
+            EmployeeSeeder::class,
+            DemoEmployeeSeeder::class,
+            HardwareAssetValueSeeder::class,
+            LeaveRequestSeeder::class,
         ]);
 
         $administratorRoleId = Role::query()->where('slug', 'administrator')->value('id');
@@ -79,5 +84,21 @@ class DatabaseSeeder extends Seeder
                     'user_id' => $index === 0 ? $testUser->id : $chatUser->id,
                 ])->save();
             });
+
+        $demoChat = Employee::query()
+            ->where('employee_code', 'EMP-DEMO-007')
+            ->first();
+
+        if ($demoChat !== null && $demoChat->user_id === null) {
+            $demoChat->forceFill(['user_id' => $chatUser->id])->save();
+        }
+
+        $demoAdmin = Employee::query()
+            ->where('employee_code', 'EMP-DEMO-003')
+            ->first();
+
+        if ($demoAdmin !== null && $demoAdmin->user_id === null) {
+            $demoAdmin->forceFill(['user_id' => $testUser->id])->save();
+        }
     }
 }

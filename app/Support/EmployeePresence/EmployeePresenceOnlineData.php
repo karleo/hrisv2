@@ -3,6 +3,8 @@
 namespace App\Support\EmployeePresence;
 
 use App\Models\Employee;
+use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Cache;
 
 final class EmployeePresenceOnlineData
@@ -36,6 +38,24 @@ final class EmployeePresenceOnlineData
         }
 
         return is_int($cached) && $cached > 0;
+    }
+
+    /**
+     * Remove cached "active app" state (e.g. on logout so peers see offline immediately).
+     */
+    public static function forgetAppPresenceForUser(?Authenticatable $user): void
+    {
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $employeeId = filter_var($user->employee?->id, FILTER_VALIDATE_INT);
+
+        if ($employeeId === false || $employeeId < 1) {
+            return;
+        }
+
+        Cache::forget(self::cacheKey($employeeId));
     }
 
     /**

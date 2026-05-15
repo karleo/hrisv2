@@ -7,8 +7,11 @@ use App\Notifications\RequestSubmittedNotification;
 use App\Services\FaceVerification\FaceVerificationService;
 use App\Services\Mail\GraphMailSender;
 use App\Services\Mail\MailSettingsManager;
+use App\Support\EmployeePresence\EmployeePresenceOnlineData;
 use App\Support\RequestEmailLogger;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
@@ -44,6 +47,14 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        Event::listen(Logout::class, function (Logout $event): void {
+            EmployeePresenceOnlineData::forgetAppPresenceForUser($event->user);
+        });
+
+        Event::listen(Login::class, function (Login $event): void {
+            EmployeePresenceOnlineData::forgetAppPresenceForUser($event->user);
+        });
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
