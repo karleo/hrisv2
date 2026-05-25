@@ -22,6 +22,8 @@ use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\WorkTimetable;
+use App\Services\Reports\AttendanceReportPdfExporter;
+use App\Services\Reports\AttendanceReportService;
 use App\Support\ItAssetValuation;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,6 +38,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
@@ -926,6 +929,45 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Download attendance PDF for an employee mapped on a biometric device.
+     */
+    public function downloadAttendancePdf(
+        Request $request,
+        Employee $employee,
+        AttendanceReportService $attendanceReportService,
+        AttendanceReportPdfExporter $pdfExporter,
+    ): HttpResponse {
+        if (trim((string) $employee->biometric_user_id) === '') {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $to = isset($validated['to'])
+            ? Carbon::parse($validated['to'])->toDateString()
+            : now()->toDateString();
+        $from = isset($validated['from'])
+            ? Carbon::parse($validated['from'])->toDateString()
+            : Carbon::parse($to)->subDays(30)->toDateString();
+
+        if (Carbon::parse($from)->greaterThan(Carbon::parse($to))) {
+            $from = Carbon::parse($to)->subDays(30)->toDateString();
+        }
+
+        $report = $attendanceReportService->buildForEmployee($employee, $from, $to);
+
+        return $pdfExporter->download(
+            rows: $report['rows'],
+            from: $from,
+            to: $to,
+            employee: $employee,
+        );
+    }
+
+    /**
      * Show the form for editing the specified employee.
      */
     public function show(Employee $employee): RedirectResponse
@@ -939,7 +981,7 @@ class EmployeeController extends Controller
     /**
      * Show the form for editing the specified employee.
      */
-    public function edit(Request $request, Employee $employee): Response
+    public function edit(Request $request, Employee $employee, AttendanceReportService $attendanceReportService): Response
     {
         $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
 
@@ -1026,8 +1068,33 @@ class EmployeeController extends Controller
                 : null;
         }
 
+        $attendance = null;
+
+        if (trim((string) $employee->biometric_user_id) !== '') {
+            $to = $request->date('to')?->toDateString() ?? now()->toDateString();
+            $from = $request->date('from')?->toDateString() ?? Carbon::parse($to)->subDays(30)->toDateString();
+
+            if (Carbon::parse($from)->greaterThan(Carbon::parse($to))) {
+                $from = Carbon::parse($to)->subDays(30)->toDateString();
+            }
+
+            $report = $attendanceReportService->buildForEmployee($employee, $from, $to);
+            $attendance = [
+                'filters' => [
+                    'from' => $from,
+                    'to' => $to,
+                ],
+                'summary' => [
+                    'total_days' => count($report['rows']),
+                    'total_punches' => $report['total_punches'],
+                ],
+                'rows' => $report['rows'],
+            ];
+        }
+
         return Inertia::render('employees/edit', [
             'employee' => $employee,
+            'attendance' => $attendance,
             'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
             'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get([

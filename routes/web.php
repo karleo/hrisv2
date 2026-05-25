@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Biometric\BiometricAttendanceController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DashboardController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Reports\AttendanceReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
@@ -50,6 +52,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('departments', DepartmentController::class);
+    Route::get('employees/{employee}/attendance/pdf', [EmployeeController::class, 'downloadAttendancePdf'])
+        ->name('employees.attendance.pdf');
     Route::get('employees/{employee}/business-card', [EmployeeController::class, 'businessCard'])
         ->name('employees.business-card');
     Route::get('employees/{employee}/business-card/embed', [EmployeeController::class, 'businessCardEmbed'])
@@ -105,6 +109,28 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     ])->only(['index', 'store', 'update', 'destroy']);
     Route::post('time-attendance/check-out', [EmployeeTimeEntryController::class, 'checkOut'])
         ->name('time-attendance.check-out');
+
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('attendance', [AttendanceReportController::class, 'index'])->name('attendance');
+    });
+
+    Route::prefix('biometric-attendance')->name('biometric-attendance.')->group(function () {
+        Route::get('/', [BiometricAttendanceController::class, 'dashboard'])->name('dashboard');
+        Route::get('connectivity', [BiometricAttendanceController::class, 'connectivity'])->name('connectivity');
+        Route::get('import', [BiometricAttendanceController::class, 'import'])->name('import');
+        Route::get('sessions', [BiometricAttendanceController::class, 'sessions'])->name('sessions');
+        Route::get('punches', [BiometricAttendanceController::class, 'punches'])->name('punches');
+        Route::get('sync-logs', [BiometricAttendanceController::class, 'syncLogs'])->name('sync-logs');
+        Route::post('devices', [BiometricAttendanceController::class, 'storeDevice'])->name('devices.store');
+        Route::patch('devices/{biometric_device}', [BiometricAttendanceController::class, 'updateDevice'])->name('devices.update');
+        Route::post('sync', [BiometricAttendanceController::class, 'sync'])->name('sync');
+        Route::post('remap-punches', [BiometricAttendanceController::class, 'remapPunches'])->name('remap-punches');
+        Route::get('sync-status', [BiometricAttendanceController::class, 'syncStatus'])->name('sync-status');
+        Route::post('devices/{biometric_device}/test', [BiometricAttendanceController::class, 'testConnection'])->name('devices.test');
+        Route::post('devices/{biometric_device}/use-adms-push', [BiometricAttendanceController::class, 'useAdmsPush'])->name('devices.use-adms-push');
+        Route::post('devices/{biometric_device}/use-device-web-report', [BiometricAttendanceController::class, 'useDeviceWebReport'])->name('devices.use-device-web-report');
+        Route::get('devices/{biometric_device}/probe', [BiometricAttendanceController::class, 'probeDevice'])->name('devices.probe');
+    });
     Route::resource('work-timetables', WorkTimetableController::class)->parameters([
         'work-timetables' => 'work_timetable',
     ]);

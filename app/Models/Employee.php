@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Biometric\BiometricEmployeeMapper;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,6 +57,7 @@ class Employee extends Model
     protected $fillable = [
         'user_id',
         'employee_code',
+        'biometric_user_id',
         'first_name',
         'last_name',
         'email_address',
@@ -206,6 +208,10 @@ class Employee extends Model
                 $changes,
                 $oldValues
             );
+
+            if (array_key_exists('biometric_user_id', $changes)) {
+                app(BiometricEmployeeMapper::class)->mapForAllDevices();
+            }
         });
 
         static::deleted(function (self $employee): void {

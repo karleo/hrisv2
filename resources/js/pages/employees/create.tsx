@@ -710,6 +710,23 @@ export default function Create({
                                         />
                                     </div>
 
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="biometric_user_id">
+                                            Biometric user ID (device PIN)
+                                        </Label>
+                                        <Input
+                                            id="biometric_user_id"
+                                            name="biometric_user_id"
+                                            maxLength={24}
+                                            placeholder="Must match terminal enrollment"
+                                            autoComplete="off"
+                                        />
+                                        <p className="text-muted-foreground text-xs">
+                                            Numeric ID assigned on the iClock990. Must be unique.
+                                        </p>
+                                        <InputError message={errors.biometric_user_id} />
+                                    </div>
+
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         <div className="grid gap-2">
                                             <Label htmlFor="first_name">

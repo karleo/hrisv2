@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use App\Http\Controllers\Biometric\BiometricAttendanceController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\Reports\AttendanceReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
@@ -51,6 +53,7 @@ final class ModulePermissionRegistry
             'import' => [PermissionModule::Employees, ModuleAbility::Create],
             'businessCard' => [PermissionModule::Employees, ModuleAbility::View],
             'businessCardEmbed' => [PermissionModule::Employees, ModuleAbility::View],
+            'downloadAttendancePdf' => [PermissionModule::Employees, ModuleAbility::View],
             'show' => [PermissionModule::Employees, ModuleAbility::View],
             'edit' => [PermissionModule::Employees, ModuleAbility::Update],
             'update' => [PermissionModule::Employees, ModuleAbility::Update],
@@ -221,6 +224,21 @@ final class ModulePermissionRegistry
             'update' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
             'destroy' => [PermissionModule::TimeAttendance, ModuleAbility::Delete],
             'checkOut' => [PermissionModule::TimeAttendance, ModuleAbility::CheckOut],
+        ],
+        BiometricAttendanceController::class => [
+            'dashboard' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'sessions' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'punches' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'syncLogs' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'storeDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'updateDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'sync' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'testConnection' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'useAdmsPush' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'probeDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+        ],
+        AttendanceReportController::class => [
+            'index' => [PermissionModule::Reports, ModuleAbility::View],
         ],
         WorkTimetableController::class => [
             'index' => [PermissionModule::WorkTimetables, ModuleAbility::View],

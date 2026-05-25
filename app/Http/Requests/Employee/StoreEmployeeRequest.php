@@ -37,6 +37,13 @@ class StoreEmployeeRequest extends FormRequest
                 'max:50',
                 Rule::unique(Employee::class),
             ],
+            'biometric_user_id' => [
+                'nullable',
+                'string',
+                'max:24',
+                'regex:/^\d+$/',
+                Rule::unique(Employee::class, 'biometric_user_id'),
+            ],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email_address' => [

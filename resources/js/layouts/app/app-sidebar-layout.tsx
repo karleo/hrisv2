@@ -2,6 +2,7 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { BiometricSyncProvider } from '@/contexts/biometric-sync-context';
 import { EmployeePresenceProvider } from '@/contexts/employee-presence-context';
 import type { AppLayoutProps } from '@/types';
 
@@ -10,15 +11,17 @@ export default function AppSidebarLayout({
     breadcrumbs = [],
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.11';
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.12';
 
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
             <AppContent variant="sidebar" className="overflow-x-hidden" dir="ltr">
                 <EmployeePresenceProvider>
-                    <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                    {children}
+                    <BiometricSyncProvider>
+                        <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                        {children}
+                    </BiometricSyncProvider>
                 </EmployeePresenceProvider>
                 <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground md:px-6">
                     {`© ${year} Prime Logistics. All rights reserved. V ${appVersion}`}

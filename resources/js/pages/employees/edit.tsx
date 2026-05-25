@@ -3,6 +3,7 @@ import { Form } from '@inertiajs/react';
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Download, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
+import { EmployeeAttendanceTab } from '@/components/employee-attendance-tab';
 import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -134,7 +135,22 @@ type EmployeeTab =
     | 'private_information'
     | 'documents'
     | 'leave_configuration'
-    | 'asset';
+    | 'asset'
+    | 'attendance';
+
+type EmployeeAttendance = {
+    filters: { from: string; to: string };
+    summary: { total_days: number; total_punches: number };
+    rows: Array<{
+        date: string;
+        device_pin: string;
+        device_name: string | null;
+        clock_in: string | null;
+        clock_out: string | null;
+        working_hours: string;
+        punch_count: number;
+    }>;
+};
 
 const employeeStatuses = [
     'Employed',
@@ -236,6 +252,7 @@ type Employee = {
     id: number;
     user_id: number | null;
     employee_code: string;
+    biometric_user_id: string | null;
     first_name: string;
     last_name: string;
     email_address: string;
@@ -286,6 +303,7 @@ export default function Edit({
     canViewActivityLogs = false,
     leaveConfig,
     asset,
+    attendance = null,
     employeeNavigation,
     employeeLoginActive = null,
     viewMode = false,
@@ -300,6 +318,7 @@ export default function Edit({
     canViewActivityLogs?: boolean;
     leaveConfig: LeaveConfig;
     asset: EmployeeAssetRequest[];
+    attendance?: EmployeeAttendance | null;
     employeeNavigation: EmployeeNavigation;
     employeeLoginActive?: boolean | null;
     viewMode?: boolean;
@@ -426,14 +445,19 @@ export default function Edit({
     const tabFromQuery = new URLSearchParams(queryString).get('tab');
     const readOnlyView = viewMode;
     const hasLinkedUser = employee.user_id !== null;
+    const hasBiometricMapping =
+        String(employee.biometric_user_id ?? '').trim().length > 0;
     const initialTab: EmployeeTab =
+        (tabFromQuery === 'attendance' && hasBiometricMapping) ||
         tabFromQuery === 'asset' ||
         tabFromQuery === 'documents' ||
         tabFromQuery === 'leave_configuration' ||
         tabFromQuery === 'private_information' ||
         tabFromQuery === 'work_information' ||
         tabFromQuery === 'employee_information'
-            ? tabFromQuery
+            ? (tabFromQuery === 'attendance' && hasBiometricMapping
+                  ? 'attendance'
+                  : (tabFromQuery as EmployeeTab))
             : 'employee_information';
     const [tab, setTab] = useState<EmployeeTab>(initialTab);
     const normalizedEmployeeStatus =
@@ -990,9 +1014,18 @@ export default function Edit({
                     >
                         Asset
                     </Button>
+                    {hasBiometricMapping ? (
+                        <Button
+                            type="button"
+                            variant={tab === 'attendance' ? 'default' : 'outline'}
+                            onClick={() => setTab('attendance')}
+                        >
+                            Attendance
+                        </Button>
+                    ) : null}
                 </div>
 
-                {tab !== 'private_information' && tab !== 'asset' ? (
+                {tab !== 'private_information' && tab !== 'asset' && tab !== 'attendance' ? (
                     <Form
                         {...EmployeeController.update.form(employee.id)}
                         id="employee-main-form"
@@ -1100,6 +1133,24 @@ export default function Edit({
                                         <InputError
                                             message={errors.employee_code}
                                         />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="biometric_user_id">
+                                            Biometric user ID (device PIN)
+                                        </Label>
+                                        <Input
+                                            id="biometric_user_id"
+                                            name="biometric_user_id"
+                                            maxLength={24}
+                                            defaultValue={employee.biometric_user_id ?? ''}
+                                            placeholder="Must match terminal enrollment"
+                                            autoComplete="off"
+                                        />
+                                        <p className="text-muted-foreground text-xs">
+                                            Numeric ID assigned on the iClock990. Must be unique.
+                                        </p>
+                                        <InputError message={errors.biometric_user_id} />
                                     </div>
 
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -2116,6 +2167,22 @@ export default function Edit({
                             </>
                         )}
                     </Form>
+                ) : null}
+
+                {tab === 'attendance' && hasBiometricMapping ? (
+                    attendance ? (
+                        <EmployeeAttendanceTab
+                            employeeId={employee.id}
+                            attendance={attendance}
+                            viewMode={readOnlyView}
+                        />
+                    ) : (
+                        <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+                            Attendance data is not available. Reload this page or run{' '}
+                            <code className="text-xs">npm run build</code> if you recently updated the
+                            application.
+                        </div>
+                    )
                 ) : null}
 
                 {tab === 'asset' ? (

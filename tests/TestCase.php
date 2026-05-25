@@ -11,6 +11,8 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        config(['biometric.sync_inline' => true]);
+
         $this->seed(RoleSeeder::class);
     }
 }

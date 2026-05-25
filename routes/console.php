@@ -2,6 +2,7 @@
 
 use App\Console\Commands\PruneOldEmployeeMessages;
 use App\Console\Commands\SendEmployeeDocumentExpiryNotifications;
+use App\Console\Commands\SyncBiometricDevicesCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -17,3 +18,7 @@ Schedule::command(SendEmployeeDocumentExpiryNotifications::class)
 Schedule::command(PruneOldEmployeeMessages::class)
     ->hourly()
     ->withoutOverlapping();
+
+Schedule::command(SyncBiometricDevicesCommand::class)
+    ->everyFifteenMinutes()
+    ->withoutOverlapping('biometric-sync');

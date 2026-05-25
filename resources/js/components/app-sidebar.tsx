@@ -5,6 +5,8 @@ import {
     Building2,
     CalendarDays,
     Clock,
+    Fingerprint,
+    FileBarChart,
     Cpu,
     Globe,
     LayoutGrid,
@@ -102,6 +104,26 @@ function buildMainNavItems(
             href: '/time-attendance',
             icon: Clock,
             module: 'time_attendance',
+        },
+        {
+            title: t('sidebar.biometricAttendance', 'Biometric attendance'),
+            description: 'iClock990 sync, punches, and sessions',
+            href: '/biometric-attendance',
+            icon: Fingerprint,
+            module: 'biometric_attendance',
+        },
+        {
+            title: t('sidebar.reports', 'Reports'),
+            description: 'Attendance and HR exports',
+            icon: FileBarChart,
+            items: [
+                {
+                    title: t('sidebar.attendanceReport', 'Attendance report'),
+                    href: '/reports/attendance',
+                    icon: Clock,
+                    module: 'reports',
+                },
+            ],
         },
         {
             title: t('sidebar.settings', 'Settings'),

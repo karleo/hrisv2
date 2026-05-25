@@ -85,6 +85,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'sync_log_id' => $request->session()->get('sync_log_id'),
             ],
         ];
     }

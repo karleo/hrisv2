@@ -4,10 +4,13 @@ namespace App\Providers;
 
 use App\Contracts\FaceVerificationContract;
 use App\Notifications\RequestSubmittedNotification;
+use App\Services\Biometric\BiometricConnectorFactory;
+use App\Services\Biometric\Connectors\ZkTecoTcpPullConnector;
 use App\Services\FaceVerification\FaceVerificationService;
 use App\Services\Mail\GraphMailSender;
 use App\Services\Mail\MailSettingsManager;
 use App\Support\EmployeePresence\EmployeePresenceOnlineData;
+use App\Support\RepairBrokenRouteCache;
 use App\Support\RequestEmailLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
@@ -29,8 +32,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        RepairBrokenRouteCache::apply($this->app);
+
         $this->app->singleton(FaceVerificationContract::class, FaceVerificationService::class);
         $this->app->singleton(MailSettingsManager::class);
+        $this->app->singleton(ZkTecoTcpPullConnector::class);
+        $this->app->singleton(BiometricConnectorFactory::class);
     }
 
     /**

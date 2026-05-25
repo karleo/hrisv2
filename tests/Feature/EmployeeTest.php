@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\BiometricConnectionType;
+use App\Enums\BiometricPunchDirection;
+use App\Models\BiometricDevice;
+use App\Models\BiometricPunch;
 use App\Models\CompanyProfile;
 use App\Models\Department;
 use App\Models\Employee;
@@ -399,6 +403,95 @@ class EmployeeTest extends TestCase
             ->component('employees/edit')
             ->where('employee.id', $employee->id)
         );
+    }
+
+    public function test_edit_without_biometric_pin_has_no_attendance_tab_data(): void
+    {
+        $employee = Employee::factory()->create(['biometric_user_id' => null]);
+
+        $this->get(route('employees.edit', $employee))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('employees/edit')
+                ->where('attendance', null));
+    }
+
+    public function test_employee_attendance_pdf_download(): void
+    {
+        $employee = Employee::factory()->create(['biometric_user_id' => '31']);
+        $device = BiometricDevice::query()->create([
+            'name' => 'Main gate',
+            'serial_number' => 'SN-EMP-PDF',
+            'connection_type' => BiometricConnectionType::DeviceWebReport,
+            'host' => '192.168.1.44',
+            'port' => 80,
+            'timezone' => 'UTC',
+            'is_active' => true,
+        ]);
+
+        BiometricPunch::query()->create([
+            'biometric_device_id' => $device->id,
+            'device_user_id' => '31',
+            'employee_id' => $employee->id,
+            'punched_at' => '2026-05-25 09:00:00',
+            'direction' => BiometricPunchDirection::In,
+            'idempotency_key' => 'emp-pdf-in',
+        ]);
+
+        $response = $this->get(route('employees.attendance.pdf', [
+            'employee' => $employee,
+            'from' => '2026-05-25',
+            'to' => '2026-05-25',
+        ]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+    }
+
+    public function test_edit_with_biometric_pin_includes_attendance_data(): void
+    {
+        $employee = Employee::factory()->create(['biometric_user_id' => '55']);
+        $device = BiometricDevice::query()->create([
+            'name' => 'Main gate',
+            'serial_number' => 'SN-EMP-ATT',
+            'connection_type' => BiometricConnectionType::DeviceWebReport,
+            'host' => '192.168.1.44',
+            'port' => 80,
+            'timezone' => 'UTC',
+            'is_active' => true,
+        ]);
+
+        BiometricPunch::query()->create([
+            'biometric_device_id' => $device->id,
+            'device_user_id' => '55',
+            'employee_id' => $employee->id,
+            'punched_at' => '2026-05-25 10:16:50',
+            'direction' => BiometricPunchDirection::In,
+            'idempotency_key' => 'emp-tab-in',
+        ]);
+        BiometricPunch::query()->create([
+            'biometric_device_id' => $device->id,
+            'device_user_id' => '55',
+            'employee_id' => $employee->id,
+            'punched_at' => '2026-05-25 18:00:00',
+            'direction' => BiometricPunchDirection::Out,
+            'idempotency_key' => 'emp-tab-out',
+        ]);
+
+        $this->get(route('employees.edit', [
+            'employee' => $employee,
+            'tab' => 'attendance',
+            'from' => '2026-05-25',
+            'to' => '2026-05-25',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('employees/edit')
+                ->has('attendance.rows', 1)
+                ->where('attendance.rows.0.clock_in', '10:16:50')
+                ->where('attendance.rows.0.clock_out', '18:00:00')
+                ->where('attendance.summary.total_punches', 2));
     }
 
     public function test_edit_includes_leave_configuration_and_usage(): void

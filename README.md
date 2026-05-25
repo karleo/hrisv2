@@ -52,3 +52,8 @@ Employee presence (online / offline in Messages):
 - For **multiple PHP workers or servers**, use **`CACHE_STORE=redis`** (or another shared cache). The `file` driver is per-machine and can miss heartbeats written by another worker.
 - Logout clears the presence cache server-side and the client leaves the `employees.online` Echo channel so peers see **Offline** immediately (HTTP + Reverb).
 - On **login**, any stale presence entry for that user is cleared so they are **not** shown as online until the next heartbeat runs.
+
+
+*******************
+
+php artisan queue:liste -> Bio Mterics data

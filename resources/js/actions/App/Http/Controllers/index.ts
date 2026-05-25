@@ -14,6 +14,8 @@ import HardwareController from './HardwareController'
 import HardwareAssetValueController from './HardwareAssetValueController'
 import DocumentTypeController from './DocumentTypeController'
 import EmployeeTimeEntryController from './EmployeeTimeEntryController'
+import Reports from './Reports'
+import Biometric from './Biometric'
 import WorkTimetableController from './WorkTimetableController'
 import LeaveRequestController from './LeaveRequestController'
 import LeaveCalendarController from './LeaveCalendarController'
@@ -42,6 +44,8 @@ HardwareController: Object.assign(HardwareController, HardwareController),
 HardwareAssetValueController: Object.assign(HardwareAssetValueController, HardwareAssetValueController),
 DocumentTypeController: Object.assign(DocumentTypeController, DocumentTypeController),
 EmployeeTimeEntryController: Object.assign(EmployeeTimeEntryController, EmployeeTimeEntryController),
+Reports: Object.assign(Reports, Reports),
+Biometric: Object.assign(Biometric, Biometric),
 WorkTimetableController: Object.assign(WorkTimetableController, WorkTimetableController),
 LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestController),
 LeaveCalendarController: Object.assign(LeaveCalendarController, LeaveCalendarController),

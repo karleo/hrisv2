@@ -1,0 +1,122 @@
+<?php
+
+namespace App\Services\Reports;
+
+use App\Models\BiometricDevice;
+use App\Models\CompanyProfile;
+use App\Models\Employee;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
+
+final class AttendanceReportPdfExporter
+{
+    /**
+     * @param  list<array{
+     *     date: string,
+     *     employee_name: string,
+     *     employee_code: string|null,
+     *     device_pin: string,
+     *     device_name: string|null,
+     *     clock_in: string|null,
+     *     clock_out: string|null,
+     *     punch_count: int,
+     *     working_hours: string,
+     * }>  $rows
+     */
+    public function download(
+        array $rows,
+        string $from,
+        string $to,
+        ?Employee $employee = null,
+        ?int $deviceId = null,
+    ): HttpResponse {
+        $filename = $this->filename($from, $to, $employee);
+
+        $employeeLabel = null;
+        $company = null;
+
+        if ($employee !== null) {
+            $employee->loadMissing('companyProfile:id,company_name,logo');
+            $employeeLabel = trim($employee->first_name.' '.$employee->last_name);
+            $company = $employee->companyProfile;
+        }
+
+        if ($company === null) {
+            $company = CompanyProfile::query()
+                ->orderBy('id')
+                ->first(['id', 'company_name', 'logo']);
+        }
+
+        $deviceLabel = null;
+        if ($deviceId !== null) {
+            $deviceLabel = BiometricDevice::query()->whereKey($deviceId)->value('name');
+        }
+
+        $pdfRows = array_map(function (array $row): array {
+            $row['date'] = $this->formatPdfDate($row['date']);
+
+            return $row;
+        }, $rows);
+
+        return Pdf::loadView('reports.attendance-report-pdf', [
+            'rows' => $pdfRows,
+            'from' => $this->formatPdfDate($from),
+            'to' => $this->formatPdfDate($to),
+            'employeeLabel' => $employeeLabel,
+            'deviceLabel' => $deviceLabel,
+            'companyName' => $company?->company_name ?? config('app.name'),
+            'companyLogoDataUri' => $this->storageImageDataUri($company?->logo),
+            'generatedAt' => now()->format('d/m/Y H:i:s'),
+        ])
+            ->setPaper('a4', 'landscape')
+            ->download($filename);
+    }
+
+    private function filename(string $from, string $to, ?Employee $employee): string
+    {
+        if ($employee !== null && $employee->employee_code !== '') {
+            return 'attendance-'.$employee->employee_code.'-'.$from.'-to-'.$to.'.pdf';
+        }
+
+        return 'attendance-report-'.$from.'-to-'.$to.'.pdf';
+    }
+
+    private function formatPdfDate(string $value): string
+    {
+        try {
+            return Carbon::parse($value)->format('d/m/Y');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    private function storageImageDataUri(?string $storagePath): ?string
+    {
+        if ($storagePath === null || trim($storagePath) === '') {
+            return null;
+        }
+
+        $relativePath = ltrim($storagePath, '/');
+
+        if (! Storage::disk('public')->exists($relativePath)) {
+            return null;
+        }
+
+        $fullPath = Storage::disk('public')->path($relativePath);
+        $mime = mime_content_type($fullPath);
+
+        if ($mime === false || ! str_starts_with($mime, 'image/')) {
+            return null;
+        }
+
+        $contents = Storage::disk('public')->get($relativePath);
+
+        if ($contents === null) {
+            return null;
+        }
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
+    }
+}
