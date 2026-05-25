@@ -231,11 +231,11 @@ class BiometricAttendanceController extends Controller
             ->orderByDesc('punched_at');
 
         if ($request->filled('from')) {
-            $query->whereDate('punched_at', '>=', $request->input('from'));
+            $query->where('punched_at', '>=', $request->string('from').' 00:00:00');
         }
 
         if ($request->filled('to')) {
-            $query->whereDate('punched_at', '<=', $request->input('to'));
+            $query->where('punched_at', '<=', $request->string('to').' 23:59:59');
         }
 
         if ($request->filled('biometric_device_id')) {

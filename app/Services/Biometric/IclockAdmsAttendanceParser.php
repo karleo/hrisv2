@@ -4,7 +4,6 @@ namespace App\Services\Biometric;
 
 use App\Enums\BiometricPunchDirection;
 use App\Models\BiometricDevice;
-use Illuminate\Support\Carbon;
 
 final class IclockAdmsAttendanceParser
 {
@@ -31,9 +30,10 @@ final class IclockAdmsAttendanceParser
 
         $rawStatus = isset($parts[2]) && is_numeric($parts[2]) ? (int) $parts[2] : null;
 
-        return new BiometricPunchData(
+        return BiometricPunchData::fromDeviceWallClock(
             deviceUserId: $deviceUserId,
-            punchedAt: Carbon::parse($timestamp, $device->timezone)->utc(),
+            punchedAtStorage: BiometricPunchClock::storageFromDeviceTimestamp($timestamp, $device->timezone),
+            timezone: $device->timezone,
             direction: match ($rawStatus) {
                 0 => BiometricPunchDirection::In,
                 1 => BiometricPunchDirection::Out,

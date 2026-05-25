@@ -79,9 +79,13 @@ final class ZkDeviceWebReportClient
 
         $this->tracer->log('PARSER '.$parseResult->logLine());
 
+        $fromBound = $fromLocal->format('Y-m-d H:i:s');
+        $untilBound = $untilLocal->format('Y-m-d H:i:s');
+
         $filtered = array_values(array_filter(
             $parseResult->punches,
-            fn (BiometricPunchData $punch): bool => $punch->punchedAt->between($from, $until),
+            fn (BiometricPunchData $punch): bool => ! BiometricPunchClock::isBefore($punch->punchedAtStorage, $fromBound)
+                && ! BiometricPunchClock::isAfter($punch->punchedAtStorage, $untilBound),
         ));
 
         $this->tracer->stage('client_fetch_punches_done', [

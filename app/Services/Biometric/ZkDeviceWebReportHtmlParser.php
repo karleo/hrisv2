@@ -7,7 +7,6 @@ use DOMDocument;
 use DOMElement;
 use DOMNodeList;
 use DOMXPath;
-use Illuminate\Support\Carbon;
 use RuntimeException;
 
 /**
@@ -106,7 +105,7 @@ final class ZkDeviceWebReportHtmlParser
                 'punches' => $this->parseEventLayout($rows, $eventLayout, $timezone),
                 'rows_scanned' => $rowsScanned,
                 'data_rows' => $this->countDataRows($rows, fn (array $cells): bool => $this->cellValue($cells, $eventLayout['pin_index']) !== null
-                    && ($this->parseFullTimestamp((string) ($this->cellValue($cells, $eventLayout['timestamp_index']) ?? ''), $timezone) !== null
+                    && ($this->resolveEventStorageTimestamp((string) ($this->cellValue($cells, $eventLayout['timestamp_index']) ?? ''), $timezone) !== ''
                         || $this->cellValue($cells, $eventLayout['timestamp_index']) !== null),
                 ),
                 'layout' => $eventLayout['layout_name'],
@@ -240,10 +239,11 @@ final class ZkDeviceWebReportHtmlParser
                     continue;
                 }
 
-                $punches[] = new BiometricPunchData(
+                $punches[] = BiometricPunchData::fromDeviceWallClock(
                     deviceUserId: $deviceUserId,
-                    punchedAt: $this->parsePunchTime($date, $time, $timezone),
+                    punchedAtStorage: BiometricPunchClock::normalizeWallClock($date, $time),
                     direction: $direction,
+                    timezone: $timezone,
                     rawPayload: [
                         'source' => 'device_web_report',
                         'layout' => 'date_id_in_out',
@@ -285,8 +285,7 @@ final class ZkDeviceWebReportHtmlParser
                 continue;
             }
 
-            $punchedAt = $this->parseFullTimestamp($timestampRaw, $timezone)
-                ?? $this->parsePunchTime(now($timezone)->format('Y-m-d'), $timestampRaw, $timezone);
+            $punchedAtStorage = $this->resolveEventStorageTimestamp($timestampRaw, $timezone);
 
             $stateRaw = $layout['state_index'] !== null
                 ? trim((string) ($this->cellValue($cells, $layout['state_index']) ?? ''))
@@ -294,10 +293,11 @@ final class ZkDeviceWebReportHtmlParser
 
             $direction = $this->directionFromState($stateRaw, $timestampRaw);
 
-            $punches[] = new BiometricPunchData(
+            $punches[] = BiometricPunchData::fromDeviceWallClock(
                 deviceUserId: $pin,
-                punchedAt: $punchedAt,
+                punchedAtStorage: $punchedAtStorage,
                 direction: $direction,
+                timezone: $timezone,
                 rawPayload: [
                     'source' => 'device_web_report',
                     'layout' => $layout['layout_name'],
@@ -398,30 +398,17 @@ final class ZkDeviceWebReportHtmlParser
             || preg_match('/\d{1,2}[-\/]\d{1,2}[-\/]\d{4}/', $value) === 1;
     }
 
-    private function parsePunchTime(string $date, string $time, string $timezone): Carbon
+    private function resolveEventStorageTimestamp(string $timestampRaw, string $timezone): string
     {
-        $date = str_replace('/', '-', $date);
-        $normalizedTime = strlen($time) === 5 ? $time.':00' : $time;
+        $normalized = BiometricPunchClock::normalizeTimestamp($timestampRaw);
 
-        return Carbon::parse(trim($date.' '.$normalizedTime), $timezone)->utc();
-    }
-
-    private function parseFullTimestamp(string $value, string $timezone): ?Carbon
-    {
-        $value = trim(str_replace('/', '-', $value));
-
-        if ($value === '') {
-            return null;
+        if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $normalized) === 1) {
+            return $normalized;
         }
 
-        if (! preg_match('/\d{1,2}:\d{2}/', $value)) {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value, $timezone)->utc();
-        } catch (\Throwable) {
-            return null;
-        }
+        return BiometricPunchClock::normalizeWallClock(
+            now($timezone)->format('Y-m-d'),
+            $timestampRaw,
+        );
     }
 }

@@ -68,6 +68,7 @@ final class BiometricSyncPipeline
             $importResult = ['inserted' => 0, 'duplicate' => 0, 'failed' => 0];
             $deviceRecords = 0;
             $inRange = 0;
+            [$fromBound, $untilBound] = $this->storageRangeBounds($device, $from, $until);
 
             if ($this->shouldProcessStoredPunchesOnly($device, $from, $until)) {
                 $admsQueued = false;
@@ -89,7 +90,7 @@ final class BiometricSyncPipeline
                     }
                 }
 
-                [$storedInRange] = $this->storedPunchCounts($device, $from, $until);
+                [$storedInRange] = $this->storedPunchCounts($device, $fromBound, $untilBound);
 
                 if ($storedInRange > 0) {
                     $deviceRecords = max($deviceRecords, $storedInRange);
@@ -123,13 +124,13 @@ final class BiometricSyncPipeline
                 foreach ($connector->fetchAttendanceLogs($device, $fetchFrom, $fetchUntil) as $punch) {
                     $deviceRecords++;
 
-                    if ($from !== null && $punch->punchedAt->lt($from)) {
+                    if ($fromBound !== null && BiometricPunchClock::isBefore($punch->punchedAtStorage, $fromBound)) {
                         $skippedOutOfRange++;
 
                         continue;
                     }
 
-                    if ($until !== null && $punch->punchedAt->gt($until)) {
+                    if ($untilBound !== null && BiometricPunchClock::isAfter($punch->punchedAtStorage, $untilBound)) {
                         $skippedOutOfRange++;
 
                         continue;
@@ -229,6 +230,24 @@ final class BiometricSyncPipeline
     }
 
     /**
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function storageRangeBounds(BiometricDevice $device, ?Carbon $from, ?Carbon $until): array
+    {
+        $timezone = $device->timezone;
+
+        $fromBound = $from !== null
+            ? $from->copy()->timezone($timezone)->startOfDay()->format('Y-m-d H:i:s')
+            : null;
+
+        $untilBound = $until !== null
+            ? $until->copy()->timezone($timezone)->endOfDay()->format('Y-m-d H:i:s')
+            : null;
+
+        return [$fromBound, $untilBound];
+    }
+
+    /**
      * @return array{0: ?Carbon, 1: ?Carbon}
      */
     public function parsePullRange(BiometricDevice $device, ?string $from, ?string $to): array
@@ -304,12 +323,23 @@ final class BiometricSyncPipeline
     /**
      * @return array{0: int, 1: int} [inRange, totalOnDevice]
      */
-    private function storedPunchCounts(BiometricDevice $device, Carbon $from, Carbon $until): array
+    private function storedPunchCounts(BiometricDevice $device, ?string $fromBound, ?string $untilBound): array
     {
         $query = BiometricPunch::query()->where('biometric_device_id', $device->id);
 
         $total = (clone $query)->count();
-        $inRange = (clone $query)->whereBetween('punched_at', [$from, $until])->count();
+
+        $inRangeQuery = clone $query;
+
+        if ($fromBound !== null) {
+            $inRangeQuery->where('punched_at', '>=', $fromBound);
+        }
+
+        if ($untilBound !== null) {
+            $inRangeQuery->where('punched_at', '<=', $untilBound);
+        }
+
+        $inRange = $inRangeQuery->count();
 
         return [$inRange, $total];
     }

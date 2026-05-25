@@ -40,8 +40,8 @@ final class AttendanceReportService
     ): array {
         $query = BiometricPunch::query()
             ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
-            ->whereDate('punched_at', '>=', $from)
-            ->whereDate('punched_at', '<=', $to)
+            ->where('punched_at', '>=', $from.' 00:00:00')
+            ->where('punched_at', '<=', $to.' 23:59:59')
             ->orderBy('punched_at');
 
         if ($employeeId !== null) {
@@ -109,8 +109,8 @@ final class AttendanceReportService
 
         $query = BiometricPunch::query()
             ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
-            ->whereDate('punched_at', '>=', $from)
-            ->whereDate('punched_at', '<=', $to)
+            ->where('punched_at', '>=', $from.' 00:00:00')
+            ->where('punched_at', '<=', $to.' 23:59:59')
             ->where(function ($builder) use ($employee, $pins): void {
                 $builder->where('employee_id', $employee->id)
                     ->orWhereIn('device_user_id', $pins);

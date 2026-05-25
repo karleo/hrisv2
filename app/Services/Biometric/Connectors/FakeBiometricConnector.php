@@ -31,14 +31,6 @@ final class FakeBiometricConnector implements BiometricDeviceConnector
         ?Carbon $until = null,
     ): Generator {
         foreach ($this->punches as $punch) {
-            if ($since !== null && $punch->punchedAt->lt($since)) {
-                continue;
-            }
-
-            if ($until !== null && $punch->punchedAt->gt($until)) {
-                continue;
-            }
-
             yield $punch;
         }
     }

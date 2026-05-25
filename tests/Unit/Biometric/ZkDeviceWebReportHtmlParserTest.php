@@ -28,6 +28,7 @@ HTML;
         $this->assertSame(BiometricPunchDirection::In, $punches[0]->direction);
         $this->assertSame(BiometricPunchDirection::Out, $punches[1]->direction);
         $this->assertSame('09:50:48', $punches[0]->rawPayload['time']);
+        $this->assertSame('2024-05-21 09:50:48', $punches[0]->punchedAtStorage);
     }
 
     #[Test]

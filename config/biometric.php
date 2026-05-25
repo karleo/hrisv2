@@ -16,6 +16,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Punch timestamps
+    |--------------------------------------------------------------------------
+    |
+    | Imported punch times are stored exactly as the device report shows (wall-clock
+    | strings). Server APP_TIMEZONE and hosting region do not change stored values.
+    | Set each device's timezone in Biometric → Connectivity for report date ranges only.
+    |
+    */
+
+    /*
+    |--------------------------------------------------------------------------
     | How UI-triggered sync runs after the HTTP response is sent
     |--------------------------------------------------------------------------
     |

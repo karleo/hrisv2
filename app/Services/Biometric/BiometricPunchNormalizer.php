@@ -4,7 +4,6 @@ namespace App\Services\Biometric;
 
 use App\Enums\BiometricPunchDirection;
 use App\Models\BiometricDevice;
-use Illuminate\Support\Carbon;
 
 final class BiometricPunchNormalizer
 {
@@ -18,12 +17,15 @@ final class BiometricPunchNormalizer
         $direction = $this->mapDirection($rawStatus);
 
         $timestamp = $record['record_time'] ?? null;
-        $punchedAt = $this->parseTimestamp($device, is_string($timestamp) ? $timestamp : null);
+        $punchedAtStorage = is_string($timestamp) && $timestamp !== ''
+            ? BiometricPunchClock::storageFromDeviceTimestamp($timestamp, $device->timezone)
+            : BiometricPunchClock::normalizeWallClock(now($device->timezone)->format('Y-m-d'), now($device->timezone)->format('H:i:s'));
 
-        return new BiometricPunchData(
+        return BiometricPunchData::fromDeviceWallClock(
             deviceUserId: $deviceUserId,
-            punchedAt: $punchedAt,
+            punchedAtStorage: $punchedAtStorage,
             direction: $direction,
+            timezone: $device->timezone,
             verifyType: isset($record['type']) ? (int) $record['type'] : null,
             workCode: null,
             rawPayload: $record,
@@ -38,14 +40,5 @@ final class BiometricPunchNormalizer
             1 => BiometricPunchDirection::Out,
             default => BiometricPunchDirection::Unknown,
         };
-    }
-
-    private function parseTimestamp(BiometricDevice $device, ?string $timestamp): Carbon
-    {
-        if ($timestamp === null || $timestamp === '') {
-            return now($device->timezone);
-        }
-
-        return Carbon::parse($timestamp, $device->timezone)->utc();
     }
 }

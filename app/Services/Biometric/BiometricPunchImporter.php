@@ -113,7 +113,7 @@ final class BiometricPunchImporter
      */
     private function toRow(BiometricDevice $device, BiometricPunchData $punch): array
     {
-        $punchedAt = $punch->punchedAt->format('Y-m-d H:i:s');
+        $punchedAt = $punch->punchedAtStorage;
         $now = now()->format('Y-m-d H:i:s');
 
         return [

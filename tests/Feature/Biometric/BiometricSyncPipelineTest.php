@@ -119,9 +119,9 @@ class BiometricSyncPipelineTest extends TestCase
         Employee::factory()->create(['biometric_user_id' => '10']);
 
         $this->fakeConnector->setPunches(
-            new BiometricPunchData('10', Carbon::parse('2026-05-01 08:00:00'), BiometricPunchDirection::In, rawStatus: 0),
-            new BiometricPunchData('10', Carbon::parse('2026-05-20 08:00:00'), BiometricPunchDirection::In, rawStatus: 0),
-            new BiometricPunchData('10', Carbon::parse('2026-06-01 08:00:00'), BiometricPunchDirection::In, rawStatus: 0),
+            BiometricPunchData::fromDeviceWallClock('10', '2026-05-01 08:00:00', BiometricPunchDirection::In, 'UTC', rawStatus: 0),
+            BiometricPunchData::fromDeviceWallClock('10', '2026-05-20 08:00:00', BiometricPunchDirection::In, 'UTC', rawStatus: 0),
+            BiometricPunchData::fromDeviceWallClock('10', '2026-06-01 08:00:00', BiometricPunchDirection::In, 'UTC', rawStatus: 0),
         );
 
         $log = app(BiometricSyncPipeline::class)->run(
@@ -143,8 +143,8 @@ class BiometricSyncPipelineTest extends TestCase
         $employee = Employee::factory()->create(['biometric_user_id' => '5']);
 
         $this->fakeConnector->setPunches(
-            new BiometricPunchData('5', Carbon::parse('2026-05-21 08:00:00'), BiometricPunchDirection::In, rawStatus: 0),
-            new BiometricPunchData('5', Carbon::parse('2026-05-21 17:00:00'), BiometricPunchDirection::Out, rawStatus: 1),
+            BiometricPunchData::fromDeviceWallClock('5', '2026-05-21 08:00:00', BiometricPunchDirection::In, 'UTC', rawStatus: 0),
+            BiometricPunchData::fromDeviceWallClock('5', '2026-05-21 17:00:00', BiometricPunchDirection::Out, 'UTC', rawStatus: 1),
         );
 
         $log = app(BiometricSyncPipeline::class)->run($device);

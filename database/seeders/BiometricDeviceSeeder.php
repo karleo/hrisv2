@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\BiometricConnectionType;
 use App\Models\BiometricDevice;
+use App\Support\BiometricTimezoneOptions;
 use Illuminate\Database\Seeder;
 
 class BiometricDeviceSeeder extends Seeder
@@ -18,7 +19,7 @@ class BiometricDeviceSeeder extends Seeder
                 'connection_type' => BiometricConnectionType::DeviceWebReport,
                 'host' => '192.168.1.44',
                 'port' => 80,
-                'timezone' => config('app.timezone', 'UTC'),
+                'timezone' => BiometricTimezoneOptions::Default,
                 'is_active' => true,
                 'metadata' => [
                     'protocol' => 'tcp',

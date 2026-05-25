@@ -23,6 +23,6 @@ class IclockAdmsAttendanceParserTest extends TestCase
         $this->assertNotNull($punch);
         $this->assertSame('1001', $punch->deviceUserId);
         $this->assertSame(BiometricPunchDirection::In, $punch->direction);
-        $this->assertSame('2026-05-21 04:30:00', $punch->punchedAt->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-05-21 08:30:00', $punch->punchedAtStorage);
     }
 }
