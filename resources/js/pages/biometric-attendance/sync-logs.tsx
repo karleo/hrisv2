@@ -5,6 +5,7 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import BiometricAttendanceLayout from '@/layouts/biometric-attendance-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -105,9 +106,9 @@ function BiometricSyncLogsContent({ syncLogs, filters, devices }: BiometricSyncL
                         >
                             <div>
                                 <Label>Device</Label>
-                                <select
+                                <NativeSelect
                                     name="biometric_device_id"
-                                    className="border-input flex h-9 min-w-[200px] rounded-md border px-2 text-sm"
+                                    className="min-w-[200px] w-auto"
                                     defaultValue={filters.biometric_device_id}
                                 >
                                     <option value="">All</option>
@@ -116,20 +117,20 @@ function BiometricSyncLogsContent({ syncLogs, filters, devices }: BiometricSyncL
                                             {d.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                             <div>
                                 <Label>Status</Label>
-                                <select
+                                <NativeSelect
                                     name="status"
-                                    className="border-input flex h-9 rounded-md border px-2 text-sm"
+                                    className="w-auto min-w-[140px]"
                                     defaultValue={filters.status}
                                 >
                                     <option value="">All</option>
                                     <option value="running">Running</option>
                                     <option value="completed">Completed</option>
                                     <option value="failed">Failed</option>
-                                </select>
+                                </NativeSelect>
                             </div>
                             <Button type="submit" variant="secondary" className="self-end">
                                 Filter

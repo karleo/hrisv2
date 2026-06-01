@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import BiometricAttendanceLayout from '@/layouts/biometric-attendance-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -347,9 +348,8 @@ function BiometricDashboardContent({
                                         </div>
                                         <div>
                                             <Label htmlFor="connection_type">Connection</Label>
-                                            <select
+                                            <NativeSelect
                                                 id="connection_type"
-                                                className="border-input bg-background flex h-9 w-full rounded-md border px-3 text-sm"
                                                 value={form.data.connection_type}
                                                 onChange={(e) =>
                                                     form.setData('connection_type', e.target.value)
@@ -360,7 +360,7 @@ function BiometricDashboardContent({
                                                     Device web report (device IP web UI)
                                                 </option>
                                                 <option value="adms_push">ADMS push (iClock cloud server)</option>
-                                            </select>
+                                            </NativeSelect>
                                             <InputError message={form.errors.connection_type} />
                                         </div>
                                         {form.data.connection_type === 'adms_push' && (
@@ -398,15 +398,14 @@ function BiometricDashboardContent({
                                         </div>
                                         <div>
                                             <Label htmlFor="protocol">Protocol</Label>
-                                            <select
+                                            <NativeSelect
                                                 id="protocol"
-                                                className="border-input bg-background flex h-9 w-full rounded-md border px-3 text-sm"
                                                 value={form.data.protocol}
                                                 onChange={(e) => form.setData('protocol', e.target.value)}
                                             >
                                                 <option value="udp">UDP (most iClock / ZKTeco devices)</option>
                                                 <option value="tcp">TCP</option>
-                                            </select>
+                                            </NativeSelect>
                                             <InputError message={form.errors.protocol} />
                                         </div>
                                         <div>

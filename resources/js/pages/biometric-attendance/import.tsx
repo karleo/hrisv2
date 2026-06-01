@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import BiometricAttendanceLayout from '@/layouts/biometric-attendance-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -173,9 +174,8 @@ function BiometricImportContent({
                             >
                                 <div>
                                     <Label>Device</Label>
-                                    <select
+                                    <NativeSelect
                                         name="biometric_device_id"
-                                        className="border-input flex h-9 w-full rounded-md border px-2 text-sm"
                                         value={selectedDeviceId}
                                         onChange={(e) => setSelectedDeviceId(e.target.value)}
                                         required
@@ -186,7 +186,7 @@ function BiometricImportContent({
                                                 {d.host ? ` (${d.host})` : ''}
                                             </option>
                                         ))}
-                                    </select>
+                                    </NativeSelect>
                                 </div>
                                 <div>
                                     <Label>From date</Label>

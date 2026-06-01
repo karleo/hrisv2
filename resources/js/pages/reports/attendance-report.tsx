@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { formatDisplayDate } from '@/lib/format-display-date';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -151,9 +152,8 @@ export default function AttendanceReport({
                             </div>
                             <div>
                                 <Label htmlFor="report-employee">Employee</Label>
-                                <select
+                                <NativeSelect
                                     id="report-employee"
-                                    className="border-input flex h-9 w-full rounded-md border px-2 text-sm"
                                     value={localFilters.employee_id ?? ''}
                                     onChange={(e) =>
                                         updateFilters({
@@ -170,13 +170,12 @@ export default function AttendanceReport({
                                                 : ''}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                             <div>
                                 <Label htmlFor="report-device">Device</Label>
-                                <select
+                                <NativeSelect
                                     id="report-device"
-                                    className="border-input flex h-9 w-full rounded-md border px-2 text-sm"
                                     value={localFilters.biometric_device_id ?? ''}
                                     onChange={(e) =>
                                         updateFilters({
@@ -190,7 +189,7 @@ export default function AttendanceReport({
                                             {device.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                             <div className="flex flex-wrap items-end gap-2 md:col-span-4">
                                 <Button type="button" variant="outline" asChild>

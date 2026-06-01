@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -72,20 +73,20 @@ export default function BiometricPunches({
                             </div>
                             <div>
                                 <Label>Device</Label>
-                                <select name="biometric_device_id" className="border-input flex h-9 w-full rounded-md border px-2 text-sm" defaultValue={filters.biometric_device_id}>
+                                <NativeSelect name="biometric_device_id" defaultValue={filters.biometric_device_id}>
                                     <option value="">All</option>
                                     {devices.map((d) => (
                                         <option key={d.id} value={d.id}>{d.name}</option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                             <div>
                                 <Label>Mapped</Label>
-                                <select name="mapped" className="border-input flex h-9 w-full rounded-md border px-2 text-sm" defaultValue={filters.mapped}>
+                                <NativeSelect name="mapped" defaultValue={filters.mapped}>
                                     <option value="">All</option>
                                     <option value="yes">Mapped</option>
                                     <option value="no">Unmapped</option>
-                                </select>
+                                </NativeSelect>
                             </div>
                             <div className="flex flex-wrap items-end gap-2 md:col-span-4">
                                 <Button type="submit">Filter</Button>

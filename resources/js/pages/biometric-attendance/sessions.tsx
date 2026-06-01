@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import BiometricAttendanceLayout from '@/layouts/biometric-attendance-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -118,45 +119,33 @@ function BiometricSessionsContent({ sessions, filters, devices, employees }: Bio
                         </div>
                         <div>
                             <Label>Employee</Label>
-                            <select
-                                name="employee_id"
-                                className="border-input flex h-9 w-full rounded-md border px-2 text-sm"
-                                defaultValue={filters.employee_id}
-                            >
+                            <NativeSelect name="employee_id" defaultValue={filters.employee_id}>
                                 <option value="">All</option>
                                 {employees.map((e) => (
                                     <option key={e.id} value={e.id}>
                                         {e.name}
                                     </option>
                                 ))}
-                            </select>
+                            </NativeSelect>
                         </div>
                         <div>
                             <Label>Device</Label>
-                            <select
-                                name="biometric_device_id"
-                                className="border-input flex h-9 w-full rounded-md border px-2 text-sm"
-                                defaultValue={filters.biometric_device_id}
-                            >
+                            <NativeSelect name="biometric_device_id" defaultValue={filters.biometric_device_id}>
                                 <option value="">All</option>
                                 {devices.map((d) => (
                                     <option key={d.id} value={d.id}>
                                         {d.name}
                                     </option>
                                 ))}
-                            </select>
+                            </NativeSelect>
                         </div>
                         <div>
                             <Label>Status</Label>
-                            <select
-                                name="status"
-                                className="border-input flex h-9 w-full rounded-md border px-2 text-sm"
-                                defaultValue={filters.status}
-                            >
+                            <NativeSelect name="status" defaultValue={filters.status}>
                                 <option value="">All</option>
                                 <option value="open">Open</option>
                                 <option value="closed">Closed</option>
-                            </select>
+                            </NativeSelect>
                         </div>
                         <div className="md:col-span-5">
                             <Button type="submit" variant="secondary">

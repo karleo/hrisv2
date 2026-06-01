@@ -143,6 +143,20 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    select:not(.sr-only):not([multiple]) {
+        @apply border-input bg-background text-foreground shadow-xs outline-none;
+        @apply focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px];
+    }
+
+    .dark select:not(.sr-only):not([multiple]) {
+        color-scheme: dark;
+    }
+
+    option {
+        background-color: var(--popover);
+        color: var(--popover-foreground);
+    }
 }
 
 @keyframes notification-toast-timer {
