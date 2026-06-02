@@ -24,7 +24,11 @@ type EmployeeOption = {
     last_name: string;
 };
 
-export default function Create({ employees }: { employees: EmployeeOption[] }) {
+export default function Create({
+    employees = [],
+}: {
+    employees?: EmployeeOption[];
+}) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Department" />

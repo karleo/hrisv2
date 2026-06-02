@@ -63,6 +63,28 @@ class EmployeeMessagesTest extends TestCase
             ->assertInertia(fn ($page) => $page->missing('employeeMessages'));
     }
 
+    public function test_employee_messages_header_returns_json_for_linked_employee(): void
+    {
+        $user = User::factory()->create();
+        $this->linkedEmployee($user);
+
+        $this->actingAs($user)
+            ->getJson(route('employee-messages.header'))
+            ->assertOk()
+            ->assertJsonStructure(['unread_count', 'conversations']);
+    }
+
+    public function test_employee_messages_header_returns_empty_without_employee_profile(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('employee-messages.header'))
+            ->assertOk()
+            ->assertJson([
+                'unread_count' => 0,
+                'conversations' => [],
+            ]);
+    }
+
     public function test_employee_search_returns_only_active_linked_employees(): void
     {
         $currentUser = User::factory()->create();

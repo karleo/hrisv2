@@ -37,7 +37,9 @@ class DepartmentTest extends TestCase
         $response = $this->get(route('departments.create'));
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->component('departments/create'));
+        $response->assertInertia(fn ($page) => $page
+            ->component('departments/create')
+            ->has('employees'));
     }
 
     public function test_store_creates_department(): void

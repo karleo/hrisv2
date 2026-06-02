@@ -78,6 +78,9 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employees.documents.show');
     Route::delete('employees/{employee}/documents/{employee_document}', [EmployeeController::class, 'destroyDocument'])
         ->name('employees.documents.destroy');
+    Route::get('employee-messages/header', [EmployeeMessageController::class, 'header'])
+        ->middleware('throttle:120,1')
+        ->name('employee-messages.header');
     Route::get('employee-messages', [EmployeeMessageController::class, 'index'])
         ->name('employee-messages.index');
     Route::get('employee-messages/search', [EmployeeMessageController::class, 'searchEmployees'])
@@ -172,6 +175,9 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('it-asset-requests.print');
     Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])
         ->name('it-asset-requests.signatures.update');
+    Route::get('notifications/header', [NotificationController::class, 'header'])
+        ->middleware('throttle:120,1')
+        ->name('notifications.header');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])
         ->name('notifications.read');
     Route::delete('notifications', [NotificationController::class, 'destroyAll'])

@@ -1,4 +1,4 @@
-import { Link, router, usePage, usePoll } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { ChevronsUpDown } from 'lucide-react';
 import { Bell } from 'lucide-react';
 import { Languages } from 'lucide-react';
@@ -21,27 +21,16 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useAppearance } from '@/hooks/use-appearance';
+import {
+    useEmployeeMessagesHeaderSync,
+    type EmployeeMessagesHeaderData,
+} from '@/hooks/use-employee-messages-header-sync';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
 import { useNotificationsLiveSync } from '@/hooks/use-notifications-live-sync';
 import { useI18n } from '@/lib/i18n';
 import { playEmployeeMessageUnreadChime } from '@/lib/play-employee-message-unread-chime';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
-
-type EmployeeMessagesShared = {
-    unread_count: number;
-    conversations: Array<{
-        id: number;
-        employee: {
-            id: number;
-            full_name: string;
-            photo_url: string | null;
-        };
-        last_message: { body: string } | null;
-        last_message_at: string | null;
-        unread_count: number;
-    }>;
-};
 
 function initials(name: string): string {
     return name
@@ -65,45 +54,38 @@ export function AppSidebarHeader({
     const { resolvedAppearance, updateAppearance } = useAppearance();
     const { t, locale } = useI18n();
 
-    useNotificationsLiveSync();
-
-    usePoll(
-        10000,
-        {
-            only: ['employeeMessages'],
-            preserveScroll: true,
-            preserveState: true,
-        },
-        { keepAlive: true },
-    );
-
-    const { notifications, auth, employeeMessages } = usePage().props as {
-        notifications?: {
-            unread_count: number;
-            items: Array<{
-                id: string;
-                read_at?: string | null;
-                data?: {
-                    request_code?: string;
-                    request_type?: string;
-                    request_date?: string;
-                    route?: string;
-                    request_id?: number;
-                    decision?: string;
-                    employee_photo_url?: string | null;
-                };
-            }>;
-        };
-        auth: {
-            user: {
-                id: number;
-                name: string;
-                email: string;
-                avatar?: string | null;
+    const { auth, notifications: initialNotifications, employeeMessages: initialEmployeeMessages } =
+        usePage().props as {
+            notifications?: {
+                unread_count: number;
+                items: Array<{
+                    id: string;
+                    read_at?: string | null;
+                    data?: {
+                        request_code?: string;
+                        request_type?: string;
+                        request_date?: string;
+                        route?: string;
+                        request_id?: number;
+                        decision?: string;
+                        employee_photo_url?: string | null;
+                    };
+                }>;
             };
+            auth: {
+                user: {
+                    id: number;
+                    name: string;
+                    email: string;
+                    avatar?: string | null;
+                };
+            };
+            employeeMessages?: EmployeeMessagesHeaderData;
         };
-        employeeMessages?: EmployeeMessagesShared;
-    };
+
+    const { notifications, refreshNotifications } =
+        useNotificationsLiveSync(initialNotifications);
+    const employeeMessages = useEmployeeMessagesHeaderSync(initialEmployeeMessages);
     const unreadCount = notifications?.unread_count ?? 0;
     const hasUnread = unreadCount > 0;
     const messagesUnread = employeeMessages?.unread_count ?? 0;
@@ -381,6 +363,9 @@ export function AppSidebarHeader({
                                                         {
                                                             preserveScroll: true,
                                                             preserveState: true,
+                                                            onSuccess: () => {
+                                                                void refreshNotifications();
+                                                            },
                                                         },
                                                     );
                                                 }}

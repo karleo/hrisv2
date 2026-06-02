@@ -8,6 +8,7 @@ use App\Http\Requests\EmployeeMessage\StoreEmployeeMessageRequest;
 use App\Models\Employee;
 use App\Models\EmployeeConversation;
 use App\Models\EmployeeMessage;
+use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,23 @@ use Throwable;
 
 class EmployeeMessageController extends Controller
 {
+    public function header(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $employee = $user?->employee;
+
+        if ($employee === null || $user?->is_active !== true) {
+            return response()->json([
+                'unread_count' => 0,
+                'conversations' => [],
+            ]);
+        }
+
+        return response()->json(
+            app(EmployeeMessagesHeaderData::class)->forEmployee($employee),
+        );
+    }
+
     public function index(Request $request): Response
     {
         $employee = $this->currentEmployee($request);

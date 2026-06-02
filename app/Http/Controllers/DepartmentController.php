@@ -24,8 +24,8 @@ class DepartmentController extends Controller
                 $request->filled('search'),
                 fn ($query) => $query->where(
                     fn ($q) => $q->where('code', 'like', '%'.$request->search.'%')
-                    ->orWhere('name', 'like', '%'.$request->search.'%')
-                    ->orWhere('description', 'like', '%'.$request->search.'%')
+                        ->orWhere('name', 'like', '%'.$request->search.'%')
+                        ->orWhere('description', 'like', '%'.$request->search.'%')
                 )
             )
             ->orderBy('code')
@@ -44,10 +44,10 @@ class DepartmentController extends Controller
     public function create(): Response
     {
         return Inertia::render('departments/create', [
-            'employees' => Employee::query()
+            'employees' => Inertia::always(fn () => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name'])),
         ]);
     }
 
@@ -68,10 +68,10 @@ class DepartmentController extends Controller
     {
         return Inertia::render('departments/edit', [
             'department' => $department,
-            'employees' => Employee::query()
+            'employees' => Inertia::always(fn () => Employee::query()
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+                ->get(['id', 'first_name', 'last_name'])),
         ]);
     }
 
