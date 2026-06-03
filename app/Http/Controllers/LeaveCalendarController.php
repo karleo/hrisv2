@@ -197,26 +197,26 @@ class LeaveCalendarController extends Controller
             ->all();
 
         return Inertia::render('leave-calendar/index', [
-            'filters' => [
+            'filters' => Inertia::always(fn () => [
                 'month' => $month,
                 'department_id' => $departmentFilterId,
                 'leave_type' => $leaveTypeFilter !== '' ? $leaveTypeFilter : null,
-            ],
-            'meta' => [
+            ]),
+            'meta' => Inertia::always(fn () => [
                 'month' => $month,
                 'monthLabel' => $monthStart->format('F Y'),
                 'monthStart' => $monthStart->toDateString(),
                 'monthEnd' => $monthEnd->toDateString(),
                 'today' => $today->toDateString(),
-            ],
-            'departments' => $departments,
-            'leaveTypes' => $leaveTypes,
-            'entries' => $entries,
-            'calendarDayCounts' => $calendarDayCounts,
-            'calendarDayLeaves' => $calendarDayLeaves,
-            'todayOnLeave' => $todayOnLeave,
-            'upcomingLeaves' => $upcomingLeaves,
-            'departmentSummary' => $departmentSummary,
+            ]),
+            'departments' => Inertia::always(fn () => $departments),
+            'leaveTypes' => Inertia::always(fn () => $leaveTypes),
+            'entries' => Inertia::always(fn () => $entries),
+            'calendarDayCounts' => Inertia::always(fn () => $calendarDayCounts),
+            'calendarDayLeaves' => Inertia::always(fn () => $calendarDayLeaves),
+            'todayOnLeave' => Inertia::always(fn () => $todayOnLeave),
+            'upcomingLeaves' => Inertia::always(fn () => $upcomingLeaves),
+            'departmentSummary' => Inertia::always(fn () => $departmentSummary),
         ]);
     }
 

@@ -1,7 +1,8 @@
-import { router, usePage, usePoll } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import {
     createContext,
     type ReactNode,
+    useCallback,
     useContext,
     useEffect,
     useMemo,
@@ -9,6 +10,7 @@ import {
     useState,
 } from 'react';
 import { getEcho } from '@/lib/echo';
+import { getJsonRequestIntegrityHeaders } from '@/lib/request-integrity-headers';
 import type {
     EmployeePresencePayload,
     PresenceEmployee,
@@ -36,6 +38,9 @@ const emptyValue: EmployeePresenceValue = {
     onlineEmployees: [],
     presenceSyncState: 'unavailable',
 };
+
+const PRESENCE_POLL_INTERVAL_MS = 25_000;
+const HEARTBEAT_INTERVAL_MS = 45_000;
 
 function toEmployeeId(value: unknown): number | null {
     if (value === null || value === undefined) {
@@ -98,19 +103,14 @@ export function EmployeePresenceProvider({
     children: ReactNode;
 }): ReactNode {
     const page = usePage();
-
-    usePoll(
-        25000,
-        {
-            only: ['employeePresence', 'viewerEmployeeId'],
-        },
-        { keepAlive: true },
-    );
+    const csrfToken =
+        typeof page.props.csrf_token === 'string' ? page.props.csrf_token : null;
 
     const pageProps = page.props as {
         viewerEmployeeId?: unknown;
         auth?: { employee_id?: unknown };
         currentEmployee?: { id?: unknown };
+        employeePresence?: EmployeePresencePayload;
     };
 
     const resolvedSelfIdFromProps = useMemo(
@@ -136,6 +136,80 @@ export function EmployeePresenceProvider({
     const selfEmployeeId =
         resolvedSelfIdFromProps ?? lastKnownSelfEmployeeIdRef.current;
 
+    const [presencePayload, setPresencePayload] = useState<
+        EmployeePresencePayload | null
+    >(() => pageProps.employeePresence ?? null);
+
+    useEffect(() => {
+        if (pageProps.employeePresence !== undefined) {
+            setPresencePayload(pageProps.employeePresence);
+        }
+    }, [pageProps.employeePresence]);
+
+    const fetchPresence = useCallback(async (): Promise<void> => {
+        if (selfEmployeeId === null) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/employee-presence', {
+                headers: getJsonRequestIntegrityHeaders(csrfToken),
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = (await response.json()) as EmployeePresencePayload;
+            setPresencePayload(payload);
+        } catch {
+            // Keep last known presence on transient failures.
+        }
+    }, [csrfToken, selfEmployeeId]);
+
+    useEffect(() => {
+        if (selfEmployeeId === null) {
+            return;
+        }
+
+        void fetchPresence();
+
+        const pollIntervalId = window.setInterval(() => {
+            void fetchPresence();
+        }, PRESENCE_POLL_INTERVAL_MS);
+
+        const sendHeartbeat = async (): Promise<void> => {
+            try {
+                const response = await fetch('/employee-presence/heartbeat', {
+                    method: 'POST',
+                    headers: {
+                        ...getJsonRequestIntegrityHeaders(csrfToken),
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({}),
+                });
+
+                if (response.ok) {
+                    await fetchPresence();
+                }
+            } catch {
+                // Ignore transient heartbeat failures.
+            }
+        };
+
+        void sendHeartbeat();
+        const heartbeatIntervalId = window.setInterval(() => {
+            void sendHeartbeat();
+        }, HEARTBEAT_INTERVAL_MS);
+
+        return () => {
+            window.clearInterval(pollIntervalId);
+            window.clearInterval(heartbeatIntervalId);
+        };
+    }, [fetchPresence, selfEmployeeId, csrfToken]);
+
     useEffect(() => {
         if (!shouldDebugEmployeePresence()) {
             return;
@@ -149,16 +223,15 @@ export function EmployeePresenceProvider({
             viewerEmployeeId: pageProps.viewerEmployeeId,
             authEmployeeId: pageProps.auth?.employee_id,
             currentEmployeeId: pageProps.currentEmployee?.id,
-            hasEmployeePresenceProp: page.props.employeePresence !== undefined,
+            hasEmployeePresenceProp: presencePayload !== null,
             employeePresenceKeys:
-                page.props.employeePresence &&
-                typeof page.props.employeePresence === 'object'
-                    ? Object.keys(page.props.employeePresence)
+                presencePayload && typeof presencePayload === 'object'
+                    ? Object.keys(presencePayload)
                     : [],
         });
     }, [
         page.url,
-        page.props.employeePresence,
+        presencePayload,
         pageProps.auth?.employee_id,
         pageProps.currentEmployee?.id,
         pageProps.viewerEmployeeId,
@@ -180,33 +253,8 @@ export function EmployeePresenceProvider({
             };
         }
 
-        return payloadFromProps(page.props.employeePresence);
-    }, [selfEmployeeId, page.props.employeePresence]);
-
-    useEffect(() => {
-        if (selfEmployeeId === null) {
-            return;
-        }
-
-        const sendHeartbeat = (): void => {
-            router.post(
-                '/employee-presence/heartbeat',
-                {},
-                {
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: ['employeePresence', 'viewerEmployeeId'],
-                },
-            );
-        };
-
-        sendHeartbeat();
-        const heartbeatIntervalId = window.setInterval(sendHeartbeat, 45_000);
-
-        return () => {
-            window.clearInterval(heartbeatIntervalId);
-        };
-    }, [selfEmployeeId]);
+        return payloadFromProps(presencePayload);
+    }, [selfEmployeeId, presencePayload]);
 
     useEffect(() => {
         if (selfEmployeeId === null) {
@@ -321,9 +369,7 @@ export function EmployeePresenceProvider({
     ]);
 
     const presenceSyncState = useMemo((): EmployeePresenceValue['presenceSyncState'] => {
-        const payload = page.props.employeePresence;
-
-        if (payload === undefined || payload === null) {
+        if (presencePayload === undefined || presencePayload === null) {
             return 'unavailable';
         }
 
@@ -332,7 +378,7 @@ export function EmployeePresenceProvider({
         }
 
         return 'synced';
-    }, [selfEmployeeId, page.props.employeePresence]);
+    }, [selfEmployeeId, presencePayload]);
 
     const value = useMemo(
         () => ({

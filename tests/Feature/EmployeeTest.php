@@ -285,6 +285,31 @@ class EmployeeTest extends TestCase
         ]);
     }
 
+    public function test_import_accepts_csv_with_utf8_bom_on_header_row(): void
+    {
+        $department = Department::factory()->create(['code' => 'ENG']);
+        $jobPosition = JobPosition::factory()->create(['code' => 'SE']);
+        $timetable = WorkTimetable::factory()->create(['name' => 'Operations (Sat–Wed 8–4)']);
+
+        $csv = "\xEF\xBB\xBF".implode("\n", [
+            'employee_code,first_name,last_name,email_address,contact_number,address_1,address_2,department_code,job_position_code,work_timetable_name,company_profile_name',
+            'EMP11-40001,Nasser,Aljami,nasser@example.com,,Warehouse,,ENG,SE,Operations (Sat–Wed 8–4),',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
+
+        $response = $this->post(route('employees.import'), [
+            'file' => $file,
+        ]);
+
+        $response->assertRedirect(route('employees.index'));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('employees', [
+            'employee_code' => 'EMP11-40001',
+            'email_address' => 'nasser@example.com',
+        ]);
+    }
+
     public function test_import_skips_invalid_rows_and_keeps_valid_ones(): void
     {
         Department::factory()->create(['code' => 'ENG']);

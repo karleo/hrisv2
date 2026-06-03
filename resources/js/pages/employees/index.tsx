@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage, useRemember } from '@inertiajs/react';
 import {
+    CheckCircle2,
     ChevronRight,
     CircleAlert,
     CreditCard,
@@ -15,12 +16,13 @@ import {
     Upload,
     Users,
 } from 'lucide-react';
-import { Fragment, type FormEvent, useState } from 'react';
+import { Fragment, type FormEvent, useEffect, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Dialog,
     DialogClose,
@@ -175,6 +177,15 @@ export default function Index({
     const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({
         file: null,
     });
+    const [importSuccessOpen, setImportSuccessOpen] = useState(false);
+    const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (flash?.success) {
+            setImportSuccessMessage(flash.success);
+            setImportSuccessOpen(true);
+        }
+    }, [flash?.success]);
     const groupedEmployees = employeeList.reduce<Record<string, Employee[]>>((groups, employee) => {
         const managerName = employee.department?.managerEmployee
             ? `${employee.department.managerEmployee.first_name} ${employee.department.managerEmployee.last_name}`
@@ -220,7 +231,9 @@ export default function Index({
         e.preventDefault();
         post('/employees/import', {
             forceFormData: true,
-            onSuccess: () => reset('file'),
+            onSuccess: () => {
+                reset('file');
+            },
         });
     }
 
@@ -247,6 +260,58 @@ export default function Index({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('sidebar.employees', 'Employees')} />
+
+            {processing && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-[2px]"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={t('employees.import.uploading', 'Uploading employees')}
+                >
+                    <div className="flex flex-col items-center gap-4 rounded-xl border bg-card px-8 py-6 shadow-lg">
+                        <Spinner className="size-10 text-primary" />
+                        <p className="text-sm font-medium">
+                            {t('employees.import.uploading', 'Uploading employees…')}
+                        </p>
+                        <p className="max-w-xs text-center text-xs text-muted-foreground">
+                            {t(
+                                'employees.import.uploadingHint',
+                                'Please wait while your file is processed.',
+                            )}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            <Dialog
+                open={importSuccessOpen}
+                onOpenChange={setImportSuccessOpen}
+            >
+                <DialogContent className="max-w-md gap-0 p-0 sm:max-w-md">
+                    <DialogHeader className="space-y-3 border-b px-6 py-5 text-center sm:text-center">
+                        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="size-7" aria-hidden />
+                        </div>
+                        <DialogTitle>
+                            {t('employees.import.successTitle', 'Upload successful')}
+                        </DialogTitle>
+                        <DialogDescription className="text-center">
+                            {importSuccessMessage ??
+                                t(
+                                    'employees.import.successDefault',
+                                    'Employees were imported successfully.',
+                                )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="border-t px-6 py-4 sm:justify-center">
+                        <DialogClose asChild>
+                            <Button type="button" className="min-w-[120px]">
+                                {t('common.ok', 'OK')}
+                            </Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex min-h-screen flex-1 flex-col bg-background">
                 {/* Page header */}
@@ -450,22 +515,29 @@ export default function Index({
                                             <input
                                                 type="file"
                                                 accept=".csv,text/csv"
+                                                disabled={processing}
                                                 onChange={(e) =>
                                                     setData(
                                                         'file',
                                                         e.currentTarget.files?.[0] ?? null,
                                                     )
                                                 }
-                                                className="block w-[170px] cursor-pointer rounded-full border border-input bg-background px-2.5 py-1.5 text-xs text-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs file:font-medium"
+                                                className="block w-[170px] cursor-pointer rounded-full border border-input bg-background px-2.5 py-1.5 text-xs text-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs file:font-medium disabled:cursor-not-allowed disabled:opacity-50"
                                             />
                                             <Button
                                                 size="sm"
                                                 type="submit"
                                                 disabled={processing || !data.file}
-                                                className="h-9 gap-2 rounded-full px-3"
+                                                className="h-9 min-w-[100px] gap-2 rounded-full px-3"
                                             >
-                                                <Upload className="size-4" />
-                                                Upload
+                                                {processing ? (
+                                                    <Spinner className="size-4" />
+                                                ) : (
+                                                    <Upload className="size-4" />
+                                                )}
+                                                {processing
+                                                    ? t('employees.import.uploadingShort', 'Uploading…')
+                                                    : t('employees.import.upload', 'Upload')}
                                             </Button>
                                         </form>
                                         <Link href={create().url}>

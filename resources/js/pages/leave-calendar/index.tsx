@@ -220,25 +220,25 @@ function toMonthValue(year: number, month: number): string {
 export default function LeaveCalendarIndex({
     filters,
     meta,
-    departments,
-    leaveTypes,
-    entries,
-    calendarDayCounts,
-    calendarDayLeaves,
-    todayOnLeave,
-    upcomingLeaves,
-    departmentSummary,
+    departments = [],
+    leaveTypes = [],
+    entries = [],
+    calendarDayCounts = {},
+    calendarDayLeaves = {},
+    todayOnLeave = [],
+    upcomingLeaves = [],
+    departmentSummary = [],
 }: {
     filters: CalendarFilters;
     meta: CalendarMeta;
-    departments: DepartmentOption[];
-    leaveTypes: LeaveTypeOption[];
-    entries: LeaveCalendarEntry[];
-    calendarDayCounts: Record<string, number>;
-    calendarDayLeaves: Record<string, CalendarDayLeave[]>;
-    todayOnLeave: LeaveCalendarEntry[];
-    upcomingLeaves: LeaveCalendarEntry[];
-    departmentSummary: DepartmentSummary[];
+    departments?: DepartmentOption[];
+    leaveTypes?: LeaveTypeOption[];
+    entries?: LeaveCalendarEntry[];
+    calendarDayCounts?: Record<string, number>;
+    calendarDayLeaves?: Record<string, CalendarDayLeave[]>;
+    todayOnLeave?: LeaveCalendarEntry[];
+    upcomingLeaves?: LeaveCalendarEntry[];
+    departmentSummary?: DepartmentSummary[];
 }) {
     const { t, locale } = useI18n();
     const [monthInput, setMonthInput] = useState(filters.month);

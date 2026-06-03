@@ -1417,6 +1417,9 @@ class EmployeeController extends Controller
 
     private function normalizeHeader(string $header): string
     {
+        $header = preg_replace('/^\xEF\xBB\xBF/u', '', $header) ?? $header;
+        $header = ltrim($header, "\u{FEFF}");
+
         return mb_strtolower(trim($header));
     }
 
