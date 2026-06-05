@@ -16,7 +16,7 @@ import {
     Upload,
     Users,
 } from 'lucide-react';
-import { Fragment, type FormEvent, useEffect, useState } from 'react';
+import { Fragment, type FormEvent, useEffect, useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
@@ -179,6 +179,14 @@ export default function Index({
     });
     const [importSuccessOpen, setImportSuccessOpen] = useState(false);
     const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
+    const importFileInputRef = useRef<HTMLInputElement>(null);
+
+    function clearImportFileSelection(): void {
+        reset('file');
+        if (importFileInputRef.current !== null) {
+            importFileInputRef.current.value = '';
+        }
+    }
 
     useEffect(() => {
         if (flash?.success) {
@@ -232,7 +240,7 @@ export default function Index({
         post('/employees/import', {
             forceFormData: true,
             onSuccess: () => {
-                reset('file');
+                clearImportFileSelection();
             },
         });
     }
@@ -513,6 +521,7 @@ export default function Index({
                                             className="flex flex-wrap items-center gap-2 rounded-full border border-border/70 bg-muted/20 p-1"
                                         >
                                             <input
+                                                ref={importFileInputRef}
                                                 type="file"
                                                 accept=".csv,text/csv"
                                                 disabled={processing}

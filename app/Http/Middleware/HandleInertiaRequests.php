@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\User;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
 use App\Support\EmployeePresence\EmployeePresenceOnlineData;
 use App\Support\LocaleConfig;
@@ -55,6 +56,8 @@ class HandleInertiaRequests extends Middleware
                 'employee_id' => $this->employeeIdForPresence($request->user()),
                 'has_my_profile_access' => $this->hasMyProfileAccess($request->user()),
                 'has_leave_calendar_access' => $this->hasLeaveCalendarAccess($request->user()),
+                'is_global_admin' => $this->isGlobalAdmin($request->user()),
+                'viewer_company_profile_id' => $this->viewerCompanyProfileId($request->user()),
             ],
             ...($this->shouldShareEmployeeMessages($request)
                 ? ['employeeMessages' => fn () => $this->employeeMessagesPayload($request)]
@@ -182,5 +185,15 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $user->isAdministrator() || $user->employee()->exists();
+    }
+
+    private function isGlobalAdmin(?User $user): bool
+    {
+        return app(CompanyAccessScope::class)->isGlobalAdmin($user);
+    }
+
+    private function viewerCompanyProfileId(?User $user): ?int
+    {
+        return app(CompanyAccessScope::class)->companyProfileIdFor($user);
     }
 }

@@ -3,11 +3,14 @@
 namespace App\Support;
 
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 class RequestApprovalScope
 {
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
      * @return Builder<\Illuminate\Database\Eloquent\Model>
@@ -18,21 +21,47 @@ class RequestApprovalScope
             return $query->whereRaw('1 = 0');
         }
 
-        if ($this->isAdministratorOrHr($user)) {
+        if ($this->companyScope->isGlobalAdmin($user)) {
             return $query;
         }
 
-        $departmentIds = $this->managedDepartmentIds($user);
-        if ($departmentIds !== []) {
-            return $query->whereIn('department_id', $departmentIds);
-        }
-
         $employeeId = $this->employeeId($user);
-        if ($employeeId !== null) {
-            return $query->where('employee_id', $employeeId);
-        }
+        $departmentIds = $this->managedDepartmentIds($user);
+        $companyProfileId = $this->companyScope->companyProfileIdFor($user);
+        $isHr = $this->isHr($user);
 
-        return $query->whereRaw('1 = 0');
+        return $query->where(function (Builder $inner) use ($employeeId, $departmentIds, $companyProfileId, $isHr): void {
+            $hasClause = false;
+
+            if ($employeeId !== null) {
+                $inner->where('employee_id', $employeeId);
+                $hasClause = true;
+            }
+
+            if ($departmentIds !== []) {
+                $method = $hasClause ? 'orWhere' : 'where';
+                $inner->{$method}(function (Builder $departmentScope) use ($departmentIds, $companyProfileId): void {
+                    $departmentScope->whereIn('department_id', $departmentIds);
+
+                    if ($companyProfileId !== null) {
+                        $departmentScope->whereHas('employee', fn (Builder $employeeQuery) => $employeeQuery
+                            ->where('company_profile_id', $companyProfileId));
+                    }
+                });
+                $hasClause = true;
+            }
+
+            if ($isHr && $companyProfileId !== null) {
+                $method = $hasClause ? 'orWhereHas' : 'whereHas';
+                $inner->{$method}('employee', fn (Builder $employeeQuery) => $employeeQuery
+                    ->where('company_profile_id', $companyProfileId));
+                $hasClause = true;
+            }
+
+            if (! $hasClause) {
+                $inner->whereRaw('1 = 0');
+            }
+        });
     }
 
     public function canView(?User $user, int $employeeId, int $departmentId): bool
@@ -41,7 +70,20 @@ class RequestApprovalScope
             return false;
         }
 
-        if ($this->isAdministratorOrHr($user)) {
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return true;
+        }
+
+        if ($this->employeeId($user) === $employeeId) {
+            return true;
+        }
+
+        $employee = Employee::query()->find($employeeId);
+        if ($employee === null || ! $this->companyScope->canAccessEmployee($user, $employee)) {
+            return false;
+        }
+
+        if ($this->isHr($user)) {
             return true;
         }
 
@@ -49,11 +91,7 @@ class RequestApprovalScope
             return true;
         }
 
-        if ($this->isManagerForDepartment($user, $departmentId)) {
-            return true;
-        }
-
-        return $this->employeeId($user) === $employeeId;
+        return $this->isManagerForDepartment($user, $departmentId);
     }
 
     public function canModify(?User $user, int $employeeId, int $departmentId, string $status): bool
@@ -62,7 +100,20 @@ class RequestApprovalScope
             return false;
         }
 
-        if ($this->isAdministratorOrHr($user)) {
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return true;
+        }
+
+        if ($this->employeeId($user) === $employeeId && strtolower($status) === 'draft') {
+            return true;
+        }
+
+        $employee = Employee::query()->find($employeeId);
+        if ($employee === null || ! $this->companyScope->canAccessEmployee($user, $employee)) {
+            return false;
+        }
+
+        if ($this->isHr($user)) {
             return true;
         }
 
@@ -74,7 +125,7 @@ class RequestApprovalScope
             return true;
         }
 
-        return $this->employeeId($user) === $employeeId && strtolower($status) === 'draft';
+        return false;
     }
 
     public function canDecide(?User $user, int $employeeId, int $departmentId, string $status): bool
@@ -92,7 +143,16 @@ class RequestApprovalScope
             return false;
         }
 
-        if ($this->isAdministratorOrHr($user)) {
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return true;
+        }
+
+        $employee = Employee::query()->find($employeeId);
+        if ($employee === null || ! $this->companyScope->canAccessEmployee($user, $employee)) {
+            return false;
+        }
+
+        if ($this->isHr($user)) {
             return true;
         }
 
@@ -144,10 +204,11 @@ class RequestApprovalScope
 
     public function isAdministratorOrHr(User $user): bool
     {
-        if ($user->isAdministrator()) {
-            return true;
-        }
+        return $this->companyScope->isGlobalAdmin($user) || $this->isHr($user);
+    }
 
+    public function isHr(User $user): bool
+    {
         $user->loadMissing('role');
         if ($user->role === null) {
             return false;
@@ -192,4 +253,3 @@ class RequestApprovalScope
         return $user->employee?->id;
     }
 }
-

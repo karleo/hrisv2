@@ -6,6 +6,7 @@ use App\Http\Requests\CompanyProfile\StoreCompanyProfileRequest;
 use App\Http\Requests\CompanyProfile\UpdateCompanyProfileRequest;
 use App\Models\CompanyProfile;
 use App\Models\Country;
+use App\Support\CompanyAccessScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,6 +16,8 @@ use Inertia\Response;
 
 class CompanyProfileController extends Controller
 {
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+
     /**
      * @var list<string>
      */
@@ -30,8 +33,13 @@ class CompanyProfileController extends Controller
      */
     public function index(Request $request): Response
     {
+        $user = $request->user();
         $companyProfiles = CompanyProfile::query()
             ->with('country')
+            ->when(
+                $this->companyScope->shouldScope($user),
+                fn ($query) => $query->whereKey($this->companyScope->companyProfileIdFor($user))
+            )
             ->when(
                 $request->filled('search'),
                 fn ($query) => $query->where(
@@ -59,8 +67,12 @@ class CompanyProfileController extends Controller
     /**
      * Show the form for creating a new company profile.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        if ($this->companyScope->shouldScope($request->user())) {
+            abort(403);
+        }
+
         return Inertia::render('company-profiles/create', [
             'countries' => Country::query()->orderBy('name')->get(['id', 'code', 'name']),
         ]);
@@ -71,6 +83,10 @@ class CompanyProfileController extends Controller
      */
     public function store(StoreCompanyProfileRequest $request): RedirectResponse
     {
+        if ($this->companyScope->shouldScope($request->user())) {
+            abort(403);
+        }
+
         $data = $request->validated();
         $logo = $data['logo'] ?? null;
         $businessCardLogo = $data['business_card_logo'] ?? null;
@@ -90,8 +106,10 @@ class CompanyProfileController extends Controller
     /**
      * Show the form for editing the specified company profile.
      */
-    public function edit(CompanyProfile $companyProfile): Response
+    public function edit(Request $request, CompanyProfile $companyProfile): Response
     {
+        $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
+
         $companyProfile->load('country');
         $this->attachLogoUrls($companyProfile);
 
@@ -106,6 +124,8 @@ class CompanyProfileController extends Controller
      */
     public function update(UpdateCompanyProfileRequest $request, CompanyProfile $companyProfile): RedirectResponse
     {
+        $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
+
         $data = $request->validated();
         $logo = $data['logo'] ?? null;
         $businessCardLogo = $data['business_card_logo'] ?? null;
@@ -125,8 +145,12 @@ class CompanyProfileController extends Controller
     /**
      * Remove the specified company profile.
      */
-    public function destroy(CompanyProfile $companyProfile): RedirectResponse
+    public function destroy(Request $request, CompanyProfile $companyProfile): RedirectResponse
     {
+        if ($this->companyScope->shouldScope($request->user())) {
+            abort(403);
+        }
+
         if ($companyProfile->logo) {
             Storage::disk('public')->delete($companyProfile->logo);
         }

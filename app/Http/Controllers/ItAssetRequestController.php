@@ -14,6 +14,7 @@ use App\Models\RequestEmailLog;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\ItAssetValuation;
 use App\Support\RequestApprovalScope;
@@ -31,6 +32,7 @@ class ItAssetRequestController extends Controller
     public function __construct(
         private readonly RequestApprovalScope $approvalScope,
         private readonly ItAssetValuation $valuation,
+        private readonly CompanyAccessScope $companyScope,
     ) {}
 
     /**
@@ -66,7 +68,7 @@ class ItAssetRequestController extends Controller
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         return Inertia::render('it-asset-requests/create', [
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id']),
@@ -145,7 +147,7 @@ class ItAssetRequestController extends Controller
             'hardware' => array_map(fn (array $item): array => $item['hardware'], $hardwareItems),
             'hardwareItems' => $hardwareItems,
             'assetTotals' => $this->valuation->totalsForHardwareItems($hardwareItems),
-            'employees' => fn () => Employee::query()
+            'employees' => fn () => $this->companyScope->scopedEmployeeQuery($actor)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id']),
@@ -297,7 +299,7 @@ class ItAssetRequestController extends Controller
 
         return Inertia::render('it-asset-requests/edit', [
             'itAssetRequest' => $it_asset_request,
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id']),

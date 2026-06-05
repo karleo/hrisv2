@@ -24,9 +24,21 @@ class RequestApprovalWorkflowTest extends TestCase
         $this->withoutMiddleware(EnforceModulePermissions::class);
     }
 
+    private function nonAdminUser(array $attributes = []): User
+    {
+        $role = Role::factory()->create([
+            'slug' => 'staff-'.uniqid('', true),
+            'name' => 'Staff',
+        ]);
+
+        return User::factory()->create(array_merge([
+            'role_id' => $role->id,
+        ], $attributes));
+    }
+
     public function test_department_manager_only_sees_department_requests(): void
     {
-        $managerUser = User::factory()->create();
+        $managerUser = $this->nonAdminUser();
         $managerEmployee = Employee::factory()->create(['user_id' => $managerUser->id]);
 
         $managedDepartment = Department::factory()->create([
@@ -56,7 +68,7 @@ class RequestApprovalWorkflowTest extends TestCase
 
     public function test_employee_cannot_open_other_department_leave_request(): void
     {
-        $user = User::factory()->create();
+        $user = $this->nonAdminUser();
         $employee = Employee::factory()->create(['user_id' => $user->id]);
 
         $otherRequest = LeaveRequest::factory()->create([
@@ -79,22 +91,24 @@ class RequestApprovalWorkflowTest extends TestCase
         ]);
         $hrUser = User::factory()->create(['role_id' => $hrRole->id]);
 
-        $managerUser = User::factory()->create();
+        $managerUser = $this->nonAdminUser();
         $managerEmployee = Employee::factory()->create(['user_id' => $managerUser->id]);
 
-        $ownerUser = User::factory()->create();
+        $ownerUser = $this->nonAdminUser();
         $department = Department::factory()->create([
             'manager_employee_id' => $managerEmployee->id,
         ]);
         $ownerEmployee = Employee::factory()->create([
             'user_id' => $ownerUser->id,
             'department_id' => $department->id,
+            'leave_opening_balance' => 30,
         ]);
 
         $request = LeaveRequest::factory()->create([
             'employee_id' => $ownerEmployee->id,
             'department_id' => $department->id,
             'status' => 'draft',
+            'days' => 1,
         ]);
 
         $this->actingAs($ownerUser);
@@ -113,7 +127,7 @@ class RequestApprovalWorkflowTest extends TestCase
 
     public function test_dashboard_pending_counts_are_scoped_for_manager(): void
     {
-        $managerUser = User::factory()->create();
+        $managerUser = $this->nonAdminUser();
         $managerEmployee = Employee::factory()->create(['user_id' => $managerUser->id]);
         $managedDepartment = Department::factory()->create([
             'manager_employee_id' => $managerEmployee->id,

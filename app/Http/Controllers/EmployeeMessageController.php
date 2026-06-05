@@ -8,6 +8,7 @@ use App\Http\Requests\EmployeeMessage\StoreEmployeeMessageRequest;
 use App\Models\Employee;
 use App\Models\EmployeeConversation;
 use App\Models\EmployeeMessage;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,8 @@ use Throwable;
 
 class EmployeeMessageController extends Controller
 {
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+
     public function header(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -80,7 +83,7 @@ class EmployeeMessageController extends Controller
         $employee = $this->currentEmployee($request);
         $keyword = trim((string) $request->query('q', ''));
 
-        $employees = $this->activeLinkedEmployeeQuery()
+        $employees = $this->activeLinkedEmployeeQuery($request->user())
             ->whereKeyNot($employee->id)
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
@@ -117,7 +120,7 @@ class EmployeeMessageController extends Controller
     public function showEmployee(Request $request, Employee $employee): JsonResponse
     {
         $currentEmployee = $this->currentEmployee($request);
-        $this->abortUnlessActiveLinkedEmployee($employee);
+        $this->abortUnlessActiveLinkedEmployee($employee, $request->user());
 
         if ($employee->id === $currentEmployee->id) {
             abort(422);
@@ -145,7 +148,7 @@ class EmployeeMessageController extends Controller
     {
         $sender = $this->currentEmployee($request);
         $recipient = Employee::query()->findOrFail((int) $request->integer('recipient_employee_id'));
-        $this->abortUnlessActiveLinkedEmployee($recipient);
+        $this->abortUnlessActiveLinkedEmployee($recipient, $request->user());
 
         if ($recipient->id === $sender->id) {
             abort(422);
@@ -252,16 +255,23 @@ class EmployeeMessageController extends Controller
         return $employee->loadMissing(['department', 'jobPosition', 'user']);
     }
 
-    private function activeLinkedEmployeeQuery(): Builder
+    private function activeLinkedEmployeeQuery(?\App\Models\User $user): Builder
     {
-        return Employee::query()
-            ->with(['department', 'jobPosition', 'user'])
-            ->whereHas('user', fn ($query) => $query->where('is_active', true));
+        return $this->companyScope->scopeEmployees(
+            Employee::query()
+                ->with(['department', 'jobPosition', 'user'])
+                ->whereHas('user', fn ($query) => $query->where('is_active', true)),
+            $user,
+        );
     }
 
-    private function abortUnlessActiveLinkedEmployee(Employee $employee): void
+    private function abortUnlessActiveLinkedEmployee(Employee $employee, ?\App\Models\User $user): void
     {
         if (! $employee->user()->where('is_active', true)->exists()) {
+            abort(404);
+        }
+
+        if (! $this->companyScope->canAccessEmployee($user, $employee)) {
             abort(404);
         }
     }

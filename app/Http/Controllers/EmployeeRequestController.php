@@ -15,6 +15,7 @@ use App\Models\RequestEmailLog;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
@@ -29,7 +30,10 @@ use Inertia\Response;
 
 class EmployeeRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+    ) {}
 
     /**
      * Display a listing of the employee requests.
@@ -171,7 +175,7 @@ class EmployeeRequestController extends Controller
     public function create(Request $request): Response
     {
         return Inertia::render('employee-requests/create', [
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
@@ -253,7 +257,7 @@ class EmployeeRequestController extends Controller
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
@@ -375,7 +379,7 @@ class EmployeeRequestController extends Controller
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),

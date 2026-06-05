@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Department\StoreDepartmentRequest;
 use App\Http\Requests\Department\UpdateDepartmentRequest;
 use App\Models\Department;
-use App\Models\Employee;
+use App\Support\CompanyAccessScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,6 +13,8 @@ use Inertia\Response;
 
 class DepartmentController extends Controller
 {
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+
     /**
      * Display a listing of the departments.
      */
@@ -41,10 +43,10 @@ class DepartmentController extends Controller
     /**
      * Show the form for creating a new department.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('departments/create', [
-            'employees' => Inertia::always(fn () => Employee::query()
+            'employees' => Inertia::always(fn () => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name'])),
@@ -64,11 +66,11 @@ class DepartmentController extends Controller
     /**
      * Show the form for editing the specified department.
      */
-    public function edit(Department $department): Response
+    public function edit(Request $request, Department $department): Response
     {
         return Inertia::render('departments/edit', [
             'department' => $department,
-            'employees' => Inertia::always(fn () => Employee::query()
+            'employees' => Inertia::always(fn () => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name'])),

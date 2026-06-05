@@ -7,6 +7,7 @@ use App\Enums\BiometricPunchDirection;
 use App\Enums\PermissionModule;
 use App\Models\BiometricDevice;
 use App\Models\BiometricPunch;
+use App\Models\CompanyProfile;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\RoleModulePermission;
@@ -35,6 +36,7 @@ class AttendanceReportTest extends TestCase
     public function test_authorized_user_can_generate_attendance_report(): void
     {
         $user = $this->userWithReportsAccess();
+        $companyId = (int) $user->employee()->value('company_profile_id');
         $device = BiometricDevice::query()->create([
             'name' => 'Main gate',
             'serial_number' => 'SN-REPORT-1',
@@ -45,6 +47,7 @@ class AttendanceReportTest extends TestCase
             'is_active' => true,
         ]);
         $employee = Employee::factory()->create([
+            'company_profile_id' => $companyId,
             'biometric_user_id' => '55',
             'first_name' => 'Ellen',
             'last_name' => 'Kautzer',
@@ -85,7 +88,7 @@ class AttendanceReportTest extends TestCase
 
     public function test_attendance_report_csv_export(): void
     {
-        $user = $this->userWithReportsAccess();
+        $user = $this->administratorWithReportsAccess();
         $device = BiometricDevice::query()->create([
             'name' => 'Gate',
             'serial_number' => 'SN-REPORT-2',
@@ -120,6 +123,7 @@ class AttendanceReportTest extends TestCase
     public function test_attendance_report_pdf_export(): void
     {
         $user = $this->userWithReportsAccess();
+        $companyId = (int) $user->employee()->value('company_profile_id');
         $device = BiometricDevice::query()->create([
             'name' => 'Main gate',
             'serial_number' => 'SN-REPORT-PDF',
@@ -130,6 +134,7 @@ class AttendanceReportTest extends TestCase
             'is_active' => true,
         ]);
         $employee = Employee::factory()->create([
+            'company_profile_id' => $companyId,
             'biometric_user_id' => '55',
             'first_name' => 'Ellen',
             'last_name' => 'Kautzer',
@@ -172,6 +177,39 @@ class AttendanceReportTest extends TestCase
             'can_check_out' => false,
         ]);
 
-        return User::factory()->create(['role_id' => $role->id]);
+        $company = CompanyProfile::factory()->create();
+        $user = User::factory()->create(['role_id' => $role->id]);
+
+        Employee::factory()->create([
+            'user_id' => $user->id,
+            'company_profile_id' => $company->id,
+        ]);
+
+        return $user;
+    }
+
+    private function administratorWithReportsAccess(): User
+    {
+        $adminRole = Role::query()->firstOrCreate(
+            ['slug' => 'administrator'],
+            ['name' => 'Administrator'],
+        );
+        RoleModulePermission::query()->firstOrCreate(
+            [
+                'role_id' => $adminRole->id,
+                'module' => PermissionModule::Reports,
+            ],
+            [
+                'can_access' => true,
+                'can_view' => true,
+                'can_create' => false,
+                'can_update' => false,
+                'can_delete' => false,
+                'can_check_in' => false,
+                'can_check_out' => false,
+            ],
+        );
+
+        return User::factory()->create(['role_id' => $adminRole->id]);
     }
 }

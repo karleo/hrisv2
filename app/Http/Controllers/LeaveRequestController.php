@@ -16,6 +16,7 @@ use App\Models\RequestEmailLog;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
@@ -30,7 +31,10 @@ use Inertia\Response;
 
 class LeaveRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+    ) {}
 
     /**
      * Display a listing of the leave requests.
@@ -148,7 +152,7 @@ class LeaveRequestController extends Controller
     public function create(Request $request): Response
     {
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
-        $employees = Employee::query()
+        $employees = $this->companyScope->scopedEmployeeQuery($request->user())
             ->with('department:id,name')
             ->orderBy('first_name')
             ->orderBy('last_name')
@@ -243,7 +247,7 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($actor)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
@@ -270,7 +274,8 @@ class LeaveRequestController extends Controller
             return redirect()->back()->with('error', 'Only draft leave requests can be submitted.');
         }
 
-        $employee = Employee::query()->find($leave_request->employee_id);
+        $leave_request->loadMissing('employee');
+        $employee = $leave_request->employee;
         if ($employee === null) {
             return redirect()->back()->with('error', 'Cannot submit: employee record is missing.');
         }
@@ -381,7 +386,7 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($actor)
                 ->with('department:id,name')
                 ->orderBy('first_name')
                 ->orderBy('last_name')

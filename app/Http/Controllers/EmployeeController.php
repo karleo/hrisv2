@@ -21,9 +21,11 @@ use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\User;
 use App\Models\WorkTimetable;
 use App\Services\Reports\AttendanceReportPdfExporter;
 use App\Services\Reports\AttendanceReportService;
+use App\Support\CompanyAccessScope;
 use App\Support\ItAssetValuation;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -46,6 +48,7 @@ class EmployeeController extends Controller
     public function __construct(
         private readonly FaceVerificationContract $faceVerification,
         private readonly ItAssetValuation $valuation,
+        private readonly CompanyAccessScope $companyScope,
     ) {}
 
     public function profile(Request $request): Response
@@ -331,9 +334,10 @@ class EmployeeController extends Controller
      */
     public function index(Request $request): Response
     {
+        $user = $request->user();
         $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
 
-        $employees = Employee::query()
+        $employees = $this->scopedEmployeesQuery($user)
             ->with([
                 'department.managerEmployee:id,first_name,last_name',
                 'jobPosition',
@@ -357,8 +361,8 @@ class EmployeeController extends Controller
             })
             ->withQueryString();
 
-        $totalEmployees = Employee::query()->count();
-        $activeEmployeesQuery = Employee::query()->whereNotNull('user_id');
+        $totalEmployees = $this->scopedEmployeesQuery($user)->count();
+        $activeEmployeesQuery = $this->scopedEmployeesQuery($user)->whereNotNull('user_id');
         if ($hasUserActiveColumn) {
             $activeEmployeesQuery->whereHas('user', function (Builder $query): void {
                 $query->where('is_active', true);
@@ -366,16 +370,18 @@ class EmployeeController extends Controller
         }
         $activeEmployees = $activeEmployeesQuery->count();
 
+        $departmentsQuery = $this->scopedDepartmentsQuery($user);
+
         return Inertia::render('employees/index', [
             'employees' => $employees,
             'stats' => [
                 'totalEmployees' => $totalEmployees,
                 'activeEmployees' => $activeEmployees,
-                'totalDepartments' => Department::query()->count(),
+                'totalDepartments' => (clone $departmentsQuery)->count(),
                 'noLoginAccessEmployees' => max($totalEmployees - $activeEmployees, 0),
             ],
             'filters' => $request->only('search', 'department_id', 'employee_status'),
-            'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
+            'departments' => $departmentsQuery->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -384,12 +390,13 @@ class EmployeeController extends Controller
      */
     public function create(): Response
     {
-        $canViewActivityLogs = request()->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
+        $user = request()->user();
+        $canViewActivityLogs = $user?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         return Inertia::render('employees/create', [
-            'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'departments' => $this->scopedDepartmentsQuery($user)->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
-            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get([
+            'companyProfiles' => $this->scopedCompanyProfilesQuery($user)->orderBy('company_name')->get([
                 'id',
                 'company_name',
                 'company_address_1',
@@ -458,7 +465,7 @@ class EmployeeController extends Controller
             ? (string) $request->input('group_by')
             : null;
 
-        $exportQuery = Employee::query()
+        $exportQuery = $this->scopedEmployeesQuery($request->user())
             ->with(['department:id,code,name,manager_employee_id', 'department.managerEmployee:id,first_name,last_name', 'jobPosition:id,code,name', 'workTimetable:id,name', 'companyProfile:id,company_name']);
         $this->applyEmployeeFilters($exportQuery, $request);
 
@@ -603,6 +610,10 @@ class EmployeeController extends Controller
 
     public function import(ImportEmployeesRequest $request): RedirectResponse
     {
+        $user = $request->user();
+        $viewerCompanyProfileId = $this->companyScope->companyProfileIdFor($user);
+        $forceCompanyOnImport = $this->companyScope->shouldScope($user);
+
         $file = $request->file('file');
         if ($file === null) {
             return back()->with('error', 'Please upload a CSV file.');
@@ -744,7 +755,18 @@ class EmployeeController extends Controller
             }
 
             $companyProfileId = null;
-            if ($companyNameKey !== '') {
+            if ($forceCompanyOnImport) {
+                if ($companyNameKey !== '' && isset($companyProfileMap[$companyNameKey])) {
+                    /** @var CompanyProfile $namedCompanyProfile */
+                    $namedCompanyProfile = $companyProfileMap[$companyNameKey];
+                    if ((int) $namedCompanyProfile->id !== $viewerCompanyProfileId) {
+                        $errors[] = "Row {$lineNumber}: company_profile_name must match your assigned company.";
+
+                        continue;
+                    }
+                }
+                $companyProfileId = $viewerCompanyProfileId;
+            } elseif ($companyNameKey !== '') {
                 if (! isset($companyProfileMap[$companyNameKey])) {
                     $errors[] = "Row {$lineNumber}: company_profile_name '{$entry['company_profile_name']}' not found.";
 
@@ -817,6 +839,10 @@ class EmployeeController extends Controller
 
         $data['role'] = 'Employee';
 
+        if ($this->companyScope->shouldScope($request->user())) {
+            $data['company_profile_id'] = $this->companyScope->companyProfileIdFor($request->user());
+        }
+
         $employee = Employee::query()->create($data);
 
         if ($photo) {
@@ -847,6 +873,8 @@ class EmployeeController extends Controller
      */
     public function businessCard(Request $request, Employee $employee): Response
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $employee->load(['department', 'jobPosition', 'companyProfile']);
         $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
@@ -865,6 +893,8 @@ class EmployeeController extends Controller
 
     public function businessCardEmbed(Employee $employee): ViewContract
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         $employee->load(['department', 'jobPosition', 'companyProfile']);
         $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
@@ -937,6 +967,8 @@ class EmployeeController extends Controller
         AttendanceReportService $attendanceReportService,
         AttendanceReportPdfExporter $pdfExporter,
     ): HttpResponse {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         if (trim((string) $employee->biometric_user_id) === '') {
             abort(404);
         }
@@ -972,6 +1004,8 @@ class EmployeeController extends Controller
      */
     public function show(Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         return to_route('employees.edit', [
             'employee' => $employee,
             'mode' => 'view',
@@ -983,6 +1017,8 @@ class EmployeeController extends Controller
      */
     public function edit(Request $request, Employee $employee, AttendanceReportService $attendanceReportService): Response
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
 
         $employee->load([
@@ -1050,7 +1086,7 @@ class EmployeeController extends Controller
                 ->values()
                 ->all()
             : [];
-        $orderedEmployeeIds = Employee::query()
+        $orderedEmployeeIds = $this->scopedEmployeesQuery($request->user())
             ->orderBy('employee_code')
             ->orderBy('id')
             ->pluck('id')
@@ -1095,9 +1131,9 @@ class EmployeeController extends Controller
         return Inertia::render('employees/edit', [
             'employee' => $employee,
             'attendance' => $attendance,
-            'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'departments' => $this->scopedDepartmentsQuery($request->user())->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
-            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get([
+            'companyProfiles' => $this->scopedCompanyProfilesQuery($request->user())->orderBy('company_name')->get([
                 'id',
                 'company_name',
                 'company_address_1',
@@ -1150,6 +1186,8 @@ class EmployeeController extends Controller
      */
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $data = $request->validated();
         if (! array_key_exists('leave_opening_balance', $data) || $data['leave_opening_balance'] === null) {
             $data['leave_opening_balance'] = (float) ($employee->leave_opening_balance ?? 0);
@@ -1160,6 +1198,10 @@ class EmployeeController extends Controller
         $documentTypeIds = $request->input('document_type_ids', []);
         $documentExpiryDates = $request->input('document_expiry_dates', []);
         unset($data['photo'], $data['documents'], $data['document_type_ids'], $data['document_expiry_dates'], $data['user_active']);
+
+        if ($this->companyScope->shouldScope($request->user())) {
+            $data['company_profile_id'] = $this->companyScope->companyProfileIdFor($request->user());
+        }
 
         $employee->update($data);
 
@@ -1204,6 +1246,8 @@ class EmployeeController extends Controller
 
     public function updatePrivateInformation(UpdateEmployeePrivateInformationRequest $request, Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $employee->update($request->validated());
 
         $tab = $request->input('tab');
@@ -1223,6 +1267,8 @@ class EmployeeController extends Controller
      */
     public function destroy(Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         if ($employee->photo) {
             Storage::disk('public')->delete($employee->photo);
         }
@@ -1239,6 +1285,8 @@ class EmployeeController extends Controller
      */
     public function destroyDocument(Employee $employee, EmployeeDocument $employee_document): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         if ($employee_document->employee_id !== $employee->id) {
             abort(404);
         }
@@ -1253,6 +1301,8 @@ class EmployeeController extends Controller
 
     public function showDocument(Employee $employee, EmployeeDocument $employee_document): BinaryFileResponse
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         if ($employee_document->employee_id !== $employee->id) {
             abort(404);
         }
@@ -1399,6 +1449,51 @@ class EmployeeController extends Controller
         }
 
         return Carbon::parse((string) $value)->toDateString();
+    }
+
+    /**
+     * @return Builder<Employee>
+     */
+    private function scopedEmployeesQuery(?User $user = null): Builder
+    {
+        $user ??= request()->user();
+
+        return $this->companyScope->scopeEmployees(Employee::query(), $user);
+    }
+
+    /**
+     * @return Builder<Department>
+     */
+    private function scopedDepartmentsQuery(?User $user = null): Builder
+    {
+        $user ??= request()->user();
+
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return Department::query();
+        }
+
+        return $this->companyScope->scopeDepartmentsWithCompanyEmployees(Department::query(), $user);
+    }
+
+    /**
+     * @return Builder<CompanyProfile>
+     */
+    private function scopedCompanyProfilesQuery(?User $user = null): Builder
+    {
+        $user ??= request()->user();
+        $query = CompanyProfile::query();
+
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return $query;
+        }
+
+        $companyProfileId = $this->companyScope->companyProfileIdFor($user);
+
+        if ($companyProfileId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereKey($companyProfileId);
     }
 
     /**

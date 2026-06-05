@@ -25,6 +25,7 @@ use App\Services\Biometric\BiometricSyncPipeline;
 use App\Services\Biometric\ZkDeviceWebReportClient;
 use App\Support\BiometricPushUrl;
 use App\Support\BiometricTimezoneOptions;
+use App\Support\CompanyAccessScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ class BiometricAttendanceController extends Controller
 {
     public function __construct(
         private readonly BiometricStaleSyncLogCleaner $staleSyncLogCleaner,
+        private readonly CompanyAccessScope $companyScope,
     ) {}
 
     public function dashboard(Request $request): Response
@@ -168,6 +170,9 @@ class BiometricAttendanceController extends Controller
             }
         }
 
+        $user = $request->user();
+        $this->companyScope->scopeRelationViaEmployee($query, $user);
+
         $sessions = $query->paginate(20)->withQueryString()->through(
             fn (BiometricAttendanceSession $session) => [
                 'id' => $session->id,
@@ -184,8 +189,6 @@ class BiometricAttendanceController extends Controller
             ],
         );
 
-        $user = $request->user();
-
         return Inertia::render('biometric-attendance/sessions', [
             'sessions' => $sessions,
             'filters' => [
@@ -196,16 +199,16 @@ class BiometricAttendanceController extends Controller
                 'status' => $request->input('status'),
             ],
             'devices' => BiometricDevice::query()->orderBy('name')->get(['id', 'name']),
-            'employees' => $this->employeesForBiometricSessionFilter(),
+            'employees' => $this->employeesForBiometricSessionFilter($user),
         ]);
     }
 
     /**
      * @return list<array{id: int, name: string}>
      */
-    private function employeesForBiometricSessionFilter(): array
+    private function employeesForBiometricSessionFilter(?\App\Models\User $user): array
     {
-        return Employee::query()
+        $query = $this->companyScope->scopedEmployeeQuery($user)
             ->where(function ($query) {
                 $query->whereNotNull('biometric_user_id')
                     ->orWhereExists(function ($subquery) {
@@ -248,6 +251,9 @@ class BiometricAttendanceController extends Controller
             $query->whereNull('employee_id');
         }
 
+        $user = $request->user();
+        $this->companyScope->scopeRelationViaEmployee($query, $user);
+
         $punches = $query->paginate(30)->withQueryString()->through(
             fn (BiometricPunch $punch) => [
                 'id' => $punch->id,
@@ -262,8 +268,6 @@ class BiometricAttendanceController extends Controller
                 'biometric_attendance_session_id' => $punch->biometric_attendance_session_id,
             ],
         );
-
-        $user = $request->user();
 
         return Inertia::render('biometric-attendance/punches', [
             'punches' => $punches,

@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\User;
+use App\Support\CompanyAccessScope;
 use App\Support\RequestApprovalScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class LeaveCalendarController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -39,9 +43,7 @@ class LeaveCalendarController extends Controller
             ? $this->approvalScope->managedDepartmentIds($user)
             : [];
         $currentEmployeeDepartmentId = $user?->employee?->department_id;
-        $isAdminOrHr = $user instanceof User
-            ? $this->approvalScope->isAdministratorOrHr($user)
-            : false;
+        $isGlobalAdmin = $user instanceof User && $this->companyScope->isGlobalAdmin($user);
         $allowedDepartmentIds = array_values(array_unique(array_filter(
             [
                 ...$managedDepartmentIds,
@@ -51,8 +53,19 @@ class LeaveCalendarController extends Controller
         )));
 
         $departmentFilterId = isset($filters['department_id']) ? (int) $filters['department_id'] : null;
-        if (! $isAdminOrHr && $departmentFilterId !== null && ! in_array($departmentFilterId, $allowedDepartmentIds, true)) {
-            abort(403);
+        if (! $isGlobalAdmin && $departmentFilterId !== null && ! in_array($departmentFilterId, $allowedDepartmentIds, true)) {
+            if (! $this->companyScope->shouldScope($user)) {
+                abort(403);
+            }
+
+            $departmentInCompany = Department::query()
+                ->whereKey($departmentFilterId)
+                ->tap(fn ($query) => $this->companyScope->scopeDepartmentsWithCompanyEmployees($query, $user))
+                ->exists();
+
+            if (! $departmentInCompany) {
+                abort(403);
+            }
         }
 
         $leaveTypeCategories = LeaveType::query()
@@ -172,11 +185,22 @@ class LeaveCalendarController extends Controller
             ->values()
             ->all();
 
-        $departments = Department::query()
-            ->when(
-                ! $isAdminOrHr,
-                fn ($query) => $query->whereIn('id', $allowedDepartmentIds)
-            )
+        $departmentsQuery = Department::query();
+        if ($isGlobalAdmin) {
+            // No filter — administrators see all departments.
+        } elseif ($this->companyScope->shouldScope($user)) {
+            $this->companyScope->scopeDepartmentsWithCompanyEmployees($departmentsQuery, $user);
+
+            if ($managedDepartmentIds !== [] && ! $this->approvalScope->isHr($user)) {
+                $departmentsQuery->whereIn('id', $managedDepartmentIds);
+            }
+        } elseif ($allowedDepartmentIds !== []) {
+            $departmentsQuery->whereIn('id', $allowedDepartmentIds);
+        } else {
+            $departmentsQuery->whereRaw('1 = 0');
+        }
+
+        $departments = $departmentsQuery
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(static fn (Department $department): array => [

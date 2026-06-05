@@ -5,6 +5,8 @@ namespace App\Services\Reports;
 use App\Enums\BiometricPunchDirection;
 use App\Models\BiometricPunch;
 use App\Models\Employee;
+use App\Models\User;
+use App\Support\CompanyAccessScope;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -13,6 +15,8 @@ final class AttendanceReportService
     private const int DUPLICATE_PUNCH_WINDOW_SECONDS = 180;
 
     private const int MINIMUM_CHECKOUT_GAP_MINUTES = 5;
+
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
 
     /**
      * @return array{
@@ -37,12 +41,17 @@ final class AttendanceReportService
         string $to,
         ?int $employeeId = null,
         ?int $biometricDeviceId = null,
+        ?User $viewer = null,
     ): array {
         $query = BiometricPunch::query()
             ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
             ->where('punched_at', '>=', $from.' 00:00:00')
             ->where('punched_at', '<=', $to.' 23:59:59')
             ->orderBy('punched_at');
+
+        if ($viewer !== null) {
+            $this->companyScope->scopeRelationViaEmployee($query, $viewer);
+        }
 
         if ($employeeId !== null) {
             $query->where('employee_id', $employeeId);

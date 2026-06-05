@@ -8,6 +8,7 @@ use App\Models\BiometricDevice;
 use App\Models\Employee;
 use App\Services\Reports\AttendanceReportPdfExporter;
 use App\Services\Reports\AttendanceReportService;
+use App\Support\CompanyAccessScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -16,6 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceReportController extends Controller
 {
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+
     public function index(
         AttendanceReportRequest $request,
         AttendanceReportService $reportService,
@@ -25,8 +28,16 @@ class AttendanceReportController extends Controller
 
         $employeeId = isset($validated['employee_id']) ? (int) $validated['employee_id'] : null;
         $deviceId = isset($validated['biometric_device_id']) ? (int) $validated['biometric_device_id'] : null;
+        $viewer = $request->user();
 
-        $report = $reportService->build($from, $to, $employeeId, $deviceId);
+        if ($employeeId !== null) {
+            $employee = Employee::query()->find($employeeId);
+            if ($employee === null || ! $this->companyScope->canAccessEmployee($viewer, $employee)) {
+                abort(403);
+            }
+        }
+
+        $report = $reportService->build($from, $to, $employeeId, $deviceId, $viewer);
 
         if ($request->wantsCsvExport()) {
             return $this->csvResponse($report['rows'], $from, $to);
@@ -69,7 +80,7 @@ class AttendanceReportController extends Controller
                 'total_days' => $collection->count(),
                 'total_punches' => $report['total_punches'],
             ],
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($viewer)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'employee_code', 'biometric_user_id'])
