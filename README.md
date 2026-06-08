@@ -20,6 +20,51 @@ HRIS system built by Prime Team.
 - **Laravel Reverb** — real-time chat and employee presence (see `.env`)
 - **Queue worker** — biometric sync and background jobs (`QUEUE_CONNECTION=database` by default)
 
+### PHP extensions (enable in Laragon → PHP → Extensions)
+
+Enable these for **both Apache and CLI** (Artisan, queue worker, and `composer run dev` use CLI PHP).
+
+**Required (Laravel + this app)**
+
+| Extension | Laragon name | Why |
+|-----------|--------------|-----|
+| `bcmath` | bcmath | Laravel |
+| `ctype` | ctype | Laravel |
+| `curl` | curl | HTTP clients (AWS, biometric web reports) |
+| `dom` | dom | XML/HTML (DomPDF, exports) |
+| `fileinfo` | fileinfo | File uploads and MIME detection |
+| `gd` | gd | Face login enrollment, image handling |
+| `json` | json | Laravel |
+| `mbstring` | mbstring | Laravel |
+| `openssl` | openssl | HTTPS, encryption |
+| `pdo` | pdo | Database |
+| `sockets` | sockets | Biometric ZKTeco TCP sync (**required for device pull**) |
+| `tokenizer` | tokenizer | Laravel |
+| `xml` | xml | Laravel |
+
+**Database (enable one set)**
+
+| Extension | When |
+|-----------|------|
+| `pdo_sqlite`, `sqlite3` | Default setup (SQLite) |
+| `pdo_mysql`, `mysqli` | MySQL/MariaDB |
+
+**Recommended**
+
+| Extension | When |
+|-----------|------|
+| `intl` | Locales and formatting |
+| `zip` | Excel import/export |
+| `redis` | If `CACHE_STORE=redis` or `REDIS_CLIENT=phpredis` |
+
+Check loaded extensions:
+
+```bash
+php -m
+```
+
+On Laragon, if biometrics fail with “ext-sockets not enabled”, enable **sockets** for CLI PHP too, then restart Apache and any open terminals.
+
 ## Tech stack
 
 Laravel 12, Inertia v2, React 19, Tailwind CSS v4, Fortify, Reverb, Wayfinder
