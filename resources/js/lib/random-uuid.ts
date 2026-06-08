@@ -41,3 +41,5 @@ export function ensureRandomUuidSupport(): void {
 
     globalThis.crypto.randomUUID = implementation;
 }
+
+ensureRandomUuidSupport();

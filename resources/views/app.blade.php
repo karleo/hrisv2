@@ -45,6 +45,30 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
+        {{-- crypto.randomUUID is unavailable on plain HTTP; patch before any app scripts load. --}}
+        <script>
+            (function () {
+                if (typeof window.crypto !== 'undefined' && typeof window.crypto.randomUUID === 'function') {
+                    return;
+                }
+
+                function fallbackRandomUuid() {
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (char) {
+                        var random = (Math.random() * 16) | 0;
+                        var value = char === 'x' ? random : (random & 0x3) | 0x8;
+
+                        return value.toString(16);
+                    });
+                }
+
+                if (typeof window.crypto === 'undefined') {
+                    window.crypto = { randomUUID: fallbackRandomUuid };
+                } else {
+                    window.crypto.randomUUID = fallbackRandomUuid;
+                }
+            })();
+        </script>
+
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
