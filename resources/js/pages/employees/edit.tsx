@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
+import { randomUuid } from '@/lib/random-uuid';
 import { edit, index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 
@@ -331,7 +332,7 @@ export default function Edit({
     const [documentFiles, setDocumentFiles] = useState<Array<File | null>>([]);
     const [documentRows, setDocumentRows] = useState<
         Array<{ id: string; documentTypeId: string; expiryDate: string }>
-    >([{ id: crypto.randomUUID(), documentTypeId: '', expiryDate: '' }]);
+    >([{ id: randomUuid(), documentTypeId: '', expiryDate: '' }]);
     const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
     const activeDocuments = (employee.documents ?? []).filter((doc) => (doc.status ?? 'active') === 'active');
     const historicalDocuments = (employee.documents ?? []).filter((doc) => (doc.status ?? 'active') !== 'active');
@@ -524,7 +525,7 @@ export default function Edit({
     function addDocumentRow() {
         setDocumentRows((prev) => [
             ...prev,
-            { id: crypto.randomUUID(), documentTypeId: '', expiryDate: '' },
+            { id: randomUuid(), documentTypeId: '', expiryDate: '' },
         ]);
     }
 
@@ -540,7 +541,7 @@ export default function Edit({
             setDocumentFiles(nextFiles);
             return nextRows.length > 0
                 ? nextRows
-                : [{ id: crypto.randomUUID(), documentTypeId: '', expiryDate: '' }];
+                : [{ id: randomUuid(), documentTypeId: '', expiryDate: '' }];
         });
     }
 
@@ -1035,7 +1036,7 @@ export default function Edit({
                             if (tab === 'documents') {
                                 setDocumentRows([
                                     {
-                                        id: crypto.randomUUID(),
+                                        id: randomUuid(),
                                         label: '',
                                         expiryDate: '',
                                     },

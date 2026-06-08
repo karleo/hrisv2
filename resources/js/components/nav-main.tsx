@@ -11,6 +11,7 @@ import {
     SidebarMenuSubItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { useSidebarNavigation } from '@/contexts/sidebar-navigation-context';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { cn } from '@/lib/utils';
@@ -20,8 +21,10 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
     const { isCurrentUrl } = useCurrentUrl();
     const { isMobile, setOpenMobile } = useSidebar();
     const cleanupMobileNavigation = useMobileNavigation();
+    const { beginNavigation } = useSidebarNavigation();
 
     const handleNavigate = (): void => {
+        beginNavigation();
         cleanupMobileNavigation();
 
         if (isMobile) {

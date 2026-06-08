@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useEmployeePresence } from '@/contexts/employee-presence-context';
 import AppLayout from '@/layouts/app-layout';
 import { getEcho } from '@/lib/echo';
+import { randomUuid } from '@/lib/random-uuid';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
@@ -699,7 +700,7 @@ function EmployeeMessagesIndexPage({
             return;
         }
 
-        const clientMessageId = crypto.randomUUID();
+        const clientMessageId = randomUuid();
         const fileSnapshot = attachmentFile;
         const bodySnapshot = body;
 

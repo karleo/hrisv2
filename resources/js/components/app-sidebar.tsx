@@ -30,6 +30,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { useSidebarNavigation } from '@/contexts/sidebar-navigation-context';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { useI18n } from '@/lib/i18n';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
@@ -245,6 +246,7 @@ export function AppSidebar() {
     const { t } = useI18n();
     const { isMobile, setOpenMobile } = useSidebar();
     const cleanupMobileNavigation = useMobileNavigation();
+    const { beginNavigation } = useSidebarNavigation();
     const { modulePermissions, auth } = usePage().props as {
         modulePermissions?: ModulePermissionsMap;
         auth?: {
@@ -335,6 +337,7 @@ export function AppSidebar() {
                                 href={dashboard()}
                                 prefetch
                                 onClick={() => {
+                                    beginNavigation();
                                     cleanupMobileNavigation();
                                     if (isMobile) {
                                         setOpenMobile(false);

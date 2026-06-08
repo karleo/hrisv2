@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
+import { randomUuid } from '@/lib/random-uuid';
 import { index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 
@@ -245,7 +246,7 @@ export default function Create({
         }>
     >([
         {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             file: null,
             documentTypeId: '',
             expiryDate: '',
@@ -329,7 +330,7 @@ export default function Create({
         setDocumentRows((prev) => [
             ...prev,
             {
-                id: crypto.randomUUID(),
+                id: randomUuid(),
                 file: null,
                 documentTypeId: '',
                 expiryDate: '',
