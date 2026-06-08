@@ -108,7 +108,7 @@ class UserController extends Controller
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
         try {
-            DB::transaction(function () use ($data, $employeeId, $imagesByAngle, $attemptFaceEnroll): void {
+            DB::transaction(function () use ($data, $employeeId, $imagesByAngle, $attemptFaceEnroll, $request): void {
                 $user = User::query()->create($data);
                 $this->syncEmployeeLink($user, $employeeId, $request->user());
                 if ($attemptFaceEnroll) {
@@ -213,7 +213,7 @@ class UserController extends Controller
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
         try {
-            DB::transaction(function () use ($user, $data, $employeeId, $imagesByAngle, $attemptFaceEnroll): void {
+            DB::transaction(function () use ($user, $data, $employeeId, $imagesByAngle, $attemptFaceEnroll, $request): void {
                 $user->update($data);
                 $this->syncEmployeeLink($user, $employeeId, $request->user());
                 if ($attemptFaceEnroll) {
