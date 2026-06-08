@@ -127,7 +127,7 @@ function SidebarProvider({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delayDuration={0}>
+      <TooltipProvider delayDuration={400}>
         <div
           data-slot="sidebar-wrapper"
           style={
@@ -531,6 +531,12 @@ function SidebarMenuButton({
     return button
   }
 
+  // Only wrap in Tooltip when the sidebar is collapsed to icon mode.
+  // Wrapping links while expanded causes Radix to steal the first click/focus.
+  if (state !== "collapsed" || isMobile) {
+    return button
+  }
+
   if (typeof tooltip === "string") {
     tooltip = {
       children: tooltip,
@@ -543,7 +549,6 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
         {...tooltip}
       />
     </Tooltip>

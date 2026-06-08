@@ -28,7 +28,9 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { useI18n } from '@/lib/i18n';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { dashboard } from '@/routes';
@@ -241,6 +243,8 @@ function hrefToUrl(href: NavItem['href']): string {
 
 export function AppSidebar() {
     const { t } = useI18n();
+    const { isMobile, setOpenMobile } = useSidebar();
+    const cleanupMobileNavigation = useMobileNavigation();
     const { modulePermissions, auth } = usePage().props as {
         modulePermissions?: ModulePermissionsMap;
         auth?: {
@@ -327,7 +331,16 @@ export function AppSidebar() {
                             asChild
                             className="h-12 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-2.5 shadow-sm hover:border-sidebar-border hover:bg-sidebar-accent/60"
                         >
-                            <Link href={dashboard()} prefetch>
+                            <Link
+                                href={dashboard()}
+                                prefetch
+                                onClick={() => {
+                                    cleanupMobileNavigation();
+                                    if (isMobile) {
+                                        setOpenMobile(false);
+                                    }
+                                }}
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

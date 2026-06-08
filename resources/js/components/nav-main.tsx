@@ -9,13 +9,25 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const { isCurrentUrl } = useCurrentUrl();
+    const { isMobile, setOpenMobile } = useSidebar();
+    const cleanupMobileNavigation = useMobileNavigation();
+
+    const handleNavigate = (): void => {
+        cleanupMobileNavigation();
+
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
     const hasActiveDescendant = (item: NavItem): boolean => {
         if (item.href && isCurrentUrl(item.href)) {
             return true;
@@ -40,7 +52,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         isActive={isActive}
                         className="h-8 rounded-full border border-transparent bg-transparent px-3 text-xs font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground data-[active=true]:bg-[#1b2046] data-[active=true]:font-semibold data-[active=true]:text-white"
                     >
-                        <Link href={item.href ?? '#'} prefetch>
+                        <Link href={item.href ?? '#'} prefetch onClick={handleNavigate}>
                             {item.icon && <item.icon />}
                             <span className="min-w-0 flex-1 truncate">
                                 {item.title}
@@ -150,7 +162,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     isItemActive && 'font-semibold text-white hover:bg-transparent hover:text-white',
                                 )}
                             >
-                                <Link href={item.href ?? '#'} prefetch>
+                                <Link href={item.href ?? '#'} prefetch onClick={handleNavigate}>
                                     {item.icon ? (
                                         <span className="flex size-6 shrink-0 items-center justify-center text-sidebar-foreground/90 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-7">
                                             <item.icon className="size-4.5 group-data-[collapsible=icon]:size-4" />

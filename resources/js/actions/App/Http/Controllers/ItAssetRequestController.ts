@@ -215,7 +215,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-export const show = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const show = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
@@ -230,7 +230,7 @@ show.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-show.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+show.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -263,7 +263,7 @@ show.url = (args: { it_asset_request: string | number | { id: string | number } 
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-show.get = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+show.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
@@ -272,7 +272,7 @@ show.get = (args: { it_asset_request: string | number | { id: string | number } 
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-show.head = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+show.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
 })
@@ -282,7 +282,7 @@ show.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-    const showForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const showForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: show.url(args, options),
         method: 'get',
     })
@@ -292,7 +292,7 @@ show.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-        showForm.get = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        showForm.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, options),
             method: 'get',
         })
@@ -301,7 +301,7 @@ show.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:129
  * @route '/it-asset-requests/{it_asset_request}'
  */
-        showForm.head = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        showForm.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -317,7 +317,7 @@ show.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-export const edit = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const edit = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
 })
@@ -332,7 +332,7 @@ edit.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-edit.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+edit.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -365,7 +365,7 @@ edit.url = (args: { it_asset_request: string | number | { id: string | number } 
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-edit.get = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+edit.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
 })
@@ -374,7 +374,7 @@ edit.get = (args: { it_asset_request: string | number | { id: string | number } 
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-edit.head = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+edit.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: edit.url(args, options),
     method: 'head',
 })
@@ -384,7 +384,7 @@ edit.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-    const editForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const editForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: edit.url(args, options),
         method: 'get',
     })
@@ -394,7 +394,7 @@ edit.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-        editForm.get = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        editForm.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: edit.url(args, options),
             method: 'get',
         })
@@ -403,7 +403,7 @@ edit.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:283
  * @route '/it-asset-requests/{it_asset_request}/edit'
  */
-        editForm.head = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        editForm.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: edit.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -419,7 +419,7 @@ edit.head = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-export const update = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+export const update = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: update.url(args, options),
     method: 'put',
 })
@@ -434,7 +434,7 @@ update.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-update.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+update.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -467,7 +467,7 @@ update.url = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-update.put = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+update.put = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: update.url(args, options),
     method: 'put',
 })
@@ -476,7 +476,7 @@ update.put = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-update.patch = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+update.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
@@ -486,7 +486,7 @@ update.patch = (args: { it_asset_request: string | number | { id: string | numbe
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-    const updateForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const updateForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: update.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PUT',
@@ -501,7 +501,7 @@ update.patch = (args: { it_asset_request: string | number | { id: string | numbe
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-        updateForm.put = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        updateForm.put = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: update.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PUT',
@@ -515,7 +515,7 @@ update.patch = (args: { it_asset_request: string | number | { id: string | numbe
  * @see app/Http/Controllers/ItAssetRequestController.php:325
  * @route '/it-asset-requests/{it_asset_request}'
  */
-        updateForm.patch = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        updateForm.patch = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: update.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PATCH',
@@ -531,7 +531,7 @@ update.patch = (args: { it_asset_request: string | number | { id: string | numbe
  * @see app/Http/Controllers/ItAssetRequestController.php:434
  * @route '/it-asset-requests/{it_asset_request}'
  */
-export const destroy = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+export const destroy = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(args, options),
     method: 'delete',
 })
@@ -546,7 +546,7 @@ destroy.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:434
  * @route '/it-asset-requests/{it_asset_request}'
  */
-destroy.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+destroy.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -579,7 +579,7 @@ destroy.url = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:434
  * @route '/it-asset-requests/{it_asset_request}'
  */
-destroy.delete = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+destroy.delete = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(args, options),
     method: 'delete',
 })
@@ -589,7 +589,7 @@ destroy.delete = (args: { it_asset_request: string | number | { id: string | num
  * @see app/Http/Controllers/ItAssetRequestController.php:434
  * @route '/it-asset-requests/{it_asset_request}'
  */
-    const destroyForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const destroyForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: destroy.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'DELETE',
@@ -604,7 +604,7 @@ destroy.delete = (args: { it_asset_request: string | number | { id: string | num
  * @see app/Http/Controllers/ItAssetRequestController.php:434
  * @route '/it-asset-requests/{it_asset_request}'
  */
-        destroyForm.delete = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        destroyForm.delete = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: destroy.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'DELETE',
@@ -620,7 +620,7 @@ destroy.delete = (args: { it_asset_request: string | number | { id: string | num
  * @see app/Http/Controllers/ItAssetRequestController.php:170
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
-export const submit = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const submit = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: submit.url(args, options),
     method: 'post',
 })
@@ -635,7 +635,7 @@ submit.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:170
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
-submit.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+submit.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -668,7 +668,7 @@ submit.url = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:170
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
-submit.post = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+submit.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: submit.url(args, options),
     method: 'post',
 })
@@ -678,7 +678,7 @@ submit.post = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:170
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
-    const submitForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const submitForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: submit.url(args, options),
         method: 'post',
     })
@@ -688,7 +688,7 @@ submit.post = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:170
  * @route '/it-asset-requests/{it_asset_request}/submit'
  */
-        submitForm.post = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        submitForm.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: submit.url(args, options),
             method: 'post',
         })
@@ -699,7 +699,7 @@ submit.post = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:200
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
-export const decide = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const decide = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: decide.url(args, options),
     method: 'post',
 })
@@ -714,7 +714,7 @@ decide.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:200
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
-decide.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+decide.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -747,7 +747,7 @@ decide.url = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:200
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
-decide.post = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+decide.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: decide.url(args, options),
     method: 'post',
 })
@@ -757,7 +757,7 @@ decide.post = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:200
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
-    const decideForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const decideForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: decide.url(args, options),
         method: 'post',
     })
@@ -767,7 +767,7 @@ decide.post = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:200
  * @route '/it-asset-requests/{it_asset_request}/decide'
  */
-        decideForm.post = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        decideForm.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: decide.url(args, options),
             method: 'post',
         })
@@ -778,7 +778,7 @@ decide.post = (args: { it_asset_request: string | number | { id: string | number
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-export const print = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const print = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: print.url(args, options),
     method: 'get',
 })
@@ -793,7 +793,7 @@ print.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-print.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+print.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -826,7 +826,7 @@ print.url = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-print.get = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+print.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: print.url(args, options),
     method: 'get',
 })
@@ -835,7 +835,7 @@ print.get = (args: { it_asset_request: string | number | { id: string | number }
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-print.head = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+print.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: print.url(args, options),
     method: 'head',
 })
@@ -845,7 +845,7 @@ print.head = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-    const printForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const printForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: print.url(args, options),
         method: 'get',
     })
@@ -855,7 +855,7 @@ print.head = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-        printForm.get = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        printForm.get = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: print.url(args, options),
             method: 'get',
         })
@@ -864,7 +864,7 @@ print.head = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:257
  * @route '/it-asset-requests/{it_asset_request}/print'
  */
-        printForm.head = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        printForm.head = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: print.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -880,7 +880,7 @@ print.head = (args: { it_asset_request: string | number | { id: string | number 
  * @see app/Http/Controllers/ItAssetRequestController.php:360
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
-export const updateSignatures = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const updateSignatures = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: updateSignatures.url(args, options),
     method: 'post',
 })
@@ -895,7 +895,7 @@ updateSignatures.definition = {
  * @see app/Http/Controllers/ItAssetRequestController.php:360
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
-updateSignatures.url = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+updateSignatures.url = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { it_asset_request: args }
     }
@@ -928,7 +928,7 @@ updateSignatures.url = (args: { it_asset_request: string | number | { id: string
  * @see app/Http/Controllers/ItAssetRequestController.php:360
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
-updateSignatures.post = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+updateSignatures.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: updateSignatures.url(args, options),
     method: 'post',
 })
@@ -938,7 +938,7 @@ updateSignatures.post = (args: { it_asset_request: string | number | { id: strin
  * @see app/Http/Controllers/ItAssetRequestController.php:360
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
-    const updateSignaturesForm = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const updateSignaturesForm = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: updateSignatures.url(args, options),
         method: 'post',
     })
@@ -948,7 +948,7 @@ updateSignatures.post = (args: { it_asset_request: string | number | { id: strin
  * @see app/Http/Controllers/ItAssetRequestController.php:360
  * @route '/it-asset-requests/{it_asset_request}/signatures'
  */
-        updateSignaturesForm.post = (args: { it_asset_request: string | number | { id: string | number } } | [it_asset_request: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        updateSignaturesForm.post = (args: { it_asset_request: number | { id: number } } | [it_asset_request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: updateSignatures.url(args, options),
             method: 'post',
         })
