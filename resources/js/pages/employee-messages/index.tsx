@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useEmployeePresence } from '@/contexts/employee-presence-context';
 import AppLayout from '@/layouts/app-layout';
 import { getEcho } from '@/lib/echo';
+import { playEmployeeMessageUnreadChime } from '@/lib/play-employee-message-unread-chime';
 import { randomUuid } from '@/lib/random-uuid';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
@@ -460,6 +461,8 @@ function EmployeeMessagesIndexPage({
                     );
                 }
 
+                playEmployeeMessageUnreadChime(payload.message.id);
+
                 refreshEmployeeMessagesSharedProp();
             })
             .listen('.employee.message.read', (payload: MessageReadPayload) => {
@@ -486,7 +489,9 @@ function EmployeeMessagesIndexPage({
             });
 
         return () => {
-            echo.leave(`employee.${currentEmployee.id}`);
+            employeeChannel.stopListening('.employee.message.sent');
+            employeeChannel.stopListening('.employee.message.read');
+            employeeChannel.stopListening('.employee.message.typing');
         };
     }, [currentEmployee.id]);
 

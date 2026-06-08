@@ -17,7 +17,7 @@ export type EmployeeMessagesHeaderData = {
     }>;
 };
 
-const POLL_INTERVAL_MS = 10000;
+const POLL_INTERVAL_MS = 5000;
 
 /**
  * Polls chat header data via JSON instead of Inertia partial reloads so form pages

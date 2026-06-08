@@ -2,6 +2,7 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { EmployeeMessageLiveSound } from '@/components/employee-message-live-sound';
 import { NavigationLoadingOverlay } from '@/components/navigation-loading-overlay';
 import { BiometricSyncProvider } from '@/contexts/biometric-sync-context';
 import { EmployeePresenceProvider } from '@/contexts/employee-presence-context';
@@ -25,6 +26,7 @@ export default function AppSidebarLayout({
                     dir="ltr"
                 >
                     <NavigationLoadingOverlay />
+                    <EmployeeMessageLiveSound />
                     <EmployeePresenceProvider>
                         <BiometricSyncProvider>
                             <AppSidebarHeader breadcrumbs={breadcrumbs} />
