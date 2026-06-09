@@ -175,10 +175,9 @@ class EmployeeRequestController extends Controller
     public function create(Request $request): Response
     {
         return Inertia::render('employee-requests/create', [
-            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
+            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+                'id', 'first_name', 'last_name', 'department_id', 'job_position_id',
+            ]),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -379,10 +378,9 @@ class EmployeeRequestController extends Controller
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
+            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+                'id', 'first_name', 'last_name', 'department_id', 'job_position_id',
+            ]),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),

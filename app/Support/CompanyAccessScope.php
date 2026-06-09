@@ -182,4 +182,32 @@ class CompanyAccessScope
     {
         return $this->scopeEmployees(Employee::query(), $user);
     }
+
+    /**
+     * Employees available on HR request create/edit forms. Uses relaxed company
+     * scoping and always includes the viewer's own linked employee when present.
+     *
+     * @param  list<string>  $columns
+     * @return \Illuminate\Database\Eloquent\Collection<int, Employee>
+     */
+    public function employeesForRequestForms(?User $user, array $columns): \Illuminate\Database\Eloquent\Collection
+    {
+        $employees = $this->scopeEmployeesForMessaging(Employee::query(), $user)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get($columns);
+
+        $user?->loadMissing('employee');
+        $viewerEmployee = $user?->employee;
+
+        if ($viewerEmployee instanceof Employee && ! $employees->contains('id', $viewerEmployee->id)) {
+            $ownRecord = Employee::query()->whereKey($viewerEmployee->id)->first($columns);
+
+            if ($ownRecord instanceof Employee) {
+                $employees->prepend($ownRecord);
+            }
+        }
+
+        return $employees->unique('id')->values();
+    }
 }

@@ -152,11 +152,9 @@ class LeaveRequestController extends Controller
     public function create(Request $request): Response
     {
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
-        $employees = $this->companyScope->scopedEmployeeQuery($request->user())
-            ->with('department:id,name')
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'department_id', 'leave_opening_balance']);
+        $employees = $this->companyScope->employeesForRequestForms($request->user(), [
+            'id', 'first_name', 'last_name', 'department_id', 'leave_opening_balance',
+        ])->load('department:id,name');
 
         $leaveBalanceByEmployeeId = $employees
             ->mapWithKeys(fn (Employee $employee): array => [
@@ -247,10 +245,9 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => $this->companyScope->scopedEmployeeQuery($actor)
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+            'employees' => $this->companyScope->employeesForRequestForms($actor, [
+                'id', 'first_name', 'last_name',
+            ]),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
             'cancelUrl' => route('leave-requests.destroy', $leave_request, false),
@@ -386,11 +383,9 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => $this->companyScope->scopedEmployeeQuery($actor)
-                ->with('department:id,name')
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $this->companyScope->employeesForRequestForms($actor, [
+                'id', 'first_name', 'last_name', 'department_id',
+            ])->load('department:id,name'),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),

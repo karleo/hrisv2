@@ -68,10 +68,9 @@ class ItAssetRequestController extends Controller
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         return Inertia::render('it-asset-requests/create', [
-            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+                'id', 'first_name', 'last_name', 'department_id',
+            ]),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -147,10 +146,9 @@ class ItAssetRequestController extends Controller
             'hardware' => array_map(fn (array $item): array => $item['hardware'], $hardwareItems),
             'hardwareItems' => $hardwareItems,
             'assetTotals' => $this->valuation->totalsForHardwareItems($hardwareItems),
-            'employees' => fn () => $this->companyScope->scopedEmployeeQuery($actor)
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => fn () => $this->companyScope->employeesForRequestForms($actor, [
+                'id', 'first_name', 'last_name', 'department_id',
+            ]),
             'submitUrl' => route('it-asset-requests.submit', $it_asset_request, false),
             'cancelUrl' => route('it-asset-requests.destroy', $it_asset_request, false),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
@@ -299,10 +297,9 @@ class ItAssetRequestController extends Controller
 
         return Inertia::render('it-asset-requests/edit', [
             'itAssetRequest' => $it_asset_request,
-            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+                'id', 'first_name', 'last_name', 'department_id',
+            ]),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
