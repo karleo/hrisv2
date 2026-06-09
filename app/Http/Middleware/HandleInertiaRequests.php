@@ -100,7 +100,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        if (! $user instanceof User || $user->is_active !== true) {
+        if (! $user instanceof User || ! $user->isAccountActive()) {
             return ['unread_count' => 0, 'conversations' => []];
         }
 
@@ -117,7 +117,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        if (! $user instanceof User || $user->is_active !== true) {
+        if (! $user instanceof User || ! $user->isAccountActive()) {
             return false;
         }
 

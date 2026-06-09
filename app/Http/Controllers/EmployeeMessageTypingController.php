@@ -15,7 +15,7 @@ class EmployeeMessageTypingController extends Controller
         $user = $request->user();
         $employee = $user?->employee;
 
-        if (! $employee instanceof Employee || $user?->is_active !== true) {
+        if (! $employee instanceof Employee || ! $user?->isAccountActive()) {
             abort(403);
         }
 

@@ -101,7 +101,7 @@ class EnforceModulePermissions
             return false;
         }
 
-        return $user->is_active && $user->employee !== null;
+        return $user->isAccountActive() && $user->employee !== null;
     }
 
     /**

@@ -104,6 +104,14 @@ class User extends Authenticatable
         return $this->role instanceof Role && $this->role->slug === 'administrator';
     }
 
+    /**
+     * Users default to active when {@see $is_active} was never set (DB default true).
+     */
+    public function isAccountActive(): bool
+    {
+        return $this->is_active !== false;
+    }
+
     public function hasModuleAbility(PermissionModule $module, ModuleAbility $ability): bool
     {
         if ($this->isAdministrator()) {

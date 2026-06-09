@@ -28,7 +28,7 @@ class EmployeeMessageController extends Controller
         $user = $request->user();
         $employee = $user?->employee;
 
-        if ($employee === null || $user?->is_active !== true) {
+        if ($employee === null || ! $user?->isAccountActive()) {
             return response()->json([
                 'unread_count' => 0,
                 'conversations' => [],
@@ -248,7 +248,7 @@ class EmployeeMessageController extends Controller
     {
         $employee = $request->user()?->employee;
 
-        if (! $employee instanceof Employee || $request->user()?->is_active !== true) {
+        if (! $employee instanceof Employee || ! $request->user()?->isAccountActive()) {
             abort(403);
         }
 
