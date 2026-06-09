@@ -29,10 +29,12 @@ export function EmployeeAttendanceTab({
     employeeId,
     attendance,
     viewMode,
+    context = 'employee-edit',
 }: {
     employeeId: number;
     attendance: AttendancePayload;
     viewMode: boolean;
+    context?: 'employee-edit' | 'my-profile';
 }) {
     const [localFilters, setLocalFilters] = useState(attendance.filters);
 
@@ -43,6 +45,25 @@ export function EmployeeAttendanceTab({
     const loadAttendance = useCallback(
         (next: { from: string; to: string }) => {
             if (!next.from || !next.to) {
+                return;
+            }
+
+            if (context === 'my-profile') {
+                router.get(
+                    '/my-profile',
+                    {
+                        tab: 'attendance',
+                        from: next.from,
+                        to: next.to,
+                    },
+                    {
+                        preserveState: true,
+                        preserveScroll: true,
+                        replace: true,
+                        only: ['attendance'],
+                    },
+                );
+
                 return;
             }
 
@@ -62,7 +83,7 @@ export function EmployeeAttendanceTab({
                 },
             );
         },
-        [employeeId, viewMode],
+        [context, employeeId, viewMode],
     );
 
     const updateFilters = (patch: Partial<{ from: string; to: string }>) => {

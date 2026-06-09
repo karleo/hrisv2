@@ -1,6 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Building2, Briefcase, CheckCircle2, Clock, Download, Eye, KeyRound, Mail, MapPin, Phone, User } from 'lucide-react';
 import { useState } from 'react';
+import { EmployeeAttendanceTab } from '@/components/employee-attendance-tab';
 import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import InputError from '@/components/input-error';
 import MultiAngleFaceProfileField, { type FaceProfileFiles } from '@/components/multi-angle-face-profile-field';
@@ -35,9 +36,26 @@ type WorkTimetable = {
     name: string;
 };
 
+type AttendanceRow = {
+    date: string;
+    device_pin: string;
+    device_name: string | null;
+    clock_in: string | null;
+    clock_out: string | null;
+    working_hours: string;
+    punch_count: number;
+};
+
+type AttendancePayload = {
+    filters: { from: string; to: string };
+    summary: { total_days: number; total_punches: number };
+    rows: AttendanceRow[];
+};
+
 type Employee = {
     id: number;
     employee_code: string;
+    biometric_user_id?: string | null;
     first_name: string;
     last_name: string;
     email_address: string;
@@ -183,8 +201,11 @@ const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
 const MAX_EXCEL_PREVIEW_ROWS = 120;
 const MAX_EXCEL_PREVIEW_COLUMNS = 24;
 
+type ProfileTab = 'profile' | 'security' | 'employment' | 'documents' | 'leave' | 'attendance';
+
 export default function EmployeeProfile({
     employee,
+    attendance,
     faceLogin,
     leaveConfig,
     hasEmployeeProfile,
@@ -192,25 +213,31 @@ export default function EmployeeProfile({
     emailSignaturePreview,
 }: {
     employee: Employee | null;
+    attendance: AttendancePayload | null;
     faceLogin: FaceLoginInfo;
     leaveConfig: LeaveConfig;
     hasEmployeeProfile: boolean;
     emailSignatureCompanyProfile: EmailSignatureCompanyProfilePayload | null;
     emailSignaturePreview: EmailSignaturePreviewPayload;
 }) {
+    const hasBiometricMapping =
+        hasEmployeeProfile && String(employee?.biometric_user_id ?? '').trim().length > 0;
     const initialTab = (() => {
         if (typeof window === 'undefined') {
             return 'profile' as const;
         }
 
         const tab = new URLSearchParams(window.location.search).get('tab');
+        if (tab === 'attendance' && hasBiometricMapping) {
+            return 'attendance' as const;
+        }
         if (tab === 'documents' || tab === 'security' || tab === 'leave' || tab === 'employment') {
             return tab;
         }
 
         return 'profile' as const;
     })();
-    const [tab, setTab] = useState<'profile' | 'security' | 'employment' | 'documents' | 'leave'>(initialTab);
+    const [tab, setTab] = useState<ProfileTab>(initialTab);
     const { t } = useI18n();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Profile', href: '/my-profile' },
@@ -569,6 +596,17 @@ export default function EmployeeProfile({
                                 >
                                     Leave
                                 </Button>
+                                {hasBiometricMapping ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={tab === 'attendance' ? 'default' : 'outline'}
+                                        className="rounded-lg"
+                                        onClick={() => setTab('attendance')}
+                                    >
+                                        Attendance
+                                    </Button>
+                                ) : null}
                             </>
                         ) : null}
                     </div>
@@ -1088,6 +1126,24 @@ export default function EmployeeProfile({
                             </div>
                         </CardContent>
                     </Card>
+
+                    {tab === 'attendance' && hasBiometricMapping && employee ? (
+                        attendance ? (
+                            <EmployeeAttendanceTab
+                                employeeId={employee.id}
+                                attendance={attendance}
+                                viewMode
+                                context="my-profile"
+                            />
+                        ) : (
+                            <Card>
+                                <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                                    Attendance data is not available. Reload this page or contact HR if the issue
+                                    persists.
+                                </CardContent>
+                            </Card>
+                        )
+                    ) : null}
                 </div>
             </div>
 

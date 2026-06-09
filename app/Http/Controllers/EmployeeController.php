@@ -51,7 +51,7 @@ class EmployeeController extends Controller
         private readonly CompanyAccessScope $companyScope,
     ) {}
 
-    public function profile(Request $request): Response
+    public function profile(Request $request, AttendanceReportService $attendanceReportService): Response
     {
         $user = $request->user();
         if ($user === null) {
@@ -141,8 +141,13 @@ class EmployeeController extends Controller
                 : null,
         ];
 
+        $attendance = $employee instanceof Employee
+            ? $this->buildEmployeeAttendancePayload($request, $employee, $attendanceReportService)
+            : null;
+
         return Inertia::render('employees/profile', [
             'employee' => $employee,
+            'attendance' => $attendance,
             'hasEmployeeProfile' => $employee instanceof Employee,
             'emailSignatureCompanyProfile' => $emailSignatureCompanyProfile,
             'emailSignaturePreview' => $emailSignaturePreview,
@@ -1104,29 +1109,7 @@ class EmployeeController extends Controller
                 : null;
         }
 
-        $attendance = null;
-
-        if (trim((string) $employee->biometric_user_id) !== '') {
-            $to = $request->date('to')?->toDateString() ?? now()->toDateString();
-            $from = $request->date('from')?->toDateString() ?? Carbon::parse($to)->subDays(30)->toDateString();
-
-            if (Carbon::parse($from)->greaterThan(Carbon::parse($to))) {
-                $from = Carbon::parse($to)->subDays(30)->toDateString();
-            }
-
-            $report = $attendanceReportService->buildForEmployee($employee, $from, $to);
-            $attendance = [
-                'filters' => [
-                    'from' => $from,
-                    'to' => $to,
-                ],
-                'summary' => [
-                    'total_days' => count($report['rows']),
-                    'total_punches' => $report['total_punches'],
-                ],
-                'rows' => $report['rows'],
-            ];
-        }
+        $attendance = $this->buildEmployeeAttendancePayload($request, $employee, $attendanceReportService);
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
@@ -1556,5 +1539,43 @@ class EmployeeController extends Controller
     private function escapeVCard(string $value): string
     {
         return str_replace(['\\', ';', ','], ['\\\\', '\;', '\,'], $value);
+    }
+
+    /**
+     * @return array{
+     *     filters: array{from: string, to: string},
+     *     summary: array{total_days: int, total_punches: int},
+     *     rows: list<array<string, mixed>>
+     * }|null
+     */
+    private function buildEmployeeAttendancePayload(
+        Request $request,
+        Employee $employee,
+        AttendanceReportService $attendanceReportService,
+    ): ?array {
+        if (trim((string) $employee->biometric_user_id) === '') {
+            return null;
+        }
+
+        $to = $request->date('to')?->toDateString() ?? now()->toDateString();
+        $from = $request->date('from')?->toDateString() ?? Carbon::parse($to)->subDays(30)->toDateString();
+
+        if (Carbon::parse($from)->greaterThan(Carbon::parse($to))) {
+            $from = Carbon::parse($to)->subDays(30)->toDateString();
+        }
+
+        $report = $attendanceReportService->buildForEmployee($employee, $from, $to);
+
+        return [
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+            ],
+            'summary' => [
+                'total_days' => count($report['rows']),
+                'total_punches' => $report['total_punches'],
+            ],
+            'rows' => $report['rows'],
+        ];
     }
 }

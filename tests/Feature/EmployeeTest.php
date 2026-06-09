@@ -908,6 +908,75 @@ class EmployeeTest extends TestCase
         );
     }
 
+    public function test_my_profile_with_biometric_pin_includes_attendance_data(): void
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $this->assertInstanceOf(User::class, $user);
+
+        $employee = Employee::factory()->create([
+            'user_id' => $user->id,
+            'biometric_user_id' => '77',
+        ]);
+        $device = BiometricDevice::query()->create([
+            'name' => 'Profile gate',
+            'serial_number' => 'SN-PROFILE-ATT',
+            'connection_type' => BiometricConnectionType::DeviceWebReport,
+            'host' => '192.168.1.45',
+            'port' => 80,
+            'timezone' => 'UTC',
+            'is_active' => true,
+        ]);
+
+        BiometricPunch::query()->create([
+            'biometric_device_id' => $device->id,
+            'device_user_id' => '77',
+            'employee_id' => $employee->id,
+            'punched_at' => '2026-05-25 09:00:00',
+            'direction' => BiometricPunchDirection::In,
+            'idempotency_key' => 'profile-tab-in',
+        ]);
+        BiometricPunch::query()->create([
+            'biometric_device_id' => $device->id,
+            'device_user_id' => '77',
+            'employee_id' => $employee->id,
+            'punched_at' => '2026-05-25 17:30:00',
+            'direction' => BiometricPunchDirection::Out,
+            'idempotency_key' => 'profile-tab-out',
+        ]);
+
+        $this->get(route('my-profile.show', [
+            'tab' => 'attendance',
+            'from' => '2026-05-25',
+            'to' => '2026-05-25',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('employees/profile')
+                ->has('attendance.rows', 1)
+                ->where('attendance.rows.0.clock_in', '09:00:00')
+                ->where('attendance.rows.0.clock_out', '17:30:00')
+                ->where('attendance.summary.total_punches', 2));
+    }
+
+    public function test_my_profile_without_biometric_pin_has_no_attendance_data(): void
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $this->assertInstanceOf(User::class, $user);
+
+        Employee::factory()->create([
+            'user_id' => $user->id,
+            'biometric_user_id' => null,
+        ]);
+
+        $this->get(route('my-profile.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('employees/profile')
+                ->where('attendance', null));
+    }
+
     public function test_my_profile_documents_use_relative_storage_urls(): void
     {
         Storage::fake('public');

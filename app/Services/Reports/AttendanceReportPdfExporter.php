@@ -12,6 +12,10 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 final class AttendanceReportPdfExporter
 {
+    private const ROWS_ON_FIRST_PAGE = 17;
+
+    private const ROWS_ON_OTHER_PAGES = 22;
+
     /**
      * @param  list<array{
      *     date: string,
@@ -60,8 +64,12 @@ final class AttendanceReportPdfExporter
             return $row;
         }, $rows);
 
+        $pages = $this->paginateRows($pdfRows);
+        $totalPages = max(1, count($pages));
+
         return Pdf::loadView('reports.attendance-report-pdf', [
-            'rows' => $pdfRows,
+            'pages' => $pages,
+            'totalPages' => $totalPages,
             'from' => $this->formatPdfDate($from),
             'to' => $this->formatPdfDate($to),
             'employeeLabel' => $employeeLabel,
@@ -72,6 +80,29 @@ final class AttendanceReportPdfExporter
         ])
             ->setPaper('a4', 'landscape')
             ->download($filename);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<list<array<string, mixed>>>
+     */
+    private function paginateRows(array $rows): array
+    {
+        if ($rows === []) {
+            return [[]];
+        }
+
+        $pages = [
+            array_slice($rows, 0, self::ROWS_ON_FIRST_PAGE),
+        ];
+        $offset = self::ROWS_ON_FIRST_PAGE;
+
+        while ($offset < count($rows)) {
+            $pages[] = array_slice($rows, $offset, self::ROWS_ON_OTHER_PAGES);
+            $offset += self::ROWS_ON_OTHER_PAGES;
+        }
+
+        return $pages;
     }
 
     private function filename(string $from, string $to, ?Employee $employee): string
