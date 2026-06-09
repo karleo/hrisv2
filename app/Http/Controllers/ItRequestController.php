@@ -18,6 +18,7 @@ use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use App\Support\RequestFormEmployeeSelection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -30,6 +31,7 @@ class ItRequestController extends Controller
     public function __construct(
         private readonly RequestApprovalScope $approvalScope,
         private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
     ) {}
 
     /**
@@ -62,10 +64,13 @@ class ItRequestController extends Controller
      */
     public function create(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('it-requests/create', [
-            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+            'employees' => $this->requestFormEmployees->employeesForForm($user, [
                 'id', 'first_name', 'last_name', 'department_id',
             ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -75,7 +80,7 @@ class ItRequestController extends Controller
             'hardware' => Hardware::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
-            'defaultEmployeeId' => $request->user()?->employee?->id,
+            'defaultEmployeeId' => $user?->loadMissing('employee')->employee?->id,
         ]);
     }
 
@@ -264,9 +269,10 @@ class ItRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+            'employees' => $this->requestFormEmployees->employeesForForm($actor, [
                 'id', 'first_name', 'last_name', 'department_id',
             ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),

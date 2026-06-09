@@ -4,6 +4,7 @@ import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import {
     RequestEmployeeSignatureCard,
     employeeRequestEditSignatureVisitOnly,
@@ -88,6 +89,7 @@ type EmployeeRequest = {
 export default function Edit({
     employeeRequest,
     employees,
+    canChooseEmployee = true,
     departments,
     jobPositions,
     signaturesUrl,
@@ -99,6 +101,7 @@ export default function Edit({
 }: {
     employeeRequest: EmployeeRequest;
     employees: EmployeeOption[];
+    canChooseEmployee?: boolean;
     departments: DepartmentOption[];
     jobPositions: JobPositionOption[];
     signaturesUrl: string;
@@ -247,17 +250,12 @@ export default function Edit({
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="employee_id">Employee</Label>
-                                <select
-                                    id="employee_id"
-                                    name="employee_id"
-                                    required
-                                    value={data.employee_id}
-                                    onChange={(e) => {
-                                        const employeeId = e.target.value ? Number(e.target.value) : '';
-                                        const employee = employees.find((item) => item.id === employeeId);
-
+                            <div className="sm:col-span-2">
+                                <RequestEmployeeSelectField
+                                    canChooseEmployee={canChooseEmployee}
+                                    employees={employees}
+                                    employeeId={data.employee_id}
+                                    onEmployeeChange={(employeeId, employee) => {
                                         setData((previous) => ({
                                             ...previous,
                                             employee_id: employeeId,
@@ -265,16 +263,8 @@ export default function Edit({
                                             job_position_id: employee?.job_position_id ?? '',
                                         }));
                                     }}
-                                    className={inputClassName}
-                                >
-                                    <option value="">Select employee</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {emp.first_name} {emp.last_name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.employee_id} />
+                                    error={errors.employee_id}
+                                />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="job_position_id">Job position</Label>

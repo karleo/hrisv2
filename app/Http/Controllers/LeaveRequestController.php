@@ -20,6 +20,7 @@ use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use App\Support\RequestFormEmployeeSelection;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ class LeaveRequestController extends Controller
     public function __construct(
         private readonly RequestApprovalScope $approvalScope,
         private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
     ) {}
 
     /**
@@ -152,7 +154,8 @@ class LeaveRequestController extends Controller
     public function create(Request $request): Response
     {
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
-        $employees = $this->companyScope->employeesForRequestForms($request->user(), [
+        $user = $request->user();
+        $employees = $this->requestFormEmployees->employeesForForm($user, [
             'id', 'first_name', 'last_name', 'department_id', 'leave_opening_balance',
         ])->load('department:id,name');
 
@@ -177,7 +180,8 @@ class LeaveRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'leaveTypes' => $this->availableLeaveTypeNames(),
-            'defaultEmployeeId' => $request->user()?->employee?->id,
+            'defaultEmployeeId' => $user?->loadMissing('employee')->employee?->id,
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => [],
         ]);
@@ -383,9 +387,10 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => $this->companyScope->employeesForRequestForms($actor, [
+            'employees' => $this->requestFormEmployees->employeesForForm($actor, [
                 'id', 'first_name', 'last_name', 'department_id',
             ])->load('department:id,name'),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),

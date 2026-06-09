@@ -19,6 +19,7 @@ use App\Support\EmployeePhotoUrl;
 use App\Support\ItAssetValuation;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use App\Support\RequestFormEmployeeSelection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,7 @@ class ItAssetRequestController extends Controller
         private readonly RequestApprovalScope $approvalScope,
         private readonly ItAssetValuation $valuation,
         private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
     ) {}
 
     /**
@@ -67,15 +69,18 @@ class ItAssetRequestController extends Controller
     {
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
+        $user = $request->user();
+
         return Inertia::render('it-asset-requests/create', [
-            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+            'employees' => $this->requestFormEmployees->employeesForForm($user, [
                 'id', 'first_name', 'last_name', 'department_id',
             ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'hardware' => $this->valuation->assetOptions(),
-            'defaultEmployeeId' => $request->user()?->employee?->id,
+            'defaultEmployeeId' => $user?->loadMissing('employee')->employee?->id,
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => [],
         ]);
@@ -146,9 +151,10 @@ class ItAssetRequestController extends Controller
             'hardware' => array_map(fn (array $item): array => $item['hardware'], $hardwareItems),
             'hardwareItems' => $hardwareItems,
             'assetTotals' => $this->valuation->totalsForHardwareItems($hardwareItems),
-            'employees' => fn () => $this->companyScope->employeesForRequestForms($actor, [
+            'employees' => fn () => $this->requestFormEmployees->employeesForForm($actor, [
                 'id', 'first_name', 'last_name', 'department_id',
             ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'submitUrl' => route('it-asset-requests.submit', $it_asset_request, false),
             'cancelUrl' => route('it-asset-requests.destroy', $it_asset_request, false),
             'signaturesUrl' => $this->itAssetRequestSignaturesPostUrl($it_asset_request),
@@ -297,9 +303,10 @@ class ItAssetRequestController extends Controller
 
         return Inertia::render('it-asset-requests/edit', [
             'itAssetRequest' => $it_asset_request,
-            'employees' => $this->companyScope->employeesForRequestForms($request->user(), [
+            'employees' => $this->requestFormEmployees->employeesForForm($actor, [
                 'id', 'first_name', 'last_name', 'department_id',
             ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),

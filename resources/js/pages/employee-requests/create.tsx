@@ -15,13 +15,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import { index } from '@/routes/employee-requests';
@@ -97,11 +91,13 @@ export default function Create({
     departments,
     jobPositions,
     defaultEmployeeId = null,
+    canChooseEmployee = true,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     jobPositions: JobPositionOption[];
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
 }) {
     const { t } = useI18n();
     const initialEmployee =
@@ -284,20 +280,12 @@ export default function Create({
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2 sm:col-span-2">
-                                            <Label htmlFor="employee_id">
-                                                Employee <span className="text-destructive">*</span>
-                                            </Label>
-                                            <Select
-                                                value={
-                                                    data.employee_id === ''
-                                                        ? undefined
-                                                        : String(data.employee_id)
-                                                }
-                                                onValueChange={(value) => {
-                                                    const employeeId = value ? Number(value) : '';
-                                                    const employee = employees.find((item) => item.id === employeeId);
-
+                                        <div className="sm:col-span-2">
+                                            <RequestEmployeeSelectField
+                                                canChooseEmployee={canChooseEmployee}
+                                                employees={employees}
+                                                employeeId={data.employee_id}
+                                                onEmployeeChange={(employeeId, employee) => {
                                                     setData((previous) => ({
                                                         ...previous,
                                                         employee_id: employeeId,
@@ -305,25 +293,8 @@ export default function Create({
                                                         job_position_id: employee?.job_position_id ?? '',
                                                     }));
                                                 }}
-                                                required
-                                            >
-                                                <SelectTrigger id="employee_id" className="h-10 w-full">
-                                                    <SelectValue
-                                                        placeholder={t(
-                                                            'forms.employee.selectEmployee',
-                                                            'Select employee',
-                                                        )}
-                                                    />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {employees.map((emp) => (
-                                                        <SelectItem key={emp.id} value={String(emp.id)}>
-                                                            {emp.first_name} {emp.last_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <InputError message={errors.employee_id} />
+                                                error={errors.employee_id}
+                                            />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="job_position_id">

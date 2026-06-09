@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnforceModulePermissions;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
@@ -10,6 +11,7 @@ use App\Models\ItRequest;
 use App\Models\JobPosition;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -22,7 +24,8 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware();
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(EnforceModulePermissions::class);
         $this->actingAs(User::factory()->create([
             'email_verified_at' => now(),
         ]));
@@ -134,9 +137,28 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('employee-requests/create')
                 ->where('defaultEmployeeId', $employee->id)
+                ->where('canChooseEmployee', false)
+                ->has('employees', 1)
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)
                 ->where('employees.0.job_position_id', $jobPosition->id));
+    }
+
+    public function test_administrator_can_choose_any_employee_on_create_forms(): void
+    {
+        $department = Department::factory()->create();
+        $jobPosition = JobPosition::factory()->create();
+        Employee::factory()->count(2)->create([
+            'department_id' => $department->id,
+            'job_position_id' => $jobPosition->id,
+        ]);
+
+        $this->get(route('employee-requests.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('employee-requests/create')
+                ->where('canChooseEmployee', true)
+                ->has('employees', 2));
     }
 
     public function test_edit_forms_include_employee_department_id_in_options(): void

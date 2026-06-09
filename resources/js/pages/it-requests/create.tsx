@@ -4,6 +4,7 @@ import ItRequestController from '@/actions/App/Http/Controllers/ItRequestControl
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -62,12 +63,14 @@ export default function Create({
     software,
     hardware,
     defaultEmployeeId = null,
+    canChooseEmployee = true,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     software: SoftwareOption[];
     hardware: HardwareOption[];
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
 }) {
     const { t } = useI18n();
     const initialEmployee =
@@ -153,33 +156,21 @@ export default function Create({
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                                    <div className="grid gap-2 sm:col-span-2">
-                                        <Label htmlFor="employee_id">Name</Label>
-                                        <select
-                                            id="employee_id"
-                                            name="employee_id"
-                                            required
-                                            value={data.employee_id}
-                                            onChange={(e) => {
-                                                const employeeId = e.target.value ? Number(e.target.value) : '';
-                                                const employee = employees.find((item) => item.id === employeeId);
-
+                                    <div className="sm:col-span-2">
+                                        <RequestEmployeeSelectField
+                                            canChooseEmployee={canChooseEmployee}
+                                            employees={employees}
+                                            employeeId={data.employee_id}
+                                            label={t('forms.employee.name', 'Name')}
+                                            onEmployeeChange={(employeeId, employee) => {
                                                 setData((previous) => ({
                                                     ...previous,
                                                     employee_id: employeeId,
                                                     department_id: employee?.department_id ?? '',
                                                 }));
                                             }}
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            <option value="">Select employee</option>
-                                            {employees.map((emp) => (
-                                                <option key={emp.id} value={emp.id}>
-                                                    {emp.first_name} {emp.last_name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError message={errors.employee_id} />
+                                            error={errors.employee_id}
+                                        />
                                     </div>
 
                                     <div className="grid gap-2">

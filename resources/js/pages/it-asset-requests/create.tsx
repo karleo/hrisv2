@@ -15,6 +15,7 @@ import {
 } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
 import {
@@ -134,6 +135,7 @@ export default function Create({
     departments,
     hardware,
     defaultEmployeeId = null,
+    canChooseEmployee = true,
     canViewActivityLogs = false,
     activityLogs = [],
 }: {
@@ -141,6 +143,7 @@ export default function Create({
     departments: DepartmentOption[];
     hardware: AssetOption[];
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
     canViewActivityLogs?: boolean;
     activityLogs?: ActivityLogTimelineEntry[];
 }) {
@@ -531,61 +534,20 @@ export default function Create({
                                             />
                                         </div>
 
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="employee_id">
-                                                Employee{' '}
-                                                <span className="text-destructive">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <select
-                                                id="employee_id"
-                                                name="employee_id"
-                                                required
-                                                value={data.employee_id}
-                                                onChange={(e) => {
-                                                    const employeeId = e.target
-                                                        .value
-                                                        ? Number(e.target.value)
-                                                        : '';
-                                                    const employee =
-                                                        employees.find(
-                                                            (item) =>
-                                                                item.id ===
-                                                                employeeId,
-                                                        );
-
-                                                    setData((previous) => ({
-                                                        ...previous,
-                                                        employee_id: employeeId,
-                                                        department_id:
-                                                            employee?.department_id ??
-                                                            '',
-                                                    }));
-                                                }}
-                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                <option
-                                                    value=""
-                                                    className="bg-background text-foreground"
-                                                >
-                                                    Select employee
-                                                </option>
-                                                {employees.map((emp) => (
-                                                    <option
-                                                        key={emp.id}
-                                                        value={emp.id}
-                                                        className="bg-background text-foreground"
-                                                    >
-                                                        {emp.first_name}{' '}
-                                                        {emp.last_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <InputError
-                                                message={errors.employee_id}
-                                            />
-                                        </div>
+                                        <RequestEmployeeSelectField
+                                            canChooseEmployee={canChooseEmployee}
+                                            employees={employees}
+                                            employeeId={data.employee_id}
+                                            onEmployeeChange={(employeeId, employee) => {
+                                                setData((previous) => ({
+                                                    ...previous,
+                                                    employee_id: employeeId,
+                                                    department_id:
+                                                        employee?.department_id ?? '',
+                                                }));
+                                            }}
+                                            error={errors.employee_id}
+                                        />
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="department_id">

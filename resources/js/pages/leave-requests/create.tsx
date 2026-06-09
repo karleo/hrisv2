@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -121,6 +122,7 @@ export default function LeaveRequestsCreate({
     leaveTypes,
     leaveBalanceByEmployeeId = {},
     defaultEmployeeId = null,
+    canChooseEmployee = true,
     canViewActivityLogs = false,
     activityLogs = [],
 }: {
@@ -129,6 +131,7 @@ export default function LeaveRequestsCreate({
     leaveTypes: string[];
     leaveBalanceByEmployeeId?: Record<string, number>;
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
     canViewActivityLogs?: boolean;
     activityLogs?: ActivityLogTimelineEntry[];
 }) {
@@ -239,25 +242,22 @@ export default function LeaveRequestsCreate({
                                         <CardDescription>Choose employee and core request details.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2 sm:col-span-2">
-                                            <Label htmlFor="employee_id">Employee *</Label>
-                                            <Select
-                                                value={selectedEmployeeId}
-                                                onValueChange={handleEmployeeChange}
-                                                required
-                                            >
-                                                <SelectTrigger id="employee_id">
-                                                    <SelectValue placeholder="Select employee" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {employees.map((emp) => (
-                                                        <SelectItem key={emp.id} value={String(emp.id)}>
-                                                            {emp.first_name} {emp.last_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <InputError message={errors?.employee_id} />
+                                        <div className="sm:col-span-2">
+                                            <RequestEmployeeSelectField
+                                                canChooseEmployee={canChooseEmployee}
+                                                employees={employees}
+                                                employeeId={
+                                                    selectedEmployeeId === ''
+                                                        ? ''
+                                                        : Number(selectedEmployeeId)
+                                                }
+                                                onEmployeeChange={(employeeId) => {
+                                                    handleEmployeeChange(
+                                                        employeeId === '' ? '' : String(employeeId),
+                                                    );
+                                                }}
+                                                error={errors?.employee_id}
+                                            />
                                         </div>
 
                                         <div className="grid gap-2">

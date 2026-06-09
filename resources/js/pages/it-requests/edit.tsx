@@ -4,6 +4,7 @@ import ItRequestController from '@/actions/App/Http/Controllers/ItRequestControl
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import {
     RequestEmployeeSignatureCard,
     itRequestEditSignatureVisitOnly,
@@ -66,6 +67,7 @@ type HardwareOption = {
 export default function Edit({
     itRequest,
     employees,
+    canChooseEmployee = true,
     departments,
     software,
     hardware,
@@ -76,6 +78,7 @@ export default function Edit({
 }: {
     itRequest: ItRequest;
     employees: EmployeeOption[];
+    canChooseEmployee?: boolean;
     departments: DepartmentOption[];
     software: SoftwareOption[];
     hardware: HardwareOption[];
@@ -186,34 +189,20 @@ export default function Edit({
                     className="space-y-6 max-w-xl"
                     onSubmit={(e) => e.preventDefault()}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="employee_id">Name</Label>
-                        <select
-                            id="employee_id"
-                            name="employee_id"
-                            required
-                            value={data.employee_id}
-                            onChange={(e) => {
-                                const employeeId = e.target.value ? Number(e.target.value) : '';
-                                const employee = employees.find((item) => item.id === employeeId);
-
-                                setData((previous) => ({
-                                    ...previous,
-                                    employee_id: employeeId,
-                                    department_id: employee?.department_id ?? '',
-                                }));
-                            }}
-                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <option value="">Select employee</option>
-                            {employees.map((emp) => (
-                                <option key={emp.id} value={emp.id}>
-                                    {emp.first_name} {emp.last_name}
-                                </option>
-                            ))}
-                        </select>
-                        <InputError message={errors.employee_id} />
-                    </div>
+                    <RequestEmployeeSelectField
+                        canChooseEmployee={canChooseEmployee}
+                        employees={employees}
+                        employeeId={data.employee_id}
+                        label="Name"
+                        onEmployeeChange={(employeeId, employee) => {
+                            setData((previous) => ({
+                                ...previous,
+                                employee_id: employeeId,
+                                department_id: employee?.department_id ?? '',
+                            }));
+                        }}
+                        error={errors.employee_id}
+                    />
 
                     <div className="grid gap-2">
                         <Label htmlFor="department_id">Department</Label>
