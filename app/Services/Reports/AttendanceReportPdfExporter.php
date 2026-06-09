@@ -12,9 +12,10 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 final class AttendanceReportPdfExporter
 {
-    private const ROWS_ON_FIRST_PAGE = 17;
+    /** Fits below the report header on A4 landscape in DomPDF without splitting the table. */
+    private const ROWS_ON_FIRST_PAGE = 14;
 
-    private const ROWS_ON_OTHER_PAGES = 22;
+    private const ROWS_ON_OTHER_PAGES = 19;
 
     /**
      * @param  list<array{
