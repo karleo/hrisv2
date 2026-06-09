@@ -17,23 +17,26 @@
         }
 
         .report-page {
-            width: 100%;
+            position: relative;
             page-break-after: always;
-            border-collapse: collapse;
+            height: 180mm;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .report-page:last-child {
             page-break-after: avoid;
         }
 
-        .report-page-content {
-            vertical-align: top;
-            height: 172mm;
+        .report-page-body {
+            padding-bottom: 10mm;
         }
 
         .report-page-footer {
-            vertical-align: bottom;
-            height: 8mm;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
             text-align: center;
             font-size: 10px;
             color: #444;
@@ -110,71 +113,67 @@
 <body>
     @foreach ($pages as $pageIndex => $pageRows)
         @php($pageNumber = $pageIndex + 1)
-        <table class="report-page">
-            <tr>
-                <td class="report-page-content">
-            @if ($pageIndex === 0)
-                <div class="header">
-                    <table class="header-table">
-                        <tr>
-                            <td class="header-title">
-                                <h1>Attendance report</h1>
-                                <p class="meta">
-                                    <strong>{{ $companyName }}</strong><br>
-                                    Period: {{ $from }} to {{ $to }}<br>
-                                    @if ($employeeLabel !== null)
-                                        Employee: {{ $employeeLabel }}<br>
-                                    @endif
-                                    @if ($deviceLabel !== null)
-                                        Device: {{ $deviceLabel }}<br>
-                                    @endif
-                                    Generated: {{ $generatedAt }}
-                                </p>
-                            </td>
-                            <td class="header-logo">
-                                @if ($companyLogoDataUri !== null)
-                                    <img class="logo" src="{{ $companyLogoDataUri }}" alt="{{ $companyName }} logo">
-                                @endif
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            @endif
-
-            @if ($pageIndex === 0 && count($pageRows) === 0)
-                <p class="empty">No attendance records for the selected filters.</p>
-            @else
-                <table class="data">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Employee code</th>
-                            <th>Employee name</th>
-                            <th>Clock in</th>
-                            <th>Clock out</th>
-                            <th>Working hours</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($pageRows as $row)
+        <div class="report-page">
+            <div class="report-page-body">
+                @if ($pageIndex === 0)
+                    <div class="header">
+                        <table class="header-table">
                             <tr>
-                                <td>{{ $row['date'] }}</td>
-                                <td>{{ $row['employee_code'] ?? '—' }}</td>
-                                <td>{{ $row['employee_name'] }}</td>
-                                <td>{{ $row['clock_in'] ?? '—' }}</td>
-                                <td>{{ $row['clock_out'] ?? '—' }}</td>
-                                <td>{{ $row['working_hours'] }}</td>
+                                <td class="header-title">
+                                    <h1>Attendance report</h1>
+                                    <p class="meta">
+                                        <strong>{{ $companyName }}</strong><br>
+                                        Period: {{ $from }} to {{ $to }}<br>
+                                        @if ($employeeLabel !== null)
+                                            Employee: {{ $employeeLabel }}<br>
+                                        @endif
+                                        @if ($deviceLabel !== null)
+                                            Device: {{ $deviceLabel }}<br>
+                                        @endif
+                                        Generated: {{ $generatedAt }}
+                                    </p>
+                                </td>
+                                <td class="header-logo">
+                                    @if ($companyLogoDataUri !== null)
+                                        <img class="logo" src="{{ $companyLogoDataUri }}" alt="{{ $companyName }} logo">
+                                    @endif
+                                </td>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @endif
-                </td>
-            </tr>
-            <tr>
-                <td class="report-page-footer">{{ $pageNumber }}-{{ $totalPages }}</td>
-            </tr>
-        </table>
+                        </table>
+                    </div>
+                @endif
+
+                @if ($pageIndex === 0 && count($pageRows) === 0)
+                    <p class="empty">No attendance records for the selected filters.</p>
+                @else
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Employee code</th>
+                                <th>Employee name</th>
+                                <th>Clock in</th>
+                                <th>Clock out</th>
+                                <th>Working hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($pageRows as $row)
+                                <tr>
+                                    <td>{{ $row['date'] }}</td>
+                                    <td>{{ $row['employee_code'] ?? '—' }}</td>
+                                    <td>{{ $row['employee_name'] }}</td>
+                                    <td>{{ $row['clock_in'] ?? '—' }}</td>
+                                    <td>{{ $row['clock_out'] ?? '—' }}</td>
+                                    <td>{{ $row['working_hours'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+            <div class="report-page-footer">{{ $pageNumber }}-{{ $totalPages }}</div>
+        </div>
     @endforeach
 </body>
 </html>

@@ -71,6 +71,7 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::post('my-profile/documents', [EmployeeController::class, 'uploadProfileDocument'])->name('my-profile.documents.store');
     Route::delete('my-profile/documents/{employee_document}', [EmployeeController::class, 'destroyProfileDocument'])->name('my-profile.documents.destroy');
     Route::get('my-profile/documents/{employee_document}/view', [EmployeeController::class, 'showProfileDocument'])->name('my-profile.documents.show');
+    Route::get('my-profile/attendance/pdf', [EmployeeController::class, 'downloadProfileAttendancePdf'])->name('my-profile.attendance.pdf');
     Route::resource('employees', EmployeeController::class);
     Route::patch('employees/{employee}/private-information', [EmployeeController::class, 'updatePrivateInformation'])
         ->name('employees.private-information.update');

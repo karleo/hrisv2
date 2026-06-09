@@ -257,7 +257,7 @@ class EmployeeMessageController extends Controller
 
     private function activeLinkedEmployeeQuery(?\App\Models\User $user): Builder
     {
-        return $this->companyScope->scopeEmployees(
+        return $this->companyScope->scopeEmployeesForMessaging(
             Employee::query()
                 ->with(['department', 'jobPosition', 'user'])
                 ->whereHas('user', fn ($query) => $query->where('is_active', true)),
@@ -271,7 +271,7 @@ class EmployeeMessageController extends Controller
             abort(404);
         }
 
-        if (! $this->companyScope->canAccessEmployee($user, $employee)) {
+        if (! $this->companyScope->canMessageEmployee($user, $employee)) {
             abort(404);
         }
     }

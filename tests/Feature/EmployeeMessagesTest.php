@@ -85,6 +85,24 @@ class EmployeeMessagesTest extends TestCase
             ]);
     }
 
+    public function test_employee_search_returns_colleagues_without_company_profile_assignment(): void
+    {
+        $role = \App\Models\Role::query()->where('slug', 'employee')->firstOrFail();
+        $currentUser = User::factory()->create(['role_id' => $role->id]);
+        $this->linkedEmployee($currentUser);
+
+        $linked = $this->linkedEmployee(employeeAttributes: [
+            'first_name' => 'NoCompany',
+            'last_name' => 'Colleague',
+        ]);
+
+        $this->actingAs($currentUser)
+            ->getJson(route('employee-messages.search', ['q' => 'NoCompany']))
+            ->assertOk()
+            ->assertJsonPath('employees.0.id', $linked->id)
+            ->assertJsonCount(1, 'employees');
+    }
+
     public function test_employee_search_returns_only_active_linked_employees(): void
     {
         $currentUser = User::factory()->create();

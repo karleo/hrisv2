@@ -964,6 +964,32 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Download attendance PDF for the logged-in user's linked employee profile.
+     */
+    public function downloadProfileAttendancePdf(
+        Request $request,
+        AttendanceReportService $attendanceReportService,
+        AttendanceReportPdfExporter $pdfExporter,
+    ): HttpResponse {
+        $user = $request->user();
+        if ($user === null || ! $user->isAccountActive()) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null) {
+            abort(403);
+        }
+
+        return $this->respondWithAttendancePdfDownload(
+            $request,
+            $employee,
+            $attendanceReportService,
+            $pdfExporter,
+        );
+    }
+
+    /**
      * Download attendance PDF for an employee mapped on a biometric device.
      */
     public function downloadAttendancePdf(
@@ -974,6 +1000,20 @@ class EmployeeController extends Controller
     ): HttpResponse {
         $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
 
+        return $this->respondWithAttendancePdfDownload(
+            $request,
+            $employee,
+            $attendanceReportService,
+            $pdfExporter,
+        );
+    }
+
+    private function respondWithAttendancePdfDownload(
+        Request $request,
+        Employee $employee,
+        AttendanceReportService $attendanceReportService,
+        AttendanceReportPdfExporter $pdfExporter,
+    ): HttpResponse {
         if (trim((string) $employee->biometric_user_id) === '') {
             abort(404);
         }

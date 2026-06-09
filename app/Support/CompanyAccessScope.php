@@ -121,6 +121,47 @@ class CompanyAccessScope
         }
     }
 
+    /**
+     * Employee messaging search is relaxed when the viewer has no company profile
+     * (common in single-organization installs where company master was not assigned).
+     *
+     * @param  Builder<Employee>  $query
+     * @return Builder<Employee>
+     */
+    public function scopeEmployeesForMessaging(Builder $query, ?User $user): Builder
+    {
+        if ($this->isGlobalAdmin($user)) {
+            return $query;
+        }
+
+        $companyProfileId = $this->companyProfileIdFor($user);
+
+        if ($companyProfileId === null) {
+            return $query;
+        }
+
+        return $query->where('company_profile_id', $companyProfileId);
+    }
+
+    public function canMessageEmployee(?User $user, Employee $employee): bool
+    {
+        if ($this->isGlobalAdmin($user)) {
+            return true;
+        }
+
+        $viewerCompanyProfileId = $this->companyProfileIdFor($user);
+
+        if ($viewerCompanyProfileId === null) {
+            return true;
+        }
+
+        if ($employee->company_profile_id === null) {
+            return false;
+        }
+
+        return (int) $employee->company_profile_id === $viewerCompanyProfileId;
+    }
+
     public function assertCanAccessCompanyProfile(?User $user, int $companyProfileId): void
     {
         if ($this->isGlobalAdmin($user)) {

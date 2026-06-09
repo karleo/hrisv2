@@ -97,13 +97,21 @@ export function EmployeeAttendanceTab({
             return '#';
         }
 
+        const query = {
+            from: localFilters.from,
+            to: localFilters.to,
+        };
+
+        if (context === 'my-profile') {
+            const params = new URLSearchParams(query);
+
+            return `/my-profile/attendance/pdf?${params.toString()}`;
+        }
+
         return downloadAttendancePdf.url(employeeId, {
-            query: {
-                from: localFilters.from,
-                to: localFilters.to,
-            },
+            query,
         });
-    }, [employeeId, localFilters.from, localFilters.to]);
+    }, [context, employeeId, localFilters.from, localFilters.to]);
 
     return (
         <div className="space-y-4">

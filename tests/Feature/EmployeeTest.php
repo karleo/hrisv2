@@ -959,6 +959,43 @@ class EmployeeTest extends TestCase
                 ->where('attendance.summary.total_punches', 2));
     }
 
+    public function test_my_profile_attendance_pdf_download_without_employees_module_permission(): void
+    {
+        $role = \App\Models\Role::query()->where('slug', 'employee')->firstOrFail();
+        $user = User::factory()->create(['role_id' => $role->id]);
+        $employee = Employee::factory()->create([
+            'user_id' => $user->id,
+            'biometric_user_id' => '88',
+        ]);
+        $device = BiometricDevice::query()->create([
+            'name' => 'Profile PDF gate',
+            'serial_number' => 'SN-PROFILE-PDF',
+            'connection_type' => BiometricConnectionType::DeviceWebReport,
+            'host' => '192.168.1.46',
+            'port' => 80,
+            'timezone' => 'UTC',
+            'is_active' => true,
+        ]);
+
+        BiometricPunch::query()->create([
+            'biometric_device_id' => $device->id,
+            'device_user_id' => '88',
+            'employee_id' => $employee->id,
+            'punched_at' => '2026-05-25 08:30:00',
+            'direction' => BiometricPunchDirection::In,
+            'idempotency_key' => 'profile-pdf-in',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('my-profile.attendance.pdf', [
+            'from' => '2026-05-25',
+            'to' => '2026-05-25',
+        ]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+    }
+
     public function test_my_profile_without_biometric_pin_has_no_attendance_data(): void
     {
         /** @var User $user */
