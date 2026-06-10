@@ -10,6 +10,10 @@ final class BiometricPunchImporter
 {
     private const BATCH_SIZE = 500;
 
+    public function __construct(
+        private readonly BiometricEmployeeMapper $employeeMapper,
+    ) {}
+
     /**
      * @param  iterable<BiometricPunchData>  $punches
      * @return array{inserted: int, duplicate: int, failed: int}
@@ -24,9 +28,13 @@ final class BiometricPunchImporter
 
         $tracer?->stage('importer_start', ['device_id' => $device->id]);
 
+        $skipEmployeeMapping = (bool) ($device->metadata['skip_employee_mapping']
+            ?? config('biometric.skip_employee_mapping_on_import', false));
+        $employeeMap = $skipEmployeeMapping ? null : $this->employeeMapper->employeeMapByDevicePin();
+
         foreach ($punches as $punch) {
             $received++;
-            $batch[] = $this->toRow($device, $punch);
+            $batch[] = $this->toRow($device, $punch, $employeeMap);
 
             if (count($batch) >= self::BATCH_SIZE) {
                 $result = $this->insertBatch($batch);
@@ -109,17 +117,21 @@ final class BiometricPunchImporter
     }
 
     /**
+     * @param  \Illuminate\Support\Collection<string, int>|null  $employeeMap
      * @return array<string, mixed>
      */
-    private function toRow(BiometricDevice $device, BiometricPunchData $punch): array
+    private function toRow(BiometricDevice $device, BiometricPunchData $punch, ?\Illuminate\Support\Collection $employeeMap): array
     {
         $punchedAt = $punch->punchedAtStorage;
         $now = now()->format('Y-m-d H:i:s');
+        $employeeId = $employeeMap !== null
+            ? $this->employeeMapper->employeeIdForDeviceUserId($punch->deviceUserId, $employeeMap)
+            : null;
 
         return [
             'biometric_device_id' => $device->id,
             'device_user_id' => $punch->deviceUserId,
-            'employee_id' => null,
+            'employee_id' => $employeeId,
             'punched_at' => $punchedAt,
             'direction' => $punch->direction->value,
             'verify_type' => $punch->verifyType,

@@ -158,6 +158,7 @@
                                     <th>Clock in</th>
                                     <th>Clock out</th>
                                     <th>Working hours</th>
+                                    <th>Overtime</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -169,6 +170,7 @@
                                         <td>{{ $row['clock_in'] ?? '—' }}</td>
                                         <td>{{ $row['clock_out'] ?? '—' }}</td>
                                         <td>{{ $row['working_hours'] }}</td>
+                                        <td>{{ $row['overtime'] ?? '—' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

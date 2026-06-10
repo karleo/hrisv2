@@ -16,6 +16,7 @@ type AttendanceRow = {
     clock_in: string | null;
     clock_out: string | null;
     working_hours: string;
+    overtime: string;
     punch_count: number;
 };
 
@@ -175,6 +176,7 @@ export function EmployeeAttendanceTab({
                                         <th className="py-2 pr-4">Clock in</th>
                                         <th className="py-2 pr-4">Clock out</th>
                                         <th className="py-2 pr-4">Working hours</th>
+                                        <th className="py-2 pr-4">Overtime</th>
                                         <th className="py-2">Punches</th>
                                     </tr>
                                 </thead>
@@ -193,6 +195,7 @@ export function EmployeeAttendanceTab({
                                                 {row.clock_out ?? '—'}
                                             </td>
                                             <td className="py-2 pr-4">{row.working_hours}</td>
+                                            <td className="py-2 pr-4">{row.overtime}</td>
                                             <td className="py-2">{row.punch_count}</td>
                                         </tr>
                                     ))}

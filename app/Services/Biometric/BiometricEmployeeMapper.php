@@ -68,6 +68,19 @@ final class BiometricEmployeeMapper
         return ['mapped' => $mapped, 'unmapped' => $unmapped];
     }
 
+    public function employeeIdForDeviceUserId(string $deviceUserId, ?Collection $employeeMap = null): ?int
+    {
+        return $this->resolveEmployeeId($employeeMap ?? $this->employeeMapByDevicePin(), $deviceUserId);
+    }
+
+    /**
+     * @return Collection<string, int>
+     */
+    public function employeeMapByDevicePin(): Collection
+    {
+        return $this->employeeIdByDevicePin();
+    }
+
     /**
      * @return Collection<string, int>
      */

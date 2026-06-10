@@ -5,7 +5,6 @@ namespace Tests\Feature\Biometric;
 use App\Enums\BiometricConnectionType;
 use App\Enums\PermissionModule;
 use App\Models\BiometricDevice;
-use App\Models\Employee;
 use App\Models\Role;
 use App\Models\RoleModulePermission;
 use App\Models\User;
@@ -84,46 +83,6 @@ class BiometricAttendanceAccessTest extends TestCase
             ->get(route('biometric-attendance.import'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('biometric-attendance/import'));
-    }
-
-    public function test_sessions_page_defaults_date_range_and_limits_employee_filter_list(): void
-    {
-        $role = Role::factory()->create();
-        RoleModulePermission::query()->create([
-            'role_id' => $role->id,
-            'module' => PermissionModule::BiometricAttendance,
-            'can_access' => true,
-            'can_view' => true,
-            'can_create' => false,
-            'can_update' => false,
-            'can_delete' => false,
-            'can_check_in' => false,
-            'can_check_out' => false,
-        ]);
-
-        $user = User::factory()->create(['role_id' => $role->id]);
-
-        Employee::factory()->create([
-            'first_name' => 'Mapped',
-            'biometric_user_id' => '1001',
-        ]);
-        Employee::factory()->create([
-            'first_name' => 'Unmapped',
-            'biometric_user_id' => null,
-        ]);
-
-        $expectedFrom = now()->subDays(7)->toDateString();
-        $expectedTo = now()->toDateString();
-
-        $this->actingAs($user)
-            ->get(route('biometric-attendance.sessions'))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->component('biometric-attendance/sessions')
-                ->where('filters.from', $expectedFrom)
-                ->where('filters.to', $expectedTo)
-                ->has('employees', 1)
-                ->where('employees.0.name', 'Mapped'));
     }
 
     public function test_authorized_user_can_view_dashboard(): void

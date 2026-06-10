@@ -33,6 +33,7 @@ type ReportRow = {
     clock_in: string | null;
     clock_out: string | null;
     working_hours: string;
+    overtime: string;
     punch_count: number;
 };
 
@@ -237,6 +238,7 @@ export default function AttendanceReport({
                                             <th className="py-2 pr-4">Clock in</th>
                                             <th className="py-2 pr-4">Clock out</th>
                                             <th className="py-2 pr-4">Working hours</th>
+                                            <th className="py-2 pr-4">Overtime</th>
                                             <th className="py-2">Punches</th>
                                         </tr>
                                     </thead>
@@ -256,6 +258,7 @@ export default function AttendanceReport({
                                                 <td className="py-2 pr-4 font-mono text-xs">{row.clock_in ?? '—'}</td>
                                                 <td className="py-2 pr-4 font-mono text-xs">{row.clock_out ?? '—'}</td>
                                                 <td className="py-2 pr-4">{row.working_hours}</td>
+                                                <td className="py-2 pr-4">{row.overtime}</td>
                                                 <td className="py-2">{row.punch_count}</td>
                                             </tr>
                                         ))}

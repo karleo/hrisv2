@@ -189,6 +189,10 @@ class Employee extends Model
                 $employee->auditLoggableValues(),
                 []
             );
+
+            if (trim((string) $employee->biometric_user_id) !== '') {
+                app(BiometricEmployeeMapper::class)->mapForAllDevices();
+            }
         });
 
         static::updated(function (self $employee): void {

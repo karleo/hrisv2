@@ -122,7 +122,6 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         Route::get('/', [BiometricAttendanceController::class, 'dashboard'])->name('dashboard');
         Route::get('connectivity', [BiometricAttendanceController::class, 'connectivity'])->name('connectivity');
         Route::get('import', [BiometricAttendanceController::class, 'import'])->name('import');
-        Route::get('sessions', [BiometricAttendanceController::class, 'sessions'])->name('sessions');
         Route::get('punches', [BiometricAttendanceController::class, 'punches'])->name('punches');
         Route::get('sync-logs', [BiometricAttendanceController::class, 'syncLogs'])->name('sync-logs');
         Route::post('devices', [BiometricAttendanceController::class, 'storeDevice'])->name('devices.store');

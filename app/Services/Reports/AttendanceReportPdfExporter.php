@@ -28,6 +28,7 @@ final class AttendanceReportPdfExporter
      *     clock_out: string|null,
      *     punch_count: int,
      *     working_hours: string,
+     *     overtime: string,
      * }>  $rows
      */
     public function download(

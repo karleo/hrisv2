@@ -85,7 +85,10 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'skip_employee_mapping_on_import' => (bool) env('BIOMETRIC_SKIP_EMPLOYEE_MAPPING', true),
+    'skip_employee_mapping_on_import' => filter_var(
+        env('BIOMETRIC_SKIP_EMPLOYEE_MAPPING', false),
+        FILTER_VALIDATE_BOOLEAN,
+    ),
 
     'trace' => (bool) env('BIOMETRIC_TRACE', true),
 

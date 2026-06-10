@@ -11,11 +11,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Biometric\StoreBiometricDeviceRequest;
 use App\Http\Requests\Biometric\SyncBiometricDeviceRequest;
 use App\Http\Requests\Biometric\UpdateBiometricDeviceRequest;
-use App\Models\BiometricAttendanceSession;
 use App\Models\BiometricDevice;
 use App\Models\BiometricPunch;
 use App\Models\BiometricSyncLog;
-use App\Models\Employee;
 use App\Services\Biometric\BiometricBackgroundSyncStarter;
 use App\Services\Biometric\BiometricDeviceProbeService;
 use App\Services\Biometric\BiometricEmployeeMapper;
@@ -128,103 +126,6 @@ class BiometricAttendanceController extends Controller
             'runningSyncCount' => BiometricSyncLog::query()->where('status', BiometricSyncStatus::Running)->count(),
             'defaultImportRange' => $this->defaultImportDateRange(),
         ]);
-    }
-
-    public function sessions(Request $request): Response
-    {
-        $this->staleSyncLogCleaner->markTimedOutRunningLogs();
-
-        $from = $request->input('from');
-        $to = $request->input('to');
-
-        if (! $request->filled('from') && ! $request->filled('to')) {
-            $from = now()->subDays(7)->toDateString();
-            $to = now()->toDateString();
-        }
-
-        $query = BiometricAttendanceSession::query()
-            ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
-            ->orderByDesc('clock_in_at');
-
-        if ($from !== null && $from !== '') {
-            $query->whereDate('clock_in_at', '>=', $from);
-        }
-
-        if ($to !== null && $to !== '') {
-            $query->whereDate('clock_in_at', '<=', $to);
-        }
-
-        if ($request->filled('employee_id')) {
-            $query->where('employee_id', $request->integer('employee_id'));
-        }
-
-        if ($request->filled('biometric_device_id')) {
-            $query->where('biometric_device_id', $request->integer('biometric_device_id'));
-        }
-
-        if ($request->filled('status')) {
-            if ($request->input('status') === 'open') {
-                $query->where('is_open', true);
-            } elseif ($request->input('status') === 'closed') {
-                $query->where('is_open', false);
-            }
-        }
-
-        $user = $request->user();
-        $this->companyScope->scopeRelationViaEmployee($query, $user);
-
-        $sessions = $query->paginate(20)->withQueryString()->through(
-            fn (BiometricAttendanceSession $session) => [
-                'id' => $session->id,
-                'employee_id' => $session->employee_id,
-                'employee_name' => $session->employee
-                    ? trim($session->employee->first_name.' '.$session->employee->last_name)
-                    : '—',
-                'employee_code' => $session->employee?->employee_code,
-                'device_name' => $session->device?->name,
-                'clock_in_at' => $session->clock_in_at->toIso8601String(),
-                'clock_out_at' => $session->clock_out_at?->toIso8601String(),
-                'working_minutes' => $session->working_minutes,
-                'is_open' => $session->is_open,
-            ],
-        );
-
-        return Inertia::render('biometric-attendance/sessions', [
-            'sessions' => $sessions,
-            'filters' => [
-                'from' => $from,
-                'to' => $to,
-                'employee_id' => $request->input('employee_id'),
-                'biometric_device_id' => $request->input('biometric_device_id'),
-                'status' => $request->input('status'),
-            ],
-            'devices' => BiometricDevice::query()->orderBy('name')->get(['id', 'name']),
-            'employees' => $this->employeesForBiometricSessionFilter($user),
-        ]);
-    }
-
-    /**
-     * @return list<array{id: int, name: string}>
-     */
-    private function employeesForBiometricSessionFilter(?\App\Models\User $user): array
-    {
-        $query = $this->companyScope->scopedEmployeeQuery($user)
-            ->where(function ($query) {
-                $query->whereNotNull('biometric_user_id')
-                    ->orWhereExists(function ($subquery) {
-                        $subquery->selectRaw('1')
-                            ->from('biometric_attendance_sessions')
-                            ->whereColumn('biometric_attendance_sessions.employee_id', 'employees.id');
-                    });
-            })
-            ->orderBy('first_name')
-            ->get(['id', 'first_name', 'last_name'])
-            ->map(fn (Employee $employee) => [
-                'id' => $employee->id,
-                'name' => trim($employee->first_name.' '.$employee->last_name),
-            ])
-            ->values()
-            ->all();
     }
 
     public function punches(Request $request): Response

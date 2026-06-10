@@ -43,6 +43,7 @@ type AttendanceRow = {
     clock_in: string | null;
     clock_out: string | null;
     working_hours: string;
+    overtime: string;
     punch_count: number;
 };
 

@@ -32,6 +32,8 @@ final class AttendanceReportService
      *         punch_count: int,
      *         working_hours: string,
      *         working_minutes: int|null,
+     *         overtime: string,
+     *         overtime_minutes: int|null,
      *     }>,
      *     total_punches: int,
      * }
@@ -87,6 +89,8 @@ final class AttendanceReportService
      *         punch_count: int,
      *         working_hours: string,
      *         working_minutes: int|null,
+     *         overtime: string,
+     *         overtime_minutes: int|null,
      *     }>,
      *     total_punches: int,
      * }
@@ -132,7 +136,7 @@ final class AttendanceReportService
 
         $punches = $query->get();
 
-        $rows = $this->aggregateDailyRows($punches);
+        $rows = $this->aggregateDailyRows($punches, $employee);
 
         return [
             'rows' => $rows,
@@ -152,10 +156,16 @@ final class AttendanceReportService
      *     clock_in: string|null,
      *     clock_out: string|null,
      *     punch_count: int,
+     *     working_hours: string,
+     *     working_minutes: int|null,
+     *     overtime: string,
+     *     overtime_minutes: int|null,
      * }>
      */
-    private function aggregateDailyRows(Collection $punches): array
+    private function aggregateDailyRows(Collection $punches, ?Employee $contextEmployee = null): array
     {
+        $employeeMap = $this->employeesWithTimetables($punches, $contextEmployee);
+
         /** @var array<string, array{punches: list<BiometricPunch>, employee_id: int|null, device_pin: string, device_name: string|null, employee_name: string, employee_code: string|null, date: string}> $groups */
         $groups = [];
 
@@ -193,6 +203,9 @@ final class AttendanceReportService
                 $clockOut,
             );
 
+            $employee = $this->employeeForGroup($group['employee_id'], $employeeMap, $contextEmployee);
+            [$overtime, $overtimeMinutes] = $this->overtimeDuration($employee, $group['date'], $workingMinutes);
+
             $rows[] = [
                 'date' => $group['date'],
                 'employee_id' => $group['employee_id'],
@@ -205,6 +218,8 @@ final class AttendanceReportService
                 'punch_count' => count($dayPunches),
                 'working_hours' => $workingHours,
                 'working_minutes' => $workingMinutes,
+                'overtime' => $overtime,
+                'overtime_minutes' => $overtimeMinutes,
             ];
         }
 
@@ -392,5 +407,71 @@ final class AttendanceReportService
         }
 
         return $hours.'h '.$remainder.'m';
+    }
+
+    /**
+     * @param  Collection<int, BiometricPunch>  $punches
+     * @return array<int, Employee>
+     */
+    private function employeesWithTimetables(Collection $punches, ?Employee $contextEmployee): array
+    {
+        $ids = $punches->pluck('employee_id')->filter()->unique()->values();
+
+        if ($contextEmployee !== null && ! $ids->contains($contextEmployee->id)) {
+            $ids->push($contextEmployee->id);
+        }
+
+        if ($ids->isEmpty() && $contextEmployee === null) {
+            return [];
+        }
+
+        if ($ids->isEmpty()) {
+            $contextEmployee?->loadMissing('workTimetable.days');
+
+            return $contextEmployee !== null ? [$contextEmployee->id => $contextEmployee] : [];
+        }
+
+        return Employee::query()
+            ->with('workTimetable.days')
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id')
+            ->all();
+    }
+
+    /**
+     * @param  array<int, Employee>  $employeeMap
+     */
+    private function employeeForGroup(?int $employeeId, array $employeeMap, ?Employee $contextEmployee): ?Employee
+    {
+        if ($employeeId !== null && isset($employeeMap[$employeeId])) {
+            return $employeeMap[$employeeId];
+        }
+
+        return $contextEmployee;
+    }
+
+    /**
+     * @return array{0: string, 1: int|null}
+     */
+    private function overtimeDuration(?Employee $employee, string $date, ?int $workingMinutes): array
+    {
+        if ($workingMinutes === null || $employee === null || ! $employee->hasUsableWorkTimetable()) {
+            return ['—', null];
+        }
+
+        $day = $employee->scheduleDayFor(Carbon::parse($date.' 12:00:00'));
+
+        if ($day === null) {
+            return ['—', null];
+        }
+
+        $overtimeMinutes = max(0, $workingMinutes - $day->expectedMinutes());
+
+        if ($overtimeMinutes === 0) {
+            return ['—', 0];
+        }
+
+        return [$this->formatWorkingMinutes($overtimeMinutes), $overtimeMinutes];
     }
 }

@@ -10,10 +10,6 @@ export function biometricReloadOnlyKeys(pathname: string): string[] | undefined 
         return ['devices'];
     }
 
-    if (pathname === '/biometric-attendance/sessions') {
-        return ['sessions', 'filters'];
-    }
-
     if (pathname === '/biometric-attendance/punches') {
         return ['punches', 'filters'];
     }

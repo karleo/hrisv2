@@ -87,6 +87,42 @@ class AttendanceReportServiceTest extends TestCase
         $this->assertSame(2, $result['total_punches']);
     }
 
+    public function test_calculates_overtime_from_work_timetable(): void
+    {
+        $device = $this->createDevice();
+        $employee = Employee::factory()->create(['biometric_user_id' => '200']);
+
+        $this->createPunch($device, '200', $employee->id, '2026-05-25 08:00:00', BiometricPunchDirection::In, 'ot-in');
+        $this->createPunch($device, '200', $employee->id, '2026-05-25 19:00:00', BiometricPunchDirection::Out, 'ot-out');
+
+        $row = app(AttendanceReportService::class)->buildForEmployee(
+            $employee,
+            from: '2026-05-25',
+            to: '2026-05-25',
+        )['rows'][0];
+
+        $this->assertSame('11h', $row['working_hours']);
+        $this->assertSame('3h', $row['overtime']);
+    }
+
+    public function test_shows_dash_when_worked_within_scheduled_hours(): void
+    {
+        $device = $this->createDevice();
+        $employee = Employee::factory()->create(['biometric_user_id' => '201']);
+
+        $this->createPunch($device, '201', $employee->id, '2026-05-25 09:00:00', BiometricPunchDirection::In, 'no-ot-in');
+        $this->createPunch($device, '201', $employee->id, '2026-05-25 17:00:00', BiometricPunchDirection::Out, 'no-ot-out');
+
+        $row = app(AttendanceReportService::class)->buildForEmployee(
+            $employee,
+            from: '2026-05-25',
+            to: '2026-05-25',
+        )['rows'][0];
+
+        $this->assertSame('8h', $row['working_hours']);
+        $this->assertSame('—', $row['overtime']);
+    }
+
     public function test_collapses_rapid_duplicate_check_ins(): void
     {
         $device = $this->createDevice();

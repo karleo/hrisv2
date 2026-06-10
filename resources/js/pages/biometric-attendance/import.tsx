@@ -65,7 +65,7 @@ function BiometricImportContent({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title="Import attendance"
-                    description="Pull or process clock-in/out from the device into the database, then view Sessions."
+                    description="Pull or process clock-in/out from the device into the database."
                 />
                 <BiometricAttendanceNav currentPath="/biometric-attendance/import" />
 
@@ -106,7 +106,7 @@ function BiometricImportContent({
                     <CardHeader>
                         <CardTitle className="text-base">
                             {usesAdmsPush
-                                ? 'Process punches into sessions'
+                                ? 'Process stored punches'
                                 : usesDeviceWebReport
                                   ? 'Pull from device web report'
                                   : 'Pull from device'}
@@ -124,11 +124,11 @@ function BiometricImportContent({
                                 <>
                                     Logs in to the iClock at{' '}
                                     <code className="text-xs">http://{selectedDevice?.host}</code>, runs Report for the
-                                    date range, imports IN/OUT rows, then builds sessions.
+                                    date range, and imports IN/OUT rows.
                                 </>
                             ) : (
                                 <>
-                                    Fetches logs from the device IP and stores punches + sessions. If pull fails, use{' '}
+                                    Fetches logs from the device IP and stores punches. If pull fails, use{' '}
                                     <Link href="/biometric-attendance/connectivity" className="text-primary underline">
                                         Connectivity
                                     </Link>{' '}
@@ -233,14 +233,7 @@ function BiometricImportContent({
                             for new rows.
                         </p>
                         <p>
-                            2. Open{' '}
-                            <Link href="/biometric-attendance/sessions" className="text-primary underline">
-                                Sessions
-                            </Link>{' '}
-                            with the same date range to see employee clock-in/out.
-                        </p>
-                        <p>
-                            3. Review{' '}
+                            2. Review{' '}
                             <Link href="/biometric-attendance/sync-logs" className="text-primary underline">
                                 Sync history
                             </Link>{' '}

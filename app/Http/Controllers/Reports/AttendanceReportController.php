@@ -126,6 +126,7 @@ class AttendanceReportController extends Controller
                 'Clock in',
                 'Clock out',
                 'Working hours',
+                'Overtime',
                 'Punch count',
             ]);
 
@@ -139,6 +140,7 @@ class AttendanceReportController extends Controller
                     $row['clock_in'] ?? '',
                     $row['clock_out'] ?? '',
                     $row['working_hours'],
+                    $row['overtime'] ?? '—',
                     (string) $row['punch_count'],
                 ]);
             }
