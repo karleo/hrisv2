@@ -155,6 +155,8 @@
                                     <th>Date</th>
                                     <th>Employee code</th>
                                     <th>Employee name</th>
+                                    <th>Source</th>
+                                    <th>Work mode</th>
                                     <th>Clock in</th>
                                     <th>Clock out</th>
                                     <th>Working hours</th>
@@ -167,6 +169,12 @@
                                         <td>{{ $row['date'] }}</td>
                                         <td>{{ $row['employee_code'] ?? '—' }}</td>
                                         <td>{{ $row['employee_name'] }}</td>
+                                        <td>{{ match ($row['source'] ?? 'biometric') {
+                                            'manual' => 'Web check-in',
+                                            'merged' => 'Merged',
+                                            default => 'Biometric',
+                                        } }}</td>
+                                        <td>{{ $row['work_mode_label'] ?? '—' }}</td>
                                         <td>{{ $row['clock_in'] ?? '—' }}</td>
                                         <td>{{ $row['clock_out'] ?? '—' }}</td>
                                         <td>{{ $row['working_hours'] }}</td>

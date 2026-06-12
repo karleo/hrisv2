@@ -1593,10 +1593,6 @@ class EmployeeController extends Controller
         Employee $employee,
         AttendanceReportService $attendanceReportService,
     ): ?array {
-        if (trim((string) $employee->biometric_user_id) === '') {
-            return null;
-        }
-
         $to = $request->date('to')?->toDateString() ?? now()->toDateString();
         $from = $request->date('from')?->toDateString() ?? Carbon::parse($to)->subDays(30)->toDateString();
 
@@ -1614,6 +1610,7 @@ class EmployeeController extends Controller
             'summary' => [
                 'total_days' => count($report['rows']),
                 'total_punches' => $report['total_punches'],
+                'total_manual_entries' => $report['total_manual_entries'],
             ],
             'rows' => $report['rows'],
         ];

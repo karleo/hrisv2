@@ -7,6 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import {
+    AttendanceEvidenceCell,
+    AttendanceRemarksCell,
+    type AttendanceRemarksEvidence,
+} from '@/components/attendance-entry-cells';
 import { formatDisplayDate } from '@/lib/format-display-date';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -23,7 +28,7 @@ type ReportFilters = {
     biometric_device_id?: string;
 };
 
-type ReportRow = {
+type ReportRow = AttendanceRemarksEvidence & {
     date: string;
     employee_id: number | null;
     employee_name: string;
@@ -35,7 +40,20 @@ type ReportRow = {
     working_hours: string;
     overtime: string;
     punch_count: number;
+    source?: 'biometric' | 'manual' | 'merged';
+    work_mode_label?: string | null;
 };
+
+function sourceLabel(source: ReportRow['source']): string {
+    switch (source) {
+        case 'manual':
+            return 'Web check-in';
+        case 'merged':
+            return 'Merged';
+        default:
+            return 'Biometric';
+    }
+}
 
 function filtersToParams(filters: ReportFilters, extra?: Record<string, string>): Record<string, string> {
     const params: Record<string, string> = { ...extra };
@@ -70,7 +88,7 @@ export default function AttendanceReport({
         current_page: number;
     };
     filters: ReportFilters;
-    summary: { total_days: number; total_punches: number };
+    summary: { total_days: number; total_punches: number; total_manual_entries?: number };
     employees: Array<{
         id: number;
         name: string;
@@ -119,7 +137,7 @@ export default function AttendanceReport({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title="Attendance report"
-                    description="Daily clock-in and clock-out from imported biometric punches (device times as stored in the database)."
+                    description="Daily clock-in and clock-out from biometric punches and web check-ins, merged per employee and day."
                 />
 
                 <Card>
@@ -215,15 +233,18 @@ export default function AttendanceReport({
                         <div>
                             <CardTitle className="text-base">Results</CardTitle>
                             <p className="text-muted-foreground mt-1 text-sm">
-                                {summary.total_days} day row(s) · {summary.total_punches} punch(es) in range
+                                {summary.total_days} day row(s) · {summary.total_punches} biometric punch(es)
+                                {(summary.total_manual_entries ?? 0) > 0
+                                    ? ` · ${summary.total_manual_entries} web check-in(s)`
+                                    : ''}
                             </p>
                         </div>
                     </CardHeader>
                     <CardContent>
                         {rows.data.length === 0 ? (
                             <p className="text-muted-foreground text-sm">
-                                No attendance for this range. Import punches from Biometric attendance → Import
-                                attendance, then adjust filters above.
+                                No attendance for this range. Employees can use web check-in, or import biometric
+                                punches from Biometric attendance, then adjust filters above.
                             </p>
                         ) : (
                             <div className="overflow-x-auto">
@@ -235,11 +256,15 @@ export default function AttendanceReport({
                                             <th className="py-2 pr-4">Code</th>
                                             <th className="py-2 pr-4">Device PIN</th>
                                             <th className="py-2 pr-4">Device</th>
+                                            <th className="py-2 pr-4">Source</th>
+                                            <th className="py-2 pr-4">Work mode</th>
                                             <th className="py-2 pr-4">Clock in</th>
                                             <th className="py-2 pr-4">Clock out</th>
                                             <th className="py-2 pr-4">Working hours</th>
                                             <th className="py-2 pr-4">Overtime</th>
-                                            <th className="py-2">Punches</th>
+                                            <th className="py-2 pr-4">Punches</th>
+                                            <th className="py-2 pr-4">Remarks</th>
+                                            <th className="py-2">Evidence</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -255,11 +280,19 @@ export default function AttendanceReport({
                                                 </td>
                                                 <td className="py-2 pr-4 font-mono text-xs">{row.device_pin}</td>
                                                 <td className="py-2 pr-4">{row.device_name ?? '—'}</td>
+                                                <td className="py-2 pr-4">{sourceLabel(row.source)}</td>
+                                                <td className="py-2 pr-4">{row.work_mode_label ?? '—'}</td>
                                                 <td className="py-2 pr-4 font-mono text-xs">{row.clock_in ?? '—'}</td>
                                                 <td className="py-2 pr-4 font-mono text-xs">{row.clock_out ?? '—'}</td>
                                                 <td className="py-2 pr-4">{row.working_hours}</td>
                                                 <td className="py-2 pr-4">{row.overtime}</td>
-                                                <td className="py-2">{row.punch_count}</td>
+                                                <td className="py-2 pr-4">{row.punch_count}</td>
+                                                <td className="py-2 pr-4">
+                                                    <AttendanceRemarksCell row={row} />
+                                                </td>
+                                                <td className="py-2">
+                                                    <AttendanceEvidenceCell row={row} />
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

@@ -9,6 +9,7 @@ import {
     Search,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useLiveClock } from '@/hooks/use-live-clock';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
 import { NotificationBellListItem } from '@/components/notification-bell-list-item';
@@ -84,6 +85,7 @@ const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
 export function AppHeader({ breadcrumbs = [] }: Props) {
+    const now = useLiveClock();
     const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
     const notificationListRef = useNotificationListPointerGuard(
         notificationsMenuOpen,
@@ -228,6 +230,16 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                     </div>
 
                     <div className="ml-auto flex items-center space-x-2">
+                        {/* Live system date and time */}
+                        <div className="hidden select-none flex-col items-end leading-tight sm:flex">
+                            <span className="text-foreground text-xs font-semibold tabular-nums">
+                                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                            <span className="text-muted-foreground text-[10px]">
+                                {now.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                            </span>
+                        </div>
+
                         <ThemeToggleSwitch
                             resolvedAppearance={resolvedAppearance}
                             onToggle={() =>

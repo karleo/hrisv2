@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Monitor, Package } from 'lucide-react';
+import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Clock, Monitor, Package } from 'lucide-react';
+import { AttendanceCheckInDialog, type WorkModeOption } from '@/components/attendance-check-in-dialog';
+import { AttendanceCheckOutDialog } from '@/components/attendance-check-out-dialog';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import { dashboard } from '@/routes';
@@ -106,12 +108,28 @@ function toIsoDate(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
+type AttendanceOpenEntry = {
+    id: number;
+    clock_in_at: string;
+    work_mode: string | null;
+    work_mode_label: string;
+    requires_field_evidence: boolean;
+};
+
+type AttendanceProps = {
+    can_check_in: boolean;
+    open_entry: AttendanceOpenEntry | null;
+    work_mode_options: WorkModeOption[];
+};
+
 export default function Dashboard({
+    attendance,
     pending,
     recentPending,
     leaveCalendarWidget,
     canViewLeaveCalendar,
 }: {
+    attendance: AttendanceProps | null;
     pending: PendingSummary;
     recentPending: RecentPending;
     leaveCalendarWidget: LeaveCalendarWidget | null;
@@ -176,6 +194,49 @@ export default function Dashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('dashboard.title', 'Dashboard')} />
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
+                {/* Attendance quick-action card — only shown when a linked employee exists */}
+                {attendance && (
+                    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg border border-border bg-muted/60 p-2.5">
+                                    <Clock className="size-4.5 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold">
+                                        {attendance.open_entry
+                                            ? `Checked in — ${attendance.open_entry.work_mode_label}`
+                                            : 'Not checked in today'}
+                                    </p>
+                                    {attendance.open_entry && (
+                                        <p className="text-muted-foreground text-xs">
+                                            Since {new Date(attendance.open_entry.clock_in_at).toLocaleTimeString()}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {attendance.can_check_in && (
+                                    <AttendanceCheckInDialog
+                                        workModeOptions={attendance.work_mode_options}
+                                    />
+                                )}
+                                {attendance.open_entry && (
+                                    <AttendanceCheckOutDialog
+                                        openEntry={attendance.open_entry}
+                                    />
+                                )}
+                                <Link
+                                    href="/time-attendance"
+                                    className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+                                >
+                                    History
+                                </Link>
+                            </div>
+                        </div>
+                    </section>
+                )}
+
                 <section className="rounded-2xl border border-border bg-gradient-to-r from-primary/12 via-primary/5 to-transparent p-5 shadow-sm dark:from-primary/22 dark:via-primary/10 dark:to-transparent">
                     <div className="flex flex-col gap-4">
                         <div>

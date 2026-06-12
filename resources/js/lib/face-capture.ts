@@ -13,11 +13,24 @@ export function waitForVideoDimensions(
     }
 
     return new Promise((resolve) => {
+        let settled = false;
+        let rafId = 0;
+
         const done = (ok: boolean): void => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
             clearTimeout(timer);
+            if (rafId !== 0) {
+                window.cancelAnimationFrame(rafId);
+            }
             video.removeEventListener('loadedmetadata', onMeta);
+            video.removeEventListener('loadeddata', onMeta);
             video.removeEventListener('playing', onMeta);
             video.removeEventListener('canplay', onMeta);
+            video.removeEventListener('resize', onMeta);
             resolve(ok);
         };
 
@@ -28,10 +41,21 @@ export function waitForVideoDimensions(
         };
 
         const timer = window.setTimeout(() => done(false), timeoutMs);
+        const poll = (): void => {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                done(true);
+                return;
+            }
+
+            rafId = window.requestAnimationFrame(poll);
+        };
 
         video.addEventListener('loadedmetadata', onMeta);
+        video.addEventListener('loadeddata', onMeta);
         video.addEventListener('playing', onMeta);
         video.addEventListener('canplay', onMeta);
+        video.addEventListener('resize', onMeta);
+        poll();
     });
 }
 

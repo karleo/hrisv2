@@ -79,6 +79,7 @@ class AttendanceReportController extends Controller
             'summary' => [
                 'total_days' => $collection->count(),
                 'total_punches' => $report['total_punches'],
+                'total_manual_entries' => $report['total_manual_entries'],
             ],
             'employees' => $this->companyScope->scopedEmployeeQuery($viewer)
                 ->orderBy('first_name')
@@ -123,11 +124,19 @@ class AttendanceReportController extends Controller
                 'Employee code',
                 'Device PIN',
                 'Device',
+                'Source',
+                'Work mode',
                 'Clock in',
                 'Clock out',
                 'Working hours',
                 'Overtime',
                 'Punch count',
+                'Check-in remarks',
+                'Check-out remarks',
+                'Check-in photo URL',
+                'Check-out photo URL',
+                'Check-in location',
+                'Check-out location',
             ]);
 
             foreach ($rows as $row) {
@@ -137,11 +146,23 @@ class AttendanceReportController extends Controller
                     $row['employee_code'] ?? '',
                     $row['device_pin'],
                     $row['device_name'] ?? '',
+                    $row['source'] ?? 'biometric',
+                    $row['work_mode_label'] ?? '',
                     $row['clock_in'] ?? '',
                     $row['clock_out'] ?? '',
                     $row['working_hours'],
                     $row['overtime'] ?? '—',
                     (string) $row['punch_count'],
+                    $row['check_in_remarks'] ?? '',
+                    $row['check_out_remarks'] ?? '',
+                    $row['check_in_photo_url'] ?? '',
+                    $row['check_out_photo_url'] ?? '',
+                    isset($row['check_in_latitude'], $row['check_in_longitude'])
+                        ? $row['check_in_latitude'].','.$row['check_in_longitude']
+                        : '',
+                    isset($row['check_out_latitude'], $row['check_out_longitude'])
+                        ? $row['check_out_latitude'].','.$row['check_out_longitude']
+                        : '',
                 ]);
             }
 

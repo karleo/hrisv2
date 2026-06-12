@@ -221,15 +221,14 @@ export default function EmployeeProfile({
     emailSignatureCompanyProfile: EmailSignatureCompanyProfilePayload | null;
     emailSignaturePreview: EmailSignaturePreviewPayload;
 }) {
-    const hasBiometricMapping =
-        hasEmployeeProfile && String(employee?.biometric_user_id ?? '').trim().length > 0;
+    const showAttendanceTab = attendance !== null;
     const initialTab = (() => {
         if (typeof window === 'undefined') {
             return 'profile' as const;
         }
 
         const tab = new URLSearchParams(window.location.search).get('tab');
-        if (tab === 'attendance' && hasBiometricMapping) {
+        if (tab === 'attendance' && showAttendanceTab) {
             return 'attendance' as const;
         }
         if (tab === 'documents' || tab === 'security' || tab === 'leave' || tab === 'employment') {
@@ -597,7 +596,7 @@ export default function EmployeeProfile({
                                 >
                                     Leave
                                 </Button>
-                                {hasBiometricMapping ? (
+                                {showAttendanceTab ? (
                                     <Button
                                         type="button"
                                         size="sm"
@@ -1128,7 +1127,7 @@ export default function EmployeeProfile({
                         </CardContent>
                     </Card>
 
-                    {tab === 'attendance' && hasBiometricMapping && employee ? (
+                    {tab === 'attendance' && showAttendanceTab && employee ? (
                         attendance ? (
                             <EmployeeAttendanceTab
                                 employeeId={employee.id}

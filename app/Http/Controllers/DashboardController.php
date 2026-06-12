@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceWorkMode;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\Department;
 use App\Models\EmployeeRequest;
+use App\Models\EmployeeTimeEntry;
 use App\Models\ItAssetRequest;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\User;
 use App\Support\CompanyAccessScope;
 use App\Support\RequestApprovalScope;
 use Carbon\Carbon;
@@ -23,6 +26,62 @@ class DashboardController extends Controller
         private readonly RequestApprovalScope $approvalScope,
         private readonly CompanyAccessScope $companyScope,
     ) {}
+
+    /**
+     * Build minimal attendance context for the dashboard quick-action card.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function buildAttendanceProps(?User $user): ?array
+    {
+        if ($user === null || $user->employee === null) {
+            return null;
+        }
+
+        $employee = $user->employee;
+
+        // Employee must have a timetable assigned before they can check in.
+        // Admins with a linked employee are treated like regular employees for self-check-in.
+        $canCheckIn = $employee->hasUsableWorkTimetable()
+            && (
+                $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::View)
+                || $user->isAdministrator()
+            );
+
+        $openEntry = EmployeeTimeEntry::query()
+            ->where('employee_id', $employee->id)
+            ->whereNull('clock_out_at')
+            ->latest('clock_in_at')
+            ->first();
+
+        if ($openEntry !== null) {
+            // Already checked in — cannot check in again until checked out
+            $canCheckIn = false;
+        }
+
+        $workModeOptions = array_map(
+            fn (AttendanceWorkMode $mode): array => [
+                'value' => $mode->value,
+                'label' => $mode->label(),
+                'is_field' => $mode->isField(),
+            ],
+            AttendanceWorkMode::cases()
+        );
+
+        return [
+            'can_check_in' => $canCheckIn,
+            'open_entry' => $openEntry
+                ? [
+                    'id' => $openEntry->id,
+                    'clock_in_at' => $openEntry->clock_in_at->toIso8601String(),
+                    'work_mode' => $openEntry->work_mode?->value,
+                    'work_mode_label' => $openEntry->workModeLabel(),
+                    'requires_field_evidence' => $openEntry->requiresFieldEvidence(),
+                ]
+                : null,
+            'work_mode_options' => $workModeOptions,
+        ];
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -156,7 +215,11 @@ class DashboardController extends Controller
             ];
         }
 
+        // Build attendance quick-action props for linked employees
+        $attendanceProps = $this->buildAttendanceProps($user);
+
         return Inertia::render('dashboard', [
+            'attendance' => $attendanceProps,
             'pending' => [
                 'leave_requests' => $leavePending->count(),
                 'employee_requests' => $employeePending->count(),

@@ -1,7 +1,9 @@
-import { Form, Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Clock, Trash2 } from 'lucide-react';
-import type { FormEvent} from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Camera, Clock, MapPin, Trash2 } from 'lucide-react';
+import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { AttendanceCheckInDialog, type WorkModeOption } from '@/components/attendance-check-in-dialog';
+import { AttendanceCheckOutDialog } from '@/components/attendance-check-out-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -28,12 +30,34 @@ type TimeEntryRow = {
     clock_in_at: string;
     clock_out_at: string | null;
     daily_summary: string | null;
+    work_mode: string | null;
+    work_mode_label: string;
+    requires_field_evidence: boolean;
+    check_in_remarks: string | null;
+    check_out_remarks: string | null;
+    has_check_in_photo: boolean;
+    has_check_out_photo: boolean;
+    check_in_photo_url: string | null;
+    check_out_photo_url: string | null;
+    check_in_latitude: number | null;
+    check_in_longitude: number | null;
+    check_out_latitude: number | null;
+    check_out_longitude: number | null;
     worked_minutes: number | null;
+    overtime_minutes: number | null;
     expected_minutes: number | null;
     minutes_variance: number | null;
     expected_label: string;
     check_in_status_label: string;
     check_out_status_label: string;
+};
+
+type OpenEntry = {
+    id: number;
+    clock_in_at: string;
+    work_mode: string | null;
+    work_mode_label: string;
+    requires_field_evidence: boolean;
 };
 
 type EmployeeOption = { id: number; name: string };
@@ -64,6 +88,11 @@ function formatVarianceMinutes(v: number | null | undefined): string {
     return `${sign}${v}m`;
 }
 
+// Build a small Google Maps link for a lat/lng pair
+function mapsLink(lat: number, lng: number): string {
+    return `https://maps.google.com/?q=${lat},${lng}`;
+}
+
 export default function TimeAttendanceIndex({
     entries,
     filters,
@@ -73,6 +102,7 @@ export default function TimeAttendanceIndex({
     canCheckIn,
     isAdministrator,
     employeesForCheckIn,
+    workModeOptions,
 }: {
     entries: {
         data: TimeEntryRow[];
@@ -82,22 +112,24 @@ export default function TimeAttendanceIndex({
     filters: { from?: string; to?: string };
     workSchedule: WorkScheduleRow[] | null;
     graceMinutes: number;
-    openEntry: { id: number; clock_in_at: string } | null;
+    openEntry: OpenEntry | null;
     canCheckIn: boolean;
     isAdministrator: boolean;
     employeesForCheckIn: EmployeeOption[];
+    workModeOptions: WorkModeOption[];
 }) {
     const page = usePage();
     const { flash } = page.props as { flash?: { success?: string } };
-    const pageErrors = (page.props as { errors?: Record<string, string> })
-        .errors;
+    const pageErrors = (page.props as { errors?: Record<string, string> }).errors;
     const { data: rows, current_page, last_page } = entries;
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
 
-    const checkInAdminForm = useForm({
-        employee_id: employeesForCheckIn[0]?.id ?? ('' as number | ''),
-    });
+    // Admin check-in form (no dialog — just a dropdown + submit)
+    const [adminEmployeeId, setAdminEmployeeId] = useState<number | ''>(
+        employeesForCheckIn[0]?.id ?? ''
+    );
+    const [adminSubmitting, setAdminSubmitting] = useState(false);
 
     const filterSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -115,6 +147,21 @@ export default function TimeAttendanceIndex({
         if (confirm('Remove this time entry?')) {
             router.delete(`/time-attendance/${id}`);
         }
+    };
+
+    const handleAdminCheckIn = (e: FormEvent) => {
+        e.preventDefault();
+        if (!adminEmployeeId) {
+            return;
+        }
+        setAdminSubmitting(true);
+        router.post(
+            '/time-attendance',
+            { employee_id: adminEmployeeId },
+            {
+                onFinish: () => setAdminSubmitting(false),
+            }
+        );
     };
 
     return (
@@ -151,26 +198,16 @@ export default function TimeAttendanceIndex({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b text-left">
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Day
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Schedule
-                                            </th>
-                                            <th className="pb-2 font-medium">
-                                                Expected
-                                            </th>
+                                            <th className="pb-2 pr-4 font-medium">Day</th>
+                                            <th className="pb-2 pr-4 font-medium">Schedule</th>
+                                            <th className="pb-2 font-medium">Expected</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {workSchedule.map((d) => (
-                                            <tr
-                                                key={d.weekday}
-                                                className="border-b border-border/60"
-                                            >
+                                            <tr key={d.weekday} className="border-b border-border/60">
                                                 <td className="py-2 pr-4">
-                                                    {WEEKDAY_LABELS[d.weekday] ??
-                                                        d.weekday_label}
+                                                    {WEEKDAY_LABELS[d.weekday] ?? d.weekday_label}
                                                 </td>
                                                 <td className="text-muted-foreground py-2 pr-4">
                                                     {d.is_rest_day
@@ -180,9 +217,7 @@ export default function TimeAttendanceIndex({
                                                 <td className="py-2">
                                                     {d.is_rest_day
                                                         ? '—'
-                                                        : formatMinutes(
-                                                              d.expected_minutes
-                                                          )}
+                                                        : formatMinutes(d.expected_minutes)}
                                                 </td>
                                             </tr>
                                         ))}
@@ -194,154 +229,85 @@ export default function TimeAttendanceIndex({
                 )}
 
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    {/* Check-in card */}
                     {canCheckIn && (
                         <Card className="flex-1">
                             <CardHeader>
-                                <CardTitle className="text-base">
-                                    Check in
-                                </CardTitle>
+                                <CardTitle className="text-base">Check in</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {isAdministrator ? (
-                                    <form
-                                        onSubmit={(e) => {
-                                            e.preventDefault();
-                                            checkInAdminForm.post(
-                                                '/time-attendance'
-                                            );
-                                        }}
-                                    >
+                                    // Admins check in for other employees — no dialog needed
+                                    <form onSubmit={handleAdminCheckIn}>
                                         <div className="grid gap-2">
-                                            <Label htmlFor="employee_id">
-                                                Employee
-                                            </Label>
+                                            <Label htmlFor="employee_id">Employee</Label>
                                             <select
                                                 id="employee_id"
                                                 className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
-                                                value={
-                                                    checkInAdminForm.data
-                                                        .employee_id
-                                                }
+                                                value={adminEmployeeId}
                                                 onChange={(e) =>
-                                                    checkInAdminForm.setData(
-                                                        'employee_id',
-                                                        Number(e.target.value)
-                                                    )
+                                                    setAdminEmployeeId(Number(e.target.value))
                                                 }
                                                 required
                                             >
-                                                {employeesForCheckIn.map(
-                                                    (em) => (
-                                                        <option
-                                                            key={em.id}
-                                                            value={em.id}
-                                                            className="bg-background text-foreground"
-                                                        >
-                                                            {em.name}
-                                                        </option>
-                                                    )
-                                                )}
+                                                {employeesForCheckIn.map((em) => (
+                                                    <option
+                                                        key={em.id}
+                                                        value={em.id}
+                                                        className="bg-background text-foreground"
+                                                    >
+                                                        {em.name}
+                                                    </option>
+                                                ))}
                                             </select>
-                                            <InputError
-                                                message={
-                                                    checkInAdminForm.errors
-                                                        .employee_id
-                                                }
-                                            />
-                                            <InputError
-                                                message={
-                                                    checkInAdminForm.errors
-                                                        .check_in
-                                                }
-                                            />
+                                            <InputError message={pageErrors?.employee_id} />
+                                            <InputError message={pageErrors?.check_in} />
                                         </div>
                                         <Button
                                             type="submit"
                                             className="mt-3"
-                                            disabled={
-                                                checkInAdminForm.processing ||
-                                                !employeesForCheckIn.length
-                                            }
+                                            disabled={adminSubmitting || !employeesForCheckIn.length}
                                         >
                                             Check in now
                                         </Button>
                                     </form>
                                 ) : (
+                                    // Employees use the dialog with work mode + optional evidence
                                     <>
-                                        <Button
-                                            type="button"
-                                            onClick={() =>
-                                                router.post('/time-attendance')
-                                            }
-                                        >
-                                            Check in now
-                                        </Button>
-                                        <InputError
-                                            message={pageErrors?.check_in}
+                                        <AttendanceCheckInDialog
+                                            workModeOptions={workModeOptions}
+                                            trigger={<Button>Check in now</Button>}
                                         />
+                                        <InputError message={pageErrors?.check_in} />
                                     </>
                                 )}
                             </CardContent>
                         </Card>
                     )}
 
+                    {/* Check-out card */}
                     {openEntry && !isAdministrator && (
                         <Card className="flex-1">
                             <CardHeader>
-                                <CardTitle className="text-base">
-                                    Check out
-                                </CardTitle>
+                                <CardTitle className="text-base">Check out</CardTitle>
                                 <p className="text-muted-foreground text-sm">
-                                    Open since{' '}
-                                    {new Date(
-                                        openEntry.clock_in_at
-                                    ).toLocaleString()}
+                                    Open since {new Date(openEntry.clock_in_at).toLocaleString()}
+                                    {' · '}
+                                    {openEntry.work_mode_label}
                                 </p>
                             </CardHeader>
                             <CardContent>
-                                <Form
-                                    action="/time-attendance/check-out"
-                                    method="post"
-                                    className="space-y-3"
-                                >
-                                    {({ errors, processing }) => (
-                                        <>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="daily_summary">
-                                                    What did you work on today?
-                                                    (optional)
-                                                </Label>
-                                                <textarea
-                                                    id="daily_summary"
-                                                    name="daily_summary"
-                                                    rows={4}
-                                                    maxLength={5000}
-                                                    className="border-input focus-visible:ring-ring min-h-[100px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-                                                    placeholder="Notes or bullet list of tasks…"
-                                                />
-                                                <InputError
-                                                    message={
-                                                        errors.daily_summary
-                                                    }
-                                                />
-                                            </div>
-                                            <Button
-                                                type="submit"
-                                                disabled={processing}
-                                            >
-                                                Check out
-                                            </Button>
-                                            <InputError
-                                                message={errors.check_out}
-                                            />
-                                        </>
-                                    )}
-                                </Form>
+                                <AttendanceCheckOutDialog
+                                    openEntry={openEntry}
+                                    trigger={<Button variant="outline">Check out now</Button>}
+                                />
+                                <InputError message={pageErrors?.check_out} />
                             </CardContent>
                         </Card>
                     )}
                 </div>
 
+                {/* Date filter */}
                 <form
                     onSubmit={filterSubmit}
                     className="flex flex-wrap items-end gap-2"
@@ -366,14 +332,13 @@ export default function TimeAttendanceIndex({
                             className="w-auto"
                         />
                     </div>
-                    <Button type="submit" variant="secondary">
-                        Filter
-                    </Button>
+                    <Button type="submit" variant="secondary">Filter</Button>
                     <Button type="button" variant="ghost" asChild>
                         <Link href="/time-attendance">Clear</Link>
                     </Button>
                 </form>
 
+                {/* History table */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-base">History</CardTitle>
@@ -388,33 +353,18 @@ export default function TimeAttendanceIndex({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b text-left">
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Employee
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                In
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Out
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Scheduled
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Check-in
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Check-out
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Worked
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                vs sched.
-                                            </th>
-                                            <th className="pb-2 pr-4 font-medium">
-                                                Daily summary
-                                            </th>
+                                            <th className="pb-2 pr-4 font-medium">Employee</th>
+                                            <th className="pb-2 pr-4 font-medium">Mode</th>
+                                            <th className="pb-2 pr-4 font-medium">In</th>
+                                            <th className="pb-2 pr-4 font-medium">Out</th>
+                                            <th className="pb-2 pr-4 font-medium">Scheduled</th>
+                                            <th className="pb-2 pr-4 font-medium">Check-in</th>
+                                            <th className="pb-2 pr-4 font-medium">Check-out</th>
+                                            <th className="pb-2 pr-4 font-medium">Worked</th>
+                                            <th className="pb-2 pr-4 font-medium">Overtime</th>
+                                            <th className="pb-2 pr-4 font-medium">vs sched.</th>
+                                            <th className="pb-2 pr-4 font-medium">Remarks</th>
+                                            <th className="pb-2 pr-4 font-medium">Evidence</th>
                                             {isAdministrator && (
                                                 <th className="pb-2 text-right font-medium">
                                                     Actions
@@ -424,53 +374,110 @@ export default function TimeAttendanceIndex({
                                     </thead>
                                     <tbody>
                                         {rows.map((row) => (
-                                            <tr
-                                                key={row.id}
-                                                className="border-b border-border/60"
-                                            >
+                                            <tr key={row.id} className="border-b border-border/60">
+                                                <td className="py-2 pr-4">{row.employee_name}</td>
                                                 <td className="py-2 pr-4">
-                                                    {row.employee_name}
+                                                    <span className="text-muted-foreground text-xs">
+                                                        {row.work_mode_label}
+                                                    </span>
                                                 </td>
                                                 <td className="py-2 pr-4">
-                                                    {new Date(
-                                                        row.clock_in_at
-                                                    ).toLocaleString()}
+                                                    {new Date(row.clock_in_at).toLocaleString()}
                                                 </td>
                                                 <td className="py-2 pr-4">
                                                     {row.clock_out_at
-                                                        ? new Date(
-                                                              row.clock_out_at
-                                                          ).toLocaleString()
+                                                        ? new Date(row.clock_out_at).toLocaleString()
                                                         : '—'}
                                                 </td>
                                                 <td className="text-muted-foreground py-2 pr-4">
                                                     {row.expected_label}
                                                 </td>
+                                                <td className="py-2 pr-4">{row.check_in_status_label}</td>
+                                                <td className="py-2 pr-4">{row.check_out_status_label}</td>
                                                 <td className="py-2 pr-4">
-                                                    {
-                                                        row.check_in_status_label
-                                                    }
+                                                    {formatMinutes(row.worked_minutes)}
                                                 </td>
                                                 <td className="py-2 pr-4">
-                                                    {
-                                                        row.check_out_status_label
-                                                    }
-                                                </td>
-                                                <td className="py-2 pr-4">
-                                                    {formatMinutes(
-                                                        row.worked_minutes
+                                                    {row.overtime_minutes != null && row.overtime_minutes > 0 ? (
+                                                        <span className="text-amber-700 dark:text-amber-400">
+                                                            {formatMinutes(row.overtime_minutes)}
+                                                        </span>
+                                                    ) : (
+                                                        '—'
                                                     )}
                                                 </td>
                                                 <td
                                                     className={`py-2 pr-4 ${row.minutes_variance != null && row.minutes_variance > 0 ? 'text-amber-700 dark:text-amber-400' : ''} ${row.minutes_variance != null && row.minutes_variance < 0 ? 'text-muted-foreground' : ''}`}
                                                 >
-                                                    {formatVarianceMinutes(
-                                                        row.minutes_variance
-                                                    )}
+                                                    {formatVarianceMinutes(row.minutes_variance)}
                                                 </td>
-                                                <td className="max-w-[240px] whitespace-pre-wrap py-2 pr-4">
-                                                    {row.daily_summary ??
-                                                        '—'}
+                                                <td className="max-w-[180px] whitespace-pre-wrap py-2 pr-4 text-xs">
+                                                    {row.check_in_remarks && (
+                                                        <div>
+                                                            <span className="text-muted-foreground font-medium">In:</span>{' '}
+                                                            {row.check_in_remarks}
+                                                        </div>
+                                                    )}
+                                                    {row.check_out_remarks && (
+                                                        <div>
+                                                            <span className="text-muted-foreground font-medium">Out:</span>{' '}
+                                                            {row.check_out_remarks}
+                                                        </div>
+                                                    )}
+                                                    {!row.check_in_remarks && !row.check_out_remarks && '—'}
+                                                </td>
+                                                <td className="py-2 pr-4">
+                                                    <div className="flex flex-col gap-1 text-xs">
+                                                        {row.check_in_latitude != null && row.check_in_longitude != null && (
+                                                            <a
+                                                                href={mapsLink(row.check_in_latitude, row.check_in_longitude)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-primary flex items-center gap-1 underline-offset-2 hover:underline"
+                                                            >
+                                                                <MapPin className="size-3" />
+                                                                In
+                                                            </a>
+                                                        )}
+                                                        {row.check_out_latitude != null && row.check_out_longitude != null && (
+                                                            <a
+                                                                href={mapsLink(row.check_out_latitude, row.check_out_longitude)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-primary flex items-center gap-1 underline-offset-2 hover:underline"
+                                                            >
+                                                                <MapPin className="size-3" />
+                                                                Out
+                                                            </a>
+                                                        )}
+                                                        {row.check_in_photo_url && (
+                                                            <a
+                                                                href={row.check_in_photo_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-primary flex items-center gap-1 underline-offset-2 hover:underline"
+                                                            >
+                                                                <Camera className="size-3" />
+                                                                Photo In
+                                                            </a>
+                                                        )}
+                                                        {row.check_out_photo_url && (
+                                                            <a
+                                                                href={row.check_out_photo_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-primary flex items-center gap-1 underline-offset-2 hover:underline"
+                                                            >
+                                                                <Camera className="size-3" />
+                                                                Photo Out
+                                                            </a>
+                                                        )}
+                                                        {!row.check_in_latitude
+                                                            && !row.check_out_latitude
+                                                            && !row.check_in_photo_url
+                                                            && !row.check_out_photo_url
+                                                            && '—'}
+                                                    </div>
                                                 </td>
                                                 {isAdministrator && (
                                                     <td className="py-2 text-right">
@@ -479,11 +486,7 @@ export default function TimeAttendanceIndex({
                                                             variant="ghost"
                                                             size="icon"
                                                             className="text-destructive hover:text-destructive"
-                                                            onClick={() =>
-                                                                handleDelete(
-                                                                    row.id
-                                                                )
-                                                            }
+                                                            onClick={() => handleDelete(row.id)}
                                                             aria-label="Delete entry"
                                                         >
                                                             <Trash2 className="size-4" />

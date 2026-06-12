@@ -6,10 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    AttendanceEvidenceCell,
+    AttendanceRemarksCell,
+    type AttendanceRemarksEvidence,
+} from '@/components/attendance-entry-cells';
 import { formatDisplayDate } from '@/lib/format-display-date';
 import { edit } from '@/routes/employees';
 
-type AttendanceRow = {
+type AttendanceRow = AttendanceRemarksEvidence & {
     date: string;
     device_pin: string;
     device_name: string | null;
@@ -18,13 +23,26 @@ type AttendanceRow = {
     working_hours: string;
     overtime: string;
     punch_count: number;
+    source?: 'biometric' | 'manual' | 'merged';
+    work_mode_label?: string | null;
 };
 
 type AttendancePayload = {
     filters: { from: string; to: string };
-    summary: { total_days: number; total_punches: number };
+    summary: { total_days: number; total_punches: number; total_manual_entries?: number };
     rows: AttendanceRow[];
 };
+
+function sourceLabel(source: AttendanceRow['source']): string {
+    switch (source) {
+        case 'manual':
+            return 'Web check-in';
+        case 'merged':
+            return 'Merged';
+        default:
+            return 'Biometric';
+    }
+}
 
 export function EmployeeAttendanceTab({
     employeeId,
@@ -157,14 +175,17 @@ export function EmployeeAttendanceTab({
                     <CardTitle className="text-base">Attendance</CardTitle>
                     <p className="text-muted-foreground mt-1 text-sm">
                         {attendance.summary.total_days} day row(s) · {attendance.summary.total_punches}{' '}
-                        punch(es) in range
+                        biometric punch(es)
+                        {(attendance.summary.total_manual_entries ?? 0) > 0
+                            ? ` · ${attendance.summary.total_manual_entries} web check-in(s)`
+                            : ''}
                     </p>
                 </CardHeader>
                 <CardContent>
                     {attendance.rows.length === 0 ? (
                         <p className="text-muted-foreground text-sm">
-                            No biometric attendance in this range. Import punches from Biometric attendance,
-                            and ensure this employee&apos;s device PIN matches the terminal.
+                            No attendance in this range. Use web check-in on the dashboard or Time &
+                            Attendance, or import biometric punches from Biometric attendance.
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
@@ -172,12 +193,16 @@ export function EmployeeAttendanceTab({
                                 <thead>
                                     <tr className="border-b text-left">
                                         <th className="py-2 pr-4">Date</th>
+                                        <th className="py-2 pr-4">Source</th>
+                                        <th className="py-2 pr-4">Work mode</th>
                                         <th className="py-2 pr-4">Device</th>
                                         <th className="py-2 pr-4">Clock in</th>
                                         <th className="py-2 pr-4">Clock out</th>
                                         <th className="py-2 pr-4">Working hours</th>
                                         <th className="py-2 pr-4">Overtime</th>
-                                        <th className="py-2">Punches</th>
+                                        <th className="py-2 pr-4">Punches</th>
+                                        <th className="py-2 pr-4">Remarks</th>
+                                        <th className="py-2">Evidence</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -187,6 +212,8 @@ export function EmployeeAttendanceTab({
                                             className="border-b"
                                         >
                                             <td className="py-2 pr-4">{formatDisplayDate(row.date)}</td>
+                                            <td className="py-2 pr-4">{sourceLabel(row.source)}</td>
+                                            <td className="py-2 pr-4">{row.work_mode_label ?? '—'}</td>
                                             <td className="py-2 pr-4">{row.device_name ?? '—'}</td>
                                             <td className="py-2 pr-4 font-mono text-xs">
                                                 {row.clock_in ?? '—'}
@@ -196,7 +223,13 @@ export function EmployeeAttendanceTab({
                                             </td>
                                             <td className="py-2 pr-4">{row.working_hours}</td>
                                             <td className="py-2 pr-4">{row.overtime}</td>
-                                            <td className="py-2">{row.punch_count}</td>
+                                            <td className="py-2 pr-4">{row.punch_count}</td>
+                                            <td className="py-2 pr-4">
+                                                <AttendanceRemarksCell row={row} />
+                                            </td>
+                                            <td className="py-2">
+                                                <AttendanceEvidenceCell row={row} />
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

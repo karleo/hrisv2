@@ -5,6 +5,7 @@ namespace App\Services\Reports;
 use App\Enums\BiometricPunchDirection;
 use App\Models\BiometricPunch;
 use App\Models\Employee;
+use App\Models\EmployeeTimeEntry;
 use App\Models\User;
 use App\Support\CompanyAccessScope;
 use Illuminate\Support\Carbon;
@@ -34,8 +35,19 @@ final class AttendanceReportService
      *         working_minutes: int|null,
      *         overtime: string,
      *         overtime_minutes: int|null,
+     *         source: string,
+     *         work_mode_label: string|null,
+     *         check_in_remarks: string|null,
+     *         check_out_remarks: string|null,
+     *         check_in_photo_url: string|null,
+     *         check_out_photo_url: string|null,
+     *         check_in_latitude: float|null,
+     *         check_in_longitude: float|null,
+     *         check_out_latitude: float|null,
+     *         check_out_longitude: float|null,
      *     }>,
      *     total_punches: int,
+     *     total_manual_entries: int,
      * }
      */
     public function build(
@@ -64,12 +76,14 @@ final class AttendanceReportService
         }
 
         $punches = $query->get();
+        $manualEntries = $this->manualEntriesQuery($from, $to, $employeeId, $viewer)->get();
 
-        $rows = $this->aggregateDailyRows($punches);
+        $rows = $this->aggregateDailyRows($punches, null, $manualEntries);
 
         return [
             'rows' => $rows,
             'total_punches' => $punches->count(),
+            'total_manual_entries' => $manualEntries->count(),
         ];
     }
 
@@ -91,8 +105,19 @@ final class AttendanceReportService
      *         working_minutes: int|null,
      *         overtime: string,
      *         overtime_minutes: int|null,
+     *         source: string,
+     *         work_mode_label: string|null,
+     *         check_in_remarks: string|null,
+     *         check_out_remarks: string|null,
+     *         check_in_photo_url: string|null,
+     *         check_out_photo_url: string|null,
+     *         check_in_latitude: float|null,
+     *         check_in_longitude: float|null,
+     *         check_out_latitude: float|null,
+     *         check_out_longitude: float|null,
      *     }>,
      *     total_punches: int,
+     *     total_manual_entries: int,
      * }
      */
     public function buildForEmployee(
@@ -101,46 +126,44 @@ final class AttendanceReportService
         string $to,
         ?int $biometricDeviceId = null,
     ): array {
+        $punches = collect();
         $pin = trim((string) $employee->biometric_user_id);
 
-        if ($pin === '') {
-            return [
-                'rows' => [],
-                'total_punches' => 0,
-            ];
-        }
+        if ($pin !== '') {
+            $pins = [$pin];
 
-        $pins = [$pin];
+            if (ctype_digit($pin)) {
+                $normalized = ltrim($pin, '0') ?: '0';
 
-        if (ctype_digit($pin)) {
-            $normalized = ltrim($pin, '0') ?: '0';
-
-            if (! in_array($normalized, $pins, true)) {
-                $pins[] = $normalized;
+                if (! in_array($normalized, $pins, true)) {
+                    $pins[] = $normalized;
+                }
             }
+
+            $query = BiometricPunch::query()
+                ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
+                ->where('punched_at', '>=', $from.' 00:00:00')
+                ->where('punched_at', '<=', $to.' 23:59:59')
+                ->where(function ($builder) use ($employee, $pins): void {
+                    $builder->where('employee_id', $employee->id)
+                        ->orWhereIn('device_user_id', $pins);
+                })
+                ->orderBy('punched_at');
+
+            if ($biometricDeviceId !== null) {
+                $query->where('biometric_device_id', $biometricDeviceId);
+            }
+
+            $punches = $query->get();
         }
 
-        $query = BiometricPunch::query()
-            ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
-            ->where('punched_at', '>=', $from.' 00:00:00')
-            ->where('punched_at', '<=', $to.' 23:59:59')
-            ->where(function ($builder) use ($employee, $pins): void {
-                $builder->where('employee_id', $employee->id)
-                    ->orWhereIn('device_user_id', $pins);
-            })
-            ->orderBy('punched_at');
-
-        if ($biometricDeviceId !== null) {
-            $query->where('biometric_device_id', $biometricDeviceId);
-        }
-
-        $punches = $query->get();
-
-        $rows = $this->aggregateDailyRows($punches, $employee);
+        $manualEntries = $this->manualEntriesQuery($from, $to, $employee->id, null)->get();
+        $rows = $this->aggregateDailyRows($punches, $employee, $manualEntries);
 
         return [
             'rows' => $rows,
             'total_punches' => $punches->count(),
+            'total_manual_entries' => $manualEntries->count(),
         ];
     }
 
@@ -160,13 +183,37 @@ final class AttendanceReportService
      *     working_minutes: int|null,
      *     overtime: string,
      *     overtime_minutes: int|null,
+     *     source: string,
+     *     work_mode_label: string|null,
      * }>
      */
-    private function aggregateDailyRows(Collection $punches, ?Employee $contextEmployee = null): array
-    {
-        $employeeMap = $this->employeesWithTimetables($punches, $contextEmployee);
+    private function aggregateDailyRows(
+        Collection $punches,
+        ?Employee $contextEmployee = null,
+        ?Collection $manualEntries = null,
+    ): array {
+        $employeeMap = $this->employeesWithTimetables($punches, $contextEmployee, $manualEntries);
 
-        /** @var array<string, array{punches: list<BiometricPunch>, employee_id: int|null, device_pin: string, device_name: string|null, employee_name: string, employee_code: string|null, date: string}> $groups */
+        /** @var array<string, array{
+         *     punches: list<BiometricPunch>,
+         *     employee_id: int|null,
+         *     device_pin: string,
+         *     device_name: string|null,
+         *     employee_name: string,
+         *     employee_code: string|null,
+         *     date: string,
+         *     manual_clock_ins: list<string>,
+         *     manual_clock_outs: list<string>,
+         *     work_mode_label: string|null,
+         *     check_in_remarks: string|null,
+         *     check_out_remarks: string|null,
+         *     check_in_photo_url: string|null,
+         *     check_out_photo_url: string|null,
+         *     check_in_latitude: float|null,
+         *     check_in_longitude: float|null,
+         *     check_out_latitude: float|null,
+         *     check_out_longitude: float|null,
+         * }> $groups */
         $groups = [];
 
         foreach ($punches as $punch) {
@@ -175,20 +222,81 @@ final class AttendanceReportService
             $groupKey = ($employeeId !== null ? 'e:'.$employeeId : 'p:'.$punch->device_user_id).':'.$date;
 
             if (! isset($groups[$groupKey])) {
-                $groups[$groupKey] = [
-                    'date' => $date,
-                    'employee_id' => $employeeId,
-                    'device_pin' => $punch->device_user_id,
-                    'device_name' => $punch->device?->name,
-                    'employee_name' => $punch->employee
+                $groups[$groupKey] = $this->emptyDailyGroup(
+                    date: $date,
+                    employeeId: $employeeId,
+                    devicePin: $punch->device_user_id,
+                    deviceName: $punch->device?->name,
+                    employeeName: $punch->employee
                         ? trim($punch->employee->first_name.' '.$punch->employee->last_name)
                         : 'Unmapped (PIN '.$punch->device_user_id.')',
-                    'employee_code' => $punch->employee?->employee_code,
-                    'punches' => [],
-                ];
+                    employeeCode: $punch->employee?->employee_code,
+                );
             }
 
             $groups[$groupKey]['punches'][] = $punch;
+        }
+
+        foreach ($manualEntries ?? [] as $entry) {
+            /** @var EmployeeTimeEntry $entry */
+            if ($entry->employee_id === null) {
+                continue;
+            }
+
+            $date = $entry->clock_in_at->format('Y-m-d');
+            $groupKey = 'e:'.$entry->employee_id.':'.$date;
+            $employee = $entry->employee;
+
+            if (! isset($groups[$groupKey])) {
+                $groups[$groupKey] = $this->emptyDailyGroup(
+                    date: $date,
+                    employeeId: $entry->employee_id,
+                    devicePin: trim((string) ($employee?->biometric_user_id ?? '')) !== ''
+                        ? (string) $employee->biometric_user_id
+                        : '—',
+                    deviceName: 'Web check-in',
+                    employeeName: $employee
+                        ? trim($employee->first_name.' '.$employee->last_name)
+                        : 'Employee #'.$entry->employee_id,
+                    employeeCode: $employee?->employee_code,
+                );
+            }
+
+            $groups[$groupKey]['manual_clock_ins'][] = $entry->clock_in_at->format('H:i:s');
+
+            if ($entry->clock_out_at !== null) {
+                $groups[$groupKey]['manual_clock_outs'][] = $entry->clock_out_at->format('H:i:s');
+            }
+
+            if ($entry->work_mode !== null) {
+                $groups[$groupKey]['work_mode_label'] = $entry->workModeLabel();
+            }
+
+            if (filled($entry->check_in_remarks)) {
+                $groups[$groupKey]['check_in_remarks'] = $entry->check_in_remarks;
+            }
+
+            if (filled($entry->check_out_remarks)) {
+                $groups[$groupKey]['check_out_remarks'] = $entry->check_out_remarks;
+            }
+
+            if ($entry->check_in_photo_path !== null) {
+                $groups[$groupKey]['check_in_photo_url'] = $this->photoPublicUrl($entry->check_in_photo_path);
+            }
+
+            if ($entry->check_out_photo_path !== null) {
+                $groups[$groupKey]['check_out_photo_url'] = $this->photoPublicUrl($entry->check_out_photo_path);
+            }
+
+            if ($entry->check_in_latitude !== null && $entry->check_in_longitude !== null) {
+                $groups[$groupKey]['check_in_latitude'] = $entry->check_in_latitude;
+                $groups[$groupKey]['check_in_longitude'] = $entry->check_in_longitude;
+            }
+
+            if ($entry->check_out_latitude !== null && $entry->check_out_longitude !== null) {
+                $groups[$groupKey]['check_out_latitude'] = $entry->check_out_latitude;
+                $groups[$groupKey]['check_out_longitude'] = $entry->check_out_longitude;
+            }
         }
 
         $rows = [];
@@ -196,6 +304,15 @@ final class AttendanceReportService
         foreach ($groups as $group) {
             $dayPunches = $group['punches'];
             [$clockIn, $clockOut] = $this->resolveClockTimes($dayPunches);
+
+            if ($group['manual_clock_ins'] !== [] || $group['manual_clock_outs'] !== []) {
+                [$clockIn, $clockOut] = $this->mergeManualClockTimes(
+                    $clockIn,
+                    $clockOut,
+                    $group['manual_clock_ins'],
+                    $group['manual_clock_outs'],
+                );
+            }
 
             [$workingHours, $workingMinutes] = $this->workingDuration(
                 $group['date'],
@@ -206,13 +323,18 @@ final class AttendanceReportService
             $employee = $this->employeeForGroup($group['employee_id'], $employeeMap, $contextEmployee);
             [$overtime, $overtimeMinutes] = $this->overtimeDuration($employee, $group['date'], $workingMinutes);
 
+            $hasBiometric = $dayPunches !== [];
+            $hasManual = $group['manual_clock_ins'] !== [];
+
             $rows[] = [
                 'date' => $group['date'],
                 'employee_id' => $group['employee_id'],
                 'employee_name' => $group['employee_name'],
                 'employee_code' => $group['employee_code'],
                 'device_pin' => $group['device_pin'],
-                'device_name' => $group['device_name'],
+                'device_name' => $hasBiometric && $hasManual
+                    ? trim(($group['device_name'] ?? 'Biometric').' + Web check-in')
+                    : ($hasManual ? 'Web check-in' : $group['device_name']),
                 'clock_in' => $clockIn,
                 'clock_out' => $clockOut,
                 'punch_count' => count($dayPunches),
@@ -220,6 +342,20 @@ final class AttendanceReportService
                 'working_minutes' => $workingMinutes,
                 'overtime' => $overtime,
                 'overtime_minutes' => $overtimeMinutes,
+                'source' => match (true) {
+                    $hasBiometric && $hasManual => 'merged',
+                    $hasManual => 'manual',
+                    default => 'biometric',
+                },
+                'work_mode_label' => $group['work_mode_label'],
+                'check_in_remarks' => $group['check_in_remarks'],
+                'check_out_remarks' => $group['check_out_remarks'],
+                'check_in_photo_url' => $group['check_in_photo_url'],
+                'check_out_photo_url' => $group['check_out_photo_url'],
+                'check_in_latitude' => $group['check_in_latitude'],
+                'check_in_longitude' => $group['check_in_longitude'],
+                'check_out_latitude' => $group['check_out_latitude'],
+                'check_out_longitude' => $group['check_out_longitude'],
             ];
         }
 
@@ -413,9 +549,133 @@ final class AttendanceReportService
      * @param  Collection<int, BiometricPunch>  $punches
      * @return array<int, Employee>
      */
-    private function employeesWithTimetables(Collection $punches, ?Employee $contextEmployee): array
+    /**
+     * @return array{
+     *     punches: list<BiometricPunch>,
+     *     employee_id: int|null,
+     *     device_pin: string,
+     *     device_name: string|null,
+     *     employee_name: string,
+     *     employee_code: string|null,
+     *     date: string,
+     *     manual_clock_ins: list<string>,
+     *     manual_clock_outs: list<string>,
+     *     work_mode_label: string|null,
+     *     check_in_remarks: string|null,
+     *     check_out_remarks: string|null,
+     *     check_in_photo_url: string|null,
+     *     check_out_photo_url: string|null,
+     *     check_in_latitude: float|null,
+     *     check_in_longitude: float|null,
+     *     check_out_latitude: float|null,
+     *     check_out_longitude: float|null,
+     * }
+     */
+    private function emptyDailyGroup(
+        string $date,
+        ?int $employeeId,
+        string $devicePin,
+        ?string $deviceName,
+        string $employeeName,
+        ?string $employeeCode,
+    ): array {
+        return [
+            'date' => $date,
+            'employee_id' => $employeeId,
+            'device_pin' => $devicePin,
+            'device_name' => $deviceName,
+            'employee_name' => $employeeName,
+            'employee_code' => $employeeCode,
+            'punches' => [],
+            'manual_clock_ins' => [],
+            'manual_clock_outs' => [],
+            'work_mode_label' => null,
+            'check_in_remarks' => null,
+            'check_out_remarks' => null,
+            'check_in_photo_url' => null,
+            'check_out_photo_url' => null,
+            'check_in_latitude' => null,
+            'check_in_longitude' => null,
+            'check_out_latitude' => null,
+            'check_out_longitude' => null,
+        ];
+    }
+
+    private function photoPublicUrl(?string $path): ?string
     {
+        if ($path === null || trim($path) === '') {
+            return null;
+        }
+
+        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+    }
+
+    /**
+     * @param  list<string>  $manualIns
+     * @param  list<string>  $manualOuts
+     * @return array{0: string|null, 1: string|null}
+     */
+    private function mergeManualClockTimes(
+        ?string $biometricIn,
+        ?string $biometricOut,
+        array $manualIns,
+        array $manualOuts,
+    ): array {
+        $clockIn = $biometricIn;
+
+        foreach ($manualIns as $manualIn) {
+            $clockIn = $clockIn === null ? $manualIn : min($clockIn, $manualIn);
+        }
+
+        $clockOut = $biometricOut;
+
+        foreach ($manualOuts as $manualOut) {
+            $clockOut = $clockOut === null ? $manualOut : max($clockOut, $manualOut);
+        }
+
+        if ($clockIn !== null && $clockOut !== null && $this->minutesBetweenTimes($clockIn, $clockOut) < self::MINIMUM_CHECKOUT_GAP_MINUTES) {
+            $clockOut = null;
+        }
+
+        return [$clockIn, $clockOut];
+    }
+
+    private function manualEntriesQuery(
+        string $from,
+        string $to,
+        ?int $employeeId,
+        ?User $viewer,
+    ): \Illuminate\Database\Eloquent\Builder {
+        $query = EmployeeTimeEntry::query()
+            ->with(['employee:id,first_name,last_name,employee_code,biometric_user_id,work_timetable_id', 'employee.workTimetable.days'])
+            ->where('clock_in_at', '>=', $from.' 00:00:00')
+            ->where('clock_in_at', '<=', $to.' 23:59:59')
+            ->orderBy('clock_in_at');
+
+        if ($viewer !== null) {
+            $this->companyScope->scopeRelationViaEmployee($query, $viewer);
+        }
+
+        if ($employeeId !== null) {
+            $query->where('employee_id', $employeeId);
+        }
+
+        return $query;
+    }
+
+    private function employeesWithTimetables(
+        Collection $punches,
+        ?Employee $contextEmployee,
+        ?Collection $manualEntries = null,
+    ): array {
         $ids = $punches->pluck('employee_id')->filter()->unique()->values();
+
+        foreach ($manualEntries ?? [] as $entry) {
+            /** @var EmployeeTimeEntry $entry */
+            if ($entry->employee_id !== null && ! $ids->contains($entry->employee_id)) {
+                $ids->push($entry->employee_id);
+            }
+        }
 
         if ($contextEmployee !== null && ! $ids->contains($contextEmployee->id)) {
             $ids->push($contextEmployee->id);

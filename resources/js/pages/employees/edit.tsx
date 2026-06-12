@@ -447,17 +447,16 @@ export default function Edit({
     const tabFromQuery = new URLSearchParams(queryString).get('tab');
     const readOnlyView = viewMode;
     const hasLinkedUser = employee.user_id !== null;
-    const hasBiometricMapping =
-        String(employee.biometric_user_id ?? '').trim().length > 0;
+    const showAttendanceTab = attendance !== null;
     const initialTab: EmployeeTab =
-        (tabFromQuery === 'attendance' && hasBiometricMapping) ||
+        (tabFromQuery === 'attendance' && showAttendanceTab) ||
         tabFromQuery === 'asset' ||
         tabFromQuery === 'documents' ||
         tabFromQuery === 'leave_configuration' ||
         tabFromQuery === 'private_information' ||
         tabFromQuery === 'work_information' ||
         tabFromQuery === 'employee_information'
-            ? (tabFromQuery === 'attendance' && hasBiometricMapping
+            ? (tabFromQuery === 'attendance' && showAttendanceTab
                   ? 'attendance'
                   : (tabFromQuery as EmployeeTab))
             : 'employee_information';
@@ -1016,7 +1015,7 @@ export default function Edit({
                     >
                         Asset
                     </Button>
-                    {hasBiometricMapping ? (
+                    {showAttendanceTab ? (
                         <Button
                             type="button"
                             variant={tab === 'attendance' ? 'default' : 'outline'}
@@ -2171,7 +2170,7 @@ export default function Edit({
                     </Form>
                 ) : null}
 
-                {tab === 'attendance' && hasBiometricMapping ? (
+                {tab === 'attendance' && showAttendanceTab ? (
                     attendance ? (
                         <EmployeeAttendanceTab
                             employeeId={employee.id}

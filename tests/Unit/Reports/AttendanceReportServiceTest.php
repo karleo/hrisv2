@@ -2,11 +2,13 @@
 
 namespace Tests\Unit\Reports;
 
+use App\Enums\AttendanceWorkMode;
 use App\Enums\BiometricConnectionType;
 use App\Enums\BiometricPunchDirection;
 use App\Models\BiometricDevice;
 use App\Models\BiometricPunch;
 use App\Models\Employee;
+use App\Models\EmployeeTimeEntry;
 use App\Services\Reports\AttendanceReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -121,6 +123,95 @@ class AttendanceReportServiceTest extends TestCase
 
         $this->assertSame('8h', $row['working_hours']);
         $this->assertSame('—', $row['overtime']);
+    }
+
+    public function test_includes_manual_check_in_entries_without_biometric_pin(): void
+    {
+        $employee = Employee::factory()->create(['biometric_user_id' => null]);
+
+        EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => '2026-05-25 09:15:00',
+            'clock_out_at' => '2026-05-25 17:30:00',
+            'work_mode' => AttendanceWorkMode::WorkFromHome->value,
+        ]);
+
+        $result = app(AttendanceReportService::class)->buildForEmployee(
+            $employee,
+            from: '2026-05-25',
+            to: '2026-05-25',
+        );
+
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('09:15:00', $result['rows'][0]['clock_in']);
+        $this->assertSame('17:30:00', $result['rows'][0]['clock_out']);
+        $this->assertSame('manual', $result['rows'][0]['source']);
+        $this->assertSame('Work from Home', $result['rows'][0]['work_mode_label']);
+        $this->assertSame(1, $result['total_manual_entries']);
+        $this->assertSame(0, $result['total_punches']);
+    }
+
+    public function test_includes_manual_remarks_and_evidence_in_report_rows(): void
+    {
+        $employee = Employee::factory()->create(['biometric_user_id' => null]);
+
+        EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => '2026-05-25 09:00:00',
+            'clock_out_at' => '2026-05-25 17:00:00',
+            'work_mode' => AttendanceWorkMode::FieldDriver->value,
+            'check_in_remarks' => 'Starting route in Makati.',
+            'check_out_remarks' => 'Finished deliveries.',
+            'check_in_photo_path' => 'attendance-photos/check-in.jpg',
+            'check_out_photo_path' => 'attendance-photos/check-out.jpg',
+            'check_in_latitude' => 14.5547,
+            'check_in_longitude' => 121.0244,
+            'check_out_latitude' => 14.5995,
+            'check_out_longitude' => 120.9842,
+        ]);
+
+        $row = app(AttendanceReportService::class)->buildForEmployee(
+            $employee,
+            from: '2026-05-25',
+            to: '2026-05-25',
+        )['rows'][0];
+
+        $this->assertSame('Starting route in Makati.', $row['check_in_remarks']);
+        $this->assertSame('Finished deliveries.', $row['check_out_remarks']);
+        $this->assertSame('/storage/attendance-photos/check-in.jpg', $row['check_in_photo_url']);
+        $this->assertSame('/storage/attendance-photos/check-out.jpg', $row['check_out_photo_url']);
+        $this->assertSame(14.5547, $row['check_in_latitude']);
+        $this->assertSame(121.0244, $row['check_in_longitude']);
+        $this->assertSame(14.5995, $row['check_out_latitude']);
+        $this->assertSame(120.9842, $row['check_out_longitude']);
+    }
+
+    public function test_merges_manual_and_biometric_clock_times_for_same_day(): void
+    {
+        $device = $this->createDevice();
+        $employee = Employee::factory()->create(['biometric_user_id' => '88']);
+
+        $this->createPunch($device, '88', $employee->id, '2026-05-25 08:30:00', BiometricPunchDirection::In, 'merge-in');
+        $this->createPunch($device, '88', $employee->id, '2026-05-25 16:00:00', BiometricPunchDirection::Out, 'merge-out');
+
+        EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => '2026-05-25 08:00:00',
+            'clock_out_at' => '2026-05-25 18:00:00',
+            'work_mode' => AttendanceWorkMode::FieldDriver->value,
+        ]);
+
+        $row = app(AttendanceReportService::class)->buildForEmployee(
+            $employee,
+            from: '2026-05-25',
+            to: '2026-05-25',
+        )['rows'][0];
+
+        $this->assertSame('08:00:00', $row['clock_in']);
+        $this->assertSame('18:00:00', $row['clock_out']);
+        $this->assertSame('merged', $row['source']);
+        $this->assertSame('Field – Driver', $row['work_mode_label']);
+        $this->assertStringContainsString('Web check-in', (string) $row['device_name']);
     }
 
     public function test_collapses_rapid_duplicate_check_ins(): void
