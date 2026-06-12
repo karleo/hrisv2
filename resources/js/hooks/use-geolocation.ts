@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
+import { geolocationErrorMessage, insecureContextMessage } from '@/lib/device-permissions';
 
-// Geolocation result states
 export type GeolocationState =
     | { status: 'idle' }
     | { status: 'loading' }
@@ -10,8 +10,13 @@ export type GeolocationState =
 export function useGeolocation() {
     const [state, setState] = useState<GeolocationState>({ status: 'idle' });
 
-    // Request the current position from the browser's Geolocation API
     const acquire = useCallback(() => {
+        const insecure = insecureContextMessage();
+        if (insecure) {
+            setState({ status: 'error', message: insecure });
+            return;
+        }
+
         if (!navigator.geolocation) {
             setState({
                 status: 'error',
@@ -22,27 +27,36 @@ export function useGeolocation() {
 
         setState({ status: 'loading' });
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setState({
-                    status: 'acquired',
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                });
-            },
-            (error) => {
-                const messages: Record<number, string> = {
-                    1: 'Location permission denied. Please allow access and try again.',
-                    2: 'Location could not be determined. Please try again.',
-                    3: 'Location request timed out. Please try again.',
-                };
-                setState({
-                    status: 'error',
-                    message: messages[error.code] ?? 'Unable to get location.',
-                });
-            },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-        );
+        const requestPosition = (enableHighAccuracy: boolean): void => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setState({
+                        status: 'acquired',
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    });
+                },
+                (error) => {
+                    if (enableHighAccuracy && (error.code === 2 || error.code === 3)) {
+                        requestPosition(false);
+                        return;
+                    }
+
+                    const message = geolocationErrorMessage(error.code);
+                    setState({
+                        status: 'error',
+                        message,
+                    });
+                },
+                {
+                    enableHighAccuracy,
+                    timeout: enableHighAccuracy ? 30000 : 20000,
+                    maximumAge: enableHighAccuracy ? 0 : 120000,
+                },
+            );
+        };
+
+        requestPosition(true);
     }, []);
 
     const reset = useCallback(() => {

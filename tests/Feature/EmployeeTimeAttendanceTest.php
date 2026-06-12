@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AttendanceWorkMode;
 use App\Enums\PermissionModule;
+use App\Models\CompanyProfile;
 use App\Models\Employee;
 use App\Models\EmployeeTimeEntry;
 use App\Models\Role;
@@ -215,6 +216,63 @@ class EmployeeTimeAttendanceTest extends TestCase
                 ->has('entries.data', 1)
                 ->where('entries.data.0.employee_id', $employeeA->id)
             );
+    }
+
+    public function test_employee_role_user_only_sees_own_history_in_same_company(): void
+    {
+        $role = Role::query()->where('slug', 'employee')->firstOrFail();
+        RoleModulePermission::query()->updateOrCreate(
+            [
+                'role_id' => $role->id,
+                'module' => PermissionModule::TimeAttendance,
+            ],
+            [
+                'can_access' => true,
+                'can_view' => true,
+                'can_create' => true,
+                'can_update' => true,
+                'can_delete' => false,
+            ],
+        );
+
+        $company = CompanyProfile::factory()->create();
+        $ownEmployee = Employee::factory()->create([
+            'user_id' => null,
+            'company_profile_id' => $company->id,
+            'first_name' => 'Madonna',
+            'last_name' => 'Stamm',
+        ]);
+        $otherEmployee = Employee::factory()->create([
+            'company_profile_id' => $company->id,
+            'first_name' => 'Louvenia',
+            'last_name' => 'Schroeder',
+        ]);
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'email_verified_at' => now(),
+        ]);
+        $ownEmployee->update(['user_id' => $user->id]);
+
+        EmployeeTimeEntry::query()->create([
+            'employee_id' => $ownEmployee->id,
+            'clock_in_at' => now()->subHours(3),
+            'clock_out_at' => now()->subHours(2),
+        ]);
+        EmployeeTimeEntry::query()->create([
+            'employee_id' => $otherEmployee->id,
+            'clock_in_at' => now()->subHours(4),
+            'clock_out_at' => now()->subHours(3),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('time-attendance.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('time-attendance/index')
+                ->where('canChooseEmployee', false)
+                ->has('entries.data', 1)
+                ->where('entries.data.0.employee_id', $ownEmployee->id)
+                ->where('entries.data.0.employee_name', 'Madonna Stamm'));
     }
 
     public function test_non_admin_cannot_delete_time_entry(): void

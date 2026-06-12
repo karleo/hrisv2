@@ -18,6 +18,7 @@ use App\Models\WorkTimetableDay;
 use App\Services\AttendanceClassificationService;
 use App\Services\AttendanceDurationService;
 use App\Support\CompanyAccessScope;
+use App\Support\RequestFormEmployeeSelection;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,10 @@ use Inertia\Response;
 
 class EmployeeTimeEntryController extends Controller
 {
-    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+    public function __construct(
+        private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
+    ) {}
 
     /**
      * Display time entries and the current user's tagged work timetable.
@@ -43,6 +47,14 @@ class EmployeeTimeEntryController extends Controller
 
         if ($this->companyScope->isGlobalAdmin($user)) {
             // Administrators see all time entries
+        } elseif (! $this->requestFormEmployees->canChooseEmployee($user)) {
+            $user->loadMissing('employee');
+
+            if ($user->employee) {
+                $query->where('employee_id', $user->employee->id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         } elseif ($this->companyScope->shouldScope($user)) {
             $this->companyScope->scopeRelationViaEmployee($query, $user);
         } elseif ($user->employee) {
@@ -184,6 +196,7 @@ class EmployeeTimeEntryController extends Controller
                 : null,
             'canCheckIn' => $canCheckIn,
             'isAdministrator' => $user->isAdministrator(),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'employeesForCheckIn' => $employeesForCheckIn,
             'workModeOptions' => $workModeOptions,
         ]);

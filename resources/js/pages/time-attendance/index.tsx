@@ -101,6 +101,7 @@ export default function TimeAttendanceIndex({
     openEntry,
     canCheckIn,
     isAdministrator,
+    canChooseEmployee = true,
     employeesForCheckIn,
     workModeOptions,
 }: {
@@ -115,6 +116,7 @@ export default function TimeAttendanceIndex({
     openEntry: OpenEntry | null;
     canCheckIn: boolean;
     isAdministrator: boolean;
+    canChooseEmployee?: boolean;
     employeesForCheckIn: EmployeeOption[];
     workModeOptions: WorkModeOption[];
 }) {
@@ -353,7 +355,9 @@ export default function TimeAttendanceIndex({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b text-left">
-                                            <th className="pb-2 pr-4 font-medium">Employee</th>
+                                            {canChooseEmployee && (
+                                                <th className="pb-2 pr-4 font-medium">Employee</th>
+                                            )}
                                             <th className="pb-2 pr-4 font-medium">Mode</th>
                                             <th className="pb-2 pr-4 font-medium">In</th>
                                             <th className="pb-2 pr-4 font-medium">Out</th>
@@ -375,7 +379,9 @@ export default function TimeAttendanceIndex({
                                     <tbody>
                                         {rows.map((row) => (
                                             <tr key={row.id} className="border-b border-border/60">
-                                                <td className="py-2 pr-4">{row.employee_name}</td>
+                                                {canChooseEmployee && (
+                                                    <td className="py-2 pr-4">{row.employee_name}</td>
+                                                )}
                                                 <td className="py-2 pr-4">
                                                     <span className="text-muted-foreground text-xs">
                                                         {row.work_mode_label}

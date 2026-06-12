@@ -7,7 +7,8 @@
 >
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta http-equiv="Permissions-Policy" content="camera=(self), geolocation=(self)">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <meta name="google" content="notranslate">
 

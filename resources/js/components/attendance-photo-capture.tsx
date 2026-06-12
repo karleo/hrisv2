@@ -1,56 +1,26 @@
 import { Camera, CheckCircle, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AttendancePermissionHelp } from '@/components/attendance-permission-help';
 import { Button } from '@/components/ui/button';
 import { grabJpegFromVideoElement, grabJpegFromVideoElementSync, waitForVideoDimensions } from '@/lib/face-capture';
+import { cameraErrorMessage, insecureContextMessage, isMobileBrowser } from '@/lib/device-permissions';
 import { cn } from '@/lib/utils';
 
 type Props = {
-    // Called with the captured JPEG File (or null to clear)
     onCapture: (file: File | null) => void;
-    // Whether a photo is required (field modes)
     required?: boolean;
-    // Error message to display
     error?: string;
-    // Label shown above the capture area
     label?: string;
 };
 
 type CaptureState = 'idle' | 'previewing' | 'captured';
 
 const CAMERA_CONSTRAINT_ATTEMPTS: MediaStreamConstraints[] = [
-    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 960 }, height: { ideal: 720 } } },
-    { video: { facingMode: { ideal: 'user' }, width: { ideal: 960 }, height: { ideal: 720 } } },
-    { video: true },
+    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+    { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+    { video: { facingMode: 'environment' }, audio: false },
+    { video: true, audio: false },
 ];
-
-function cameraErrorMessage(caught: unknown): string {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-        return 'Camera API is not available in this browser/context.';
-    }
-
-    if (window.isSecureContext === false) {
-        return 'Camera requires a secure context (HTTPS or localhost).';
-    }
-
-    if (!(caught instanceof DOMException)) {
-        return 'Could not start camera.';
-    }
-
-    return ({
-        NotAllowedError:
-            'Camera access was blocked by browser/system permission.',
-        NotFoundError:
-            'No camera device was found.',
-        NotReadableError:
-            'Camera is busy or unavailable (possibly used by another app). Close other camera apps and try again.',
-        OverconstrainedError:
-            'Camera constraints were not supported on this device.',
-        SecurityError:
-            'Camera is blocked by browser security policy.',
-        AbortError:
-            'Camera startup was interrupted. Please try again.',
-    } as Record<string, string>)[caught.name] ?? `Could not start camera (${caught.name}).`;
-}
 
 export function AttendancePhotoCapture({ onCapture, required = false, error, label }: Props) {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -61,11 +31,11 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
     const [capturing, setCapturing] = useState(false);
     const [videoReady, setVideoReady] = useState(false);
     const streamRef = useRef<MediaStream | null>(null);
+    const isMobile = isMobileBrowser();
 
-    // Stop the camera stream and clean up preview URL
     const stopCamera = useCallback(() => {
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach((t) => t.stop());
+            streamRef.current.getTracks().forEach((track) => track.stop());
             streamRef.current = null;
         }
 
@@ -74,117 +44,68 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
         }
     }, []);
 
-    // User clicked "Take photo" — mount the <video> first, then open the camera in useEffect
-    const startCamera = useCallback(() => {
+    const startCamera = useCallback(async () => {
+        const insecure = insecureContextMessage();
+        if (insecure) {
+            setCameraError(insecure);
+            return;
+        }
+
+        const video = videoRef.current;
+        if (!video) {
+            setCameraError('Could not initialize camera preview.');
+            return;
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setCameraError('Camera API is not available in this browser.');
+            return;
+        }
+
         setCameraError(null);
         setVideoReady(false);
         setCapturing(false);
         setCameraStarting(true);
         stopCamera();
         setCaptureState('previewing');
-    }, [stopCamera]);
 
-    // Open camera after the preview <video> element is in the DOM
-    useEffect(() => {
-        if (captureState !== 'previewing' || !cameraStarting) {
-            return;
-        }
+        let lastError: string | null = null;
 
-        let cancelled = false;
+        for (const constraints of CAMERA_CONSTRAINT_ATTEMPTS) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.setAttribute('playsinline', 'true');
+                video.setAttribute('webkit-playsinline', 'true');
+                await video.play();
 
-        const waitForVideoElement = async (): Promise<HTMLVideoElement | null> => {
-            for (let attempt = 0; attempt < 30; attempt += 1) {
-                if (cancelled) {
-                    return null;
-                }
-
-                if (videoRef.current) {
-                    return videoRef.current;
-                }
-
-                await new Promise<void>((resolve) => {
-                    requestAnimationFrame(() => resolve());
-                });
-            }
-
-            return videoRef.current;
-        };
-
-        const openCamera = async (): Promise<void> => {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                if (!cancelled) {
-                    setCameraError('Camera API is not available in this browser/context.');
-                    setCaptureState('idle');
+                const ready = await waitForVideoDimensions(video, isMobile ? 12000 : 7000);
+                if (ready) {
+                    streamRef.current = stream;
+                    setVideoReady(true);
                     setCameraStarting(false);
-                }
-
-                return;
-            }
-
-            const video = await waitForVideoElement();
-            if (!video || cancelled) {
-                if (!cancelled) {
-                    setCameraError('Could not initialize camera preview.');
-                    setCaptureState('idle');
-                    setCameraStarting(false);
-                }
-
-                return;
-            }
-
-            let lastError: string | null = null;
-
-            for (const constraints of CAMERA_CONSTRAINT_ATTEMPTS) {
-                if (cancelled) {
                     return;
                 }
 
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    if (cancelled) {
-                        stream.getTracks().forEach((t) => t.stop());
-                        return;
-                    }
-
-                    video.srcObject = stream;
-                    await video.play();
-                    const ready = await waitForVideoDimensions(video, 7000);
-
-                    if (ready && !cancelled) {
-                        streamRef.current = stream;
-                        setVideoReady(true);
-                        setCameraStarting(false);
-                        return;
-                    }
-
-                    stream.getTracks().forEach((t) => t.stop());
-                    video.srcObject = null;
-                    lastError = 'Camera preview did not become ready. Please try again.';
-                } catch (caught) {
-                    lastError = cameraErrorMessage(caught);
-                }
+                stream.getTracks().forEach((track) => track.stop());
+                video.srcObject = null;
+                lastError = 'Camera preview did not become ready. Please try again.';
+            } catch (caught) {
+                lastError = cameraErrorMessage(caught);
             }
+        }
 
-            if (!cancelled) {
-                setCameraError(lastError ?? 'Could not start camera.');
-                setCaptureState('idle');
-                setCameraStarting(false);
-                stopCamera();
-            }
-        };
+        setCameraError(lastError ?? 'Could not start camera.');
+        setCaptureState('idle');
+        setCameraStarting(false);
+        stopCamera();
+    }, [isMobile, stopCamera]);
 
-        void openCamera();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [captureState, cameraStarting, stopCamera]);
-
-    // Capture the current frame
     const capture = useCallback(async () => {
         if (!videoRef.current) {
             return;
         }
+
         if (!videoReady) {
             setCameraError('Camera is still loading. Please wait a moment, then capture again.');
             return;
@@ -192,6 +113,7 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
 
         setCameraError(null);
         setCapturing(true);
+
         const file = (await grabJpegFromVideoElement(videoRef.current))
             ?? grabJpegFromVideoElementSync(videoRef.current);
 
@@ -201,7 +123,6 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
             return;
         }
 
-        // Create a preview URL and stop the live stream
         const url = URL.createObjectURL(file);
         setCapturedUrl(url);
         stopCamera();
@@ -210,22 +131,22 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
         setCapturing(false);
     }, [onCapture, stopCamera, videoReady]);
 
-    // Retake — clear captured photo and restart camera
     const retake = useCallback(() => {
         setCameraStarting(false);
         setCapturing(false);
         setVideoReady(false);
         stopCamera();
+
         if (capturedUrl) {
             URL.revokeObjectURL(capturedUrl);
             setCapturedUrl(null);
         }
+
         onCapture(null);
         setCaptureState('idle');
         setCameraError(null);
     }, [capturedUrl, onCapture, stopCamera]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             stopCamera();
@@ -234,6 +155,13 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
             }
         };
     }, [stopCamera, capturedUrl]);
+
+    const showPreview = captureState === 'previewing';
+    const showPermissionHelp =
+        cameraError !== null
+        && (cameraError.toLowerCase().includes('denied')
+            || cameraError.toLowerCase().includes('blocked')
+            || cameraError.toLowerCase().includes('permission'));
 
     return (
         <div className="flex flex-col gap-2">
@@ -244,41 +172,64 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
                 </p>
             )}
 
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                    'rounded-md object-cover',
+                    showPreview
+                        ? 'aspect-[4/3] max-h-[min(50dvh,320px)] w-full'
+                        : 'pointer-events-none fixed -left-[9999px] h-px w-px opacity-0',
+                )}
+                aria-hidden={!showPreview}
+                aria-label={showPreview ? 'Camera preview' : undefined}
+            />
+
             {captureState === 'idle' && (
-                <Button type="button" variant="outline" onClick={startCamera} className="gap-2" disabled={cameraStarting}>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void startCamera()}
+                    className="min-h-11 w-full touch-manipulation gap-2 sm:w-auto"
+                    disabled={cameraStarting}
+                >
                     <Camera className="size-4" />
                     {cameraStarting
                         ? 'Opening camera...'
                         : required
-                            ? 'Take photo (required)'
-                            : 'Take photo (optional)'}
+                            ? 'Allow camera & take photo'
+                            : 'Allow camera & take photo (optional)'}
                 </Button>
             )}
 
-            {captureState === 'previewing' && (
+            {showPreview && (
                 <div className="flex flex-col gap-2">
-                    <div className="bg-muted relative overflow-hidden rounded-md">
-                        {/* Live camera preview — must stay mounted before getUserMedia attaches */}
-                        <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="aspect-[4/3] w-full rounded-md object-cover"
-                            aria-label="Camera preview"
-                        />
-                        {!videoReady && (
-                            <div className="bg-muted/90 absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                                {cameraStarting ? 'Opening camera...' : 'Loading camera preview...'}
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" onClick={capture} className="flex-1 gap-2" disabled={capturing || !videoReady}>
+                    {!videoReady && (
+                        <div className="bg-muted flex min-h-40 items-center justify-center rounded-md px-4 py-8 text-center text-sm text-muted-foreground">
+                            {cameraStarting ? 'Opening camera… allow access when your browser asks.' : 'Loading camera preview…'}
+                        </div>
+                    )}
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button
+                            type="button"
+                            onClick={() => void capture()}
+                            className="min-h-11 flex-1 touch-manipulation gap-2"
+                            disabled={capturing || !videoReady}
+                        >
                             <Camera className="size-4" />
-                            {capturing ? 'Capturing…' : 'Capture'}
+                            {capturing ? 'Capturing…' : 'Capture photo'}
                         </Button>
-                        <Button type="button" variant="ghost" size="icon" onClick={retake} aria-label="Cancel" disabled={capturing}>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="min-h-11 min-w-11 touch-manipulation self-end sm:self-auto"
+                            onClick={retake}
+                            aria-label="Cancel"
+                            disabled={capturing}
+                        >
                             <X className="size-4" />
                         </Button>
                     </div>
@@ -288,11 +239,10 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
             {captureState === 'captured' && capturedUrl && (
                 <div className="flex flex-col gap-2">
                     <div className="relative overflow-hidden rounded-md">
-                        {/* Show the captured still */}
                         <img
                             src={capturedUrl}
-                            alt="Check-in photo"
-                            className="w-full rounded-md object-cover"
+                            alt="Captured attendance photo"
+                            className="max-h-[min(50dvh,320px)] w-full rounded-md object-cover"
                         />
                         <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white">
                             <CheckCircle className="size-3" />
@@ -304,7 +254,7 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
                         variant="outline"
                         size="sm"
                         onClick={retake}
-                        className="gap-2"
+                        className="min-h-11 touch-manipulation gap-2"
                     >
                         <RefreshCw className="size-4" />
                         Retake
@@ -312,16 +262,28 @@ export function AttendancePhotoCapture({ onCapture, required = false, error, lab
                 </div>
             )}
 
-            {(cameraError || error) && (
+            {cameraError && (
                 <div className="flex flex-col gap-2">
-                    <p className={cn('text-destructive text-sm')}>{cameraError ?? error}</p>
-                    {captureState === 'idle' && cameraError && (
-                        <Button type="button" variant="outline" size="sm" onClick={startCamera}>
+                    {showPermissionHelp ? (
+                        <AttendancePermissionHelp type="camera" message={cameraError} />
+                    ) : (
+                        <p className="text-destructive text-sm">{cameraError}</p>
+                    )}
+                    {captureState === 'idle' && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="min-h-11 touch-manipulation"
+                            onClick={() => void startCamera()}
+                        >
                             Try camera again
                         </Button>
                     )}
                 </div>
             )}
+
+            {error && !cameraError && <p className="text-destructive text-sm">{error}</p>}
         </div>
     );
 }
