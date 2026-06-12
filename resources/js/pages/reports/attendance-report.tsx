@@ -80,6 +80,7 @@ export default function AttendanceReport({
     summary,
     employees,
     devices,
+    canChooseEmployee = true,
 }: {
     rows: {
         data: ReportRow[];
@@ -96,8 +97,12 @@ export default function AttendanceReport({
         biometric_user_id: string | null;
     }>;
     devices: Array<{ id: number; name: string }>;
+    canChooseEmployee?: boolean;
 }) {
     const [localFilters, setLocalFilters] = useState<ReportFilters>(filters);
+    const selectedEmployee = employees.find(
+        (employee) => String(employee.id) === (localFilters.employee_id ?? ''),
+    );
 
     useEffect(() => {
         setLocalFilters(filters);
@@ -171,25 +176,34 @@ export default function AttendanceReport({
                             </div>
                             <div>
                                 <Label htmlFor="report-employee">Employee</Label>
-                                <NativeSelect
-                                    id="report-employee"
-                                    value={localFilters.employee_id ?? ''}
-                                    onChange={(e) =>
-                                        updateFilters({
-                                            employee_id: e.target.value || undefined,
-                                        })
-                                    }
-                                >
-                                    <option value="">All</option>
-                                    {employees.map((employee) => (
-                                        <option key={employee.id} value={employee.id}>
-                                            {employee.name}
-                                            {employee.biometric_user_id
-                                                ? ` (PIN ${employee.biometric_user_id})`
-                                                : ''}
-                                        </option>
-                                    ))}
-                                </NativeSelect>
+                                {canChooseEmployee ? (
+                                    <NativeSelect
+                                        id="report-employee"
+                                        value={localFilters.employee_id ?? ''}
+                                        onChange={(e) =>
+                                            updateFilters({
+                                                employee_id: e.target.value || undefined,
+                                            })
+                                        }
+                                    >
+                                        <option value="">All</option>
+                                        {employees.map((employee) => (
+                                            <option key={employee.id} value={employee.id}>
+                                                {employee.name}
+                                                {employee.biometric_user_id
+                                                    ? ` (PIN ${employee.biometric_user_id})`
+                                                    : ''}
+                                            </option>
+                                        ))}
+                                    </NativeSelect>
+                                ) : (
+                                    <Input
+                                        id="report-employee"
+                                        readOnly
+                                        value={selectedEmployee?.name ?? '—'}
+                                        className="bg-muted/40"
+                                    />
+                                )}
                             </div>
                             <div>
                                 <Label htmlFor="report-device">Device</Label>

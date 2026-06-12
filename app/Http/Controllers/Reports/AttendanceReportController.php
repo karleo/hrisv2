@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Services\Reports\AttendanceReportPdfExporter;
 use App\Services\Reports\AttendanceReportService;
 use App\Support\CompanyAccessScope;
+use App\Support\RequestFormEmployeeSelection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -17,7 +18,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceReportController extends Controller
 {
-    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+    public function __construct(
+        private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
+    ) {}
 
     public function index(
         AttendanceReportRequest $request,
@@ -29,8 +33,22 @@ class AttendanceReportController extends Controller
         $employeeId = isset($validated['employee_id']) ? (int) $validated['employee_id'] : null;
         $deviceId = isset($validated['biometric_device_id']) ? (int) $validated['biometric_device_id'] : null;
         $viewer = $request->user();
+        $canChooseEmployee = $this->requestFormEmployees->canChooseEmployee($viewer);
 
-        if ($employeeId !== null) {
+        if (! $canChooseEmployee) {
+            $viewer->loadMissing('employee');
+            $ownEmployeeId = $viewer->employee?->id;
+
+            if ($ownEmployeeId === null) {
+                abort(403);
+            }
+
+            if ($employeeId !== null && $employeeId !== $ownEmployeeId) {
+                abort(403);
+            }
+
+            $employeeId = $ownEmployeeId;
+        } elseif ($employeeId !== null) {
             $employee = Employee::query()->find($employeeId);
             if ($employee === null || ! $this->companyScope->canAccessEmployee($viewer, $employee)) {
                 abort(403);
@@ -68,12 +86,20 @@ class AttendanceReportController extends Controller
             ['path' => $request->url(), 'query' => $request->query()],
         );
 
+        $employeeColumns = ['id', 'first_name', 'last_name', 'employee_code', 'biometric_user_id'];
+        $employees = $canChooseEmployee
+            ? $this->companyScope->scopedEmployeeQuery($viewer)
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get($employeeColumns)
+            : $this->requestFormEmployees->employeesForForm($viewer, $employeeColumns);
+
         return Inertia::render('reports/attendance-report', [
             'rows' => $paginated,
             'filters' => [
                 'from' => $from,
                 'to' => $to,
-                'employee_id' => $request->input('employee_id'),
+                'employee_id' => $employeeId !== null ? (string) $employeeId : $request->input('employee_id'),
                 'biometric_device_id' => $request->input('biometric_device_id'),
             ],
             'summary' => [
@@ -81,16 +107,13 @@ class AttendanceReportController extends Controller
                 'total_punches' => $report['total_punches'],
                 'total_manual_entries' => $report['total_manual_entries'],
             ],
-            'employees' => $this->companyScope->scopedEmployeeQuery($viewer)
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'employee_code', 'biometric_user_id'])
-                ->map(fn (Employee $employee) => [
-                    'id' => $employee->id,
-                    'name' => trim($employee->first_name.' '.$employee->last_name),
-                    'employee_code' => $employee->employee_code,
-                    'biometric_user_id' => $employee->biometric_user_id,
-                ]),
+            'employees' => $employees->map(fn (Employee $employee) => [
+                'id' => $employee->id,
+                'name' => trim($employee->first_name.' '.$employee->last_name),
+                'employee_code' => $employee->employee_code,
+                'biometric_user_id' => $employee->biometric_user_id,
+            ]),
+            'canChooseEmployee' => $canChooseEmployee,
             'devices' => BiometricDevice::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }

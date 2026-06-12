@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { AttendancePermissionHelp } from '@/components/attendance-permission-help';
 import { useGeolocation } from '@/hooks/use-geolocation';
 
 export type WorkModeOption = {
@@ -118,12 +119,12 @@ export function AttendanceCheckInDialog({ workModeOptions, trigger, onSuccess }:
             <DialogTrigger asChild>
                 {trigger ?? <Button>Check in</Button>}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
+            <DialogContent className="top-[4dvh] flex max-h-[92dvh] translate-y-0 flex-col gap-0 overflow-hidden p-0 sm:top-[50%] sm:max-w-md sm:translate-y-[-50%] sm:gap-4 sm:p-6">
+                <DialogHeader className="shrink-0 px-4 pt-4 text-left sm:px-0 sm:pt-0">
                     <DialogTitle>Check In</DialogTitle>
                 </DialogHeader>
 
-                <div className="flex flex-col gap-5">
+                <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-0 sm:pb-0">
                     {/* Work mode selector */}
                     <div className="flex flex-col gap-2">
                         <Label>Where are you working today?</Label>
@@ -147,8 +148,8 @@ export function AttendanceCheckInDialog({ workModeOptions, trigger, onSuccess }:
                                     />
                                     <span>{mode.label}</span>
                                     {mode.is_field && (
-                                        <span className="text-muted-foreground ml-auto text-xs">
-                                            Photo + GPS required
+                                        <span className="text-muted-foreground ml-auto text-right text-xs sm:ml-auto">
+                                            Photo + GPS
                                         </span>
                                     )}
                                 </label>
@@ -185,16 +186,20 @@ export function AttendanceCheckInDialog({ workModeOptions, trigger, onSuccess }:
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="gap-2"
+                                className="min-h-11 w-full touch-manipulation gap-2 sm:w-auto"
                                 onClick={geo.acquire}
                                 disabled={geo.state.status === 'loading'}
                             >
                                 <MapPin className="size-4" />
-                                {geo.state.status === 'loading' ? 'Getting location…' : isField ? 'Get my location (required)' : 'Get my location (optional)'}
+                                {geo.state.status === 'loading'
+                                    ? 'Getting location… allow access when asked'
+                                    : isField
+                                        ? 'Allow location & get GPS'
+                                        : 'Allow location (optional)'}
                             </Button>
                         )}
                         {geo.state.status === 'error' && (
-                            <p className="text-destructive text-sm">{geo.state.message}</p>
+                            <AttendancePermissionHelp type="location" message={geo.state.message} />
                         )}
                         {errors['check_in_latitude'] && (
                             <p className="text-destructive text-sm">{errors['check_in_latitude']}</p>
@@ -230,16 +235,22 @@ export function AttendanceCheckInDialog({ workModeOptions, trigger, onSuccess }:
                     )}
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="shrink-0 gap-2 border-t px-4 py-4 sm:border-0 sm:px-0 sm:py-0">
                     <Button
                         type="button"
                         variant="outline"
+                        className="min-h-11 w-full touch-manipulation sm:w-auto"
                         onClick={() => handleOpenChange(false)}
                         disabled={processing}
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleSubmit} disabled={processing}>
+                    <Button
+                        type="button"
+                        className="min-h-11 w-full touch-manipulation sm:w-auto"
+                        onClick={handleSubmit}
+                        disabled={processing}
+                    >
                         {processing ? 'Checking in…' : 'Check in now'}
                     </Button>
                 </DialogFooter>
