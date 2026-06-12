@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import {
     RequestEmployeeSignatureCard,
     leaveRequestEditSignatureVisitOnly,
@@ -31,6 +32,7 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
@@ -147,6 +149,7 @@ function calculateLeaveDays(
 export default function LeaveRequestsEdit({
     leaveRequest,
     employees,
+    canChooseEmployee = true,
     departments,
     leaveTypes,
     signaturesUrl,
@@ -159,6 +162,7 @@ export default function LeaveRequestsEdit({
 }: {
     leaveRequest: LeaveRequest;
     employees: Employee[];
+    canChooseEmployee?: boolean;
     departments: { id: number; name: string }[];
     leaveTypes: string[];
     signaturesUrl: string;
@@ -169,6 +173,7 @@ export default function LeaveRequestsEdit({
     canViewActivityLogs?: boolean;
     activityLogs: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(String(leaveRequest.employee_id));
     const [departmentId, setDepartmentId] = useState<string>(String(leaveRequest.department_id));
     const [periodFrom, setPeriodFrom] = useState<string>(leaveRequest.period_from ?? '');
@@ -306,25 +311,22 @@ export default function LeaveRequestsEdit({
                                         <CardDescription>Choose employee and core request details.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2 sm:col-span-2">
-                                            <Label htmlFor="employee_id">Employee *</Label>
-                                            <Select
-                                                value={selectedEmployeeId}
-                                                onValueChange={handleEmployeeChange}
-                                                required
-                                            >
-                                                <SelectTrigger id="employee_id" className="h-10 w-full">
-                                                    <SelectValue placeholder="Select employee" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {employees.map((emp) => (
-                                                        <SelectItem key={emp.id} value={String(emp.id)}>
-                                                            {emp.first_name} {emp.last_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <InputError message={errors?.employee_id} />
+                                        <div className="sm:col-span-2">
+                                            <RequestEmployeeSelectField
+                                                canChooseEmployee={canChooseEmployee}
+                                                employees={employees}
+                                                employeeId={
+                                                    selectedEmployeeId === ''
+                                                        ? ''
+                                                        : Number(selectedEmployeeId)
+                                                }
+                                                onEmployeeChange={(employeeId) => {
+                                                    handleEmployeeChange(
+                                                        employeeId === '' ? '' : String(employeeId),
+                                                    );
+                                                }}
+                                                error={errors?.employee_id}
+                                            />
                                         </div>
 
                                         <div className="grid gap-2">
@@ -369,7 +371,7 @@ export default function LeaveRequestsEdit({
                                                 name="absence_type"
                                                 required
                                                 defaultValue={absenceType}
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select type</option>
                                                 {leaveTypes.map((t) => (
@@ -399,7 +401,7 @@ export default function LeaveRequestsEdit({
                                                 id="details"
                                                 name="details"
                                                 defaultValue={leaveRequest.details ?? ''}
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 {DETAILS_OPTIONS.map((d) => (
@@ -605,8 +607,8 @@ export default function LeaveRequestsEdit({
                                 <div className="lg:col-span-3">
                                     <ActivityLogTimeline
                                         entries={activityLogs}
-                                        title="Activity Log"
-                                        description="Track leave request updates by authorized users."
+                                        title={t('activity.title', 'Activity Log')}
+                                        description={t('activity.description.leave', 'Track leave request updates by authorized users.')}
                                     />
                                 </div>
                             ) : null}

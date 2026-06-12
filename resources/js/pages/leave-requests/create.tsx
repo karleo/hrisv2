@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import { SignaturePad } from '@/components/signature-pad';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
@@ -120,6 +122,7 @@ export default function LeaveRequestsCreate({
     leaveTypes,
     leaveBalanceByEmployeeId = {},
     defaultEmployeeId = null,
+    canChooseEmployee = true,
     canViewActivityLogs = false,
     activityLogs = [],
 }: {
@@ -128,9 +131,11 @@ export default function LeaveRequestsCreate({
     leaveTypes: string[];
     leaveBalanceByEmployeeId?: Record<string, number>;
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
     canViewActivityLogs?: boolean;
     activityLogs?: ActivityLogTimelineEntry[];
 }) {
+    const { t } = useI18n();
     const initialEmployee = defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -172,7 +177,7 @@ export default function LeaveRequestsCreate({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="New leave request" />
+            <Head title={t('forms.leave.newRequest', 'New leave request')} />
             <div className="flex min-h-screen flex-col bg-muted/30">
                 <div className="border-b bg-card px-4 py-6 md:px-8">
                     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
@@ -181,23 +186,25 @@ export default function LeaveRequestsCreate({
                             className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ChevronLeft className="size-4" />
-                            Back to Leave Requests
+                            {t('forms.leave.backToRequests', 'Back to Leave Requests')}
                         </Link>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight">New leave request</h1>
+                                <h1 className="text-3xl font-bold tracking-tight">
+                                    {t('forms.leave.newRequest', 'New leave request')}
+                                </h1>
                                 <p className="text-muted-foreground">
-                                    Save a draft first, then open the request and use Submit when it is ready to send.
+                                    {t('forms.saveDraftHelp', 'Save a draft first, then open the request and use Submit when it is ready to send.')}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button type="submit" form="leave-request-create-form">
                                     <Send className="mr-2 size-4" />
-                                    Save
+                                    {t('common.save', 'Save')}
                                 </Button>
                                 <Link href="/leave-requests">
                                     <Button type="button" variant="outline">
-                                        Discard
+                                        {t('common.discard', 'Discard')}
                                     </Button>
                                 </Link>
                             </div>
@@ -235,25 +242,22 @@ export default function LeaveRequestsCreate({
                                         <CardDescription>Choose employee and core request details.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2 sm:col-span-2">
-                                            <Label htmlFor="employee_id">Employee *</Label>
-                                            <Select
-                                                value={selectedEmployeeId}
-                                                onValueChange={handleEmployeeChange}
-                                                required
-                                            >
-                                                <SelectTrigger id="employee_id">
-                                                    <SelectValue placeholder="Select employee" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {employees.map((emp) => (
-                                                        <SelectItem key={emp.id} value={String(emp.id)}>
-                                                            {emp.first_name} {emp.last_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <InputError message={errors?.employee_id} />
+                                        <div className="sm:col-span-2">
+                                            <RequestEmployeeSelectField
+                                                canChooseEmployee={canChooseEmployee}
+                                                employees={employees}
+                                                employeeId={
+                                                    selectedEmployeeId === ''
+                                                        ? ''
+                                                        : Number(selectedEmployeeId)
+                                                }
+                                                onEmployeeChange={(employeeId) => {
+                                                    handleEmployeeChange(
+                                                        employeeId === '' ? '' : String(employeeId),
+                                                    );
+                                                }}
+                                                error={errors?.employee_id}
+                                            />
                                         </div>
 
                                         <div className="grid gap-2">
@@ -294,7 +298,7 @@ export default function LeaveRequestsCreate({
                                                 id="absence_type"
                                                 name="absence_type"
                                                 required
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select type</option>
                                                 {leaveTypes.map((t) => (
@@ -317,7 +321,7 @@ export default function LeaveRequestsCreate({
                                             <select
                                                 id="details"
                                                 name="details"
-                                                className="border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                className="border-input flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 {DETAILS_OPTIONS.map((d) => (
@@ -400,7 +404,7 @@ export default function LeaveRequestsCreate({
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <ClipboardCheck className="size-4 text-muted-foreground" />
-                                                Summary
+                                                {t('forms.summary', 'Summary')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3 text-sm">
@@ -425,7 +429,7 @@ export default function LeaveRequestsCreate({
 
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Employee signature</CardTitle>
+                                            <CardTitle>{t('forms.employee.signature', 'Employee signature')}</CardTitle>
                                             <CardDescription>
                                                 Draw and save your signature while creating the request.
                                             </CardDescription>
@@ -446,9 +450,12 @@ export default function LeaveRequestsCreate({
                                 <div className="lg:col-span-3">
                                     <ActivityLogTimeline
                                         entries={activityLogs}
-                                        title="Activity Log"
-                                        description="Track leave request updates by authorized users."
-                                        emptyDescription="Activity history will appear after this leave request is created and updated."
+                                        title={t('activity.title', 'Activity Log')}
+                                        description={t('activity.description.leave', 'Track leave request updates by authorized users.')}
+                                        emptyDescription={t(
+                                            'activity.emptyDescription.leaveCreate',
+                                            'Activity history will appear after this leave request is created and updated.',
+                                        )}
                                     />
                                 </div>
                             ) : null}

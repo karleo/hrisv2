@@ -15,6 +15,7 @@ use App\Models\EmployeeTimeEntry;
 use App\Models\User;
 use App\Models\WorkTimetableDay;
 use App\Services\AttendanceClassificationService;
+use App\Support\CompanyAccessScope;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,8 @@ use Inertia\Response;
 
 class EmployeeTimeEntryController extends Controller
 {
+    public function __construct(private readonly CompanyAccessScope $companyScope) {}
+
     /**
      * Display time entries and the current user’s tagged work timetable.
      */
@@ -35,8 +38,14 @@ class EmployeeTimeEntryController extends Controller
             ->with(['employee.workTimetable.days'])
             ->orderByDesc('clock_in_at');
 
-        if (! $user->isAdministrator() && $user->employee) {
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            // Administrators see all time entries.
+        } elseif ($this->companyScope->shouldScope($user)) {
+            $this->companyScope->scopeRelationViaEmployee($query, $user);
+        } elseif ($user->employee) {
             $query->where('employee_id', $user->employee->id);
+        } else {
+            $query->whereRaw('1 = 0');
         }
 
         if ($request->filled('from')) {
@@ -109,13 +118,13 @@ class EmployeeTimeEntryController extends Controller
         }
 
         if ($user->isAdministrator()) {
-            $canCheckIn = Employee::query()->exists()
+            $canCheckIn = $this->companyScope->scopedEmployeeQuery($user)->exists()
                 && $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::CheckIn);
         }
 
         $employeesForCheckIn = $user->isAdministrator()
             && $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::CheckIn)
-            ? Employee::query()
+            ? $this->companyScope->scopedEmployeeQuery($user)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name'])
@@ -157,6 +166,10 @@ class EmployeeTimeEntryController extends Controller
             : (int) $user->employee->id;
 
         $employee = Employee::query()->findOrFail($employeeId);
+
+        if ($user->isAdministrator()) {
+            $this->companyScope->assertCanAccessEmployee($user, $employee);
+        }
 
         if (! $employee->hasUsableWorkTimetable()) {
             return back()->withErrors([

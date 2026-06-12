@@ -76,10 +76,14 @@ export default function Create() {
                                         name="leave_category"
                                         required
                                         defaultValue="paid"
-                                        className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="border-input text-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <option value="paid">Paid Leave</option>
-                                        <option value="unpaid">Unpaid Leave</option>
+                                        <option value="paid" className="bg-background text-foreground">
+                                            Paid Leave
+                                        </option>
+                                        <option value="unpaid" className="bg-background text-foreground">
+                                            Unpaid Leave
+                                        </option>
                                     </select>
                                     <InputError message={errors.leave_category} />
                                 </div>

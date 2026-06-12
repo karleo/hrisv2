@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -41,10 +41,15 @@ export function DataTableToolbar({
     showSearchButton = true,
 }: DataTableToolbarProps) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const isSearchFocusedRef = useRef(false);
 
     useEffect(() => {
+        if (autoSearch && isSearchFocusedRef.current) {
+            return;
+        }
+
         setSearch(filters.search ?? '');
-    }, [filters.search]);
+    }, [autoSearch, filters.search]);
 
     const trimmedSearch = useMemo(() => search.trim(), [search]);
 
@@ -74,6 +79,14 @@ export function DataTableToolbar({
     useEffect(() => {
         if (!autoSearch) return;
 
+        const currentSearch = (filters.search ?? '').trim();
+        if (trimmedSearch === currentSearch) {
+            return;
+        }
+        if (/\s$/.test(search)) {
+            return;
+        }
+
         const handle = setTimeout(() => {
             const params = mergePersistQuery({ page: 1 }, persistQuery);
             if (trimmedSearch) params.search = trimmedSearch;
@@ -86,7 +99,7 @@ export function DataTableToolbar({
         }, debounceMs);
 
         return () => clearTimeout(handle);
-    }, [autoSearch, debounceMs, searchUrl, trimmedSearch, persistQuery]);
+    }, [autoSearch, debounceMs, searchUrl, search, trimmedSearch, persistQuery, filters.search]);
 
     return (
         <form
@@ -100,6 +113,12 @@ export function DataTableToolbar({
                     placeholder={searchPlaceholder}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onFocus={() => {
+                        isSearchFocusedRef.current = true;
+                    }}
+                    onBlur={() => {
+                        isSearchFocusedRef.current = false;
+                    }}
                     className="pl-9"
                 />
             </div>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,6 +25,17 @@ class DashboardTest extends TestCase
 
         $response = $this->get(route('dashboard'));
         $response->assertOk();
+    }
+
+    public function test_authenticated_user_with_employee_profile_receives_employee_id_in_shared_auth(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $employee = Employee::factory()->create(['user_id' => $user->id]);
+
+        $this->actingAs($user)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('auth.employee_id', $employee->id));
     }
 
     public function test_users_without_dashboard_permission_are_redirected_from_dashboard(): void

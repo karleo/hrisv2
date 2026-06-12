@@ -1,16 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Briefcase, CalendarDays, CircleCheckBig, Monitor, Package } from 'lucide-react';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-];
 
 type PendingSummary = {
     leave_requests: number;
@@ -124,48 +117,54 @@ export default function Dashboard({
     leaveCalendarWidget: LeaveCalendarWidget | null;
     canViewLeaveCalendar: boolean;
 }) {
-    useRequestStatusPoll(['pending', 'recentPending', 'leaveCalendarWidget']);
+    const { t } = useI18n();
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('dashboard.title', 'Dashboard'),
+            href: dashboard().url,
+        },
+    ];
 
     const cards: DashboardCard[] = [
         {
-            title: 'Leave Requests',
+            title: t('dashboard.leaveRequests', 'Leave Requests'),
             value: pending.leave_requests,
             href: '/leave-requests',
             items: recentPending.leave_requests,
             itemHref: (id: number) => `/leave-requests/${id}`,
             icon: CalendarDays,
             tone: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20 dark:from-blue-500/25 dark:to-cyan-500/18 dark:border-blue-400/40',
-            summary: 'Time-off approvals',
+            summary: t('dashboard.leaveSummary', 'Time-off approvals'),
         },
         {
-            title: 'Employee Requests',
+            title: t('dashboard.employeeRequests', 'Employee Requests'),
             value: pending.employee_requests,
             href: '/employee-requests',
             items: recentPending.employee_requests,
             itemHref: (id: number) => `/employee-requests/${id}`,
             icon: Briefcase,
             tone: 'from-violet-500/10 to-indigo-500/10 border-violet-500/20 dark:from-violet-500/25 dark:to-indigo-500/18 dark:border-violet-400/40',
-            summary: 'HR operational requests',
+            summary: t('dashboard.employeeSummary', 'HR operational requests'),
         },
         {
-            title: 'IT Requests',
+            title: t('dashboard.itRequests', 'IT Requests'),
             value: pending.it_requests,
             href: '/it-requests',
             items: recentPending.it_requests,
             itemHref: (id: number) => `/it-requests/${id}`,
             icon: Monitor,
             tone: 'from-amber-500/10 to-orange-500/10 border-amber-500/20 dark:from-amber-500/25 dark:to-orange-500/18 dark:border-amber-400/40',
-            summary: 'Support and service tickets',
+            summary: t('dashboard.itSummary', 'Support and service tickets'),
         },
         {
-            title: 'IT Asset Requests',
+            title: t('dashboard.itAssetRequests', 'IT Asset Requests'),
             value: pending.it_asset_requests,
             href: '/it-asset-requests',
             items: recentPending.it_asset_requests,
             itemHref: (id: number) => `/it-asset-requests/${id}`,
             icon: Package,
             tone: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20 dark:from-emerald-500/25 dark:to-green-500/18 dark:border-emerald-400/40',
-            summary: 'Hardware and asset approvals',
+            summary: t('dashboard.itAssetSummary', 'Hardware and asset approvals'),
         },
     ];
 
@@ -175,16 +174,16 @@ export default function Dashboard({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Dashboard" />
+            <Head title={t('dashboard.title', 'Dashboard')} />
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
                 <section className="rounded-2xl border border-border bg-gradient-to-r from-primary/12 via-primary/5 to-transparent p-5 shadow-sm dark:from-primary/22 dark:via-primary/10 dark:to-transparent">
                     <div className="flex flex-col gap-4">
                         <div>
                             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                Approval workspace
+                                {t('dashboard.approvalWorkspace', 'Approval workspace')}
                             </p>
                             <h1 className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">
-                                Pending requests overview
+                                {t('dashboard.pendingOverview', 'Pending requests overview')}
                             </h1>
                         </div>
                     </div>
@@ -204,7 +203,7 @@ export default function Dashboard({
                                     href={card.href}
                                     className="text-primary inline-flex items-center gap-1 text-xs font-medium"
                                 >
-                                    View all
+                                    {t('dashboard.viewAll', 'View all')}
                                     <ArrowRight className="size-3.5" />
                                 </Link>
                             </div>
@@ -215,7 +214,7 @@ export default function Dashboard({
                                 {card.items.length === 0 ? (
                                     <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed border-border bg-card/70 px-3 py-2.5 text-xs">
                                         <CircleCheckBig className="size-3.5" />
-                                        <span>No pending requests</span>
+                                        <span>{t('dashboard.noPendingRequests', 'No pending requests')}</span>
                                     </div>
                                 ) : (
                                     card.items.slice(0, 2).map((item) => (
@@ -226,7 +225,7 @@ export default function Dashboard({
                                         >
                                             <p className="text-xs font-semibold tracking-wide">{item.code}</p>
                                             <p className="text-muted-foreground mt-0.5 text-[11px]">
-                                                {item.employee || 'Employee'}
+                                                {item.employee || t('dashboard.employeeFallback', 'Employee')}
                                             </p>
                                         </Link>
                                     ))
@@ -240,7 +239,7 @@ export default function Dashboard({
                     <section className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5">
                         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 className="text-base font-semibold">Leave Calendar</h3>
+                                <h3 className="text-base font-semibold">{t('dashboard.leaveCalendar', 'Leave Calendar')}</h3>
                                 <p className="text-muted-foreground text-sm">
                                     {leaveCalendarWidget.monthLabel} operational leave snapshot
                                 </p>
@@ -249,14 +248,14 @@ export default function Dashboard({
                                 href="/leave-calendar"
                                 className="text-primary text-sm font-medium"
                             >
-                                Open detailed calendar
+                                {t('dashboard.openDetailedCalendar', 'Open detailed calendar')}
                             </Link>
                         </div>
 
                         <div className="mb-4 grid gap-3 md:grid-cols-3">
                             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                                 <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                                    On leave today
+                                    {t('dashboard.onLeaveToday', 'On leave today')}
                                 </p>
                                 <p className="mt-0.5 text-2xl font-bold">
                                     {leaveCalendarWidget.todayOnLeave.length}
@@ -264,7 +263,7 @@ export default function Dashboard({
                             </div>
                             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                                 <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                                    Upcoming (7 days)
+                                    {t('dashboard.upcoming7Days', 'Upcoming (7 days)')}
                                 </p>
                                 <p className="mt-0.5 text-2xl font-bold">
                                     {leaveCalendarWidget.upcomingLeaves.length}
@@ -272,7 +271,7 @@ export default function Dashboard({
                             </div>
                             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                                 <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                                    Departments in scope
+                                    {t('dashboard.departmentsInScope', 'Departments in scope')}
                                 </p>
                                 <p className="mt-0.5 text-2xl font-bold">
                                     {leaveCalendarWidget.departmentsCount}
@@ -325,11 +324,11 @@ export default function Dashboard({
 
                             <div className="space-y-4">
                                 <div className="rounded-xl border border-border p-3">
-                                    <p className="mb-2 text-sm font-semibold">Today</p>
+                                    <p className="mb-2 text-sm font-semibold">{t('dashboard.today', 'Today')}</p>
                                     <div className="space-y-2">
                                         {leaveCalendarWidget.todayOnLeave.length === 0 ? (
                                             <p className="text-muted-foreground text-xs">
-                                                No employees on leave today.
+                                                {t('dashboard.noOneOnLeaveToday', 'No employees on leave today.')}
                                             </p>
                                         ) : (
                                             leaveCalendarWidget.todayOnLeave.slice(0, 5).map((item) => (
@@ -350,11 +349,11 @@ export default function Dashboard({
                                 </div>
 
                                 <div className="rounded-xl border border-border p-3">
-                                    <p className="mb-2 text-sm font-semibold">Upcoming</p>
+                                    <p className="mb-2 text-sm font-semibold">{t('dashboard.upcoming', 'Upcoming')}</p>
                                     <div className="space-y-2">
                                         {leaveCalendarWidget.upcomingLeaves.length === 0 ? (
                                             <p className="text-muted-foreground text-xs">
-                                                No upcoming approved leaves in next 7 days.
+                                                {t('dashboard.noUpcomingLeaves', 'No upcoming approved leaves in next 7 days.')}
                                             </p>
                                         ) : (
                                             leaveCalendarWidget.upcomingLeaves.slice(0, 5).map((item) => (

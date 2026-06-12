@@ -25,8 +25,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 import type { ModulePermissionsMap } from '@/types/permissions';
 
@@ -69,24 +69,6 @@ type LeaveStats = {
     rejected: number;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Leave Management', href: LeaveRequestController.index.url() },
-];
-
-const STATUS_FILTER_OPTIONS = [
-    { value: 'draft', label: 'Draft' },
-    { value: 'submitted', label: 'Submitted' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-] as const;
-
-const DATE_PRESET_OPTIONS = [
-    { value: 'today', label: 'Today' },
-    { value: 'yesterday', label: 'Yesterday' },
-    { value: 'last_7_days', label: 'Last 7 days' },
-    { value: 'this_month', label: 'This month' },
-] as const;
-
 function formatDateDdMmYyyy(value: string | null | undefined): string {
     if (value == null || value === '') return '—';
     const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -110,6 +92,8 @@ function navigateIndex(params: {
     department_id?: number;
     status?: string;
     date_preset?: string;
+    date_from?: string;
+    date_to?: string;
 }) {
     const cleaned: Record<string, string | number> = { page: 1 };
     if (params.search?.trim()) {
@@ -123,6 +107,12 @@ function navigateIndex(params: {
     }
     if (params.date_preset) {
         cleaned.date_preset = params.date_preset;
+    }
+    if (params.date_from) {
+        cleaned.date_from = params.date_from;
+    }
+    if (params.date_to) {
+        cleaned.date_to = params.date_to;
     }
     router.get(LeaveRequestController.index.url(), cleaned, {
         preserveState: true,
@@ -142,11 +132,12 @@ export default function LeaveRequestsIndex({
         department_id?: number | null;
         status?: string | null;
         date_preset?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
     };
     departments: Department[];
     stats: LeaveStats;
 }) {
-    useRequestStatusPoll(['leaveRequests', 'stats']);
 
     const { data: items } = leaveRequests;
 
@@ -161,8 +152,14 @@ export default function LeaveRequestsIndex({
         if (filters.date_preset) {
             q.date_preset = filters.date_preset;
         }
+        if (filters.date_from) {
+            q.date_from = filters.date_from;
+        }
+        if (filters.date_to) {
+            q.date_to = filters.date_to;
+        }
         return q;
-    }, [filters.department_id, filters.status, filters.date_preset]);
+    }, [filters.department_id, filters.status, filters.date_from, filters.date_preset, filters.date_to]);
 
     const departmentSelectValue =
         filters.department_id != null ? String(filters.department_id) : 'all';
@@ -171,12 +168,16 @@ export default function LeaveRequestsIndex({
 
     const datePresetSelectValue =
         filters.date_preset && filters.date_preset !== '' ? filters.date_preset : 'all';
+    const dateFromValue = filters.date_from && filters.date_from !== '' ? filters.date_from : '';
+    const dateToValue = filters.date_to && filters.date_to !== '' ? filters.date_to : '';
 
     const hasActiveFilters =
         Boolean(filters.search?.trim()) ||
         filters.department_id != null ||
         Boolean(filters.status) ||
-        Boolean(filters.date_preset);
+        Boolean(filters.date_preset) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to);
 
     const { flash, modulePermissions } = usePage().props as {
         flash?: { success?: string; error?: string };
@@ -191,9 +192,33 @@ export default function LeaveRequestsIndex({
         });
     };
 
+    const { t } = useI18n();
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('leaveRequests.breadcrumb', 'Leave Management'),
+            href: LeaveRequestController.index.url(),
+        },
+    ];
+
+    const statusFilterOptions = [
+        { value: 'draft', label: t('leaveRequests.filterStatus.draft', 'Draft') },
+        { value: 'submitted', label: t('leaveRequests.filterStatus.submitted', 'Submitted') },
+        { value: 'approved', label: t('leaveRequests.filterStatus.approved', 'Approved') },
+        { value: 'rejected', label: t('leaveRequests.filterStatus.rejected', 'Rejected') },
+    ];
+
+    const datePresetOptions = [
+        { value: 'today', label: t('leaveRequests.datePreset.today', 'Today') },
+        { value: 'yesterday', label: t('leaveRequests.datePreset.yesterday', 'Yesterday') },
+        { value: 'last_7_days', label: t('leaveRequests.datePreset.last7Days', 'Last 7 days') },
+        { value: 'this_month', label: t('leaveRequests.datePreset.thisMonth', 'This month') },
+        { value: 'custom', label: t('leaveRequests.datePreset.customRange', 'Custom range') },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Leave Requests" />
+            <Head title={t('leaveRequests.headTitle', 'Leave Requests')} />
 
             <div className="flex h-full flex-1 flex-col">
                 <div className="border-b bg-gradient-to-b from-muted/30 to-background px-4 py-6 sm:px-6 lg:px-8">
@@ -215,17 +240,20 @@ export default function LeaveRequestsIndex({
                                 </div>
                                 <div>
                                     <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                        Leave requests
+                                        {t('leaveRequests.heading', 'Leave requests')}
                                     </h1>
                                     <p className="text-muted-foreground mt-0.5 max-w-xl text-sm">
-                                        Track time off, filter by team, and act on submissions from one place.
+                                        {t(
+                                            'leaveRequests.subtitle',
+                                            'Track time off, filter by team, and act on submissions from one place.',
+                                        )}
                                     </p>
                                 </div>
                             </div>
                             <Button asChild className="shrink-0 gap-2 self-start lg:self-center">
                                 <Link href={LeaveRequestController.create.url()} prefetch>
                                     <Plus className="size-4" />
-                                    New request
+                                    {t('leaveRequests.newRequest', 'New request')}
                                 </Link>
                             </Button>
                         </div>
@@ -238,7 +266,7 @@ export default function LeaveRequestsIndex({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Total
+                                            {t('leaveRequests.stats.total', 'Total')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.total}</p>
                                     </div>
@@ -251,7 +279,7 @@ export default function LeaveRequestsIndex({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Drafts
+                                            {t('leaveRequests.stats.drafts', 'Drafts')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.draft}</p>
                                     </div>
@@ -264,7 +292,7 @@ export default function LeaveRequestsIndex({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Pending review
+                                            {t('leaveRequests.stats.pendingReview', 'Pending review')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.submitted}</p>
                                     </div>
@@ -277,7 +305,7 @@ export default function LeaveRequestsIndex({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Approved
+                                            {t('leaveRequests.stats.approved', 'Approved')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.approved}</p>
                                     </div>
@@ -290,7 +318,7 @@ export default function LeaveRequestsIndex({
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                                            Rejected
+                                            {t('leaveRequests.stats.rejected', 'Rejected')}
                                         </p>
                                         <p className="text-2xl font-semibold tabular-nums">{stats.rejected}</p>
                                     </div>
@@ -302,7 +330,10 @@ export default function LeaveRequestsIndex({
                             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                                 <DataTableToolbar
                                     searchUrl={LeaveRequestController.index.url()}
-                                    searchPlaceholder="Search by employee name…"
+                                    searchPlaceholder={t(
+                                        'leaveRequests.searchPlaceholder',
+                                        'Search by employee name…',
+                                    )}
                                     filters={{ search: filters.search ?? undefined }}
                                     persistQuery={persistQuery}
                                     autoSearch
@@ -317,14 +348,20 @@ export default function LeaveRequestsIndex({
                                                 department_id: v === 'all' ? undefined : Number(v),
                                                 status: filters.status ?? undefined,
                                                 date_preset: filters.date_preset ?? undefined,
+                                                date_from: filters.date_from ?? undefined,
+                                                date_to: filters.date_to ?? undefined,
                                             });
                                         }}
                                     >
                                         <SelectTrigger className="w-full sm:w-[200px]">
-                                            <SelectValue placeholder="Department" />
+                                            <SelectValue
+                                                placeholder={t('leaveRequests.filter.department', 'Department')}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All departments</SelectItem>
+                                            <SelectItem value="all">
+                                                {t('leaveRequests.filter.allDepartments', 'All departments')}
+                                            </SelectItem>
                                             {departments.map((d) => (
                                                 <SelectItem key={d.id} value={String(d.id)}>
                                                     {d.name}
@@ -340,15 +377,21 @@ export default function LeaveRequestsIndex({
                                                 department_id: filters.department_id ?? undefined,
                                                 status: v === 'all' ? undefined : v,
                                                 date_preset: filters.date_preset ?? undefined,
+                                                date_from: filters.date_from ?? undefined,
+                                                date_to: filters.date_to ?? undefined,
                                             });
                                         }}
                                     >
                                         <SelectTrigger className="w-full sm:w-[180px]">
-                                            <SelectValue placeholder="Status" />
+                                            <SelectValue
+                                                placeholder={t('leaveRequests.filter.status', 'Status')}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All statuses</SelectItem>
-                                            {STATUS_FILTER_OPTIONS.map((opt) => (
+                                            <SelectItem value="all">
+                                                {t('leaveRequests.filter.allStatuses', 'All statuses')}
+                                            </SelectItem>
+                                            {statusFilterOptions.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>
@@ -363,21 +406,67 @@ export default function LeaveRequestsIndex({
                                                 department_id: filters.department_id ?? undefined,
                                                 status: filters.status ?? undefined,
                                                 date_preset: v === 'all' ? undefined : v,
+                                                date_from:
+                                                    v === 'custom'
+                                                        ? filters.date_from ?? undefined
+                                                        : undefined,
+                                                date_to:
+                                                    v === 'custom'
+                                                        ? filters.date_to ?? undefined
+                                                        : undefined,
                                             });
                                         }}
                                     >
                                         <SelectTrigger className="w-full sm:w-[200px]">
-                                            <SelectValue placeholder="Date" />
+                                            <SelectValue placeholder={t('leaveRequests.filter.date', 'Date')} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">Any date</SelectItem>
-                                            {DATE_PRESET_OPTIONS.map((opt) => (
+                                            <SelectItem value="all">
+                                                {t('leaveRequests.filter.anyDate', 'Any date')}
+                                            </SelectItem>
+                                            {datePresetOptions.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {datePresetSelectValue === 'custom' && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <input
+                                                type="date"
+                                                className="border-input focus-visible:ring-ring h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
+                                                defaultValue={dateFromValue}
+                                                onChange={(event) =>
+                                                    navigateIndex({
+                                                        search: filters.search?.trim() || undefined,
+                                                        department_id: filters.department_id ?? undefined,
+                                                        status: filters.status ?? undefined,
+                                                        date_preset: 'custom',
+                                                        date_from: event.target.value || undefined,
+                                                        date_to: dateToValue || undefined,
+                                                    })
+                                                }
+                                                aria-label={t('leaveRequests.filter.customDateFrom', 'From date')}
+                                            />
+                                            <input
+                                                type="date"
+                                                className="border-input focus-visible:ring-ring h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
+                                                defaultValue={dateToValue}
+                                                onChange={(event) =>
+                                                    navigateIndex({
+                                                        search: filters.search?.trim() || undefined,
+                                                        department_id: filters.department_id ?? undefined,
+                                                        status: filters.status ?? undefined,
+                                                        date_preset: 'custom',
+                                                        date_from: dateFromValue || undefined,
+                                                        date_to: event.target.value || undefined,
+                                                    })
+                                                }
+                                                aria-label={t('leaveRequests.filter.customDateTo', 'To date')}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             {hasActiveFilters && (
@@ -388,7 +477,7 @@ export default function LeaveRequestsIndex({
                                     className="shrink-0"
                                     onClick={clearAllFilters}
                                 >
-                                    Clear filters
+                                    {t('leaveRequests.clearFilters', 'Clear filters')}
                                 </Button>
                             )}
                         </div>
@@ -402,22 +491,30 @@ export default function LeaveRequestsIndex({
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-3.5 text-left font-medium">Code</th>
-                                            <th className="px-4 py-3.5 text-left font-medium">Employee</th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium md:table-cell">
-                                                Department
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('leaveRequests.table.code', 'Code')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Company
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('leaveRequests.table.employee', 'Employee')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium lg:table-cell">
-                                                Period
+                                            <th className="hidden px-4 py-3.5 text-start font-medium md:table-cell">
+                                                {t('leaveRequests.table.department', 'Department')}
                                             </th>
-                                            <th className="hidden px-4 py-3.5 text-left font-medium xl:table-cell">
-                                                Days
+                                            <th className="hidden px-4 py-3.5 text-start font-medium lg:table-cell">
+                                                {t('leaveRequests.table.company', 'Company')}
                                             </th>
-                                            <th className="px-4 py-3.5 text-left font-medium">Status</th>
-                                            <th className="w-36 px-4 py-3.5 text-right font-medium">Actions</th>
+                                            <th className="hidden px-4 py-3.5 text-start font-medium lg:table-cell">
+                                                {t('leaveRequests.table.period', 'Period')}
+                                            </th>
+                                            <th className="hidden px-4 py-3.5 text-start font-medium xl:table-cell">
+                                                {t('leaveRequests.table.days', 'Days')}
+                                            </th>
+                                            <th className="px-4 py-3.5 text-start font-medium">
+                                                {t('leaveRequests.table.status', 'Status')}
+                                            </th>
+                                            <th className="w-36 px-4 py-3.5 text-end font-medium">
+                                                {t('leaveRequests.table.actions', 'Actions')}
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -430,14 +527,20 @@ export default function LeaveRequestsIndex({
                                                         </div>
                                                         <p className="text-muted-foreground text-sm">
                                                             {hasActiveFilters
-                                                                ? 'No leave requests match your filters.'
-                                                                : 'No leave requests yet. Create the first request to get started.'}
+                                                                ? t(
+                                                                      'leaveRequests.empty.filtered',
+                                                                      'No leave requests match your filters.',
+                                                                  )
+                                                                : t(
+                                                                      'leaveRequests.empty.noData',
+                                                                      'No leave requests yet. Create the first request to get started.',
+                                                                  )}
                                                         </p>
                                                         {!hasActiveFilters && (
                                                             <Button asChild size="sm" variant="outline" className="gap-2">
                                                                 <Link href={LeaveRequestController.create.url()}>
                                                                     <Plus className="size-4" />
-                                                                    New request
+                                                                    {t('leaveRequests.newRequest', 'New request')}
                                                                 </Link>
                                                             </Button>
                                                         )}
@@ -500,7 +603,7 @@ export default function LeaveRequestsIndex({
                                                         <div className="flex justify-end gap-1">
                                                             <Link
                                                                 href={LeaveRequestController.show.url(lr.id)}
-                                                                aria-label="View"
+                                                                aria-label={t('leaveRequests.aria.view', 'View')}
                                                             >
                                                                 <Button variant="ghost" size="icon" className="size-8">
                                                                     <Eye className="size-4" />
@@ -509,7 +612,7 @@ export default function LeaveRequestsIndex({
                                                             {canUpdate && lr.status === 'draft' && (
                                                                 <Link
                                                                     href={LeaveRequestController.edit.url(lr.id)}
-                                                                    aria-label="Edit"
+                                                                    aria-label={t('leaveRequests.aria.edit', 'Edit')}
                                                                 >
                                                                     <Button variant="ghost" size="icon" className="size-8">
                                                                         <Pencil className="size-4" />

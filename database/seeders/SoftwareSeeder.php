@@ -28,6 +28,16 @@ class SoftwareSeeder extends Seeder
                 'name' => 'WMS',
                 'description' => 'Warehouse Management System (WMS)',
             ],
+            [
+                'code' => 'MS365',
+                'name' => 'Microsoft 365',
+                'description' => 'Email, Teams, and Office applications',
+            ],
+            [
+                'code' => 'VPN',
+                'name' => 'Corporate VPN',
+                'description' => 'Remote access VPN client',
+            ],
         ];
 
         foreach ($software as $item) {

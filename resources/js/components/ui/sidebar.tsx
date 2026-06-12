@@ -127,7 +127,7 @@ function SidebarProvider({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delayDuration={0}>
+      <TooltipProvider delayDuration={400}>
         <div
           data-slot="sidebar-wrapper"
           style={
@@ -200,7 +200,9 @@ function Sidebar({
           }
           side={side}
         >
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex h-full min-w-0 w-full flex-col overflow-x-hidden">
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     )
@@ -243,7 +245,7 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           className={cn(
-            "flex h-full w-full flex-col",
+            "flex h-full min-w-0 w-full flex-col overflow-x-hidden",
             "group-data-[variant=sidebar]:bg-sidebar",
             "group-data-[variant=floating]:rounded-xl group-data-[variant=floating]:border group-data-[variant=floating]:border-white/40 group-data-[variant=floating]:bg-white/60 group-data-[variant=floating]:shadow-xl group-data-[variant=floating]:backdrop-blur-2xl dark:group-data-[variant=floating]:border-white/15 dark:group-data-[variant=floating]:bg-white/10 dark:group-data-[variant=floating]:shadow-black/30",
             "group-data-[variant=inset]:rounded-2xl group-data-[variant=inset]:border group-data-[variant=inset]:border-sidebar-border group-data-[variant=inset]:bg-sidebar group-data-[variant=inset]:shadow-xl group-data-[variant=inset]:shadow-slate-900/25",
@@ -377,7 +379,7 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        "flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-hidden",
         className
       )}
       {...props}
@@ -529,6 +531,12 @@ function SidebarMenuButton({
     return button
   }
 
+  // Only wrap in Tooltip when the sidebar is collapsed to icon mode.
+  // Wrapping links while expanded causes Radix to steal the first click/focus.
+  if (state !== "collapsed" || isMobile) {
+    return button
+  }
+
   if (typeof tooltip === "string") {
     tooltip = {
       children: tooltip,
@@ -541,7 +549,6 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
         {...tooltip}
       />
     </Tooltip>

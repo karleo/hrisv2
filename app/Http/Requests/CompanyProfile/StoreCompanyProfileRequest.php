@@ -16,11 +16,17 @@ class StoreCompanyProfileRequest extends FormRequest
     {
         return [
             'logo' => ['nullable', 'image', 'max:2048'],
+            'business_card_logo' => ['nullable', 'image', 'max:2048'],
+            'business_card_back_logo_1' => ['nullable', 'image', 'max:2048'],
+            'business_card_back_logo_2' => ['nullable', 'image', 'max:2048'],
+            'business_card_back_logo_3' => ['nullable', 'image', 'max:2048'],
+            'business_card_back_logo_4' => ['nullable', 'image', 'max:2048'],
             'company_name' => ['required', 'string', 'max:255'],
             'company_address_1' => ['nullable', 'string', 'max:255'],
             'company_address_2' => ['nullable', 'string', 'max:255'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'website' => ['nullable', 'string', 'url', 'max:255'],
+            'signature_template' => ['nullable', 'string'],
         ];
     }
 }

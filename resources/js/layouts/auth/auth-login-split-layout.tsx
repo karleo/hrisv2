@@ -8,27 +8,28 @@ const LOGIN_FORM_PATTERN = '/images/login-form-pattern.png';
 export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
     return (
         <div
+            dir="ltr"
             className={cn(
-                'relative flex min-h-dvh items-center justify-center overflow-hidden p-3 sm:p-5 md:p-8',
+                'login-shell-bg relative flex min-h-dvh w-full max-w-[100vw] items-center justify-center overflow-hidden p-3 sm:p-5 md:p-8',
                 'pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]',
-                'bg-[#e8f4f2] text-neutral-900 dark:bg-zinc-950',
+                'text-neutral-900',
             )}
         >
-            {/* Light: soft mint wash · Dark: deep teal atmosphere */}
+            {/* Cool slate–navy (balanced RGB) — avoids periwinkle / violet cast */}
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-25%,rgba(60,169,155,0.35),transparent_58%)] dark:bg-[radial-gradient(ellipse_88%_58%_at_50%_-30%,rgba(45,150,140,0.28),transparent_58%)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_92%_58%_at_50%_-18%,rgba(30,58,95,0.09),transparent_58%)] dark:bg-[radial-gradient(ellipse_88%_58%_at_50%_-26%,rgba(59,91,140,0.28),transparent_58%)]"
                 aria-hidden
             />
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(60,169,155,0.22),transparent_48%)] opacity-90 dark:bg-[radial-gradient(circle_at_0%_100%,rgba(38,126,164,0.22),transparent_50%)] dark:opacity-100"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(15,23,42,0.07),transparent_50%)] opacity-95 dark:bg-[radial-gradient(circle_at_0%_100%,rgba(15,23,42,0.5),transparent_52%)] dark:opacity-100"
                 aria-hidden
             />
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,255,255,0.7),transparent_42%)] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,128,255,0.14),transparent_46%)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,255,255,0.75),transparent_44%)] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(71,85,105,0.18),transparent_48%)]"
                 aria-hidden
             />
             <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent to-zinc-900/[0.03] dark:from-[#040914]/15 dark:to-[#02050d]/75"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/[0.045] dark:from-transparent dark:to-black/40"
                 aria-hidden
             />
 
@@ -36,7 +37,7 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                 className={cn(
                     'relative z-10 w-full max-w-[1040px]',
                     'rounded-[1.75rem] p-px',
-                    'bg-gradient-to-b from-white/80 via-white/40 to-zinc-300/30 shadow-[0_28px_64px_-18px_rgba(15,60,52,0.22)]',
+                    'bg-gradient-to-b from-white/80 via-white/40 to-zinc-300/30 shadow-[0_28px_64px_-18px_rgba(15,23,42,0.14)]',
                     'dark:from-white/14 dark:via-white/[0.06] dark:to-transparent dark:shadow-[0_32px_80px_-20px_rgba(0,0,0,0.6)]',
                 )}
             >
@@ -71,16 +72,16 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                     <div
                         className={cn(
                             'relative hidden min-h-0 flex-1 overflow-hidden lg:flex',
-                            'bg-gradient-to-br from-[#e8f7f4] via-[#d4efe9] to-[#b8e4da]',
-                            'dark:from-zinc-900 dark:via-[#0f1917] dark:to-black',
+                            'bg-gradient-to-br from-[#f0f3f8] via-[#e6eaf1] to-[#d9dfe8]',
+                            'dark:from-[#1a2332] dark:via-[#141c28] dark:to-[#0c1018]',
                         )}
                         aria-hidden
                     >
                         <div
                             className={cn(
-                                'absolute inset-0 opacity-75',
-                                'bg-[radial-gradient(ellipse_at_30%_20%,rgba(60,169,155,0.38),transparent_50%)]',
-                                'dark:bg-[radial-gradient(ellipse_at_30%_20%,rgba(60,169,155,0.14),transparent_55%)] dark:opacity-100',
+                                'absolute inset-0 opacity-80',
+                                'bg-[radial-gradient(ellipse_at_30%_22%,rgba(30,58,95,0.14),transparent_52%)]',
+                                'dark:bg-[radial-gradient(ellipse_at_30%_22%,rgba(59,91,140,0.2),transparent_55%)] dark:opacity-100',
                             )}
                         />
                         <img

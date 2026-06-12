@@ -4,13 +4,17 @@ namespace App\Support;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
-use App\Http\Controllers\BiometricSettingController;
+use App\Http\Controllers\Biometric\BiometricAttendanceController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeMessageController;
+use App\Http\Controllers\EmployeeMessageTypingController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
+use App\Http\Controllers\HardwareAssetValueController;
 use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
@@ -18,6 +22,7 @@ use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\Reports\AttendanceReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
@@ -48,6 +53,7 @@ final class ModulePermissionRegistry
             'import' => [PermissionModule::Employees, ModuleAbility::Create],
             'businessCard' => [PermissionModule::Employees, ModuleAbility::View],
             'businessCardEmbed' => [PermissionModule::Employees, ModuleAbility::View],
+            'downloadAttendancePdf' => [PermissionModule::Employees, ModuleAbility::View],
             'show' => [PermissionModule::Employees, ModuleAbility::View],
             'edit' => [PermissionModule::Employees, ModuleAbility::Update],
             'update' => [PermissionModule::Employees, ModuleAbility::Update],
@@ -55,6 +61,17 @@ final class ModulePermissionRegistry
             'showDocument' => [PermissionModule::Employees, ModuleAbility::View],
             'destroy' => [PermissionModule::Employees, ModuleAbility::Delete],
             'destroyDocument' => [PermissionModule::Employees, ModuleAbility::Delete],
+        ],
+        EmployeeMessageController::class => [
+            'index' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'searchEmployees' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'showConversation' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'showEmployee' => [PermissionModule::EmployeeMessages, ModuleAbility::View],
+            'store' => [PermissionModule::EmployeeMessages, ModuleAbility::Create],
+            'markRead' => [PermissionModule::EmployeeMessages, ModuleAbility::Update],
+        ],
+        EmployeeMessageTypingController::class => [
+            'store' => [PermissionModule::EmployeeMessages, ModuleAbility::Create],
         ],
         JobPositionController::class => [
             'index' => [PermissionModule::JobPositions, ModuleAbility::View],
@@ -109,6 +126,23 @@ final class ModulePermissionRegistry
             'edit' => [PermissionModule::Hardware, ModuleAbility::Update],
             'update' => [PermissionModule::Hardware, ModuleAbility::Update],
             'destroy' => [PermissionModule::Hardware, ModuleAbility::Delete],
+        ],
+        HardwareAssetValueController::class => [
+            'index' => [PermissionModule::Hardware, ModuleAbility::View],
+            'create' => [PermissionModule::Hardware, ModuleAbility::Create],
+            'store' => [PermissionModule::Hardware, ModuleAbility::Create],
+            'edit' => [PermissionModule::Hardware, ModuleAbility::Update],
+            'update' => [PermissionModule::Hardware, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Hardware, ModuleAbility::Delete],
+        ],
+        DocumentTypeController::class => [
+            'index' => [PermissionModule::DocumentTypes, ModuleAbility::View],
+            'create' => [PermissionModule::DocumentTypes, ModuleAbility::Create],
+            'store' => [PermissionModule::DocumentTypes, ModuleAbility::Create],
+            'show' => [PermissionModule::DocumentTypes, ModuleAbility::View],
+            'edit' => [PermissionModule::DocumentTypes, ModuleAbility::Update],
+            'update' => [PermissionModule::DocumentTypes, ModuleAbility::Update],
+            'destroy' => [PermissionModule::DocumentTypes, ModuleAbility::Delete],
         ],
         LeaveRequestController::class => [
             'index' => [PermissionModule::LeaveRequests, ModuleAbility::View],
@@ -190,6 +224,21 @@ final class ModulePermissionRegistry
             'update' => [PermissionModule::TimeAttendance, ModuleAbility::Update],
             'destroy' => [PermissionModule::TimeAttendance, ModuleAbility::Delete],
             'checkOut' => [PermissionModule::TimeAttendance, ModuleAbility::CheckOut],
+        ],
+        BiometricAttendanceController::class => [
+            'dashboard' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'sessions' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'punches' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'syncLogs' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+            'storeDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'updateDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'sync' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'testConnection' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'useAdmsPush' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
+            'probeDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
+        ],
+        AttendanceReportController::class => [
+            'index' => [PermissionModule::Reports, ModuleAbility::View],
         ],
         WorkTimetableController::class => [
             'index' => [PermissionModule::WorkTimetables, ModuleAbility::View],

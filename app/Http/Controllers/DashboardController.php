@@ -10,6 +10,7 @@ use App\Models\ItAssetRequest;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Support\CompanyAccessScope;
 use App\Support\RequestApprovalScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -18,9 +19,10 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope)
-    {
-    }
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+    ) {}
 
     public function __invoke(Request $request): Response
     {
@@ -36,9 +38,9 @@ class DashboardController extends Controller
                 || $user->hasModuleAbility(PermissionModule::LeaveCalendar, ModuleAbility::View)
             )
             && (
-            $this->approvalScope->isAdministratorOrHr($user)
-            || $hasScopedDepartmentAccess
-        );
+                $this->approvalScope->isAdministratorOrHr($user)
+                || $hasScopedDepartmentAccess
+            );
 
         $leavePending = LeaveRequest::query()->where('status', 'submitted');
         $this->approvalScope->scopeVisible($leavePending, $user);
@@ -122,7 +124,7 @@ class DashboardController extends Controller
                 ->values()
                 ->all();
 
-            $isAdminOrHr = $user !== null && $this->approvalScope->isAdministratorOrHr($user);
+            $isGlobalAdmin = $user !== null && $this->companyScope->isGlobalAdmin($user);
             $allowedDepartmentIds = array_values(array_unique(array_filter(
                 [
                     ...$managedDepartmentIds,
@@ -130,12 +132,17 @@ class DashboardController extends Controller
                 ],
                 static fn ($id): bool => $id !== null
             )));
-            $departmentsCount = Department::query()
-                ->when(
-                    ! $isAdminOrHr,
-                    fn ($query) => $query->whereIn('id', $allowedDepartmentIds)
-                )
-                ->count();
+            $departmentsQuery = Department::query();
+            if ($isGlobalAdmin) {
+                // No filter — administrators see all departments.
+            } elseif ($this->companyScope->shouldScope($user)) {
+                $this->companyScope->scopeDepartmentsWithCompanyEmployees($departmentsQuery, $user);
+            } elseif ($allowedDepartmentIds !== []) {
+                $departmentsQuery->whereIn('id', $allowedDepartmentIds);
+            } else {
+                $departmentsQuery->whereRaw('1 = 0');
+            }
+            $departmentsCount = $departmentsQuery->count();
 
             $leaveCalendarWidget = [
                 'monthLabel' => $monthStart->format('F Y'),
@@ -215,4 +222,3 @@ class DashboardController extends Controller
         ]);
     }
 }
-

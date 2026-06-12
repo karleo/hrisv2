@@ -1,8 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
-import { Form } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, ChevronDown, Eye, History, ImagePlus, Plus, Trash2, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
+import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
+import { randomUuid } from '@/lib/random-uuid';
 import { index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 
@@ -35,11 +37,22 @@ type JobPosition = {
 type CompanyProfile = {
     id: number;
     company_name: string;
+    company_address_1?: string | null;
+    company_address_2?: string | null;
+    website?: string | null;
+    signature_template?: string | null;
 };
 
 type WorkTimetable = {
     id: number;
     name: string;
+};
+
+type DocumentType = {
+    id: number;
+    code: string;
+    name: string;
+    requires_expiry_date: boolean;
 };
 
 const employeeStatuses = [
@@ -53,48 +66,204 @@ const employeeStatuses = [
     'Employment Cancelled',
 ] as const;
 
+type CreateEmployeeTab =
+    | 'employee_information'
+    | 'work_information'
+    | 'documents'
+    | 'personal_information'
+    | 'leave_configuration';
+
+const createEmployeeTabOrder: CreateEmployeeTab[] = [
+    'employee_information',
+    'work_information',
+    'documents',
+    'personal_information',
+    'leave_configuration',
+];
+
+const createEmployeeTabFields: Record<CreateEmployeeTab, readonly string[]> = {
+    employee_information: [
+        'photo',
+        'employee_code',
+        'first_name',
+        'last_name',
+        'email_address',
+        'contact_number',
+        'address_1',
+        'address_2',
+        'company_profile_id',
+        'work_timetable_id',
+        'department_id',
+        'job_position_id',
+    ],
+    work_information: [
+        'joining_date',
+        'first_contract_date',
+        'start_date',
+        'end_date',
+        'employee_status',
+    ],
+    documents: ['documents', 'document_type_ids', 'document_expiry_dates'],
+    personal_information: [
+        'phone',
+        'mobile',
+        'date_of_birth',
+        'gender',
+        'marital_status',
+        'emergency_contact_name',
+        'emergency_contact_phone',
+    ],
+    leave_configuration: ['leave_opening_balance'],
+};
+
+function validationErrorKeys(
+    errors: Record<string, string | string[] | undefined> | undefined,
+): string[] {
+    if (!errors || typeof errors !== 'object') {
+        return [];
+    }
+
+    return Object.keys(errors).filter((key) => {
+        const value = errors[key];
+        if (value === undefined || value === null) {
+            return false;
+        }
+        if (Array.isArray(value)) {
+            return value.some((item) => String(item ?? '').length > 0);
+        }
+        if (typeof value === 'string') {
+            return value.length > 0;
+        }
+
+        return true;
+    });
+}
+
+function firstCreateEmployeeTabForValidationErrors(errorKeys: string[]): CreateEmployeeTab | null {
+    const roots = new Set(
+        errorKeys.map((key) => {
+            const dot = key.indexOf('.');
+
+            return dot === -1 ? key : key.slice(0, dot);
+        }),
+    );
+
+    if (roots.size === 0) {
+        return null;
+    }
+
+    for (const tab of createEmployeeTabOrder) {
+        const fields = createEmployeeTabFields[tab];
+        if (fields.some((field) => roots.has(field))) {
+            return tab;
+        }
+    }
+
+    return null;
+}
+
+function firstCreateEmployeeFieldForValidationErrors(errorKeys: string[]): string | null {
+    const roots = new Set(
+        errorKeys.map((key) => {
+            const dot = key.indexOf('.');
+
+            return dot === -1 ? key : key.slice(0, dot);
+        }),
+    );
+
+    for (const tab of createEmployeeTabOrder) {
+        const fields = createEmployeeTabFields[tab];
+        const field = fields.find((candidate) => roots.has(candidate));
+        if (field) {
+            return field;
+        }
+    }
+
+    return errorKeys[0] ?? null;
+}
+
+function focusCreateEmployeeField(field: string | null): void {
+    if (!field) {
+        return;
+    }
+
+    const rootField = field.split('.', 1)[0];
+    const target = document.querySelector<HTMLElement>(
+        `[name="${rootField}"], [name="${rootField}[]"], #${rootField}`,
+    );
+
+    if (!target) {
+        return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.focus({ preventScroll: true });
+}
+
 export default function Create({
     departments,
     jobPositions,
     companyProfiles,
     workTimetables,
+    documentTypes,
     canViewActivityLogs = false,
 }: {
     departments: Department[];
     jobPositions: JobPosition[];
     companyProfiles: CompanyProfile[];
     workTimetables: WorkTimetable[];
+    documentTypes: DocumentType[];
     canViewActivityLogs?: boolean;
 }) {
+    const { t } = useI18n();
+    const page = usePage<{
+        errors?: Record<string, string | string[] | undefined>;
+    }>();
+    const pageRef = useRef(page);
+    pageRef.current = page;
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+        isMountedRef.current = true;
+
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
     const photoInputRef = useRef<HTMLInputElement>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [documentRows, setDocumentRows] = useState<
         Array<{
             id: string;
             file: File | null;
-            label: string;
+            documentTypeId: string;
             expiryDate: string;
             saved: boolean;
             previewUrl: string | null;
             savedFileName: string | null;
-            savedLabel: string | null;
+            savedDocumentTypeName: string | null;
             savedExpiryDate: string | null;
             savedFile: File | null;
         }>
     >([
         {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             file: null,
-            label: '',
+            documentTypeId: '',
             expiryDate: '',
             saved: false,
             previewUrl: null,
             savedFileName: null,
-            savedLabel: null,
+            savedDocumentTypeName: null,
             savedExpiryDate: null,
             savedFile: null,
         },
     ]);
+    const documentTypeNameById = Object.fromEntries(
+        documentTypes.map((documentType) => [String(documentType.id), documentType.name])
+    );
+    const documentTypeRequiresExpiryById = Object.fromEntries(
+        documentTypes.map((documentType) => [String(documentType.id), documentType.requires_expiry_date])
+    );
     const [previewDocument, setPreviewDocument] = useState<{
         name: string;
         url: string;
@@ -102,22 +271,45 @@ export default function Create({
         excelRows?: string[][];
         note?: string;
     } | null>(null);
+    const [signatureFirstName, setSignatureFirstName] = useState('');
+    const [signatureLastName, setSignatureLastName] = useState('');
+    const [signatureEmail, setSignatureEmail] = useState('');
+    const [signatureMobile, setSignatureMobile] = useState('');
+    const [signatureCompanyProfileId, setSignatureCompanyProfileId] = useState('');
+    const [signatureJobPositionId, setSignatureJobPositionId] = useState('');
     const [joiningDate, setJoiningDate] = useState('');
-    const [tab, setTab] = useState<'employee_information' | 'work_information' | 'documents' | 'personal_information' | 'leave_configuration'>('employee_information');
-    const tabOrder: Array<'employee_information' | 'work_information' | 'documents' | 'personal_information' | 'leave_configuration'> = [
-        'employee_information',
-        'work_information',
-        'documents',
-        'personal_information',
-        'leave_configuration',
-    ];
-    const tabLabel: Record<typeof tabOrder[number], string> = {
+    const [tab, setTab] = useState<CreateEmployeeTab>('employee_information');
+    const tabOrder = createEmployeeTabOrder;
+    const tabLabel: Record<CreateEmployeeTab, string> = {
         employee_information: 'Employee Information',
         work_information: 'Employement',
         documents: 'Documents',
         personal_information: 'Personal Information',
         leave_configuration: 'Leave Policy',
     };
+    const selectedCompanyProfile =
+        companyProfiles.find(
+            (profile) => String(profile.id) === signatureCompanyProfileId
+        ) ?? null;
+    const employeeDesignation =
+        jobPositions.find(
+            (jobPosition) => String(jobPosition.id) === signatureJobPositionId
+        )?.name ?? '';
+
+    function showFirstValidationError(errorKeys: string[]): void {
+        if (errorKeys.length === 0) {
+            return;
+        }
+
+        const nextTab =
+            firstCreateEmployeeTabForValidationErrors(errorKeys) ??
+            'employee_information';
+        const field = firstCreateEmployeeFieldForValidationErrors(errorKeys);
+        setTab(nextTab);
+        window.setTimeout(() => {
+            focusCreateEmployeeField(field);
+        }, 0);
+    }
 
     function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -138,14 +330,14 @@ export default function Create({
         setDocumentRows((prev) => [
             ...prev,
             {
-                id: crypto.randomUUID(),
+                id: randomUuid(),
                 file: null,
-                label: '',
+                documentTypeId: '',
                 expiryDate: '',
                 saved: false,
                 previewUrl: null,
                 savedFileName: null,
-                savedLabel: null,
+                savedDocumentTypeName: null,
                 savedExpiryDate: null,
                 savedFile: null,
             },
@@ -159,12 +351,12 @@ export default function Create({
                     {
                         ...prev[0],
                         file: null,
-                        label: '',
+                        documentTypeId: '',
                         expiryDate: '',
                         saved: false,
                         previewUrl: null,
                         savedFileName: null,
-                        savedLabel: null,
+                        savedDocumentTypeName: null,
                         savedExpiryDate: null,
                         savedFile: null,
                     },
@@ -174,9 +366,21 @@ export default function Create({
         });
     }
 
-    function setRowLabel(id: string, value: string) {
+    function setRowDocumentTypeId(id: string, value: string) {
         setDocumentRows((prev) =>
-            prev.map((row) => (row.id === id ? { ...row, label: value } : row))
+            prev.map((row) =>
+                row.id === id
+                    ? {
+                          ...row,
+                          documentTypeId: value,
+                          expiryDate:
+                              value !== '' &&
+                              documentTypeRequiresExpiryById[value] === false
+                                  ? ''
+                                  : row.expiryDate,
+                      }
+                    : row
+            )
         );
     }
 
@@ -198,8 +402,8 @@ export default function Create({
                           saved: false,
                           previewUrl: file ? URL.createObjectURL(file) : null,
                           savedFileName: file ? file.name : null,
-                          savedLabel: file
-                              ? row.label.trim() || file.name
+                          savedDocumentTypeName: file
+                              ? (documentTypeNameById[row.documentTypeId] ?? null)
                               : null,
                           savedExpiryDate: file
                               ? row.expiryDate || null
@@ -222,7 +426,8 @@ export default function Create({
                           ...row,
                           saved: true,
                           savedFileName: row.file.name,
-                          savedLabel: row.label.trim() || row.file.name,
+                          savedDocumentTypeName:
+                              documentTypeNameById[row.documentTypeId] ?? null,
                           savedExpiryDate: row.expiryDate || null,
                           savedFile: row.file,
                           file: null,
@@ -321,40 +526,111 @@ export default function Create({
                     Back to Employees
                 </Link>
 
-                <Heading
-                    title="Create Employee"
-                    description="Add a new employee to the master list"
-                />
-
-                <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                        {tabOrder.map((item, index) => (
-                            <Button
-                                key={item}
-                                type="button"
-                                variant={tab === item ? 'default' : 'outline'}
-                                onClick={() => setTab(item)}
-                                className="gap-2"
-                            >
-                                <span className="inline-flex size-5 items-center justify-center rounded-full border border-current/30 text-xs">
-                                    {index + 1}
-                                </span>
-                                {tabLabel[item]}
-                            </Button>
-                        ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Step {tabOrder.indexOf(tab) + 1} of {tabOrder.length}: {tabLabel[tab]}
-                    </p>
-                </div>
-
                 <Form
+                    id="employee-create-form"
                     {...EmployeeController.store.form()}
+                    noValidate
                     className="flex flex-1 flex-col gap-8"
                     encType="multipart/form-data"
+                    options={{
+                        preserveScroll: true,
+                        onError: (validationErrors) => {
+                            showFirstValidationError(
+                                validationErrorKeys(validationErrors),
+                            );
+                        },
+                        onFinish: () => {
+                            window.setTimeout(() => {
+                                if (!isMountedRef.current) {
+                                    return;
+                                }
+                                const keys = validationErrorKeys(
+                                    pageRef.current.props.errors,
+                                );
+                                if (keys.length === 0) {
+                                    return;
+                                }
+                                showFirstValidationError(keys);
+                            }, 0);
+                        },
+                    }}
                 >
                     {({ processing, errors }) => (
                         <>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+                            <div className="min-w-0 flex-1 [&_header]:mb-0">
+                                <Heading
+                                    title="Create Employee"
+                                    description="Add a new employee to the master list"
+                                />
+                            </div>
+                            <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto lg:max-w-none lg:shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={tab === 'employee_information'}
+                                    onClick={() => {
+                                        const current = tabOrder.indexOf(tab);
+                                        if (current > 0) {
+                                            setTab(tabOrder[current - 1]);
+                                        }
+                                    }}
+                                >
+                                    Previous
+                                </Button>
+                                {tab !== 'leave_configuration' && (
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            const current = tabOrder.indexOf(tab);
+                                            if (current < tabOrder.length - 1) {
+                                                setTab(tabOrder[current + 1]);
+                                            }
+                                        }}
+                                    >
+                                        Next
+                                    </Button>
+                                )}
+                                {tab === 'leave_configuration' && (
+                                    <Button disabled={processing} type="submit">
+                                        Create Employee
+                                    </Button>
+                                )}
+                                <Link href={index()}>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        className="min-w-[7.5rem]"
+                                    >
+                                        Discard
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap gap-2">
+                                {tabOrder.map((item, index) => (
+                                    <Button
+                                        key={item}
+                                        type="button"
+                                        variant={tab === item ? 'default' : 'outline'}
+                                        onClick={() => setTab(item)}
+                                        className="gap-2"
+                                    >
+                                        <span className="inline-flex size-5 items-center justify-center rounded-full border border-current/30 text-xs">
+                                            {index + 1}
+                                        </span>
+                                        {tabLabel[item]}
+                                    </Button>
+                                ))}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Step {tabOrder.indexOf(tab) + 1} of {tabOrder.length}:{' '}
+                                {tabLabel[tab]}
+                            </p>
+                        </div>
+
                         <div className="grid flex-1 gap-6 lg:grid-cols-[280px_1fr] lg:items-start">
                             {/* Left column: Photo + Documents */}
                             <div className="flex flex-col gap-6">
@@ -435,6 +711,23 @@ export default function Create({
                                         />
                                     </div>
 
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="biometric_user_id">
+                                            Biometric user ID (device PIN)
+                                        </Label>
+                                        <Input
+                                            id="biometric_user_id"
+                                            name="biometric_user_id"
+                                            maxLength={24}
+                                            placeholder="Must match terminal enrollment"
+                                            autoComplete="off"
+                                        />
+                                        <p className="text-muted-foreground text-xs">
+                                            Numeric ID assigned on the iClock990. Must be unique.
+                                        </p>
+                                        <InputError message={errors.biometric_user_id} />
+                                    </div>
+
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         <div className="grid gap-2">
                                             <Label htmlFor="first_name">
@@ -446,6 +739,11 @@ export default function Create({
                                                 required
                                                 maxLength={255}
                                                 placeholder="John"
+                                                onChange={(event) =>
+                                                    setSignatureFirstName(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.first_name}
@@ -461,6 +759,11 @@ export default function Create({
                                                 required
                                                 maxLength={255}
                                                 placeholder="Doe"
+                                                onChange={(event) =>
+                                                    setSignatureLastName(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.last_name}
@@ -480,6 +783,11 @@ export default function Create({
                                                 required
                                                 maxLength={255}
                                                 placeholder="john.doe@example.com"
+                                                onChange={(event) =>
+                                                    setSignatureEmail(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.email_address}
@@ -488,13 +796,19 @@ export default function Create({
 
                                         <div className="grid gap-2">
                                             <Label htmlFor="contact_number">
-                                                Contact Number
+                                                Contact Number <span className="text-destructive">*</span>
                                             </Label>
                                             <Input
                                                 id="contact_number"
                                                 name="contact_number"
+                                                required
                                                 maxLength={50}
                                                 placeholder="+1 234 567 8900"
+                                                onChange={(event) =>
+                                                    setSignatureMobile(
+                                                        event.target.value
+                                                    )
+                                                }
                                             />
                                             <InputError
                                                 message={errors.contact_number}
@@ -536,7 +850,12 @@ export default function Create({
                                             <select
                                                 id="company_profile_id"
                                                 name="company_profile_id"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                onChange={(event) =>
+                                                    setSignatureCompanyProfileId(
+                                                        event.target.value
+                                                    )
+                                                }
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select company profile
@@ -569,7 +888,7 @@ export default function Create({
                                                 defaultValue={
                                                     workTimetables[0]?.id ?? ''
                                                 }
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select work timetable
@@ -599,7 +918,7 @@ export default function Create({
                                                 id="department_id"
                                                 name="department_id"
                                                 required
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select department
@@ -626,7 +945,12 @@ export default function Create({
                                                 id="job_position_id"
                                                 name="job_position_id"
                                                 required
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                onChange={(event) =>
+                                                    setSignatureJobPositionId(
+                                                        event.target.value
+                                                    )
+                                                }
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">
                                                     Select job position
@@ -729,7 +1053,7 @@ export default function Create({
                                             id="employee_status"
                                             name="employee_status"
                                             defaultValue="Employed"
-                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             {employeeStatuses.map((status) => (
                                                 <option key={status} value={status}>
@@ -739,6 +1063,14 @@ export default function Create({
                                         </select>
                                         <InputError message={errors.employee_status} />
                                     </div>
+
+                                    <EmployeeEmailSignatureCard
+                                        fullName={`${signatureFirstName} ${signatureLastName}`.trim()}
+                                        designation={employeeDesignation}
+                                        email={signatureEmail}
+                                        phone={signatureMobile}
+                                        companyProfile={selectedCompanyProfile}
+                                    />
                                 </CardContent>
                             </Card>
 
@@ -771,22 +1103,38 @@ export default function Create({
                                                         <div className="grid gap-2 md:grid-cols-[1fr_1fr_180px_auto] md:items-end">
                                                             <div className="grid gap-1.5">
                                                                 <Label
-                                                                    htmlFor={`document_label_${i}`}
+                                                                    htmlFor={`document_type_${i}`}
                                                                     className="text-xs"
                                                                 >
                                                                     Document type
                                                                 </Label>
-                                                                <Input
-                                                                    id={`document_label_${i}`}
-                                                                    name="document_labels[]"
-                                                                    value={row.label}
+                                                                <select
+                                                                    id={`document_type_${i}`}
+                                                                    name="document_type_ids[]"
+                                                                    value={row.documentTypeId}
                                                                     onChange={(e) =>
-                                                                        setRowLabel(row.id, e.target.value)
+                                                                        setRowDocumentTypeId(
+                                                                            row.id,
+                                                                            e.target.value
+                                                                        )
                                                                     }
-                                                                    placeholder="e.g. Employment Contract"
-                                                                    maxLength={255}
-                                                                    className="h-8 text-sm"
-                                                                />
+                                                                    className="border-input focus-visible:ring-ring flex h-8 w-full rounded-md border bg-background px-2 py-1 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
+                                                                >
+                                                                    <option value="">
+                                                                        Select document type
+                                                                    </option>
+                                                                    {documentTypes.map((documentType) => (
+                                                                        <option
+                                                                            key={documentType.id}
+                                                                            value={String(
+                                                                                documentType.id
+                                                                            )}
+                                                                        >
+                                                                            {documentType.code} -{' '}
+                                                                            {documentType.name}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
                                                             </div>
                                                             <div className="grid gap-1.5">
                                                                 <Label className="text-xs">
@@ -824,6 +1172,12 @@ export default function Create({
                                                                         )
                                                                     }
                                                                     className="h-8 text-sm"
+                                                                    disabled={
+                                                                        row.documentTypeId !== '' &&
+                                                                        !documentTypeRequiresExpiryById[
+                                                                            row.documentTypeId
+                                                                        ]
+                                                                    }
                                                                 />
                                                             </div>
                                                             <Button
@@ -845,11 +1199,11 @@ export default function Create({
                                                                         Document type
                                                                     </p>
                                                                     <p className="truncate text-xs font-medium text-foreground">
-                                                                        {row.savedLabel ??
-                                                                            (row.file
-                                                                                ? row.label.trim() ||
-                                                                                  row.file.name
-                                                                                : row.label)}
+                                                                        {row.savedDocumentTypeName ??
+                                                                            documentTypeNameById[
+                                                                                row.documentTypeId
+                                                                            ] ??
+                                                                            'Not selected'}
                                                                     </p>
                                                                 </div>
                                                                 <div className="min-w-0">
@@ -912,7 +1266,8 @@ export default function Create({
                                         message={
                                             errors.documents ??
                                             errors['documents.0'] ??
-                                            errors['document_labels.0']
+                                            errors['document_type_ids.0'] ??
+                                            errors['document_expiry_dates.0']
                                         }
                                     />
                                     <div className="mt-4 flex justify-end">
@@ -956,7 +1311,7 @@ export default function Create({
                                             <select
                                                 id="gender"
                                                 name="gender"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 <option value="Male">Male</option>
@@ -972,7 +1327,7 @@ export default function Create({
                                             <select
                                                 id="marital_status"
                                                 name="marital_status"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <option value="">Select</option>
                                                 <option value="Single">Single</option>
@@ -1026,51 +1381,9 @@ export default function Create({
                                 </CardContent>
                             </Card>
                         </div>
-                        <Card>
-                            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span>Complete each step, then click Create Employee.</span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={tab === 'employee_information'}
-                                        onClick={() => {
-                                            const current = tabOrder.indexOf(tab);
-                                            if (current > 0) {
-                                                setTab(tabOrder[current - 1]);
-                                            }
-                                        }}
-                                    >
-                                        Previous
-                                    </Button>
-                                    {tab !== 'leave_configuration' && (
-                                        <Button
-                                            type="button"
-                                            onClick={() => {
-                                                const current = tabOrder.indexOf(tab);
-                                                if (current < tabOrder.length - 1) {
-                                                    setTab(tabOrder[current + 1]);
-                                                }
-                                            }}
-                                        >
-                                            Next
-                                        </Button>
-                                    )}
-                                    {tab === 'leave_configuration' && (
-                                        <Button disabled={processing} type="submit">
-                                            Create Employee
-                                        </Button>
-                                    )}
-                                    <Link href={index()}>
-                                        <Button type="button" variant="outline">
-                                            Cancel
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <p className="text-sm text-muted-foreground">
+                            Complete each step, then click Create Employee.
+                        </p>
                         <Dialog
                             open={previewDocument !== null}
                             onOpenChange={(open) =>
@@ -1204,14 +1517,14 @@ export default function Create({
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <p className="text-sm font-semibold tracking-tight">
-                                                        Activity Log
+                                                        {t('activity.title', 'Activity Log')}
                                                     </p>
                                                     <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                                        0 entries
+                                                        0 {t('activity.entries', 'entries')}
                                                     </span>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Timeline of employee profile changes.
+                                                    {t('activity.description.employeeTimeline', 'Timeline of employee profile changes.')}
                                                 </p>
                                             </div>
                                         </div>
@@ -1221,9 +1534,12 @@ export default function Create({
                                 <CollapsibleContent>
                                     <div className="border-t border-border/70 px-5 pb-5 pt-4">
                                         <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center">
-                                            <p className="text-sm font-medium">No activity captured yet</p>
+                                            <p className="text-sm font-medium">{t('activity.emptyTitle', 'No activity captured yet')}</p>
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                Activity history will appear here once this employee is created and updated.
+                                                {t(
+                                                    'activity.emptyDescription.employeeCreate',
+                                                    'Activity history will appear here once this employee is created and updated.',
+                                                )}
                                             </p>
                                         </div>
                                     </div>

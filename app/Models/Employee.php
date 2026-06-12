@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Biometric\BiometricEmployeeMapper;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,6 +57,7 @@ class Employee extends Model
     protected $fillable = [
         'user_id',
         'employee_code',
+        'biometric_user_id',
         'first_name',
         'last_name',
         'email_address',
@@ -108,6 +110,16 @@ class Employee extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(EmployeeDocument::class);
+    }
+
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(EmployeeMessage::class, 'sender_employee_id');
+    }
+
+    public function receivedMessages(): HasMany
+    {
+        return $this->hasMany(EmployeeMessage::class, 'recipient_employee_id');
     }
 
     public function jobPosition(): BelongsTo
@@ -177,6 +189,10 @@ class Employee extends Model
                 $employee->auditLoggableValues(),
                 []
             );
+
+            if (trim((string) $employee->biometric_user_id) !== '') {
+                app(BiometricEmployeeMapper::class)->mapForAllDevices();
+            }
         });
 
         static::updated(function (self $employee): void {
@@ -196,6 +212,10 @@ class Employee extends Model
                 $changes,
                 $oldValues
             );
+
+            if (array_key_exists('biometric_user_id', $changes)) {
+                app(BiometricEmployeeMapper::class)->mapForAllDevices();
+            }
         });
 
         static::deleted(function (self $employee): void {

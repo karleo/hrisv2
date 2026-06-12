@@ -5,8 +5,13 @@ namespace App\Http\Middleware;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\User;
+use App\Support\CompanyAccessScope;
+use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
+use App\Support\EmployeePresence\EmployeePresenceOnlineData;
+use App\Support\LocaleConfig;
 use App\Support\RequestApprovalScope;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -42,13 +47,25 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'locale' => app()->getLocale(),
+            'locales' => LocaleConfig::supported(),
             'csrf_token' => csrf_token(),
             'auth' => [
                 'user' => $request->user(),
                 'has_employee_profile' => $request->user()?->employee()->exists() ?? false,
+                'employee_id' => $this->employeeIdForPresence($request->user()),
                 'has_my_profile_access' => $this->hasMyProfileAccess($request->user()),
                 'has_leave_calendar_access' => $this->hasLeaveCalendarAccess($request->user()),
+                'is_global_admin' => $this->isGlobalAdmin($request->user()),
+                'viewer_company_profile_id' => $this->viewerCompanyProfileId($request->user()),
             ],
+            ...($this->shouldShareEmployeeMessages($request)
+                ? ['employeeMessages' => fn () => $this->employeeMessagesPayload($request)]
+                : []),
+            // Always: partial reloads must still ship viewer id + presence (see employee-presence-context).
+            'viewerEmployeeId' => Inertia::always(fn () => $this->employeeIdForPresence($request->user())),
+            // Always: partial reloads (e.g. only: ['conversations']) must still ship presence data.
+            'employeePresence' => Inertia::always(fn () => $this->employeePresenceSharedPayload($request)),
             'modulePermissions' => (object) ($request->user()?->modulePermissionsPayload() ?? []),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'notifications' => $request->user()
@@ -71,8 +88,71 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'sync_log_id' => $request->session()->get('sync_log_id'),
             ],
         ];
+    }
+
+    /**
+     * @return array{unread_count:int,conversations:array<int,array<string,mixed>>}
+     */
+    private function employeeMessagesPayload(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || ! $user->isAccountActive()) {
+            return ['unread_count' => 0, 'conversations' => []];
+        }
+
+        $employee = $user->employee;
+
+        if ($employee === null) {
+            return ['unread_count' => 0, 'conversations' => []];
+        }
+
+        return app(EmployeeMessagesHeaderData::class)->forEmployee($employee);
+    }
+
+    private function shouldShareEmployeeMessages(Request $request): bool
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || ! $user->isAccountActive()) {
+            return false;
+        }
+
+        return $user->employee()->exists();
+    }
+
+    /**
+     * @return array{employee_ids: list<int>, employees: list<array<string, mixed>>}
+     */
+    private function employeePresenceSharedPayload(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || $user->is_active !== true) {
+            return ['employee_ids' => [], 'employees' => []];
+        }
+
+        $employee = $user->employee;
+
+        if ($employee === null) {
+            return ['employee_ids' => [], 'employees' => []];
+        }
+
+        return app(EmployeePresenceOnlineData::class)->onlinePeersForViewer($employee);
+    }
+
+    private function employeeIdForPresence(?User $user): ?int
+    {
+        if (! $user instanceof User || $user->is_active !== true) {
+            return null;
+        }
+
+        $id = filter_var($user->employee?->id, FILTER_VALIDATE_INT);
+
+        return $id !== false && $id > 0 ? $id : null;
     }
 
     private function hasLeaveCalendarAccess(?User $user): bool
@@ -105,5 +185,15 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $user->isAdministrator() || $user->employee()->exists();
+    }
+
+    private function isGlobalAdmin(?User $user): bool
+    {
+        return app(CompanyAccessScope::class)->isGlobalAdmin($user);
+    }
+
+    private function viewerCompanyProfileId(?User $user): ?int
+    {
+        return app(CompanyAccessScope::class)->companyProfileIdFor($user);
     }
 }

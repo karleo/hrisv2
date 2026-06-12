@@ -1,6 +1,6 @@
 import { usePoll } from '@inertiajs/react';
 
-const INTERVAL_MS = 5000;
+const INTERVAL_MS = 15000;
 
 /**
  * Periodically refetches the given Inertia props on the current URL so status
@@ -14,6 +14,6 @@ export function useRequestStatusPoll(only: string[]): void {
             preserveScroll: true,
             preserveState: true,
         },
-        { keepAlive: true },
+        { keepAlive: false },
     );
 }

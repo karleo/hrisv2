@@ -1,10 +1,25 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 type Employee = { id: number; first_name: string; last_name: string };
 type Department = { id: number; name: string };
 type Hardware = { id: number; code: string; name: string };
+type HardwareItem = {
+    hardware_id: number;
+    asset_model: string | null;
+    serial_number: string | null;
+    asset_value: string | null;
+    asset_currency: string | null;
+    hardware: Hardware;
+};
+
+type AssetTotal = {
+    currency: string;
+    total: string;
+    count: number;
+};
 
 type ItAssetRequest = {
     id: number;
@@ -13,6 +28,7 @@ type ItAssetRequest = {
     date_issued: string | null;
     status: string;
     serial_number: string | null;
+    hardware_items?: HardwareItem[];
     remarks: string | null;
     asset_type?: string | null;
     employee_signature_url?: string | null;
@@ -38,6 +54,17 @@ function fullName(emp?: Employee | null): string {
         return '';
     }
     return `${emp.first_name} ${emp.last_name}`.trim();
+}
+
+function formatAssetValue(value: string | null, currency: string | null): string {
+    if (!value || !currency) {
+        return '—';
+    }
+
+    return `${currency} ${Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
 }
 
 function FormInputBox({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -136,18 +163,56 @@ function DualSignatureColumn({
 export default function ItAssetRequestPrint({
     itAssetRequest,
     hardware,
+    hardwareItems = [],
+    assetTotals = [],
     companyLogoUrl,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware: Hardware[];
+    hardwareItems?: HardwareItem[];
+    assetTotals?: AssetTotal[];
     companyLogoUrl: string | null;
 }) {
+    const { t } = useI18n({ forceLocale: 'en' });
     const handlePrint = () => window.print();
 
+    const resolvedHardwareItems =
+        hardwareItems.length > 0
+            ? hardwareItems
+            : (itAssetRequest.hardware_items ?? []).length > 0
+              ? (itAssetRequest.hardware_items ?? [])
+              : hardware.map((item, index) => ({
+                    hardware_id: item.id,
+                    asset_model: null,
+                    serial_number: hardware.length === 1 && index === 0 ? (itAssetRequest.serial_number ?? null) : null,
+                    asset_value: null,
+                    asset_currency: null,
+                    hardware: item,
+                }));
+
+    const serialSummary =
+        resolvedHardwareItems.length === 1
+            ? resolvedHardwareItems[0].serial_number
+            : null;
+
     const hardwareLabel =
-        hardware.length > 0
-            ? hardware.map((item) => `${item.code} - ${item.name}`).join('\n')
+        resolvedHardwareItems.length > 0
+            ? resolvedHardwareItems
+                  .map(
+                      (item) => {
+                          const assetName = item.asset_model?.trim() || `${item.hardware.code} - ${item.hardware.name}`;
+
+                          return `${assetName} (Serial: ${item.serial_number ?? '—'}, Value: ${formatAssetValue(item.asset_value, item.asset_currency)})`;
+                      },
+                  )
+                  .join('\n')
             : '';
+
+    const totalsLabel = assetTotals.length > 0
+        ? assetTotals
+              .map((total) => `${formatAssetValue(total.total, total.currency)} (${total.count} counted)`)
+              .join('\n')
+        : '';
 
     const statusNorm = (itAssetRequest.status ?? '').toLowerCase();
     const isDraft = statusNorm === 'draft';
@@ -166,7 +231,7 @@ export default function ItAssetRequestPrint({
                         className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900"
                     >
                         <ArrowLeft className="size-4" />
-                        Back to request
+                        {t('print.backToRequest', 'Back to request')}
                     </Link>
                     <button
                         type="button"
@@ -174,7 +239,7 @@ export default function ItAssetRequestPrint({
                         className="inline-flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
                     >
                         <Printer className="size-4" />
-                        Print
+                        {t('print.print', 'Print')}
                     </button>
                 </div>
 
@@ -254,7 +319,7 @@ export default function ItAssetRequestPrint({
                                 <div className="min-w-0">
                                     <p className="mb-1 text-xs font-semibold text-[#1c287f]">Serial Number</p>
                                     <FormInputBox>
-                                        {itAssetRequest.serial_number ?? (
+                                        {serialSummary ?? (
                                             <span className="text-neutral-400 normal-case">—</span>
                                         )}
                                     </FormInputBox>
@@ -280,13 +345,25 @@ export default function ItAssetRequestPrint({
                                     </FormInputBox>
                                 </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="min-w-0">
+                                    <p className="mb-1 text-xs font-semibold text-[#1c287f]">Total Asset Value</p>
+                                    <FormInputBox>
+                                        {totalsLabel ? (
+                                            <span className="whitespace-pre-wrap">{totalsLabel}</span>
+                                        ) : (
+                                            <span className="text-neutral-400 normal-case">—</span>
+                                        )}
+                                    </FormInputBox>
+                                </div>
+                            </div>
                         </section>
 
                         <AccentRule />
 
                         <section className="grid items-start gap-6 md:grid-cols-2 md:gap-8 print:grid-cols-2 print:items-stretch print:gap-3">
                             <div className="flex min-h-0 min-w-0 flex-col">
-                                <p className="mb-2 text-sm font-semibold text-[#1c287f] print:mb-1">Hardware</p>
+                                <p className="mb-2 text-sm font-semibold text-[#1c287f] print:mb-1">Model</p>
                                 <div className="flex min-h-[120px] flex-1 flex-col border border-neutral-500 bg-white p-2 text-sm uppercase tracking-wide text-neutral-600 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] print:min-h-[5rem] print:flex-1 print:p-1.5 print:text-xs">
                                     {hardwareLabel ? (
                                         <p className="whitespace-pre-wrap">{hardwareLabel}</p>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Employee;
 
+use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\WorkTimetable;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -39,6 +40,13 @@ class UpdateEmployeeRequest extends FormRequest
                 'max:50',
                 Rule::unique(Employee::class)->ignore($employee->id),
             ],
+            'biometric_user_id' => [
+                'nullable',
+                'string',
+                'max:24',
+                'regex:/^\d+$/',
+                Rule::unique(Employee::class, 'biometric_user_id')->ignore($employee->id),
+            ],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email_address' => [
@@ -48,7 +56,7 @@ class UpdateEmployeeRequest extends FormRequest
                 'max:255',
                 Rule::unique(Employee::class, 'email_address')->ignore($employee->id),
             ],
-            'contact_number' => ['nullable', 'string', 'max:50'],
+            'contact_number' => ['required', 'string', 'max:50'],
             'address_1' => ['nullable', 'string', 'max:255'],
             'address_2' => ['nullable', 'string', 'max:255'],
             'company_profile_id' => ['nullable', 'integer', 'exists:company_profiles,id'],
@@ -65,8 +73,10 @@ class UpdateEmployeeRequest extends FormRequest
             'photo' => ['nullable', 'image', 'max:5120'],
             'documents' => ['nullable', 'array'],
             'documents.*' => ['file', 'max:10240'],
-            'document_labels' => ['nullable', 'array'],
-            'document_labels.*' => ['nullable', 'string', 'max:255'],
+            'document_type_ids' => ['nullable', 'array'],
+            'document_type_ids.*' => ['nullable', 'integer', 'exists:document_types,id'],
+            'document_expiry_dates' => ['nullable', 'array'],
+            'document_expiry_dates.*' => ['nullable', 'date'],
         ];
     }
 
@@ -75,11 +85,31 @@ class UpdateEmployeeRequest extends FormRequest
         $validator->after(function ($validator): void {
             $id = $this->input('work_timetable_id');
             if ($id === null) {
-                return;
+                // keep checking document type rules below
+            } else {
+                $timetable = WorkTimetable::query()->withCount('days')->find($id);
+                if ($timetable !== null && $timetable->days_count !== 7) {
+                    $validator->errors()->add('work_timetable_id', 'The selected work timetable must have all seven weekdays defined.');
+                }
             }
-            $timetable = WorkTimetable::query()->withCount('days')->find($id);
-            if ($timetable !== null && $timetable->days_count !== 7) {
-                $validator->errors()->add('work_timetable_id', 'The selected work timetable must have all seven weekdays defined.');
+
+            $documentTypeIds = $this->input('document_type_ids', []);
+            $documentExpiryDates = $this->input('document_expiry_dates', []);
+            foreach ($documentTypeIds as $index => $documentTypeId) {
+                if (! filled($documentTypeId)) {
+                    continue;
+                }
+
+                $documentType = DocumentType::query()->find($documentTypeId);
+                if ($documentType === null || ! $documentType->is_active) {
+                    $validator->errors()->add("document_type_ids.$index", 'Please select an active document type.');
+
+                    continue;
+                }
+
+                if ($documentType->requires_expiry_date && ! filled($documentExpiryDates[$index] ?? null)) {
+                    $validator->errors()->add("document_expiry_dates.$index", 'Expiry date is required for the selected document type.');
+                }
             }
         });
     }

@@ -8,6 +8,7 @@ import {
     RequestDecisionClientMessage,
     visibleRequestDecisionMessage,
 } from '@/components/request-decision-client-message';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     RequestEmployeeSignatureCard,
     itRequestShowSignatureVisitOnly,
@@ -79,6 +80,7 @@ export default function Show({
     canDecide,
     canCancel = false,
     canEdit = false,
+    emailLogs,
 }: {
     itRequest: ItRequest;
     signaturesUrl: string;
@@ -88,6 +90,7 @@ export default function Show({
     canDecide: boolean;
     canCancel?: boolean;
     canEdit?: boolean;
+    emailLogs: RequestEmailLogEntry[];
 }) {
     useRequestStatusPoll(['itRequest', 'canDecide']);
 
@@ -351,6 +354,7 @@ export default function Show({
                     }
                     employeeName={employeeFullName(itRequest.employee)}
                 />
+                <RequestEmailLogList entries={emailLogs} />
                 </div>
             </div>
         </AppLayout>

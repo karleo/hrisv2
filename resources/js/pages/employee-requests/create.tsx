@@ -15,7 +15,9 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { index } from '@/routes/employee-requests';
 import type { BreadcrumbItem } from '@/types';
 
@@ -89,12 +91,15 @@ export default function Create({
     departments,
     jobPositions,
     defaultEmployeeId = null,
+    canChooseEmployee = true,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     jobPositions: JobPositionOption[];
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
 }) {
+    const { t } = useI18n();
     const initialEmployee =
         defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
@@ -198,7 +203,7 @@ export default function Create({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Create Employee Request" />
+            <Head title={t('forms.employee.createTitle', 'Create Employee Request')} />
 
             <div className="flex min-h-screen w-full flex-col bg-muted/30">
                 {/* Header Section */}
@@ -209,16 +214,16 @@ export default function Create({
                             className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ArrowLeft className="size-4" />
-                            Back to Employee Requests
+                            {t('forms.employee.backToRequests', 'Back to Employee Requests')}
                         </Link>
 
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                             <div className="space-y-1">
                                 <h1 className="text-3xl font-bold tracking-tight">
-                                    Create Employee Request
+                                    {t('forms.employee.createTitle', 'Create Employee Request')}
                                 </h1>
                                 <p className="text-muted-foreground">
-                                    Save a draft first, then open the request and use Submit when it is ready to send.
+                                    {t('forms.saveDraftHelp', 'Save a draft first, then open the request and use Submit when it is ready to send.')}
                                 </p>
                             </div>
 
@@ -230,16 +235,16 @@ export default function Create({
                                         onClick={saveDraft}
                                     >
                                         <Send className="mr-2 size-4" />
-                                        {processing ? 'Saving...' : 'Save'}
+                                        {processing ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
                                     </Button>
                                     <Link href={index()}>
                                         <Button type="button" variant="outline">
-                                            Discard
+                                            {t('common.discard', 'Discard')}
                                         </Button>
                                     </Link>
                                 </div>
                                 <div className="min-w-[200px]">
-                                    <Label className="text-sm font-medium">Request Code</Label>
+                                    <Label className="text-sm font-medium">{t('forms.requestCode', 'Request Code')}</Label>
                                     <Input
                                         type="text"
                                         readOnly
@@ -275,19 +280,12 @@ export default function Create({
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2 sm:col-span-2">
-                                            <Label htmlFor="employee_id">
-                                                Employee <span className="text-destructive">*</span>
-                                            </Label>
-                                            <select
-                                                id="employee_id"
-                                                name="employee_id"
-                                                required
-                                                value={data.employee_id}
-                                                onChange={(e) => {
-                                                    const employeeId = e.target.value ? Number(e.target.value) : '';
-                                                    const employee = employees.find((item) => item.id === employeeId);
-
+                                        <div className="sm:col-span-2">
+                                            <RequestEmployeeSelectField
+                                                canChooseEmployee={canChooseEmployee}
+                                                employees={employees}
+                                                employeeId={data.employee_id}
+                                                onEmployeeChange={(employeeId, employee) => {
                                                     setData((previous) => ({
                                                         ...previous,
                                                         employee_id: employeeId,
@@ -295,16 +293,8 @@ export default function Create({
                                                         job_position_id: employee?.job_position_id ?? '',
                                                     }));
                                                 }}
-                                                className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                <option value="">Select employee</option>
-                                                {employees.map((emp) => (
-                                                    <option key={emp.id} value={emp.id}>
-                                                        {emp.first_name} {emp.last_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <InputError message={errors.employee_id} />
+                                                error={errors.employee_id}
+                                            />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="job_position_id">
@@ -755,7 +745,7 @@ export default function Create({
                                     {/* Summary Card */}
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle className="text-lg">Summary</CardTitle>
+                                            <CardTitle className="text-lg">{t('forms.summary', 'Summary')}</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             {selectedEmployee && (
@@ -876,7 +866,7 @@ export default function Create({
 
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle className="text-lg">Employee signature</CardTitle>
+                                            <CardTitle className="text-lg">{t('forms.employee.signature', 'Employee signature')}</CardTitle>
                                             <CardDescription>
                                                 Draw and click Save signature; it is stored when you save the draft.
                                             </CardDescription>

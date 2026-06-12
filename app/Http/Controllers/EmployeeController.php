@@ -14,16 +14,24 @@ use App\Http\Requests\Employee\UpdateProfileRequest;
 use App\Http\Requests\Employee\UploadProfileDocumentRequest;
 use App\Models\CompanyProfile;
 use App\Models\Department;
+use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\User;
 use App\Models\WorkTimetable;
+use App\Services\Reports\AttendanceReportPdfExporter;
+use App\Services\Reports\AttendanceReportService;
+use App\Support\CompanyAccessScope;
+use App\Support\ItAssetValuation;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -32,15 +40,18 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
 {
     public function __construct(
         private readonly FaceVerificationContract $faceVerification,
+        private readonly ItAssetValuation $valuation,
+        private readonly CompanyAccessScope $companyScope,
     ) {}
 
-    public function profile(Request $request): Response
+    public function profile(Request $request, AttendanceReportService $attendanceReportService): Response
     {
         $user = $request->user();
         if ($user === null) {
@@ -48,7 +59,7 @@ class EmployeeController extends Controller
         }
 
         $employee = Employee::query()
-            ->with(['department', 'jobPosition', 'companyProfile', 'workTimetable', 'documents'])
+            ->with(['department', 'jobPosition', 'companyProfile', 'workTimetable', 'documents.documentType'])
             ->where('user_id', $user->id)
             ->first();
 
@@ -99,9 +110,47 @@ class EmployeeController extends Controller
             ->mapWithKeys(static fn ($category, $name): array => [(string) $name => (string) $category])
             ->all();
 
+        $companyForSignature = null;
+        if ($employee instanceof Employee && $employee->companyProfile !== null) {
+            $companyForSignature = $employee->companyProfile;
+        }
+        if ($companyForSignature === null) {
+            $companyForSignature = CompanyProfile::query()->first();
+        }
+
+        $emailSignatureCompanyProfile = $companyForSignature instanceof CompanyProfile
+            ? [
+                'company_name' => $companyForSignature->company_name,
+                'company_address_1' => $companyForSignature->company_address_1,
+                'company_address_2' => $companyForSignature->company_address_2,
+                'website' => $companyForSignature->website,
+                'signature_template' => $companyForSignature->signature_template,
+            ]
+            : null;
+
+        $emailSignaturePreview = [
+            'fullName' => $employee instanceof Employee
+                ? trim($employee->first_name.' '.$employee->last_name)
+                : (string) ($user->name ?? ''),
+            'designation' => $employee instanceof Employee ? ($employee->jobPosition?->name) : null,
+            'email' => $employee instanceof Employee
+                ? $employee->email_address
+                : (string) ($user->email ?? ''),
+            'phone' => $employee instanceof Employee
+                ? ($employee->mobile ?? $employee->contact_number)
+                : null,
+        ];
+
+        $attendance = $employee instanceof Employee
+            ? $this->buildEmployeeAttendancePayload($request, $employee, $attendanceReportService)
+            : null;
+
         return Inertia::render('employees/profile', [
             'employee' => $employee,
+            'attendance' => $attendance,
             'hasEmployeeProfile' => $employee instanceof Employee,
+            'emailSignatureCompanyProfile' => $emailSignatureCompanyProfile,
+            'emailSignaturePreview' => $emailSignaturePreview,
             'leaveConfig' => [
                 'openingBalance' => $openingBalance,
                 'approvedDaysUsed' => $approvedDaysUsed,
@@ -215,7 +264,7 @@ class EmployeeController extends Controller
             abort(403);
         }
 
-        $employee = Employee::query()->with('documents')->where('user_id', $user->id)->first();
+        $employee = Employee::query()->with('documents.documentType')->where('user_id', $user->id)->first();
         if ($employee === null) {
             abort(403);
         }
@@ -225,25 +274,19 @@ class EmployeeController extends Controller
             return back()->with('error', 'Please select a document.');
         }
 
-        $baseName = trim((string) ($request->input('name') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)));
-        $documentName = $baseName !== '' ? $baseName : 'Document';
-
-        $existing = $employee->documents->firstWhere('name', $documentName);
-        $path = $file->store("employees/{$employee->id}/documents", 'public');
-
-        if ($existing !== null) {
-            Storage::disk('public')->delete($existing->path);
-            $existing->update([
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
-        } else {
-            $employee->documents()->create([
-                'name' => $documentName,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
+        $documentType = DocumentType::query()->find($request->integer('document_type_id'));
+        if ($documentType === null) {
+            return back()->with('error', 'Please select a valid document type.');
         }
+
+        $path = $file->store("employees/{$employee->id}/documents", 'public');
+        $this->createEmployeeDocumentVersion(
+            $employee,
+            $documentType,
+            $path,
+            $file->getClientOriginalName(),
+            $request->input('expiry_date')
+        );
 
         return back()->with('success', 'Document uploaded successfully.');
     }
@@ -266,7 +309,7 @@ class EmployeeController extends Controller
         return back()->with('success', 'Document deleted.');
     }
 
-    public function showProfileDocument(Request $request, EmployeeDocument $employeeDocument): BinaryFileResponse
+    public function showProfileDocument(Request $request, EmployeeDocument $employee_document): BinaryFileResponse
     {
         $user = $request->user();
         if ($user === null) {
@@ -274,18 +317,19 @@ class EmployeeController extends Controller
         }
 
         $employee = Employee::query()->where('user_id', $user->id)->first();
-        if ($employee === null || $employeeDocument->employee_id !== $employee->id) {
+        if ($employee === null || $employee_document->employee_id !== $employee->id) {
             abort(404);
         }
 
-        if (! Storage::disk('public')->exists($employeeDocument->path)) {
+        $relativePath = $this->resolveExistingPublicDiskDocumentPath($employee_document);
+        if ($relativePath === null) {
             abort(404, 'Document file not found.');
         }
 
         return response()->file(
-            Storage::disk('public')->path($employeeDocument->path),
+            Storage::disk('public')->path($relativePath),
             [
-                'Content-Disposition' => 'inline; filename="'.$employeeDocument->original_name.'"',
+                'Content-Disposition' => 'inline; filename="'.$employee_document->original_name.'"',
             ]
         );
     }
@@ -295,9 +339,10 @@ class EmployeeController extends Controller
      */
     public function index(Request $request): Response
     {
+        $user = $request->user();
         $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
 
-        $employees = Employee::query()
+        $employees = $this->scopedEmployeesQuery($user)
             ->with([
                 'department.managerEmployee:id,first_name,last_name',
                 'jobPosition',
@@ -321,8 +366,8 @@ class EmployeeController extends Controller
             })
             ->withQueryString();
 
-        $totalEmployees = Employee::query()->count();
-        $activeEmployeesQuery = Employee::query()->whereNotNull('user_id');
+        $totalEmployees = $this->scopedEmployeesQuery($user)->count();
+        $activeEmployeesQuery = $this->scopedEmployeesQuery($user)->whereNotNull('user_id');
         if ($hasUserActiveColumn) {
             $activeEmployeesQuery->whereHas('user', function (Builder $query): void {
                 $query->where('is_active', true);
@@ -330,16 +375,18 @@ class EmployeeController extends Controller
         }
         $activeEmployees = $activeEmployeesQuery->count();
 
+        $departmentsQuery = $this->scopedDepartmentsQuery($user);
+
         return Inertia::render('employees/index', [
             'employees' => $employees,
             'stats' => [
                 'totalEmployees' => $totalEmployees,
                 'activeEmployees' => $activeEmployees,
-                'totalDepartments' => Department::query()->count(),
+                'totalDepartments' => (clone $departmentsQuery)->count(),
                 'noLoginAccessEmployees' => max($totalEmployees - $activeEmployees, 0),
             ],
             'filters' => $request->only('search', 'department_id', 'employee_status'),
-            'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
+            'departments' => $departmentsQuery->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -348,13 +395,25 @@ class EmployeeController extends Controller
      */
     public function create(): Response
     {
-        $canViewActivityLogs = request()->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
+        $user = request()->user();
+        $canViewActivityLogs = $user?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         return Inertia::render('employees/create', [
-            'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'departments' => $this->scopedDepartmentsQuery($user)->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
-            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'companyProfiles' => $this->scopedCompanyProfilesQuery($user)->orderBy('company_name')->get([
+                'id',
+                'company_name',
+                'company_address_1',
+                'company_address_2',
+                'website',
+                'signature_template',
+            ]),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
+            'documentTypes' => DocumentType::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'requires_expiry_date']),
             'canViewActivityLogs' => $canViewActivityLogs,
         ]);
     }
@@ -411,7 +470,7 @@ class EmployeeController extends Controller
             ? (string) $request->input('group_by')
             : null;
 
-        $exportQuery = Employee::query()
+        $exportQuery = $this->scopedEmployeesQuery($request->user())
             ->with(['department:id,code,name,manager_employee_id', 'department.managerEmployee:id,first_name,last_name', 'jobPosition:id,code,name', 'workTimetable:id,name', 'companyProfile:id,company_name']);
         $this->applyEmployeeFilters($exportQuery, $request);
 
@@ -516,13 +575,26 @@ class EmployeeController extends Controller
             ->when(
                 $request->filled('search'),
                 function (Builder $innerQuery) use ($request): void {
-                    $search = (string) $request->input('search');
-                    $innerQuery->where(function (Builder $searchQuery) use ($search): void {
+                    $search = trim((string) $request->input('search'));
+                    $nameTerms = preg_split('/\s+/', $search) ?: [];
+
+                    $innerQuery->where(function (Builder $searchQuery) use ($search, $nameTerms): void {
                         $searchQuery->where('employee_code', 'like', '%'.$search.'%')
                             ->orWhere('first_name', 'like', '%'.$search.'%')
                             ->orWhere('last_name', 'like', '%'.$search.'%')
                             ->orWhere('email_address', 'like', '%'.$search.'%')
                             ->orWhere('contact_number', 'like', '%'.$search.'%');
+
+                        if (count($nameTerms) > 1) {
+                            $searchQuery->orWhere(function (Builder $nameQuery) use ($nameTerms): void {
+                                foreach ($nameTerms as $term) {
+                                    $nameQuery->where(function (Builder $termQuery) use ($term): void {
+                                        $termQuery->where('first_name', 'like', '%'.$term.'%')
+                                            ->orWhere('last_name', 'like', '%'.$term.'%');
+                                    });
+                                }
+                            });
+                        }
                     });
                 }
             )
@@ -543,6 +615,10 @@ class EmployeeController extends Controller
 
     public function import(ImportEmployeesRequest $request): RedirectResponse
     {
+        $user = $request->user();
+        $viewerCompanyProfileId = $this->companyScope->companyProfileIdFor($user);
+        $forceCompanyOnImport = $this->companyScope->shouldScope($user);
+
         $file = $request->file('file');
         if ($file === null) {
             return back()->with('error', 'Please upload a CSV file.');
@@ -684,7 +760,18 @@ class EmployeeController extends Controller
             }
 
             $companyProfileId = null;
-            if ($companyNameKey !== '') {
+            if ($forceCompanyOnImport) {
+                if ($companyNameKey !== '' && isset($companyProfileMap[$companyNameKey])) {
+                    /** @var CompanyProfile $namedCompanyProfile */
+                    $namedCompanyProfile = $companyProfileMap[$companyNameKey];
+                    if ((int) $namedCompanyProfile->id !== $viewerCompanyProfileId) {
+                        $errors[] = "Row {$lineNumber}: company_profile_name must match your assigned company.";
+
+                        continue;
+                    }
+                }
+                $companyProfileId = $viewerCompanyProfileId;
+            } elseif ($companyNameKey !== '') {
                 if (! isset($companyProfileMap[$companyNameKey])) {
                     $errors[] = "Row {$lineNumber}: company_profile_name '{$entry['company_profile_name']}' not found.";
 
@@ -751,10 +838,15 @@ class EmployeeController extends Controller
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
-        $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels']);
+        $documentTypeIds = $request->input('document_type_ids', []);
+        $documentExpiryDates = $request->input('document_expiry_dates', []);
+        unset($data['photo'], $data['documents'], $data['document_type_ids'], $data['document_expiry_dates']);
 
         $data['role'] = 'Employee';
+
+        if ($this->companyScope->shouldScope($request->user())) {
+            $data['company_profile_id'] = $this->companyScope->companyProfileIdFor($request->user());
+        }
 
         $employee = Employee::query()->create($data);
 
@@ -765,12 +857,17 @@ class EmployeeController extends Controller
 
         foreach ($documents as $i => $file) {
             $path = $file->store("employees/{$employee->id}/documents", 'public');
-            $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $employee->documents()->create([
-                'name' => $label,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
+            $documentType = DocumentType::query()->find($documentTypeIds[$i] ?? null);
+            if ($documentType === null) {
+                continue;
+            }
+            $this->createEmployeeDocumentVersion(
+                $employee,
+                $documentType,
+                $path,
+                $file->getClientOriginalName(),
+                $documentExpiryDates[$i] ?? null
+            );
         }
 
         return to_route('employees.edit', $employee)->with('success', 'Employee updated successfully.');
@@ -781,15 +878,16 @@ class EmployeeController extends Controller
      */
     public function businessCard(Request $request, Employee $employee): Response
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $employee->load(['department', 'jobPosition', 'companyProfile']);
+        $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
-        if ($employee->relationLoaded('companyProfile') && $employee->companyProfile) {
-            $employee->companyProfile->logo_url = $employee->companyProfile->logo
-                ? '/storage/'.ltrim($employee->companyProfile->logo, '/')
-                : null;
-        }
+        $employee->company_logo_url = $employee->getAttribute('company_logo')
+            ? '/storage/'.ltrim((string) $employee->getAttribute('company_logo'), '/')
+            : null;
 
         return Inertia::render('employees/business-card', [
             'employee' => $employee,
@@ -800,19 +898,19 @@ class EmployeeController extends Controller
 
     public function businessCardEmbed(Employee $employee): ViewContract
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         $employee->load(['department', 'jobPosition', 'companyProfile']);
+        $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
             ? '/storage/'.ltrim($employee->photo, '/')
             : null;
-        if ($employee->relationLoaded('companyProfile') && $employee->companyProfile) {
-            $employee->companyProfile->logo_url = $employee->companyProfile->logo
-                ? '/storage/'.ltrim($employee->companyProfile->logo, '/')
-                : null;
-        }
-
+        $employee->company_logo_url = $employee->getAttribute('company_logo')
+            ? '/storage/'.ltrim((string) $employee->getAttribute('company_logo'), '/')
+            : null;
         $appName = (string) config('app.name');
         $vCard = $this->buildEmployeeVCard($employee, $appName);
-        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=52x52&data='.rawurlencode($vCard);
+        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data='.rawurlencode($vCard);
 
         return view('employees.business-card-embed', [
             'employee' => $employee,
@@ -821,11 +919,138 @@ class EmployeeController extends Controller
         ]);
     }
 
+    private function attachBusinessCardCompanyProfile(Employee $employee): void
+    {
+        if ($employee->companyProfile !== null) {
+            $this->attachCompanyProfileBusinessCardLogoUrls($employee->companyProfile);
+
+            return;
+        }
+
+        $companyProfile = CompanyProfile::query()
+            ->orderBy('id')
+            ->first();
+
+        if ($companyProfile === null) {
+            return;
+        }
+
+        $this->attachCompanyProfileBusinessCardLogoUrls($companyProfile);
+        $employee->setRelation('companyProfile', $companyProfile);
+    }
+
+    private function attachCompanyProfileBusinessCardLogoUrls(CompanyProfile $companyProfile): void
+    {
+        $companyProfile->logo_url = $companyProfile->logo
+            ? '/storage/'.ltrim($companyProfile->logo, '/')
+            : null;
+        $companyProfile->business_card_logo_url = $companyProfile->business_card_logo
+            ? '/storage/'.ltrim($companyProfile->business_card_logo, '/')
+            : null;
+
+        $businessCardBackLogoColumns = [
+            'business_card_back_logo_1',
+            'business_card_back_logo_2',
+            'business_card_back_logo_3',
+            'business_card_back_logo_4',
+        ];
+
+        $companyProfile->business_card_back_logo_urls = array_map(
+            static fn (string $column): ?string => $companyProfile->{$column}
+                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                : null,
+            $businessCardBackLogoColumns,
+        );
+    }
+
+    /**
+     * Download attendance PDF for the logged-in user's linked employee profile.
+     */
+    public function downloadProfileAttendancePdf(
+        Request $request,
+        AttendanceReportService $attendanceReportService,
+        AttendanceReportPdfExporter $pdfExporter,
+    ): HttpResponse {
+        $user = $request->user();
+        if ($user === null || ! $user->isAccountActive()) {
+            abort(403);
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if ($employee === null) {
+            abort(403);
+        }
+
+        return $this->respondWithAttendancePdfDownload(
+            $request,
+            $employee,
+            $attendanceReportService,
+            $pdfExporter,
+        );
+    }
+
+    /**
+     * Download attendance PDF for an employee mapped on a biometric device.
+     */
+    public function downloadAttendancePdf(
+        Request $request,
+        Employee $employee,
+        AttendanceReportService $attendanceReportService,
+        AttendanceReportPdfExporter $pdfExporter,
+    ): HttpResponse {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
+        return $this->respondWithAttendancePdfDownload(
+            $request,
+            $employee,
+            $attendanceReportService,
+            $pdfExporter,
+        );
+    }
+
+    private function respondWithAttendancePdfDownload(
+        Request $request,
+        Employee $employee,
+        AttendanceReportService $attendanceReportService,
+        AttendanceReportPdfExporter $pdfExporter,
+    ): HttpResponse {
+        if (trim((string) $employee->biometric_user_id) === '') {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $to = isset($validated['to'])
+            ? Carbon::parse($validated['to'])->toDateString()
+            : now()->toDateString();
+        $from = isset($validated['from'])
+            ? Carbon::parse($validated['from'])->toDateString()
+            : Carbon::parse($to)->subDays(30)->toDateString();
+
+        if (Carbon::parse($from)->greaterThan(Carbon::parse($to))) {
+            $from = Carbon::parse($to)->subDays(30)->toDateString();
+        }
+
+        $report = $attendanceReportService->buildForEmployee($employee, $from, $to);
+
+        return $pdfExporter->download(
+            rows: $report['rows'],
+            from: $from,
+            to: $to,
+            employee: $employee,
+        );
+    }
+
     /**
      * Show the form for editing the specified employee.
      */
     public function show(Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         return to_route('employees.edit', [
             'employee' => $employee,
             'mode' => 'view',
@@ -835,14 +1060,16 @@ class EmployeeController extends Controller
     /**
      * Show the form for editing the specified employee.
      */
-    public function edit(Request $request, Employee $employee): Response
+    public function edit(Request $request, Employee $employee, AttendanceReportService $attendanceReportService): Response
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $hasUserActiveColumn = Schema::hasColumn('users', 'is_active');
 
         $employee->load([
             'department',
             'jobPosition',
-            'documents',
+            'documents.documentType',
             'companyProfile',
             'workTimetable',
             'user' => function ($query) use ($hasUserActiveColumn): void {
@@ -904,17 +1131,49 @@ class EmployeeController extends Controller
                 ->values()
                 ->all()
             : [];
+        $orderedEmployeeIds = $this->scopedEmployeesQuery($request->user())
+            ->orderBy('employee_code')
+            ->orderBy('id')
+            ->pluck('id')
+            ->values();
+        $employeePosition = $orderedEmployeeIds->search((int) $employee->id);
+        $previousEmployeeId = null;
+        $nextEmployeeId = null;
+
+        if ($employeePosition !== false) {
+            $previousEmployeeId = $employeePosition > 0
+                ? $orderedEmployeeIds->get($employeePosition - 1)
+                : null;
+            $nextEmployeeId = $employeePosition < ($orderedEmployeeIds->count() - 1)
+                ? $orderedEmployeeIds->get($employeePosition + 1)
+                : null;
+        }
+
+        $attendance = $this->buildEmployeeAttendancePayload($request, $employee, $attendanceReportService);
 
         return Inertia::render('employees/edit', [
             'employee' => $employee,
-            'departments' => Department::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'attendance' => $attendance,
+            'departments' => $this->scopedDepartmentsQuery($request->user())->orderBy('code')->get(['id', 'code', 'name']),
             'jobPositions' => JobPosition::query()->orderBy('code')->get(['id', 'code', 'name']),
-            'companyProfiles' => CompanyProfile::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'companyProfiles' => $this->scopedCompanyProfilesQuery($request->user())->orderBy('company_name')->get([
+                'id',
+                'company_name',
+                'company_address_1',
+                'company_address_2',
+                'website',
+                'signature_template',
+            ]),
             'workTimetables' => WorkTimetable::query()->orderBy('name')->get(['id', 'name']),
+            'documentTypes' => DocumentType::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'requires_expiry_date']),
             'viewMode' => $request->query('mode') === 'view',
             'employeeLoginActive' => $employee->user?->is_active ?? null,
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => $activityLogs,
+            'asset' => $this->approvedAssetPayload($employee),
             'leaveConfig' => [
                 'openingBalance' => $openingBalance,
                 'approvedDaysUsed' => $approvedDaysUsed,
@@ -938,6 +1197,10 @@ class EmployeeController extends Controller
                     ];
                 })->values()->all(),
             ],
+            'employeeNavigation' => [
+                'previousId' => is_numeric($previousEmployeeId) ? (int) $previousEmployeeId : null,
+                'nextId' => is_numeric($nextEmployeeId) ? (int) $nextEmployeeId : null,
+            ],
         ]);
     }
 
@@ -946,6 +1209,8 @@ class EmployeeController extends Controller
      */
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $data = $request->validated();
         if (! array_key_exists('leave_opening_balance', $data) || $data['leave_opening_balance'] === null) {
             $data['leave_opening_balance'] = (float) ($employee->leave_opening_balance ?? 0);
@@ -953,8 +1218,13 @@ class EmployeeController extends Controller
         $userActive = $data['user_active'] ?? null;
         $photo = $data['photo'] ?? null;
         $documents = $data['documents'] ?? [];
-        $documentLabels = $request->input('document_labels', []);
-        unset($data['photo'], $data['documents'], $data['document_labels'], $data['user_active']);
+        $documentTypeIds = $request->input('document_type_ids', []);
+        $documentExpiryDates = $request->input('document_expiry_dates', []);
+        unset($data['photo'], $data['documents'], $data['document_type_ids'], $data['document_expiry_dates'], $data['user_active']);
+
+        if ($this->companyScope->shouldScope($request->user())) {
+            $data['company_profile_id'] = $this->companyScope->companyProfileIdFor($request->user());
+        }
 
         $employee->update($data);
 
@@ -968,12 +1238,17 @@ class EmployeeController extends Controller
 
         foreach ($documents as $i => $file) {
             $path = $file->store("employees/{$employee->id}/documents", 'public');
-            $label = trim($documentLabels[$i] ?? '') ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $employee->documents()->create([
-                'name' => $label,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-            ]);
+            $documentType = DocumentType::query()->find($documentTypeIds[$i] ?? null);
+            if ($documentType === null) {
+                continue;
+            }
+            $this->createEmployeeDocumentVersion(
+                $employee,
+                $documentType,
+                $path,
+                $file->getClientOriginalName(),
+                $documentExpiryDates[$i] ?? null
+            );
         }
 
         if (Schema::hasColumn('users', 'is_active') && $employee->user_id !== null && $userActive !== null) {
@@ -994,6 +1269,8 @@ class EmployeeController extends Controller
 
     public function updatePrivateInformation(UpdateEmployeePrivateInformationRequest $request, Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee($request->user(), $employee);
+
         $employee->update($request->validated());
 
         $tab = $request->input('tab');
@@ -1013,6 +1290,8 @@ class EmployeeController extends Controller
      */
     public function destroy(Employee $employee): RedirectResponse
     {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
         if ($employee->photo) {
             Storage::disk('public')->delete($employee->photo);
         }
@@ -1027,36 +1306,217 @@ class EmployeeController extends Controller
     /**
      * Remove the specified document from the employee.
      */
-    public function destroyDocument(Employee $employee, EmployeeDocument $employeeDocument): RedirectResponse
+    public function destroyDocument(Employee $employee, EmployeeDocument $employee_document): RedirectResponse
     {
-        if ($employeeDocument->employee_id !== $employee->id) {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
+        if ($employee_document->employee_id !== $employee->id) {
             abort(404);
         }
-        $path = str_replace('\\', '/', $employeeDocument->path);
-        Storage::disk('public')->delete($employeeDocument->path);
+        $path = str_replace('\\', '/', $employee_document->path);
+        Storage::disk('public')->delete($employee_document->path);
         Storage::disk('public')->delete($path);
         Storage::disk('public')->deleteDirectory("employees/{$employee->id}/documents");
-        $employeeDocument->delete();
+        $employee_document->delete();
 
         return back();
     }
 
-    public function showDocument(Employee $employee, EmployeeDocument $employeeDocument): BinaryFileResponse
+    public function showDocument(Employee $employee, EmployeeDocument $employee_document): BinaryFileResponse
     {
-        if ($employeeDocument->employee_id !== $employee->id) {
+        $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
+
+        if ($employee_document->employee_id !== $employee->id) {
             abort(404);
         }
 
-        if (! Storage::disk('public')->exists($employeeDocument->path)) {
+        $relativePath = $this->resolveExistingPublicDiskDocumentPath($employee_document);
+        if ($relativePath === null) {
             abort(404, 'Document file not found.');
         }
 
         return response()->file(
-            Storage::disk('public')->path($employeeDocument->path),
+            Storage::disk('public')->path($relativePath),
             [
-                'Content-Disposition' => 'inline; filename="'.$employeeDocument->original_name.'"',
+                'Content-Disposition' => 'inline; filename="'.$employee_document->original_name.'"',
             ]
         );
+    }
+
+    /**
+     * Resolve the path relative to the public disk root, or null if the file is missing.
+     * Handles Windows-style separators and legacy values that include a "storage/" prefix.
+     */
+    private function resolveExistingPublicDiskDocumentPath(EmployeeDocument $document): ?string
+    {
+        $raw = $document->path;
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace('\\', '/', $raw);
+        $normalized = ltrim($normalized, '/');
+
+        $candidates = [$normalized];
+        if (str_starts_with($normalized, 'storage/')) {
+            $candidates[] = substr($normalized, strlen('storage/'));
+        }
+
+        $disk = Storage::disk('public');
+        foreach (array_unique($candidates) as $candidate) {
+            if ($candidate !== '' && $disk->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function createEmployeeDocumentVersion(
+        Employee $employee,
+        DocumentType $documentType,
+        string $path,
+        string $originalName,
+        mixed $expiryDate,
+    ): EmployeeDocument {
+        return DB::transaction(function () use ($employee, $documentType, $path, $originalName, $expiryDate): EmployeeDocument {
+            $previousDocument = EmployeeDocument::query()
+                ->where('employee_id', $employee->id)
+                ->where('document_type_id', $documentType->id)
+                ->orderByDesc('version_number')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($previousDocument !== null) {
+                $previousDocument->update([
+                    'status' => EmployeeDocument::STATUS_ARCHIVED,
+                    'archived_at' => now(),
+                ]);
+            }
+
+            return $employee->documents()->create([
+                'document_type_id' => $documentType->id,
+                'name' => $documentType->name,
+                'path' => $path,
+                'original_name' => $originalName,
+                'expiry_date' => $this->normalizeDocumentExpiryDate($expiryDate),
+                'status' => EmployeeDocument::STATUS_ACTIVE,
+                'version_number' => (int) ($previousDocument?->version_number ?? 0) + 1,
+                'archived_at' => null,
+                'replaces_document_id' => $previousDocument?->id,
+            ]);
+        });
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function approvedAssetPayload(Employee $employee): array
+    {
+        return ItAssetRequest::query()
+            ->with([
+                'issuedByEmployee:id,first_name,last_name',
+                'hardwareItems.hardware:id,code,name',
+                'hardwareItems.hardwareAssetValue:id,asset_model',
+            ])
+            ->where('employee_id', $employee->id)
+            ->where('status', 'approved')
+            ->orderByDesc('decided_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (ItAssetRequest $request): array {
+                $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($request);
+
+                return [
+                    'id' => (int) $request->id,
+                    'code' => (string) $request->code,
+                    'url' => route('it-asset-requests.show', $request, false),
+                    'issued_date' => $request->date_issued?->toDateString(),
+                    'approved_date' => $request->decided_at?->toDateString(),
+                    'issued_by' => $request->issuedByEmployee !== null
+                        ? trim($request->issuedByEmployee->first_name.' '.$request->issuedByEmployee->last_name)
+                        : null,
+                    'remarks' => $request->remarks,
+                    'hardware_items' => $this->assetHardwareItems($hardwareItems),
+                    'asset_totals' => $this->valuation->totalsForHardwareItems($hardwareItems),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $hardwareItems
+     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, asset_model: string|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null}>
+     */
+    private function assetHardwareItems(array $hardwareItems): array
+    {
+        return array_map(
+            fn (array $item): array => [
+                'hardware_id' => $item['hardware']['id'] ?? $item['hardware_id'] ?? null,
+                'hardware_code' => (string) ($item['hardware']['code'] ?? ''),
+                'hardware_name' => (string) ($item['hardware']['name'] ?? ''),
+                'asset_model' => $item['asset_model'] ?? null,
+                'serial_number' => $item['serial_number'] ?? null,
+                'asset_value' => $item['asset_value'] ?? null,
+                'asset_currency' => $item['asset_currency'] ?? null,
+            ],
+            $hardwareItems
+        );
+    }
+
+    private function normalizeDocumentExpiryDate(mixed $value): ?string
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        return Carbon::parse((string) $value)->toDateString();
+    }
+
+    /**
+     * @return Builder<Employee>
+     */
+    private function scopedEmployeesQuery(?User $user = null): Builder
+    {
+        $user ??= request()->user();
+
+        return $this->companyScope->scopeEmployees(Employee::query(), $user);
+    }
+
+    /**
+     * @return Builder<Department>
+     */
+    private function scopedDepartmentsQuery(?User $user = null): Builder
+    {
+        $user ??= request()->user();
+
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return Department::query();
+        }
+
+        return $this->companyScope->scopeDepartmentsWithCompanyEmployees(Department::query(), $user);
+    }
+
+    /**
+     * @return Builder<CompanyProfile>
+     */
+    private function scopedCompanyProfilesQuery(?User $user = null): Builder
+    {
+        $user ??= request()->user();
+        $query = CompanyProfile::query();
+
+        if ($this->companyScope->isGlobalAdmin($user)) {
+            return $query;
+        }
+
+        $companyProfileId = $this->companyScope->companyProfileIdFor($user);
+
+        if ($companyProfileId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereKey($companyProfileId);
     }
 
     /**
@@ -1075,6 +1535,9 @@ class EmployeeController extends Controller
 
     private function normalizeHeader(string $header): string
     {
+        $header = preg_replace('/^\xEF\xBB\xBF/u', '', $header) ?? $header;
+        $header = ltrim($header, "\u{FEFF}");
+
         return mb_strtolower(trim($header));
     }
 
@@ -1116,5 +1579,43 @@ class EmployeeController extends Controller
     private function escapeVCard(string $value): string
     {
         return str_replace(['\\', ';', ','], ['\\\\', '\;', '\,'], $value);
+    }
+
+    /**
+     * @return array{
+     *     filters: array{from: string, to: string},
+     *     summary: array{total_days: int, total_punches: int},
+     *     rows: list<array<string, mixed>>
+     * }|null
+     */
+    private function buildEmployeeAttendancePayload(
+        Request $request,
+        Employee $employee,
+        AttendanceReportService $attendanceReportService,
+    ): ?array {
+        if (trim((string) $employee->biometric_user_id) === '') {
+            return null;
+        }
+
+        $to = $request->date('to')?->toDateString() ?? now()->toDateString();
+        $from = $request->date('from')?->toDateString() ?? Carbon::parse($to)->subDays(30)->toDateString();
+
+        if (Carbon::parse($from)->greaterThan(Carbon::parse($to))) {
+            $from = Carbon::parse($to)->subDays(30)->toDateString();
+        }
+
+        $report = $attendanceReportService->buildForEmployee($employee, $from, $to);
+
+        return [
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+            ],
+            'summary' => [
+                'total_days' => count($report['rows']),
+                'total_punches' => $report['total_punches'],
+            ],
+            'rows' => $report['rows'],
+        ];
     }
 }

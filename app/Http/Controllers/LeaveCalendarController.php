@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\User;
+use App\Support\CompanyAccessScope;
 use App\Support\RequestApprovalScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class LeaveCalendarController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -39,9 +43,7 @@ class LeaveCalendarController extends Controller
             ? $this->approvalScope->managedDepartmentIds($user)
             : [];
         $currentEmployeeDepartmentId = $user?->employee?->department_id;
-        $isAdminOrHr = $user instanceof User
-            ? $this->approvalScope->isAdministratorOrHr($user)
-            : false;
+        $isGlobalAdmin = $user instanceof User && $this->companyScope->isGlobalAdmin($user);
         $allowedDepartmentIds = array_values(array_unique(array_filter(
             [
                 ...$managedDepartmentIds,
@@ -51,8 +53,19 @@ class LeaveCalendarController extends Controller
         )));
 
         $departmentFilterId = isset($filters['department_id']) ? (int) $filters['department_id'] : null;
-        if (! $isAdminOrHr && $departmentFilterId !== null && ! in_array($departmentFilterId, $allowedDepartmentIds, true)) {
-            abort(403);
+        if (! $isGlobalAdmin && $departmentFilterId !== null && ! in_array($departmentFilterId, $allowedDepartmentIds, true)) {
+            if (! $this->companyScope->shouldScope($user)) {
+                abort(403);
+            }
+
+            $departmentInCompany = Department::query()
+                ->whereKey($departmentFilterId)
+                ->tap(fn ($query) => $this->companyScope->scopeDepartmentsWithCompanyEmployees($query, $user))
+                ->exists();
+
+            if (! $departmentInCompany) {
+                abort(403);
+            }
         }
 
         $leaveTypeCategories = LeaveType::query()
@@ -103,6 +116,7 @@ class LeaveCalendarController extends Controller
         })->values();
 
         $calendarDayCounts = [];
+        $calendarDayLeaves = [];
         foreach ($entries as $entry) {
             $from = Carbon::parse((string) $entry['period_from']);
             $to = Carbon::parse((string) $entry['period_to']);
@@ -112,8 +126,25 @@ class LeaveCalendarController extends Controller
             for ($cursor = (clone $effectiveStart); $cursor->lte($effectiveEnd); $cursor->addDay()) {
                 $key = $cursor->toDateString();
                 $calendarDayCounts[$key] = ($calendarDayCounts[$key] ?? 0) + 1;
+                $calendarDayLeaves[$key] ??= [];
+                $calendarDayLeaves[$key][] = [
+                    'id' => (int) $entry['id'],
+                    'employee_name' => (string) $entry['employee_name'],
+                    'leave_type' => (string) $entry['leave_type'],
+                ];
             }
         }
+
+        foreach ($calendarDayLeaves as &$dayLeaves) {
+            usort(
+                $dayLeaves,
+                static fn (array $a, array $b): int => strcmp(
+                    (string) $a['employee_name'],
+                    (string) $b['employee_name'],
+                ),
+            );
+        }
+        unset($dayLeaves);
 
         $todayOnLeave = $entries
             ->filter(static function (array $entry) use ($today): bool {
@@ -154,11 +185,22 @@ class LeaveCalendarController extends Controller
             ->values()
             ->all();
 
-        $departments = Department::query()
-            ->when(
-                ! $isAdminOrHr,
-                fn ($query) => $query->whereIn('id', $allowedDepartmentIds)
-            )
+        $departmentsQuery = Department::query();
+        if ($isGlobalAdmin) {
+            // No filter — administrators see all departments.
+        } elseif ($this->companyScope->shouldScope($user)) {
+            $this->companyScope->scopeDepartmentsWithCompanyEmployees($departmentsQuery, $user);
+
+            if ($managedDepartmentIds !== [] && ! $this->approvalScope->isHr($user)) {
+                $departmentsQuery->whereIn('id', $managedDepartmentIds);
+            }
+        } elseif ($allowedDepartmentIds !== []) {
+            $departmentsQuery->whereIn('id', $allowedDepartmentIds);
+        } else {
+            $departmentsQuery->whereRaw('1 = 0');
+        }
+
+        $departments = $departmentsQuery
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(static fn (Department $department): array => [
@@ -179,25 +221,26 @@ class LeaveCalendarController extends Controller
             ->all();
 
         return Inertia::render('leave-calendar/index', [
-            'filters' => [
+            'filters' => Inertia::always(fn () => [
                 'month' => $month,
                 'department_id' => $departmentFilterId,
                 'leave_type' => $leaveTypeFilter !== '' ? $leaveTypeFilter : null,
-            ],
-            'meta' => [
+            ]),
+            'meta' => Inertia::always(fn () => [
                 'month' => $month,
                 'monthLabel' => $monthStart->format('F Y'),
                 'monthStart' => $monthStart->toDateString(),
                 'monthEnd' => $monthEnd->toDateString(),
                 'today' => $today->toDateString(),
-            ],
-            'departments' => $departments,
-            'leaveTypes' => $leaveTypes,
-            'entries' => $entries,
-            'calendarDayCounts' => $calendarDayCounts,
-            'todayOnLeave' => $todayOnLeave,
-            'upcomingLeaves' => $upcomingLeaves,
-            'departmentSummary' => $departmentSummary,
+            ]),
+            'departments' => Inertia::always(fn () => $departments),
+            'leaveTypes' => Inertia::always(fn () => $leaveTypes),
+            'entries' => Inertia::always(fn () => $entries),
+            'calendarDayCounts' => Inertia::always(fn () => $calendarDayCounts),
+            'calendarDayLeaves' => Inertia::always(fn () => $calendarDayLeaves),
+            'todayOnLeave' => Inertia::always(fn () => $todayOnLeave),
+            'upcomingLeaves' => Inertia::always(fn () => $upcomingLeaves),
+            'departmentSummary' => Inertia::always(fn () => $departmentSummary),
         ]);
     }
 
@@ -231,4 +274,3 @@ class LeaveCalendarController extends Controller
         }
     }
 }
-

@@ -65,9 +65,47 @@ class LeaveCalendarTest extends TestCase
                 ->component('leave-calendar/index')
                 ->has('entries')
                 ->has('calendarDayCounts')
+                ->has('calendarDayLeaves')
                 ->has('todayOnLeave')
                 ->has('upcomingLeaves')
                 ->has('departmentSummary')
+            );
+    }
+
+    public function test_calendar_day_leaves_include_employee_names_for_each_date(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        LeaveType::factory()->create([
+            'name' => 'Annual Leave',
+            'leave_category' => 'paid',
+        ]);
+
+        $employee = Employee::factory()->create([
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+        ]);
+        $leaveDate = now()->startOfMonth()->toDateString();
+
+        LeaveRequest::factory()->create([
+            'employee_id' => $employee->id,
+            'department_id' => $employee->department_id,
+            'absence_types' => ['Annual Leave'],
+            'status' => 'approved',
+            'period_from' => $leaveDate,
+            'period_to' => $leaveDate,
+            'days' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('leave-calendar.index', ['month' => now()->format('Y-m')]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has("calendarDayLeaves.{$leaveDate}", 1)
+                ->where("calendarDayLeaves.{$leaveDate}.0.employee_name", 'Jane Doe')
+                ->where("calendarDayLeaves.{$leaveDate}.0.leave_type", 'Annual Leave')
             );
     }
 
@@ -132,4 +170,3 @@ class LeaveCalendarTest extends TestCase
             );
     }
 }
-

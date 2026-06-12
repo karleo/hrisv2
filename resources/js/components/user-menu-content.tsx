@@ -4,6 +4,7 @@ import {
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { getEcho } from '@/lib/echo';
 import { logout } from '@/routes';
 import type { User } from '@/types';
 
@@ -21,6 +22,7 @@ export function UserMenuContent({ user }: Props) {
 
     const handleLogout = () => {
         cleanup();
+        getEcho()?.leave('employees.online');
         router.flushAll();
     };
 

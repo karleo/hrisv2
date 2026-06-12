@@ -1,0 +1,283 @@
+
+		<HTML>
+		<HEAD><TITLE></TITLE>
+		<meta http-equiv='Content-Type' content='text/html;'>
+		<LINK href='../css/Secutime.css' type=text/css rel=stylesheet>	
+		<LINK href='../css/list.css' type=text/css rel=stylesheet>
+		<SCRIPT language=javascript src='../js/list.js'></SCRIPT>
+		<SCRIPT language=javascript src='../js/popcalendar.js'></SCRIPT>
+		<SCRIPT language=javascript src='../js/gen.js'></SCRIPT>
+		<script language=JavaScript type='text/javascript'>var today_s,today_e,ytoday_s,ttoday_e;var tweek_s,tweek_e,lweek_s,lwekk_e;var tmon_s,tmon_e,lmon_s,lmon_e;
+today_s='2026-05-22';today_e='2026-05-22';
+ytoday_s='2026-05-21';
+ytoday_e='2026-05-21';
+tweek_s='2026-05-18';
+tweek_e='2026-05-24';
+lweek_s='2026-05-11';
+lweek_e='2026-05-17';
+tmon_s='2026-05-01';
+tmon_e='2026-05-31';
+lmon_s='2026-04-01';
+lmon_e='2026-04-30';
+function OnPeriod(ids){		  if(ids==0)		  {	          	document.forms[0].sdate.value = '';			document.forms[0].edate.value = '';			document.forms[0].sdate.focus();		  }		  else		  if(ids==1)		  {		  	document.forms[0].sdate.value=today_s;			document.forms[0].edate.value=today_e;		  }		  else		  if(ids==2)		  {			document.forms[0].sdate.value=ytoday_s;			document.forms[0].edate.value=ytoday_e;		  }		  else		  if(ids==3)		  {			document.forms[0].sdate.value=tweek_s;			document.forms[0].edate.value=tweek_e;	          }		  else		  if(ids==4)	          {			document.forms[0].sdate.value=lweek_s;			document.forms[0].edate.value=lweek_e;		  }		  else		  if(ids==5)		  {			document.forms[0].sdate.value=tmon_s;			document.forms[0].edate.value=tmon_e;		  }		  else		  if(ids==6)		  {			document.forms[0].sdate.value=lmon_s;			document.forms[0].edate.value=lmon_e;		  }		  }		  </script></HEAD>
+		<BODY bgColor=#ffffff>
+		<SPAN class=HeaderText>Report</SPAN><BR>
+		<HR>
+
+		<table width=100% border=0 cellpadding=0 cellspacing=0 align=center>
+
+		<form name=mainform method=post target=_blank action='/csl/report?action=run' onsubmit='return uidcheck(document.mainform.uid,"Error Input!");'>
+		<TR><TD><table width=100% border=0 cellpadding=0 cellspacing=0 align=center>
+                <TR height=20><TD class=nrow width=10%><B>Date</b></td><TD>&nbsp;From&nbsp;
+		<img src=../image/calc.png border=0 onclick='popUpCalendar(this, mainform.sdate, "yyyy-mm-dd")'>&nbsp;<input class=inputbox type=text size=10 maxlength=10 name=sdate value=2026-05-22>&nbsp;
+		To
+		&nbsp;<img src=../image/calc.png border=0 onclick='popUpCalendar(this, mainform.edate, "yyyy-mm-dd")'>&nbsp;<input class=inputbox type=text maxlength=10 size=10 name=edate value=2026-05-22></td></tr>
+		<TR><TD colspan=2 height=5></td></tr>
+		<TR height=20><TD class=nrow><B>Period</b></td>
+		<td>&nbsp;<select name=period onchange='OnPeriod(this.value);'>
+                <option value=0>Define</option>
+                <option value=1 selected>Today</option>
+                <option value=2>Yesterday</option>
+                <option value=3>Week</option>
+                <option value=4>Last Week</option>
+                <option value=5>Mon</option>
+                <option value=6>Last Mon</option></select>
+                &nbsp;&nbsp;&nbsp;&nbsp;<input class=inputbox type=submit class=button value='Search'>
+		</td></tr></table>
+		</td></TR><TR><TD height=5></td></tr><TR><TD>
+		<div class='t_i'> 
+		<div class='t_i_h' id='hh'> 
+        	<div class='ee'> 
+            	<table cellpadding=2 cellspacing=2 border=0> 
+             	<tr class=Table_Header> 
+                <td class=titleLeft width=5%><a href='javascript:selectcheck(document.mainform.uid,0)'><img src=../image/sel.gif border=0></a></td> 
+		<td class=titleNormal width=25%>Department Name</td>
+                <td class=titleNormal width=15%>ID Number</td> 
+                <td class=titleNormal width=10%>Name</td> 
+                <td class=titleormal width=15%>Card</td> 
+                <td class=titleormal width=15%>Group</td> 
+                <td class=titleNormal width=15%>Privilege</td> 
+                </tr> </table> 
+        	</div> 
+		</div> 
+    		<div class='cc' id='cc' onscroll='list_t()'> 
+        	<table cellpadding=2 cellspacing=2 border=0>
+	
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=1></td>
+			<td width=25%></td>
+			<td width=15%>1</td>
+                	<td width=10%>NASSER ALJAMI</td> 
+                	<td width=15%>5948699</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=20></td>
+			<td width=25%></td>
+			<td width=15%>3</td>
+                	<td width=10%>MOHAMED ISMAIL RAJ MOHAM</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=57></td>
+			<td width=25%></td>
+			<td width=15%>4</td>
+                	<td width=10%>MANILYN EGALIN</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=56></td>
+			<td width=25%></td>
+			<td width=15%>5</td>
+                	<td width=10%>JANICE DESAMITO</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=47></td>
+			<td width=25%></td>
+			<td width=15%>6</td>
+                	<td width=10%>ADIL HAYAT</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=58></td>
+			<td width=25%></td>
+			<td width=15%>7</td>
+                	<td width=10%>LAARNIE ALVIOLA</td> 
+                	<td width=15%>13744357</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=2></td>
+			<td width=25%></td>
+			<td width=15%>11</td>
+                	<td width=10%>FRINCESS CARMONA</td> 
+                	<td width=15%>13769756</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=3></td>
+			<td width=25%></td>
+			<td width=15%>12</td>
+                	<td width=10%>SHARON MENDERO</td> 
+                	<td width=15%>13744480</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=6></td>
+			<td width=25%></td>
+			<td width=15%>19</td>
+                	<td width=10%>MUHAMMAD RAMZAN</td> 
+                	<td width=15%>5184827</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=12></td>
+			<td width=25%></td>
+			<td width=15%>21</td>
+                	<td width=10%>JAY ANN ROSE ALVAREZ</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=16></td>
+			<td width=25%></td>
+			<td width=15%>25</td>
+                	<td width=10%>RISHAN CHETTIYANKANDY</td> 
+                	<td width=15%>13821643</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=17></td>
+			<td width=25%></td>
+			<td width=15%>26</td>
+                	<td width=10%>PRINCESS JENNYN MERLIN</td> 
+                	<td width=15%>13828503</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=21></td>
+			<td width=25%></td>
+			<td width=15%>30</td>
+                	<td width=10%>DENISE DE JESUS</td> 
+                	<td width=15%>13755295</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=22></td>
+			<td width=25%></td>
+			<td width=15%>31</td>
+                	<td width=10%>LEOMAR ORTIGAS</td> 
+                	<td width=15%>13744418</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>Super Administrator</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=23></td>
+			<td width=25%></td>
+			<td width=15%>32</td>
+                	<td width=10%>SHIRAS</td> 
+                	<td width=15%>13828309</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=25></td>
+			<td width=25%></td>
+			<td width=15%>34</td>
+                	<td width=10%>RODLYN ABRIGO</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=72></td>
+			<td width=25%></td>
+			<td width=15%>38</td>
+                	<td width=10%>LOVELY GARCIA</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=73></td>
+			<td width=25%></td>
+			<td width=15%>39</td>
+                	<td width=10%>JO</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#ffffff> 
+                	<td width=5%><input type=checkbox name=uid value=74></td>
+			<td width=25%></td>
+			<td width=15%>40</td>
+                	<td width=10%>NAZMIN ALI</td> 
+                	<td width=15%>0</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+            		<tr bgcolor=#d1d7dA> 
+                	<td width=5%><input type=checkbox name=uid value=76></td>
+			<td width=25%></td>
+			<td width=15%>41</td>
+                	<td width=10%>SALMAN INAYAT</td> 
+                	<td width=15%>13744440</td> 
+                	<td width=15%>Group1</td> 
+                	<td width=15%>User</td> 
+            		</tr> 
+		
+		</table></div></div>
+		</td></tr></form>
+		<TABLE width=100%>
+		<TR height=20 align=center><TD><div class='t_i'>
+		<input type=button class=button value='First Page' onclick=dataquery('/csl/report?last=20')>
+		<input type=button class=button value='Pre Page' onclick=dataquery('/csl/report?first=0&last=20')>
+		<input type=button class=button value='Next Page' onclick=dataquery('/csl/report?first=20&last=40')>
+		<input type=button class=button value='Last Page' onclick=dataquery('/csl/report?first=81&last=89')>
+		
+		</div></td></tr>
+		</table>
+		</table>
+		<TABLE width=100%>
+        	<TBODY>
+        	<TR align=right>
+        	<TD><BR><BR><B>Copyright &copy; 2006-2009 All Right Reserved</B></TD></TR></TBODY></TABLE>
+		</BODY></HTML>
+	

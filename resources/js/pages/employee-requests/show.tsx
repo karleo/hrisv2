@@ -1,6 +1,7 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Ban, Check, PenLine, Printer, Send } from 'lucide-react';
 import { useState } from 'react';
+import { ActivityLogTimeline, type ActivityLogTimelineEntry } from '@/components/activity-log-timeline';
 import Heading from '@/components/heading';
 import {
     approveRequiresManagerSignatureMessage,
@@ -8,6 +9,7 @@ import {
     RequestDecisionClientMessage,
     visibleRequestDecisionMessage,
 } from '@/components/request-decision-client-message';
+import RequestEmailLogList, { type RequestEmailLogEntry } from '@/components/request-email-log-list';
 import {
     RequestEmployeeSignatureCard,
     employeeRequestShowSignatureVisitOnly,
@@ -27,6 +29,7 @@ import {
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
 import { employeeFullName } from '@/lib/format-employee-name';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Employee = {
@@ -99,6 +102,9 @@ export default function Show({
     canDecide,
     canCancel = false,
     canEdit = false,
+    canViewActivityLogs = false,
+    activityLogs,
+    emailLogs,
 }: {
     employeeRequest: EmployeeRequest;
     signaturesUrl: string;
@@ -108,7 +114,11 @@ export default function Show({
     canDecide: boolean;
     canCancel?: boolean;
     canEdit?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
+    emailLogs: RequestEmailLogEntry[];
 }) {
+    const { t } = useI18n();
     useRequestStatusPoll(['employeeRequest', 'canDecide']);
 
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
@@ -513,6 +523,17 @@ export default function Show({
                     }
                     employeeName={employeeFullName(employeeRequest.employee)}
                 />
+                <RequestEmailLogList entries={emailLogs} />
+                {canViewActivityLogs ? (
+                    <ActivityLogTimeline
+                        entries={activityLogs}
+                        title={t('activity.title', 'Activity Log')}
+                        description={t(
+                            'activity.description.employeeRequest',
+                            'Track employee request updates by authorized users.',
+                        )}
+                    />
+                ) : null}
                 </div>
             </div>
         </AppLayout>

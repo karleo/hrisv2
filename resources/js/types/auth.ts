@@ -13,6 +13,7 @@ export type User = {
 export type Auth = {
     user: User;
     has_employee_profile?: boolean;
+    employee_id?: number | null;
     has_my_profile_access?: boolean;
     has_leave_calendar_access?: boolean;
 };

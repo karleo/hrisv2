@@ -34,7 +34,22 @@ class LeaveRequestFactory extends Factory
             'end_day_type' => 'full',
             'days' => (float) $periodFrom->diff($periodTo)->days + 1,
             'remarks' => null,
-            'status' => 'submitted',
+            'status' => 'draft',
         ];
+    }
+
+    public function submitted(): static
+    {
+        return $this->state(fn () => ['status' => 'submitted']);
+    }
+
+    public function approved(): static
+    {
+        return $this->state(fn () => ['status' => 'approved']);
+    }
+
+    public function rejected(): static
+    {
+        return $this->state(fn () => ['status' => 'rejected']);
     }
 }

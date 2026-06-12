@@ -1,5 +1,6 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage, useRemember } from '@inertiajs/react';
 import {
+    CheckCircle2,
     ChevronRight,
     CircleAlert,
     CreditCard,
@@ -15,12 +16,13 @@ import {
     Upload,
     Users,
 } from 'lucide-react';
-import { Fragment, type FormEvent, useState } from 'react';
+import { Fragment, type FormEvent, useEffect, useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Dialog,
     DialogClose,
@@ -32,15 +34,9 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { create, edit, index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Employees',
-        href: index().url,
-    },
-];
 
 type Department = {
     id: number;
@@ -165,15 +161,39 @@ export default function Index({
     };
     filters?: { search?: string; department_id?: string | number; employee_status?: string };
 }) {
+    const { t } = useI18n();
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('sidebar.employees', 'Employees'),
+            href: index().url,
+        },
+    ];
     const { data: employeeList } = employees;
     const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
     const [businessCardEmployee, setBusinessCardEmployee] = useState<Employee | null>(null);
     const [groupMode, setGroupMode] = useState<'none' | 'department' | 'manager'>('none');
-    const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
+    const [viewMode, setViewMode] = useRemember<'table' | 'grid'>('grid', 'employees:index:view-mode');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({
         file: null,
     });
+    const [importSuccessOpen, setImportSuccessOpen] = useState(false);
+    const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
+    const importFileInputRef = useRef<HTMLInputElement>(null);
+
+    function clearImportFileSelection(): void {
+        reset('file');
+        if (importFileInputRef.current !== null) {
+            importFileInputRef.current.value = '';
+        }
+    }
+
+    useEffect(() => {
+        if (flash?.success) {
+            setImportSuccessMessage(flash.success);
+            setImportSuccessOpen(true);
+        }
+    }, [flash?.success]);
     const groupedEmployees = employeeList.reduce<Record<string, Employee[]>>((groups, employee) => {
         const managerName = employee.department?.managerEmployee
             ? `${employee.department.managerEmployee.first_name} ${employee.department.managerEmployee.last_name}`
@@ -206,15 +226,22 @@ export default function Index({
     function toggleGroup(groupName: string) {
         setExpandedGroups((previous) => ({
             ...previous,
-            [groupName]: !(previous[groupName] ?? true),
+            [groupName]: !(previous[groupName] ?? false),
         }));
+    }
+
+    function toggleGroupMode(nextMode: 'department' | 'manager'): void {
+        setExpandedGroups({});
+        setGroupMode((value) => (value === nextMode ? 'none' : nextMode));
     }
 
     function submitImport(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
         post('/employees/import', {
             forceFormData: true,
-            onSuccess: () => reset('file'),
+            onSuccess: () => {
+                clearImportFileSelection();
+            },
         });
     }
 
@@ -240,7 +267,59 @@ export default function Index({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Employees" />
+            <Head title={t('sidebar.employees', 'Employees')} />
+
+            {processing && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-[2px]"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={t('employees.import.uploading', 'Uploading employees')}
+                >
+                    <div className="flex flex-col items-center gap-4 rounded-xl border bg-card px-8 py-6 shadow-lg">
+                        <Spinner className="size-10 text-primary" />
+                        <p className="text-sm font-medium">
+                            {t('employees.import.uploading', 'Uploading employees…')}
+                        </p>
+                        <p className="max-w-xs text-center text-xs text-muted-foreground">
+                            {t(
+                                'employees.import.uploadingHint',
+                                'Please wait while your file is processed.',
+                            )}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            <Dialog
+                open={importSuccessOpen}
+                onOpenChange={setImportSuccessOpen}
+            >
+                <DialogContent className="max-w-md gap-0 p-0 sm:max-w-md">
+                    <DialogHeader className="space-y-3 border-b px-6 py-5 text-center sm:text-center">
+                        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="size-7" aria-hidden />
+                        </div>
+                        <DialogTitle>
+                            {t('employees.import.successTitle', 'Upload successful')}
+                        </DialogTitle>
+                        <DialogDescription className="text-center">
+                            {importSuccessMessage ??
+                                t(
+                                    'employees.import.successDefault',
+                                    'Employees were imported successfully.',
+                                )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="border-t px-6 py-4 sm:justify-center">
+                        <DialogClose asChild>
+                            <Button type="button" className="min-w-[120px]">
+                                {t('common.ok', 'OK')}
+                            </Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex min-h-screen flex-1 flex-col bg-background">
                 {/* Page header */}
@@ -265,49 +344,49 @@ export default function Index({
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Total Employee</span>
+                                            <span>{t('employees.stats.totalEmployee', 'Total Employee')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">{stats.totalEmployees}</p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.totalEmployees === 0
-                                                ? 'No employees yet'
-                                                : 'Current total employee records'}
+                                                ? t('employees.stats.noEmployeesYet', 'No employees yet')
+                                                : t('employees.stats.currentTotalRecords', 'Current total employee records')}
                                         </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Active Employee</span>
+                                            <span>{t('employees.stats.activeEmployee', 'Active Employee')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">{stats.activeEmployees}</p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.activeEmployees === 0
-                                                ? 'No active employee accounts'
-                                                : 'Employees with active login access'}
+                                                ? t('employees.stats.noActiveAccounts', 'No active employee accounts')
+                                                : t('employees.stats.activeLoginAccess', 'Employees with active login access')}
                                         </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Total Department</span>
+                                            <span>{t('employees.stats.totalDepartment', 'Total Department')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">{stats.totalDepartments}</p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.totalDepartments === 0
-                                                ? 'No departments configured'
-                                                : 'Configured departments in the system'}
+                                                ? t('employees.stats.noDepartmentsConfigured', 'No departments configured')
+                                                : t('employees.stats.configuredDepartments', 'Configured departments in the system')}
                                         </p>
                                     </CardContent>
                                 </Card>
                                 <Card className="rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
                                     <CardContent className="space-y-2 p-4">
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>No Login Access</span>
+                                            <span>{t('employees.stats.noLoginAccess', 'No Login Access')}</span>
                                             <CircleAlert className="size-3.5" />
                                         </div>
                                         <p className="text-3xl font-semibold leading-none">
@@ -315,8 +394,8 @@ export default function Index({
                                         </p>
                                         <p className="text-xs text-muted-foreground">
                                             {stats.noLoginAccessEmployees === 0
-                                                ? 'All employees have login access'
-                                                : 'Employees pending login access'}
+                                                ? t('employees.stats.allHaveLoginAccess', 'All employees have login access')
+                                                : t('employees.stats.pendingLoginAccess', 'Employees pending login access')}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -336,9 +415,11 @@ export default function Index({
                                 <div className="border-b bg-muted/20 px-4 py-4 sm:px-5">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div>
-                                            <h2 className="text-lg font-semibold tracking-tight">Employee List</h2>
+                                            <h2 className="text-lg font-semibold tracking-tight">
+                                                {t('employees.list.title', 'Employee List')}
+                                            </h2>
                                             <p className="text-xs text-muted-foreground">
-                                                Search, group, and manage employees quickly.
+                                                {t('employees.list.subtitle', 'Search, group, and manage employees quickly.')}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -375,18 +456,18 @@ export default function Index({
                                                     type="button"
                                                     variant={groupMode === 'department' ? 'default' : 'ghost'}
                                                     className="h-8 rounded-full px-3 text-xs"
-                                                    onClick={() => setGroupMode((value) => (value === 'department' ? 'none' : 'department'))}
+                                                    onClick={() => toggleGroupMode('department')}
                                                 >
-                                                    By Department
+                                                    {t('employees.group.byDepartment', 'By Department')}
                                                 </Button>
                                                 <Button
                                                     size="sm"
                                                     type="button"
                                                     variant={groupMode === 'manager' ? 'default' : 'ghost'}
                                                     className="h-8 rounded-full px-3 text-xs"
-                                                    onClick={() => setGroupMode((value) => (value === 'manager' ? 'none' : 'manager'))}
+                                                    onClick={() => toggleGroupMode('manager')}
                                                 >
-                                                    By Manager
+                                                    {t('employees.group.byManager', 'By Manager')}
                                                 </Button>
                                             </div>
                                         </div>
@@ -440,24 +521,32 @@ export default function Index({
                                             className="flex flex-wrap items-center gap-2 rounded-full border border-border/70 bg-muted/20 p-1"
                                         >
                                             <input
+                                                ref={importFileInputRef}
                                                 type="file"
                                                 accept=".csv,text/csv"
+                                                disabled={processing}
                                                 onChange={(e) =>
                                                     setData(
                                                         'file',
                                                         e.currentTarget.files?.[0] ?? null,
                                                     )
                                                 }
-                                                className="block w-[170px] cursor-pointer rounded-full border border-input bg-background px-2.5 py-1.5 text-xs text-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs file:font-medium"
+                                                className="block w-[170px] cursor-pointer rounded-full border border-input bg-background px-2.5 py-1.5 text-xs text-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs file:font-medium disabled:cursor-not-allowed disabled:opacity-50"
                                             />
                                             <Button
                                                 size="sm"
                                                 type="submit"
                                                 disabled={processing || !data.file}
-                                                className="h-9 gap-2 rounded-full px-3"
+                                                className="h-9 min-w-[100px] gap-2 rounded-full px-3"
                                             >
-                                                <Upload className="size-4" />
-                                                Upload
+                                                {processing ? (
+                                                    <Spinner className="size-4" />
+                                                ) : (
+                                                    <Upload className="size-4" />
+                                                )}
+                                                {processing
+                                                    ? t('employees.import.uploadingShort', 'Uploading…')
+                                                    : t('employees.import.upload', 'Upload')}
                                             </Button>
                                         </form>
                                         <Link href={create().url}>
@@ -533,7 +622,16 @@ export default function Index({
                                             groupMode === 'none' && employeeList.map((employee, indexOnPage) => (
                                                 <tr
                                                 key={employee.id}
-                                                    className="border-b odd:bg-muted/10 transition-colors hover:bg-muted/25"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => openEmployeeView(employee.id)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            openEmployeeView(employee.id);
+                                                        }
+                                                    }}
+                                                    className="cursor-pointer border-b odd:bg-muted/10 transition-colors hover:bg-muted/25"
                                             >
                                                     <td className="px-4 py-3 text-xs font-medium text-muted-foreground sm:px-5">
                                                         {Math.max((employees.from ?? 1) + indexOnPage, 1)}
@@ -595,7 +693,11 @@ export default function Index({
                                                         {employee.contact_number ?? '—'}
                                                     </td>
                                                     <td className="px-4 py-3 sm:pr-5">
-                                                        <div className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs">
+                                                        <div
+                                                            className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs"
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            onKeyDown={(event) => event.stopPropagation()}
+                                                        >
                                                             <Link
                                                                 href={`${edit({
                                                                     employee: employee.id,
@@ -685,7 +787,7 @@ export default function Index({
                                         {employeeList.length > 0 && groupMode !== 'none' && (
                                             sortedGroupNames.map((groupName) => {
                                                 const groupItems = groupedEmployees[groupName] ?? [];
-                                                const isExpanded = expandedGroups[groupName] ?? true;
+                                                const isExpanded = expandedGroups[groupName] ?? false;
 
                                                 return (
                                                     <Fragment key={`group-wrap-${groupName}`}>
@@ -706,7 +808,16 @@ export default function Index({
                                                         {isExpanded && groupItems.map((employee) => (
                                                             <tr
                                                                 key={employee.id}
-                                                            className="border-b bg-background/60 odd:bg-muted/10 transition-colors hover:bg-muted/20"
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                onClick={() => openEmployeeView(employee.id)}
+                                                                onKeyDown={(event) => {
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                        openEmployeeView(employee.id);
+                                                                    }
+                                                                }}
+                                                                className="cursor-pointer border-b bg-background/60 odd:bg-muted/10 transition-colors hover:bg-muted/20"
                                                             >
                                                                 <td className="px-4 py-3 text-xs text-muted-foreground sm:px-5">•</td>
                                                                 <td className="px-4 py-3 sm:px-5">
@@ -766,7 +877,11 @@ export default function Index({
                                                                     {employee.contact_number ?? '—'}
                                                                 </td>
                                                                 <td className="px-4 py-3 sm:pr-5">
-                                                                    <div className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs">
+                                                                    <div
+                                                                        className="flex justify-end gap-0.5 rounded-full border bg-background p-0.5 shadow-xs"
+                                                                        onClick={(event) => event.stopPropagation()}
+                                                                        onKeyDown={(event) => event.stopPropagation()}
+                                                                    >
                                                                         <Link
                                                                             href={`${edit({
                                                                                 employee: employee.id,

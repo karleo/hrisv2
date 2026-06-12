@@ -1,6 +1,10 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Ban, PenLine, Printer, Send } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import {
+    ActivityLogTimeline,
+    type ActivityLogTimelineEntry,
+} from '@/components/activity-log-timeline';
 import {
     ItAssetRequestSignaturesCard,
     itAssetRequestShowSignatureVisitOnly,
@@ -11,7 +15,13 @@ import {
     RequestDecisionClientMessage,
     visibleRequestDecisionMessage,
 } from '@/components/request-decision-client-message';
-import { RequestStatusBadge, normalizeRequestStatus } from '@/components/request-status-badge';
+import RequestEmailLogList, {
+    type RequestEmailLogEntry,
+} from '@/components/request-email-log-list';
+import {
+    RequestStatusBadge,
+    normalizeRequestStatus,
+} from '@/components/request-status-badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -24,6 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { useRequestStatusPoll } from '@/hooks/use-request-status-poll';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Employee = {
@@ -43,6 +54,20 @@ type Hardware = {
     name: string;
 };
 
+type HardwareItem = {
+    hardware_id: number;
+    serial_number: string | null;
+    asset_value: string | null;
+    asset_currency: string | null;
+    hardware: Hardware;
+};
+
+type AssetTotal = {
+    currency: string;
+    total: string;
+    count: number;
+};
+
 type ItAssetRequest = {
     id: number;
     code: string;
@@ -50,6 +75,7 @@ type ItAssetRequest = {
     date_issued: string | null;
     status: string;
     hardware_ids: number[] | null;
+    hardware_items?: HardwareItem[];
     hardware?: Hardware[];
     asset_type: string | null;
     serial_number: string | null;
@@ -74,9 +100,25 @@ function formatDateDdMmYyyy(value: string | null | undefined): string {
     return value;
 }
 
+function formatAssetValue(
+    value: string | null,
+    currency: string | null,
+): string {
+    if (!value || !currency) {
+        return '—';
+    }
+
+    return `${currency} ${Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
+}
+
 export default function Show({
     itAssetRequest,
     hardware = [],
+    hardwareItems = [],
+    assetTotals = [],
     employees = [],
     submitUrl,
     cancelUrl,
@@ -85,9 +127,14 @@ export default function Show({
     canDecide,
     canCancel = false,
     canEdit = false,
+    canViewActivityLogs = false,
+    activityLogs,
+    emailLogs,
 }: {
     itAssetRequest: ItAssetRequest;
     hardware?: Hardware[];
+    hardwareItems?: HardwareItem[];
+    assetTotals?: AssetTotal[];
     employees?: Employee[];
     submitUrl: string;
     cancelUrl: string;
@@ -96,17 +143,61 @@ export default function Show({
     canDecide: boolean;
     canCancel?: boolean;
     canEdit?: boolean;
+    canViewActivityLogs?: boolean;
+    activityLogs: ActivityLogTimelineEntry[];
+    emailLogs: RequestEmailLogEntry[];
 }) {
+    const { t } = useI18n();
     useRequestStatusPoll(['itAssetRequest', 'canDecide']);
 
-    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const { flash } = usePage().props as {
+        flash?: { success?: string; error?: string };
+    };
     const requestLabel = itAssetRequest.code || `Request #${itAssetRequest.id}`;
     const statusNorm = normalizeRequestStatus(itAssetRequest.status);
     const isDraft = statusNorm === 'draft';
-    const [decisionClientMessage, setDecisionClientMessage] = useState<string | null>(null);
-    const visibleDecisionMessage = visibleRequestDecisionMessage(decisionClientMessage, {
-        hasIssuedBySignature: Boolean(itAssetRequest.issued_by_signature_url),
-    });
+    const [decisionClientMessage, setDecisionClientMessage] = useState<
+        string | null
+    >(null);
+    const resolvedHardwareItems = useMemo<HardwareItem[]>(() => {
+        if (hardwareItems.length > 0) {
+            return hardwareItems;
+        }
+
+        if ((itAssetRequest.hardware_items ?? []).length > 0) {
+            return itAssetRequest.hardware_items ?? [];
+        }
+
+        if (hardware.length === 0) {
+            return [];
+        }
+
+        const fallbackSerial =
+            hardware.length === 1
+                ? (itAssetRequest.serial_number ?? null)
+                : null;
+
+        return hardware.map((item, index) => ({
+            hardware_id: item.id,
+            serial_number: index === 0 ? fallbackSerial : null,
+            asset_value: null,
+            asset_currency: null,
+            hardware: item,
+        }));
+    }, [
+        hardware,
+        hardwareItems,
+        itAssetRequest.hardware_items,
+        itAssetRequest.serial_number,
+    ]);
+    const visibleDecisionMessage = visibleRequestDecisionMessage(
+        decisionClientMessage,
+        {
+            hasIssuedBySignature: Boolean(
+                itAssetRequest.issued_by_signature_url,
+            ),
+        },
+    );
     const issuedByReadonlyEmptyMessage = canDecide
         ? undefined
         : statusNorm === 'draft'
@@ -114,6 +205,16 @@ export default function Show({
           : statusNorm === 'submitted'
             ? 'Awaiting IT or manager signature.'
             : undefined;
+    const employeeName = itAssetRequest.employee
+        ? `${itAssetRequest.employee.first_name} ${itAssetRequest.employee.last_name}`
+        : '—';
+    const issuedByName = itAssetRequest.issued_by_employee
+        ? `${itAssetRequest.issued_by_employee.first_name} ${itAssetRequest.issued_by_employee.last_name}`
+        : '—';
+    const hasEmployeeSignature = Boolean(itAssetRequest.employee_signature_url);
+    const hasIssuedBySignature = Boolean(
+        itAssetRequest.issued_by_signature_url,
+    );
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'IT Asset Requests', href: '/it-asset-requests' },
@@ -135,11 +236,17 @@ export default function Show({
                                 <ArrowLeft className="size-4" />
                                 Back to IT Asset Requests
                             </Link>
-                            <h1 className="text-2xl font-bold tracking-tight">{requestLabel}</h1>
-                            <p className="text-sm text-muted-foreground">IT Asset Request Form</p>
+                            <h1 className="text-2xl font-bold tracking-tight">
+                                {requestLabel}
+                            </h1>
+                            <p className="text-sm text-muted-foreground">
+                                IT Asset Request Form
+                            </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <RequestStatusBadge status={itAssetRequest.status} />
+                            <RequestStatusBadge
+                                status={itAssetRequest.status}
+                            />
                             <div className="flex flex-wrap items-center gap-2 [&_[data-slot=button]]:h-8">
                                 {isDraft ? (
                                     <Form
@@ -149,7 +256,11 @@ export default function Show({
                                         className="contents"
                                     >
                                         {({ processing }) => (
-                                            <Button type="submit" size="sm" disabled={processing}>
+                                            <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={processing}
+                                            >
                                                 <Send className="mr-2 size-4" />
                                                 Submit request
                                             </Button>
@@ -159,30 +270,49 @@ export default function Show({
                                 {canCancel ? (
                                     <Dialog>
                                         <DialogTrigger asChild>
-                                            <Button type="button" variant="destructive" size="sm">
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                size="sm"
+                                            >
                                                 <Ban className="mr-2 size-4" />
                                                 Cancel
                                             </Button>
                                         </DialogTrigger>
                                         <DialogContent>
-                                            <DialogTitle>Cancel IT asset request?</DialogTitle>
+                                            <DialogTitle>
+                                                Cancel IT asset request?
+                                            </DialogTitle>
                                             <DialogDescription>
-                                                Are you sure you want to cancel this IT asset request? This record will stay in the system.
+                                                Are you sure you want to cancel
+                                                this IT asset request? This
+                                                record will stay in the system.
                                             </DialogDescription>
                                             <DialogFooter>
                                                 <DialogClose asChild>
-                                                    <Button type="button" variant="secondary">
+                                                    <Button
+                                                        type="button"
+                                                        variant="secondary"
+                                                    >
                                                         Keep request
                                                     </Button>
                                                 </DialogClose>
                                                 <Form
                                                     action={cancelUrl}
                                                     method="delete"
-                                                    options={{ preserveScroll: true }}
+                                                    options={{
+                                                        preserveScroll: true,
+                                                    }}
                                                     className="contents"
                                                 >
                                                     {({ processing }) => (
-                                                        <Button type="submit" variant="destructive" disabled={processing}>
+                                                        <Button
+                                                            type="submit"
+                                                            variant="destructive"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
                                                             Cancel request
                                                         </Button>
                                                     )}
@@ -192,15 +322,27 @@ export default function Show({
                                     </Dialog>
                                 ) : null}
                                 {canEdit ? (
-                                    <Link href={`/it-asset-requests/${itAssetRequest.id}/edit`}>
-                                        <Button type="button" variant="outline" size="sm">
+                                    <Link
+                                        href={`/it-asset-requests/${itAssetRequest.id}/edit`}
+                                    >
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                        >
                                             <PenLine className="mr-2 size-4" />
                                             Edit
                                         </Button>
                                     </Link>
                                 ) : null}
-                                <Link href={`/it-asset-requests/${itAssetRequest.id}/print`}>
-                                    <Button type="button" variant="outline" size="sm">
+                                <Link
+                                    href={`/it-asset-requests/${itAssetRequest.id}/print`}
+                                >
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                    >
                                         <Printer className="mr-2 size-4" />
                                         Print
                                     </Button>
@@ -230,94 +372,210 @@ export default function Show({
                 <div className="px-4 py-8 md:px-8 print:p-4">
                     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
                         <div className="rounded-xl border bg-background p-6 shadow-sm print:border-0 print:shadow-none">
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-lg border bg-muted/30 p-3">
-                            <div className="text-xs text-muted-foreground">Request Code</div>
-                            <div className="font-semibold">{itAssetRequest.code || '—'}</div>
-                        </div>
-                        <div className="rounded-lg border bg-muted/30 p-3">
-                            <div className="text-xs text-muted-foreground">Date</div>
-                            <div className="font-semibold">{formatDateDdMmYyyy(itAssetRequest.date)}</div>
-                        </div>
-                        <div className="rounded-lg border bg-muted/30 p-3">
-                            <div className="text-xs text-muted-foreground">Date Issued</div>
-                            <div className="font-semibold">{formatDateDdMmYyyy(itAssetRequest.date_issued)}</div>
-                        </div>
-                        <div className="rounded-lg border bg-muted/30 p-3">
-                            <div className="text-xs text-muted-foreground">Status</div>
-                            <div className="mt-1.5">
-                                <RequestStatusBadge
-                                    status={itAssetRequest.status}
-                                    className="px-2.5 py-0.5"
-                                />
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                    <div className="text-xs text-muted-foreground">
+                                        Request Code
+                                    </div>
+                                    <div className="font-semibold">
+                                        {itAssetRequest.code || '—'}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                    <div className="text-xs text-muted-foreground">
+                                        Date
+                                    </div>
+                                    <div className="font-semibold">
+                                        {formatDateDdMmYyyy(
+                                            itAssetRequest.date,
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                    <div className="text-xs text-muted-foreground">
+                                        Date Issued
+                                    </div>
+                                    <div className="font-semibold">
+                                        {formatDateDdMmYyyy(
+                                            itAssetRequest.date_issued,
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                    <div className="text-xs text-muted-foreground">
+                                        Status
+                                    </div>
+                                    <div className="mt-1.5">
+                                        <RequestStatusBadge
+                                            status={itAssetRequest.status}
+                                            className="px-2.5 py-0.5"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                    <div className="text-xs text-muted-foreground">
+                                        Employee Signature
+                                    </div>
+                                    <div className="font-semibold">
+                                        {hasEmployeeSignature
+                                            ? 'Captured'
+                                            : 'Pending'}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                    <div className="text-xs text-muted-foreground">
+                                        Issued-by Signature
+                                    </div>
+                                    <div className="font-semibold">
+                                        {hasIssuedBySignature
+                                            ? 'Captured'
+                                            : 'Pending'}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-lg border p-4">
-                            <div className="text-xs text-muted-foreground">Employee</div>
-                            <div className="font-semibold">
-                                {itAssetRequest.employee
-                                    ? `${itAssetRequest.employee.first_name} ${itAssetRequest.employee.last_name}`
-                                    : '—'}
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="rounded-lg border p-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        Employee
+                                    </div>
+                                    <div className="font-semibold">
+                                        {employeeName}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border p-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        Department
+                                    </div>
+                                    <div className="font-semibold">
+                                        {itAssetRequest.department?.name ?? '—'}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border p-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        Issued By
+                                    </div>
+                                    <div className="font-semibold">
+                                        {issuedByName}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div className="rounded-lg border p-4">
-                            <div className="text-xs text-muted-foreground">Department</div>
-                            <div className="font-semibold">{itAssetRequest.department?.name ?? '—'}</div>
-                        </div>
-                    </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-lg border p-4">
-                            <div className="text-xs text-muted-foreground">Hardware</div>
-                            <div className="mt-1">
-                                {hardware.length > 0 ? (
-                                    <ul className="list-disc list-inside space-y-1 text-sm">
-                                        {hardware.map((hw) => (
-                                            <li key={hw.id}>
-                                                {hw.code} - {hw.name}
-                                            </li>
+                            <div className="mt-5 rounded-lg border p-4">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <div className="text-sm font-semibold">
+                                            Asset details
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            Hardware, serial numbers, and values
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {resolvedHardwareItems.length} item
+                                        {resolvedHardwareItems.length === 1
+                                            ? ''
+                                            : 's'}
+                                    </div>
+                                </div>
+                                <div className="mt-2">
+                                    {resolvedHardwareItems.length > 0 ? (
+                                        <ul className="space-y-2 text-sm">
+                                            {resolvedHardwareItems.map(
+                                                (item) => (
+                                                    <li
+                                                        key={item.hardware_id}
+                                                        className="rounded-md border bg-muted/30 px-3 py-2"
+                                                    >
+                                                        <div className="font-medium">
+                                                            {item.hardware.code}{' '}
+                                                            -{' '}
+                                                            {item.hardware.name}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            Serial:{' '}
+                                                            {item.serial_number ??
+                                                                '—'}
+                                                        </div>
+                                                        <div className="text-xs font-medium text-foreground">
+                                                            Value:{' '}
+                                                            {formatAssetValue(
+                                                                item.asset_value,
+                                                                item.asset_currency,
+                                                            )}
+                                                        </div>
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    ) : (
+                                        <span className="text-sm text-muted-foreground">
+                                            —
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {assetTotals.length > 0 ? (
+                                <div className="mt-5 rounded-lg border p-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        Total asset value
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {assetTotals.map((total) => (
+                                            <div
+                                                key={total.currency}
+                                                className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-semibold"
+                                            >
+                                                {formatAssetValue(
+                                                    total.total,
+                                                    total.currency,
+                                                )}
+                                                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                                    ({total.count} counted)
+                                                </span>
+                                            </div>
                                         ))}
-                                    </ul>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">—</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="rounded-lg border p-4">
-                            <div className="text-xs text-muted-foreground">Serial number</div>
-                            <div className="font-semibold">{itAssetRequest.serial_number ?? '—'}</div>
-                        </div>
-                    </div>
+                                    </div>
+                                </div>
+                            ) : null}
 
-                    <div className="mt-5 rounded-lg border p-4">
-                        <div className="text-xs text-muted-foreground">Remarks</div>
-                        <div className="mt-1 min-h-[80px] whitespace-pre-wrap text-sm">
-                            {itAssetRequest.remarks ?? '—'}
-                        </div>
-                        <div className="mt-4 hidden text-sm leading-relaxed print:block print:text-black">
-                                <p>
-                                    I hereby acknowledge that I have received the above-mentioned
-                                    assets. I understand that these assets are the property of
-                                    PRIME LOGISTICS FZCO and are entrusted to me solely for the
-                                    purpose of carrying out my official duties.
-                                </p>
-                                <p className="mt-3">
-                                    I undertake to take proper care of the company’s assets and to
-                                    use them strictly for business purposes. I further agree not to
-                                    share these assets, related information, or any security
-                                    codes/passwords with any unauthorized person.
-                                </p>
-                                <p className="mt-3">
-                                    In the event of loss, theft, or damage due to negligence during
-                                    my employment, I understand and agree that I will be
-                                    responsible for the applicable replacement or repair costs. I
-                                    also agree to return all assets issued to me in good condition
-                                    upon my last working day with PRIME LOGISTICS FZCO.
-                                </p>
-                        </div>
+                            <div className="mt-5 rounded-lg border p-4">
+                                <div className="text-xs text-muted-foreground">
+                                    Remarks
+                                </div>
+                                <div className="mt-1 min-h-[80px] text-sm whitespace-pre-wrap">
+                                    {itAssetRequest.remarks ?? '—'}
+                                </div>
+                                <div className="mt-4 hidden text-sm leading-relaxed print:block print:text-black">
+                                    <p>
+                                        I hereby acknowledge that I have
+                                        received the above-mentioned assets. I
+                                        understand that these assets are the
+                                        property of PRIME LOGISTICS FZCO and are
+                                        entrusted to me solely for the purpose
+                                        of carrying out my official duties.
+                                    </p>
+                                    <p className="mt-3">
+                                        I undertake to take proper care of the
+                                        company’s assets and to use them
+                                        strictly for business purposes. I
+                                        further agree not to share these assets,
+                                        related information, or any security
+                                        codes/passwords with any unauthorized
+                                        person.
+                                    </p>
+                                    <p className="mt-3">
+                                        In the event of loss, theft, or damage
+                                        due to negligence during my employment,
+                                        I understand and agree that I will be
+                                        responsible for the applicable
+                                        replacement or repair costs. I also
+                                        agree to return all assets issued to me
+                                        in good condition upon my last working
+                                        day with PRIME LOGISTICS FZCO.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -327,67 +585,140 @@ export default function Show({
                             signaturesUrl={signaturesUrl}
                             visitOnly={itAssetRequestShowSignatureVisitOnly}
                             allowEmployeeSignatureEdit={statusNorm === 'draft'}
-                            allowIssuedBySignatureEdit={statusNorm === 'submitted' && canDecide}
-                            issuedByReadonlyEmptyMessage={issuedByReadonlyEmptyMessage}
-                        />
-                        {canDecide && normalizeRequestStatus(itAssetRequest.status) === 'submitted' ? (
-                            <div className="rounded-xl border bg-background p-6 shadow-sm print:hidden">
-                                <h3 className="text-base font-semibold">Approval decision</h3>
-                                <Form action={decisionUrl} method="post" options={{ preserveScroll: true }} className="mt-4">
-                                    {({ processing, errors }) => (
-                                        <div className="space-y-3">
+                            allowIssuedBySignatureEdit={
+                                statusNorm === 'submitted' && canDecide
+                            }
+                            issuedByReadonlyEmptyMessage={
+                                issuedByReadonlyEmptyMessage
+                            }
+                            approvalDecision={
+                                canDecide &&
+                                normalizeRequestStatus(
+                                    itAssetRequest.status,
+                                ) === 'submitted' ? (
+                                    <div className="border-t border-border pt-5 md:ml-8">
+                                        <h3 className="text-sm font-semibold">
+                                            Approval decision
+                                        </h3>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Select issued-by employee, save the
+                                            signature, then approve or reject.
+                                        </p>
+                                        <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
                                             <div>
-                                                <label className="mb-1 block text-sm font-medium">Remarks (required for rejection)</label>
-                                                <textarea
-                                                    name="remarks"
-                                                    rows={3}
-                                                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                                                    placeholder="Add reason when rejecting"
-                                                    onChange={() => setDecisionClientMessage(null)}
-                                                />
-                                                {errors.remarks ? (
-                                                    <p className="mt-1 text-xs text-destructive">{errors.remarks}</p>
-                                                ) : null}
+                                                {itAssetRequest.issued_by_employee_id
+                                                    ? 'Done'
+                                                    : 'Needed'}
+                                                : select issued-by employee
                                             </div>
-                                            <RequestDecisionClientMessage message={visibleDecisionMessage} />
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    type="submit"
-                                                    name="decision"
-                                                    value="approved"
-                                                    disabled={processing}
-                                                    onClick={(e) => {
-                                                        if (!itAssetRequest.issued_by_signature_url) {
-                                                            e.preventDefault();
-                                                            setDecisionClientMessage(approveRequiresIssuedBySignatureMessage);
-                                                        }
-                                                    }}
-                                                >
-                                                    Approve
-                                                </Button>
-                                                <Button
-                                                    type="submit"
-                                                    name="decision"
-                                                    value="rejected"
-                                                    variant="destructive"
-                                                    disabled={processing}
-                                                    onClick={(e) => {
-                                                        const form = e.currentTarget.form;
-                                                        const remarks = form?.querySelector<HTMLTextAreaElement>('textarea[name="remarks"]')?.value?.trim() ?? '';
-                                                        if (remarks === '') {
-                                                            e.preventDefault();
-                                                            setDecisionClientMessage(rejectRequiresRemarksMessage);
-                                                        }
-                                                    }}
-                                                >
-                                                    Reject
-                                                </Button>
+                                            <div>
+                                                {hasIssuedBySignature
+                                                    ? 'Done'
+                                                    : 'Needed'}
+                                                : save issued-by signature
+                                            </div>
+                                            <div>
+                                                Required for rejection: remarks
                                             </div>
                                         </div>
-                                    )}
-                                </Form>
-                            </div>
-                        ) : null}
+                                        <Form
+                                            action={decisionUrl}
+                                            method="post"
+                                            options={{ preserveScroll: true }}
+                                            className="mt-4"
+                                        >
+                                            {({ processing, errors }) => (
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Decision remarks
+                                                        </label>
+                                                        <textarea
+                                                            name="remarks"
+                                                            rows={3}
+                                                            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                                            placeholder="Required when rejecting."
+                                                            onChange={() =>
+                                                                setDecisionClientMessage(
+                                                                    null,
+                                                                )
+                                                            }
+                                                        />
+                                                        {errors.remarks ? (
+                                                            <p className="mt-1 text-xs text-destructive">
+                                                                {errors.remarks}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                    <RequestDecisionClientMessage
+                                                        message={
+                                                            visibleDecisionMessage
+                                                        }
+                                                    />
+                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <Button
+                                                            type="submit"
+                                                            name="decision"
+                                                            value="approved"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                            className="sm:min-w-32"
+                                                            onClick={(e) => {
+                                                                if (
+                                                                    !itAssetRequest.issued_by_signature_url
+                                                                ) {
+                                                                    e.preventDefault();
+                                                                    setDecisionClientMessage(
+                                                                        approveRequiresIssuedBySignatureMessage,
+                                                                    );
+                                                                }
+                                                            }}
+                                                        >
+                                                            Approve
+                                                        </Button>
+                                                        <Button
+                                                            type="submit"
+                                                            name="decision"
+                                                            value="rejected"
+                                                            variant="destructive"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                            className="sm:min-w-32"
+                                                            onClick={(e) => {
+                                                                const form =
+                                                                    e
+                                                                        .currentTarget
+                                                                        .form;
+                                                                const remarks =
+                                                                    form
+                                                                        ?.querySelector<HTMLTextAreaElement>(
+                                                                            'textarea[name="remarks"]',
+                                                                        )
+                                                                        ?.value?.trim() ??
+                                                                    '';
+                                                                if (
+                                                                    remarks ===
+                                                                    ''
+                                                                ) {
+                                                                    e.preventDefault();
+                                                                    setDecisionClientMessage(
+                                                                        rejectRequiresRemarksMessage,
+                                                                    );
+                                                                }
+                                                            }}
+                                                        >
+                                                            Reject
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </Form>
+                                    </div>
+                                ) : null
+                            }
+                        />
                         <div className="hidden rounded-xl border bg-background p-6 shadow-sm print:block print:border-0 print:p-0 print:shadow-none">
                             <div className="print:grid print:grid-cols-2 print:gap-12">
                                 <div>
@@ -397,7 +728,9 @@ export default function Show({
                                     {itAssetRequest.employee_signature_url ? (
                                         <div className="mb-4">
                                             <img
-                                                src={itAssetRequest.employee_signature_url}
+                                                src={
+                                                    itAssetRequest.employee_signature_url
+                                                }
                                                 alt="Employee signature"
                                                 className="max-h-20 w-full border border-gray-300 bg-white object-contain"
                                             />
@@ -418,7 +751,9 @@ export default function Show({
                                     {itAssetRequest.issued_by_signature_url ? (
                                         <div className="mb-4">
                                             <img
-                                                src={itAssetRequest.issued_by_signature_url}
+                                                src={
+                                                    itAssetRequest.issued_by_signature_url
+                                                }
                                                 alt="Issued by signature"
                                                 className="max-h-20 w-full border border-gray-300 bg-white object-contain"
                                             />
@@ -434,10 +769,20 @@ export default function Show({
                                 </div>
                             </div>
                         </div>
+                        <RequestEmailLogList entries={emailLogs} />
+                        {canViewActivityLogs ? (
+                            <ActivityLogTimeline
+                                entries={activityLogs}
+                                title={t('activity.title', 'Activity Log')}
+                                description={t(
+                                    'activity.description.itAsset',
+                                    'Track IT asset request updates by authorized users.',
+                                )}
+                            />
+                        ) : null}
                     </div>
                 </div>
             </div>
         </AppLayout>
     );
 }
-

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Download, Printer, User } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -25,6 +25,8 @@ type CompanyProfile = {
     company_address_2: string | null;
     website: string | null;
     logo_url: string | null;
+    business_card_logo_url: string | null;
+    business_card_back_logo_urls: (string | null)[];
 };
 
 type Employee = {
@@ -40,12 +42,10 @@ type Employee = {
     job_position?: JobPosition | null;
     role: 'Employee' | 'Manager' | 'CEO';
     photo_url: string | null;
+    company_logo_url?: string | null;
 };
 
-function buildVCard(
-    employee: Employee,
-    appName: string
-): string {
+function buildVCard(employee: Employee, appName: string): string {
     const fullName = `${employee.first_name} ${employee.last_name}`;
     const lines = [
         'BEGIN:VCARD',
@@ -53,21 +53,25 @@ function buildVCard(
         `FN:${escapeVCard(fullName)}`,
         `N:${escapeVCard(employee.last_name)};${escapeVCard(employee.first_name)};;;`,
     ];
-    if (employee.photo_url) {
-        lines.push(`PHOTO;VALUE=URI:${escapeVCard(employee.photo_url)}`);
-    }
     const org = employee.company_profile?.company_name || appName;
     if (org) {
         lines.push(`ORG:${escapeVCard(org)}`);
     }
     const companyAddress = employee.company_profile
-        ? [employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).join(', ')
+        ? [
+              employee.company_profile.company_address_1,
+              employee.company_profile.company_address_2,
+          ]
+              .filter(Boolean)
+              .join(', ')
         : '';
     if (companyAddress) {
         lines.push(`ADR;TYPE=WORK:;;${escapeVCard(companyAddress)};;;;`);
     }
     if (employee.contact_number) {
-        lines.push(`TEL;TYPE=WORK,VOICE:${escapeVCard(employee.contact_number)}`);
+        lines.push(
+            `TEL;TYPE=WORK,VOICE:${escapeVCard(employee.contact_number)}`,
+        );
     }
     if (employee.company_profile?.website) {
         lines.push(`URL:${escapeVCard(employee.company_profile.website)}`);
@@ -75,57 +79,22 @@ function buildVCard(
     if (employee.job_position?.name) {
         lines.push(`TITLE:${escapeVCard(employee.job_position.name)}`);
     }
-    if (employee.department?.name) {
-        lines.push(`NOTE:Department: ${escapeVCard(employee.department.name)}`);
-    }
-    if (employee.email_address) {
-        lines.push(`EMAIL:${escapeVCard(employee.email_address)}`);
-    }
-    const address = [employee.address_1, employee.address_2].filter(Boolean).join(', ');
-    if (address) {
-        lines.push(`ADR;TYPE=HOME:;;${escapeVCard(address)};;;;`);
-    }
-    lines.push('END:VCARD');
-    return lines.join('\r\n');
-}
-
-function buildCompactVCard(
-    employee: Employee,
-    appName: string,
-): string {
-    const fullName = `${employee.first_name} ${employee.last_name}`;
-    const lines = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${escapeVCard(fullName)}`,
-        `N:${escapeVCard(employee.last_name)};${escapeVCard(employee.first_name)};;;`,
-    ];
-
-    const org = employee.company_profile?.company_name || appName;
-    if (org) {
-        lines.push(`ORG:${escapeVCard(org)}`);
-    }
-    if (employee.job_position?.name) {
-        lines.push(`TITLE:${escapeVCard(employee.job_position.name)}`);
-    }
-    if (employee.contact_number) {
-        lines.push(`TEL;TYPE=CELL:${escapeVCard(employee.contact_number)}`);
-    }
     if (employee.email_address) {
         lines.push(`EMAIL:${escapeVCard(employee.email_address)}`);
     }
     lines.push('END:VCARD');
-
     return lines.join('\r\n');
 }
 
 function escapeVCard(value: string): string {
-    return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+    return value
+        .replace(/\\/g, '\\\\')
+        .replace(/;/g, '\\;')
+        .replace(/,/g, '\\,');
 }
 
 function qrCodeDataUrl(data: string, size: number): string {
-    const encoded = encodeURIComponent(data);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
 }
 
 export default function BusinessCard({
@@ -139,15 +108,41 @@ export default function BusinessCard({
 }) {
     const fullName = `${employee.first_name} ${employee.last_name}`;
     const jobTitle = employee.job_position?.name ?? '';
-    const department = employee.department?.name ?? '';
     const vCard = useMemo(
         () => buildVCard(employee, appName),
-        [employee, appName]
-    );
-    const compactVCard = useMemo(
-        () => buildCompactVCard(employee, appName),
         [employee, appName],
     );
+    const qrCodeUrl = useMemo(() => qrCodeDataUrl(vCard, 320), [vCard]);
+    const companyName = employee.company_profile?.company_name || appName;
+    const website =
+        employee.company_profile?.website
+            ?.replace(/^https?:\/\//i, '')
+            .replace(/\/$/, '') ?? '';
+    const companyAddressParts = [
+        employee.company_profile?.company_address_1,
+        employee.company_profile?.company_address_2,
+    ].filter((part): part is string => Boolean(part && part.trim() !== ''));
+    const logoUrl =
+        employee.company_logo_url ||
+        employee.company_profile?.business_card_logo_url ||
+        employee.company_profile?.logo_url ||
+        '/images/prime-logistics-mark.png';
+    const backLogoPositions = [
+        'absolute top-[13%] left-[7%] flex w-[39%] items-center justify-center',
+        'absolute top-[18%] right-[7%] flex w-[39%] items-center justify-center',
+        'absolute top-[49%] left-[31%] flex w-[20%] items-center justify-center',
+        'absolute top-[49%] right-[27%] flex w-[22%] items-center justify-center',
+    ];
+    const backLogoImageClasses = [
+        'max-h-[clamp(5rem,12vw,8.5rem)] w-full scale-125 object-contain',
+        'max-h-[clamp(5rem,12vw,8.5rem)] w-full scale-[2.1] object-contain',
+        'max-h-[clamp(1.3rem,3.2vw,2.2rem)] w-full scale-100 object-contain',
+        'max-h-[clamp(2.4rem,5.6vw,3.8rem)] w-full scale-[1.45] object-contain',
+    ];
+    const backLogoUrls = (
+        employee.company_profile?.business_card_back_logo_urls ?? []
+    ).filter((url): url is string => Boolean(url));
+    const officePhone = '+971 4 339 7059';
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Employees', href: index().url },
         { title: fullName, href: '#' },
@@ -169,7 +164,9 @@ export default function BusinessCard({
     }
 
     const content = (
-        <div className={`flex flex-1 flex-col ${embedded ? 'justify-center p-4' : 'gap-6 p-4 md:p-6 print:p-0'}`}>
+        <div
+            className={`flex flex-1 flex-col ${embedded ? 'justify-center p-4' : 'gap-6 p-4 md:p-6 print:p-0'}`}
+        >
             {!embedded ? (
                 <div className="flex flex-wrap items-center gap-3 print:hidden">
                     <Link
@@ -183,120 +180,133 @@ export default function BusinessCard({
                         <Printer className="mr-2 size-4" />
                         Print / Save as PDF
                     </Button>
-                    <Button onClick={handleDownloadVCard} size="sm" variant="outline">
+                    <Button
+                        onClick={handleDownloadVCard}
+                        size="sm"
+                        variant="outline"
+                    >
                         <Download className="mr-2 size-4" />
                         Download as contact (.vcf)
                     </Button>
                 </div>
             ) : null}
 
-            {!embedded ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 print:hidden">
-                    <p className="text-sm font-medium text-muted-foreground">
-                        Scan to add contact
-                    </p>
-                    <div className="rounded-lg border border-border bg-white p-3">
-                        <img
-                            src={qrCodeDataUrl(vCard, 180)}
-                            alt=""
-                            width={180}
-                            height={180}
-                            className="size-[180px]"
-                        />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        QR code contains contact details (vCard)
-                    </p>
-                </div>
-            ) : null}
-
-            <div className={`flex ${embedded ? 'min-h-0' : 'min-h-[50vh]'} items-start justify-center print:min-h-0 print:items-center print:justify-center`}>
+            <div
+                className={`flex ${embedded ? 'min-h-0' : 'min-h-[50vh]'} flex-col items-center gap-8 print:min-h-0 print:gap-4`}
+            >
                 <div
-                    id="business-card"
-                    className={`${embedded ? 'w-[400px] max-w-full' : 'w-[336px]'} overflow-hidden rounded-lg border border-border bg-card shadow-lg print:w-[3.5in] print:rounded-none print:border-2 print:border-foreground print:shadow-none`}
-                    style={{ aspectRatio: '3.5 / 2' }}
+                    id="business-card-front"
+                    data-business-card
+                    className={`${embedded ? 'w-[520px] max-w-full' : 'w-full max-w-[920px]'} relative overflow-hidden border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] print:w-[3.76in] print:rounded-none print:border print:border-slate-300 print:shadow-none`}
+                    style={{ aspectRatio: '940 / 500' }}
                 >
-                    <div className="flex h-full w-full flex-row gap-0">
-                        <div className="flex w-[33%] shrink-0 items-center justify-center bg-muted/50 p-2 print:p-1">
-                            {employee.photo_url ? (
-                                <img
-                                    src={employee.photo_url}
-                                    alt=""
-                                    className="size-20 rounded object-cover print:size-16"
-                                />
-                            ) : (
-                                <div className="flex size-20 items-center justify-center rounded-full bg-muted print:size-16">
-                                    <User className="size-10 text-muted-foreground print:size-8" />
-                                </div>
-                            )}
+                    <div className="flex h-full flex-col bg-white font-['Trebuchet_MS',Arial,sans-serif]">
+                        <div className="flex items-start justify-between px-[7%] pt-[7%]">
+                            <div className="min-w-0">
+                                <h1 className="text-[clamp(1.5rem,4vw,3rem)] leading-none font-bold tracking-[-0.03em] text-[#07134f] print:text-[18px]">
+                                    {fullName}
+                                </h1>
+                                <p className="mt-2 text-[clamp(1rem,2.5vw,1.75rem)] leading-tight font-bold text-[#2077ad] print:mt-1 print:text-[11px]">
+                                    {jobTitle || 'Designation'}
+                                </p>
+                            </div>
+                            <img
+                                src={logoUrl}
+                                alt=""
+                                className="ml-5 h-[clamp(4.5rem,12vw,9rem)] w-[28%] shrink-0 object-contain object-right-top print:h-[48px]"
+                            />
                         </div>
-                        <div className="flex flex-1 flex-col justify-center gap-0.5 px-4 py-3 print:gap-0 print:px-3 print:py-2">
-                            <p className="text-lg font-semibold leading-tight text-foreground print:text-base">
-                                {fullName}
-                            </p>
-                            {jobTitle && (
-                                <p className="text-sm font-medium text-foreground/90 print:text-xs">
-                                    {jobTitle}
+
+                        <div className="mt-auto grid grid-cols-[1fr_auto_1.25fr] items-start gap-[6%] px-[7%] pb-[8%]">
+                            <div className="min-w-0 text-[clamp(0.95rem,2.3vw,1.55rem)] leading-[1.22] text-[#1e2744] print:text-[9px]">
+                                <p className="mb-2 font-bold text-[#2077ad] print:mb-1">
+                                    {companyName}
                                 </p>
-                            )}
-                            {department && (
-                                <p className="text-xs text-muted-foreground print:text-[10px]">
-                                    {department}
-                                </p>
-                            )}
-                            <div className="mt-1.5 space-y-0.5 border-t border-border/50 pt-1.5 print:mt-1 print:space-y-0 print:border-t print:pt-1">
-                                <p className="truncate text-xs text-muted-foreground print:text-[10px]">
-                                    {employee.email_address}
-                                </p>
-                                {employee.contact_number && (
-                                    <p className="text-xs text-muted-foreground print:text-[10px]">
-                                        {employee.contact_number}
-                                    </p>
+                                {companyAddressParts.length > 0 ? (
+                                    companyAddressParts.map((part) => (
+                                        <p key={part}>{part}</p>
+                                    ))
+                                ) : (
+                                    <p>Company address</p>
                                 )}
                             </div>
-                            <div className="mt-auto flex items-end justify-between gap-2 pt-1 print:pt-0.5">
-                                <div className="flex min-w-0 flex-1 items-center gap-2">
-                                    {employee.company_profile?.logo_url && (
-                                        <img
-                                            src={employee.company_profile.logo_url}
-                                            alt=""
-                                            className="size-8 shrink-0 object-contain print:size-7"
-                                        />
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                        {(employee.company_profile?.company_name || appName) && (
-                                            <p className="text-[10px] font-medium text-muted-foreground print:text-[8px]">
-                                                {employee.company_profile?.company_name || appName}
-                                            </p>
-                                        )}
-                                        {employee.company_profile?.website && (
-                                            <a
-                                                href={employee.company_profile.website}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block truncate text-[9px] text-primary underline print:text-[8px]"
-                                            >
-                                                {employee.company_profile.website.replace(/^https?:\/\//i, '')}
-                                            </a>
-                                        )}
-                                        {employee.company_profile && [employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).length > 0 && (
-                                            <p className="truncate text-[9px] text-muted-foreground print:text-[8px]">
-                                                {[employee.company_profile.company_address_1, employee.company_profile.company_address_2].filter(Boolean).join(', ')}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="shrink-0" aria-hidden>
-                                    <img
-                                        src={qrCodeDataUrl(compactVCard, 72)}
-                                        alt=""
-                                        width={72}
-                                        height={72}
-                                        className="size-[72px] rounded bg-white p-1"
-                                    />
-                                </div>
+
+                            <div className="h-full min-h-[7rem] w-1 bg-[#f2c500] print:min-h-[42px] print:w-px" />
+
+                            <div className="min-w-0 space-y-2 text-[clamp(0.95rem,2.3vw,1.55rem)] leading-tight text-[#1e2744] print:space-y-0.5 print:text-[9px]">
+                                {employee.email_address ? (
+                                    <p>
+                                        <span className="font-bold text-[#2077ad]">
+                                            E:
+                                        </span>{' '}
+                                        {employee.email_address}
+                                    </p>
+                                ) : null}
+                                {employee.contact_number ? (
+                                    <p>
+                                        <span className="font-bold text-[#2077ad]">
+                                            M:
+                                        </span>{' '}
+                                        {employee.contact_number}
+                                    </p>
+                                ) : null}
+                                <p>
+                                    <span className="font-bold text-[#2077ad]">
+                                        T:
+                                    </span>{' '}
+                                    {officePhone}
+                                </p>
+                                {website ? (
+                                    <p className="pt-4 print:pt-1">{website}</p>
+                                ) : null}
                             </div>
                         </div>
+
+                        <div className="absolute inset-x-0 bottom-0 h-[4%] bg-[#f2c500]" />
+                    </div>
+                </div>
+
+                <div
+                    id="business-card-back"
+                    data-business-card
+                    className={`${embedded ? 'w-[520px] max-w-full' : 'w-full max-w-[920px]'} relative overflow-hidden border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] print:w-[3.76in] print:rounded-none print:border print:border-slate-300 print:shadow-none`}
+                    style={{ aspectRatio: '940 / 500' }}
+                >
+                    <div className="relative h-full w-full overflow-hidden bg-white font-['Trebuchet_MS',Arial,sans-serif]">
+                        {backLogoUrls.map((backLogoUrl, index) => (
+                            <div
+                                key={`${backLogoUrl}-${index}`}
+                                className={backLogoPositions[index]}
+                            >
+                                <img
+                                    src={backLogoUrl}
+                                    alt={`Business card back logo ${index + 1}`}
+                                    className={backLogoImageClasses[index]}
+                                />
+                            </div>
+                        ))}
+
+                        <svg
+                            className="absolute inset-x-0 bottom-0 h-[35%] w-full"
+                            viewBox="0 0 940 175"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                fill="#f2c500"
+                                d="M0 12 C165 42 315 92 470 104 C630 116 770 56 940 12 L940 54 C770 86 635 129 470 122 C310 115 170 70 0 42 Z"
+                            />
+                            <path
+                                fill="#f2c500"
+                                d="M0 104 C170 128 330 145 500 142 C665 139 802 104 940 82 L940 175 L0 175 Z"
+                            />
+                        </svg>
+
+                        <img
+                            src={qrCodeUrl}
+                            alt={`vCard QR code for ${fullName}`}
+                            className="absolute right-[3%] bottom-[4%] size-[clamp(4.5rem,10vw,7rem)] bg-white p-2"
+                        />
                     </div>
                 </div>
             </div>
@@ -309,15 +319,14 @@ export default function BusinessCard({
             {content}
             <style>{`@media print {
                 body * { visibility: hidden; }
-                #business-card, #business-card * { visibility: visible; }
-                #business-card {
-                    position: fixed;
-                    left: 0;
-                    top: 0;
-                    width: 3.5in;
+                [data-business-card], [data-business-card] * { visibility: visible; }
+                [data-business-card] {
+                    position: relative;
+                    width: 3.76in;
                     height: 2in;
-                    margin: 0;
+                    margin: 0 0 0.15in 0;
                     box-shadow: none;
+                    page-break-inside: avoid;
                 }
             }`}</style>
         </>
@@ -327,15 +336,14 @@ export default function BusinessCard({
             {content}
             <style>{`@media print {
                 body * { visibility: hidden; }
-                #business-card, #business-card * { visibility: visible; }
-                #business-card {
-                    position: fixed;
-                    left: 0;
-                    top: 0;
-                    width: 3.5in;
+                [data-business-card], [data-business-card] * { visibility: visible; }
+                [data-business-card] {
+                    position: relative;
+                    width: 3.76in;
                     height: 2in;
-                    margin: 0;
+                    margin: 0 0 0.15in 0;
                     box-shadow: none;
+                    page-break-inside: avoid;
                 }
             }`}</style>
         </AppLayout>

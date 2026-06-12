@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export function normalizeRequestStatus(status: string | null | undefined): string {
@@ -5,8 +6,23 @@ export function normalizeRequestStatus(status: string | null | undefined): strin
     return s && s.length > 0 ? s : 'draft';
 }
 
-export function requestStatusLabel(status: string | null | undefined): string {
+function translatedRequestStatusLabel(
+    status: string | null | undefined,
+    t: (key: string, fallback?: string) => string,
+): string {
     const n = normalizeRequestStatus(status);
+    const map: Record<string, [string, string]> = {
+        draft: ['requestStatus.draft', 'Draft'],
+        submitted: ['requestStatus.submitted', 'Submitted'],
+        approved: ['requestStatus.approved', 'Approved'],
+        rejected: ['requestStatus.rejected', 'Rejected'],
+        cancelled: ['requestStatus.cancelled', 'Cancelled'],
+    };
+    const entry = map[n];
+    if (entry) {
+        return t(entry[0], entry[1]);
+    }
+
     return n.charAt(0).toUpperCase() + n.slice(1);
 }
 
@@ -37,6 +53,8 @@ export function RequestStatusBadge({
     status: string | null | undefined;
     className?: string;
 }) {
+    const { t } = useI18n();
+
     return (
         <span
             className={cn(
@@ -45,7 +63,7 @@ export function RequestStatusBadge({
                 className,
             )}
         >
-            {requestStatusLabel(status)}
+            {translatedRequestStatusLabel(status, t)}
         </span>
     );
 }

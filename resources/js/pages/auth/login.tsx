@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import LoginBrandHeader from '@/components/auth/login-brand-header';
 import InputError from '@/components/input-error';
 import LiveFaceScanner, { type LiveFaceScannerHandle } from '@/components/live-face-scanner';
-import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -34,12 +33,35 @@ const fieldInput = cn(
 
 export default function Login({ status, faceLoginVisible = true }: Props) {
     const [showPassword, setShowPassword] = useState(false);
-    const [useFaceLogin, setUseFaceLogin] = useState(false);
+    const [faceCameraRequested, setFaceCameraRequested] = useState(false);
+    const useFaceLogin = Boolean(faceLoginVisible && faceCameraRequested);
     const [submitting, setSubmitting] = useState(false);
     const [faceSampleVersion, setFaceSampleVersion] = useState(0);
-    const { errors: pageErrors } = usePage<{
+    const page = usePage<{
         errors?: Record<string, string>;
-    }>().props;
+        locale?: string;
+    }>();
+    const { errors: pageErrors } = page.props;
+    const localeRef = useRef<string | undefined>(page.props.locale);
+    useEffect(() => {
+        localeRef.current = page.props.locale;
+    }, [page.props.locale]);
+
+    /**
+     * Arabic sets `html[dir=rtl]`, which mirrors the split card and form even when an inner
+     * wrapper uses `dir="ltr"`. Keep the login screen visually identical to English by forcing
+     * document direction for this page only, then restore on leave.
+     */
+    useEffect(() => {
+        const html = document.documentElement;
+        html.setAttribute('dir', 'ltr');
+
+        return () => {
+            const locale = String(localeRef.current ?? 'en').toLowerCase();
+            html.setAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr');
+        };
+    }, []);
+
     const faceScannerRef = useRef<LiveFaceScannerHandle>(null);
     const latestFaceRef = useRef<File | null>(null);
     const loginInFlightRef = useRef(false);
@@ -131,10 +153,8 @@ export default function Login({ status, faceLoginVisible = true }: Props) {
         !isFaceRateLimited;
 
     useEffect(() => {
-        if (! faceLoginVisible) {
-            setUseFaceLogin(false);
+        if (!faceLoginVisible) {
             latestFaceRef.current = null;
-            setHasFaceSample(false);
         }
     }, [faceLoginVisible]);
 
@@ -382,7 +402,7 @@ export default function Login({ status, faceLoginVisible = true }: Props) {
                                             'dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:hover:bg-zinc-700 dark:hover:text-white',
                                         )}
                                         onClick={() => {
-                                            setUseFaceLogin((value) => {
+                                            setFaceCameraRequested((value) => {
                                                 const next = !value;
                                                 if (!next) {
                                                     latestFaceRef.current = null;

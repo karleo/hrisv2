@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ModuleAbility;
+use App\Enums\PermissionModule;
 use App\Http\Requests\EmployeeRequest\StoreEmployeeRequestRequest;
 use App\Http\Requests\EmployeeRequest\UpdateEmployeeRequestRequest;
 use App\Models\CompanyProfile;
@@ -9,12 +11,15 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
 use App\Models\JobPosition;
+use App\Models\RequestEmailLog;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use App\Support\RequestFormEmployeeSelection;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -26,33 +31,60 @@ use Inertia\Response;
 
 class EmployeeRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
+    ) {}
 
     /**
      * Display a listing of the employee requests.
      */
     public function index(Request $request): Response
     {
+        $validated = $request->validate([
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'department_id' => ['sometimes', 'nullable', 'integer', 'exists:departments,id'],
+            'status' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month', 'custom'])],
+            'date_from' => ['sometimes', 'nullable', 'date'],
+            'date_to' => ['sometimes', 'nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $departmentId = isset($validated['department_id']) ? (int) $validated['department_id'] : null;
+        $statusFilter = isset($validated['status']) && $validated['status'] !== ''
+            ? $validated['status']
+            : null;
+        $datePreset = isset($validated['date_preset']) && $validated['date_preset'] !== ''
+            ? $validated['date_preset']
+            : null;
+        $dateFrom = isset($validated['date_from']) && $validated['date_from'] !== ''
+            ? $validated['date_from']
+            : null;
+        $dateTo = isset($validated['date_to']) && $validated['date_to'] !== ''
+            ? $validated['date_to']
+            : null;
+
         $visibleRequests = EmployeeRequest::query()
             ->with(['employee.companyProfile:id,company_name', 'department', 'jobPosition'])
             ->tap(fn ($query) => $this->approvalScope->scopeVisible($query, $request->user()))
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = (string) $request->input('search');
+            ->when(isset($validated['search']) && trim((string) $validated['search']) !== '', function ($query) use ($validated): void {
+                $search = (string) $validated['search'];
                 $query->whereHas('employee', function ($q) use ($search): void {
                     $q->where('first_name', 'like', '%'.$search.'%')
                         ->orWhere('last_name', 'like', '%'.$search.'%');
                 });
             })
             ->when(
-                $request->filled('department_id'),
-                fn ($query) => $query->where('department_id', (int) $request->input('department_id'))
+                $departmentId !== null,
+                fn ($query) => $query->where('department_id', $departmentId)
             )
             ->when(
-                $request->filled('status'),
-                fn ($query) => $query->where('status', (string) $request->input('status'))
+                $statusFilter !== null,
+                fn ($query) => $query->where('status', $statusFilter)
             );
 
-        $this->applyDatePresetFilter($visibleRequests, $request->input('date_preset'));
+        $this->applyDatePresetFilter($visibleRequests, $datePreset, $dateFrom, $dateTo);
 
         $statusCounts = (clone $visibleRequests)
             ->select('status')
@@ -66,7 +98,14 @@ class EmployeeRequestController extends Controller
 
         return Inertia::render('employee-requests/index', [
             'employeeRequests' => $employeeRequests,
-            'filters' => $request->only(['search', 'department_id', 'status', 'date_preset']),
+            'filters' => [
+                'search' => $validated['search'] ?? null,
+                'department_id' => $departmentId,
+                'status' => $statusFilter,
+                'date_preset' => $datePreset,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ],
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -80,8 +119,12 @@ class EmployeeRequestController extends Controller
         ]);
     }
 
-    private function applyDatePresetFilter(Builder $query, mixed $datePreset): void
-    {
+    private function applyDatePresetFilter(
+        Builder $query,
+        mixed $datePreset,
+        ?string $dateFrom = null,
+        ?string $dateTo = null
+    ): void {
         if (! is_string($datePreset) || $datePreset === '') {
             return;
         }
@@ -114,6 +157,17 @@ class EmployeeRequestController extends Controller
                 $today->copy()->startOfMonth(),
                 $today->copy()->endOfMonth(),
             ]);
+
+            return;
+        }
+
+        if ($datePreset === 'custom') {
+            if ($dateFrom !== null) {
+                $query->whereDate('date', '>=', $dateFrom);
+            }
+            if ($dateTo !== null) {
+                $query->whereDate('date', '<=', $dateTo);
+            }
         }
     }
 
@@ -122,18 +176,20 @@ class EmployeeRequestController extends Controller
      */
     public function create(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('employee-requests/create', [
-            'employees' => Employee::query()
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
+            'employees' => $this->requestFormEmployees->employeesForForm($user, [
+                'id', 'first_name', 'last_name', 'department_id', 'job_position_id',
+            ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'jobPositions' => JobPosition::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'defaultEmployeeId' => $request->user()?->employee?->id,
+            'defaultEmployeeId' => $user?->loadMissing('employee')->employee?->id,
         ]);
     }
 
@@ -187,6 +243,7 @@ class EmployeeRequestController extends Controller
         $actor = request()->user();
         $this->assertCanView($actor, $employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
+        $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
@@ -204,7 +261,7 @@ class EmployeeRequestController extends Controller
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
@@ -215,6 +272,9 @@ class EmployeeRequestController extends Controller
             'canDecide' => $this->approvalScope->canDecide($actor, $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
             'canCancel' => $this->canCancel($actor, $employee_request),
             'canEdit' => $this->canEdit($actor, $employee_request),
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $canViewActivityLogs ? $this->activityLogsForEmployeeRequest($employee_request) : [],
+            'emailLogs' => $this->emailLogsForRequest('employee_request', (int) $employee_request->id),
         ]);
     }
 
@@ -305,6 +365,7 @@ class EmployeeRequestController extends Controller
         $this->assertCanModify($actor, $employee_request);
         $this->assertEditableStatus($employee_request);
         $employee_request->load(['employee', 'department', 'jobPosition', 'approvedByEmployee']);
+        $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $employee_request->employee_signature
             ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
@@ -322,10 +383,10 @@ class EmployeeRequestController extends Controller
                 'ceo_signature_url' => $ceoSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id', 'job_position_id']),
+            'employees' => $this->requestFormEmployees->employeesForForm($actor, [
+                'id', 'first_name', 'last_name', 'department_id', 'job_position_id',
+            ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -336,6 +397,9 @@ class EmployeeRequestController extends Controller
             'cancelUrl' => route('employee-requests.destroy', $employee_request, false),
             'canDecide' => $this->approvalScope->canDecide($actor, $employee_request->employee_id, $employee_request->department_id, (string) $employee_request->status),
             'canCancel' => $this->canCancel($actor, $employee_request),
+            'canViewActivityLogs' => $canViewActivityLogs,
+            'activityLogs' => $canViewActivityLogs ? $this->activityLogsForEmployeeRequest($employee_request) : [],
+            'emailLogs' => $this->emailLogsForRequest('employee_request', (int) $employee_request->id),
         ]);
     }
 
@@ -547,6 +611,58 @@ class EmployeeRequestController extends Controller
         }
 
         return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function activityLogsForEmployeeRequest(EmployeeRequest $employeeRequest): array
+    {
+        return $employeeRequest->activityLogs()
+            ->with('actor:id,name')
+            ->limit(200)
+            ->get()
+            ->map(function ($log): array {
+                $oldValue = is_string($log->old_value) ? trim($log->old_value) : null;
+                $newValue = is_string($log->new_value) ? trim($log->new_value) : null;
+
+                return [
+                    'id' => (int) $log->id,
+                    'action' => (string) $log->action,
+                    'field' => (string) $log->field_name,
+                    'old_value' => $oldValue === '' ? null : $oldValue,
+                    'new_value' => $newValue === '' ? null : $newValue,
+                    'performed_by' => (string) ($log->actor?->name ?? $log->actor_name ?? 'System'),
+                    'performed_at' => $log->created_at?->toIso8601String(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function emailLogsForRequest(string $requestType, int $requestId): array
+    {
+        return RequestEmailLog::query()
+            ->where('request_type', $requestType)
+            ->where('request_id', $requestId)
+            ->latest('performed_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (RequestEmailLog $log): array => [
+                'id' => (int) $log->id,
+                'status' => (string) $log->status,
+                'channel' => (string) $log->channel,
+                'notification_type' => (string) $log->notification_type,
+                'recipient_email' => (string) $log->recipient_email,
+                'reason' => $log->reason,
+                'error_message' => $log->error_message,
+                'performed_at' => $log->performed_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 
     private function assertCanView(?User $user, EmployeeRequest $employeeRequest): void

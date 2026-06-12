@@ -4,6 +4,7 @@ import ItRequestController from '@/actions/App/Http/Controllers/ItRequestControl
 import { FormValidationInlineAlert } from '@/components/form-validation-inline-alert';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { RequestEmployeeSelectField } from '@/components/request-employee-select-field';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import { index } from '@/routes/it-requests';
 import type { BreadcrumbItem } from '@/types';
 
@@ -61,13 +63,16 @@ export default function Create({
     software,
     hardware,
     defaultEmployeeId = null,
+    canChooseEmployee = true,
 }: {
     employees: EmployeeOption[];
     departments: DepartmentOption[];
     software: SoftwareOption[];
     hardware: HardwareOption[];
     defaultEmployeeId?: number | null;
+    canChooseEmployee?: boolean;
 }) {
+    const { t } = useI18n();
     const initialEmployee =
         defaultEmployeeId != null ? employees.find((e) => e.id === defaultEmployeeId) : undefined;
 
@@ -97,7 +102,7 @@ export default function Create({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Create IT Request" />
+            <Head title={t('forms.it.createTitle', 'Create IT Request')} />
 
             <div className="flex min-h-screen flex-1 flex-col bg-muted/30">
                 <div className="border-b bg-card px-4 py-6 md:px-8">
@@ -107,11 +112,11 @@ export default function Create({
                             className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ArrowLeft className="size-4" />
-                            Back to IT Requests
+                            {t('forms.it.backToRequests', 'Back to IT Requests')}
                         </Link>
                         <Heading
-                            title="Create IT Request"
-                            description="Save a draft first, then open the request and use Submit when it is ready to send."
+                            title={t('forms.it.createTitle', 'Create IT Request')}
+                            description={t('forms.saveDraftHelp', 'Save a draft first, then open the request and use Submit when it is ready to send.')}
                         />
                         <div className="flex items-center gap-2">
                             <Button
@@ -120,11 +125,11 @@ export default function Create({
                                 onClick={saveDraft}
                             >
                                 <Send className="mr-2 size-4" />
-                                {processing ? 'Saving...' : 'Save'}
+                                {processing ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
                             </Button>
                             <Link href={index()}>
                                 <Button type="button" variant="outline">
-                                    Discard
+                                    {t('common.discard', 'Discard')}
                                 </Button>
                             </Link>
                         </div>
@@ -151,33 +156,21 @@ export default function Create({
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                                    <div className="grid gap-2 sm:col-span-2">
-                                        <Label htmlFor="employee_id">Name</Label>
-                                        <select
-                                            id="employee_id"
-                                            name="employee_id"
-                                            required
-                                            value={data.employee_id}
-                                            onChange={(e) => {
-                                                const employeeId = e.target.value ? Number(e.target.value) : '';
-                                                const employee = employees.find((item) => item.id === employeeId);
-
+                                    <div className="sm:col-span-2">
+                                        <RequestEmployeeSelectField
+                                            canChooseEmployee={canChooseEmployee}
+                                            employees={employees}
+                                            employeeId={data.employee_id}
+                                            label={t('forms.employee.name', 'Name')}
+                                            onEmployeeChange={(employeeId, employee) => {
                                                 setData((previous) => ({
                                                     ...previous,
                                                     employee_id: employeeId,
                                                     department_id: employee?.department_id ?? '',
                                                 }));
                                             }}
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            <option value="">Select employee</option>
-                                            {employees.map((emp) => (
-                                                <option key={emp.id} value={emp.id}>
-                                                    {emp.first_name} {emp.last_name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError message={errors.employee_id} />
+                                            error={errors.employee_id}
+                                        />
                                     </div>
 
                                     <div className="grid gap-2">
@@ -192,7 +185,7 @@ export default function Create({
                                             required
                                             value={data.date}
                                             onChange={(e) => setData('date', e.target.value)}
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         />
                                         <InputError message={errors.date} />
                                     </div>
@@ -241,7 +234,7 @@ export default function Create({
                                             onChange={(e) =>
                                                 setData('software_id', e.target.value ? Number(e.target.value) : '')
                                             }
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <option value="">Select software (optional)</option>
                                             {software.map((item) => (
@@ -262,7 +255,7 @@ export default function Create({
                                             onChange={(e) =>
                                                 setData('hardware_id', e.target.value ? Number(e.target.value) : '')
                                             }
-                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <option value="">Select hardware (optional)</option>
                                             {hardware.map((item) => (
@@ -281,7 +274,7 @@ export default function Create({
                             <div className="sticky top-6 space-y-6">
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>Request Summary</CardTitle>
+                                        <CardTitle>{t('forms.summary', 'Summary')}</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3 text-sm">
                                         <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2">

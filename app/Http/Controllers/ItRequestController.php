@@ -9,13 +9,16 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
 use App\Models\ItRequest;
+use App\Models\RequestEmailLog;
 use App\Models\Software;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use App\Support\RequestFormEmployeeSelection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,7 +28,11 @@ use Inertia\Response;
 
 class ItRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
+    ) {}
 
     /**
      * Display a listing of the IT requests.
@@ -57,11 +64,13 @@ class ItRequestController extends Controller
      */
     public function create(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('it-requests/create', [
-            'employees' => Employee::query()
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $this->requestFormEmployees->employeesForForm($user, [
+                'id', 'first_name', 'last_name', 'department_id',
+            ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -71,7 +80,7 @@ class ItRequestController extends Controller
             'hardware' => Hardware::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
-            'defaultEmployeeId' => $request->user()?->employee?->id,
+            'defaultEmployeeId' => $user?->loadMissing('employee')->employee?->id,
         ]);
     }
 
@@ -117,7 +126,7 @@ class ItRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
@@ -128,6 +137,7 @@ class ItRequestController extends Controller
             'canDecide' => $this->approvalScope->canDecide($actor, $it_request->employee_id, $it_request->department_id, (string) $it_request->status),
             'canCancel' => $this->canCancel($actor, $it_request),
             'canEdit' => $this->canEdit($actor, $it_request),
+            'emailLogs' => $this->emailLogsForRequest('it_request', (int) $it_request->id),
         ]);
     }
 
@@ -259,10 +269,10 @@ class ItRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $this->requestFormEmployees->employeesForForm($actor, [
+                'id', 'first_name', 'last_name', 'department_id',
+            ]),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -484,5 +494,30 @@ class ItRequestController extends Controller
         foreach ($uniqueRecipients as $recipient) {
             $recipient->notify(new RequestSubmittedNotification($payload));
         }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function emailLogsForRequest(string $requestType, int $requestId): array
+    {
+        return RequestEmailLog::query()
+            ->where('request_type', $requestType)
+            ->where('request_id', $requestId)
+            ->latest('performed_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (RequestEmailLog $log): array => [
+                'id' => (int) $log->id,
+                'status' => (string) $log->status,
+                'channel' => (string) $log->channel,
+                'notification_type' => (string) $log->notification_type,
+                'recipient_email' => (string) $log->recipient_email,
+                'reason' => $log->reason,
+                'error_message' => $log->error_message,
+                'performed_at' => $log->performed_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 }

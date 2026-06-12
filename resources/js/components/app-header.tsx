@@ -1,9 +1,18 @@
-import { Link, router, usePage, usePoll } from '@inertiajs/react';
-import { Bell, BookOpen, Folder, LayoutGrid, Menu, Moon, Search, Sun } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import {
+    Bell,
+    BookOpen,
+    Folder,
+    LayoutGrid,
+    Menu,
+    MessageCircle,
+    Search,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationArrivalToastShell } from '@/components/notification-arrival-toast-shell';
 import { NotificationBellListItem } from '@/components/notification-bell-list-item';
+import { ThemeToggleSwitch } from '@/components/theme-toggle-switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,10 +42,11 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
-import { useCurrentUrl } from '@/hooks/use-current-url';
-import { useInitials } from '@/hooks/use-initials';
 import { useAppearance } from '@/hooks/use-appearance';
+import { useCurrentUrl } from '@/hooks/use-current-url';
+import { getFirstNameLetter } from '@/hooks/use-initials';
 import { useNotificationListPointerGuard } from '@/hooks/use-notification-list-pointer-guard';
+import { useNotificationsLiveSync } from '@/hooks/use-notifications-live-sync';
 import { filterNavByModuleAccess } from '@/lib/nav-permissions';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -75,38 +85,33 @@ const activeItemStyles =
 
 export function AppHeader({ breadcrumbs = [] }: Props) {
     const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
-    const notificationListRef = useNotificationListPointerGuard(notificationsMenuOpen);
+    const notificationListRef = useNotificationListPointerGuard(
+        notificationsMenuOpen,
+    );
     const { resolvedAppearance, updateAppearance } = useAppearance();
 
-    usePoll(
-        10000,
-        {
-            only: ['notifications'],
-            preserveScroll: true,
-            preserveState: true,
-        },
-        { keepAlive: true },
-    );
+    useNotificationsLiveSync();
 
     const page = usePage();
-    const { auth, modulePermissions, notifications } = page.props as typeof page.props & {
-        notifications?: {
-            unread_count: number;
-            items: Array<{
-                id: string;
-                read_at?: string | null;
-                data?: {
-                    request_code?: string;
-                    request_type?: string;
-                    request_date?: string;
-                    route?: string;
-                    request_id?: number;
-                    decision?: string;
-                    employee_photo_url?: string | null;
-                };
-            }>;
+    const { auth, modulePermissions, notifications } =
+        page.props as typeof page.props & {
+            notifications?: {
+                unread_count: number;
+                items: Array<{
+                    id: string;
+                    read_at?: string | null;
+                    data?: {
+                        request_code?: string;
+                        request_type?: string;
+                        request_date?: string;
+                        route?: string;
+                        request_id?: number;
+                        decision?: string;
+                        employee_photo_url?: string | null;
+                    };
+                }>;
+            };
         };
-    };
 
     const mainNavItems = useMemo(
         () => filterNavByModuleAccess(mainNavItemsSource, modulePermissions),
@@ -114,7 +119,6 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     );
     const unreadCount = notifications?.unread_count ?? 0;
     const hasUnread = unreadCount > 0;
-    const getInitials = useInitials();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
     return (
         <>
@@ -224,32 +228,29 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                     </div>
 
                     <div className="ml-auto flex items-center space-x-2">
+                        <ThemeToggleSwitch
+                            resolvedAppearance={resolvedAppearance}
+                            onToggle={() =>
+                                updateAppearance(
+                                    resolvedAppearance === 'dark'
+                                        ? 'light'
+                                        : 'dark',
+                                )
+                            }
+                            className="origin-center scale-75"
+                        />
                         <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() =>
-                                updateAppearance(resolvedAppearance === 'dark' ? 'light' : 'dark')
-                            }
-                            aria-label={
-                                resolvedAppearance === 'dark'
-                                    ? 'Switch to light mode'
-                                    : 'Switch to dark mode'
-                            }
-                            title={
-                                resolvedAppearance === 'dark'
-                                    ? 'Switch to light mode'
-                                    : 'Switch to dark mode'
-                            }
+                            asChild
+                            className="h-9 rounded-lg px-3 text-xs font-semibold"
                         >
-                            {resolvedAppearance === 'dark' ? (
-                                <Sun className="size-5 opacity-80" />
-                            ) : (
-                                <Moon className="size-5 opacity-80" />
-                            )}
+                            <Link href="/employee-messages">
+                                <MessageCircle className="size-4" />
+                                <span className="hidden sm:inline">Chat</span>
+                            </Link>
                         </Button>
-                        <NotificationArrivalToastShell notifications={notifications}>
+                        <NotificationArrivalToastShell
+                            notifications={notifications}
+                        >
                             <DropdownMenu
                                 open={notificationsMenuOpen}
                                 onOpenChange={setNotificationsMenuOpen}
@@ -268,62 +269,80 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                         <Bell
                                             className={cn(
                                                 'size-5',
-                                                hasUnread ? 'animate-pulse' : 'opacity-95',
+                                                hasUnread
+                                                    ? 'animate-pulse'
+                                                    : 'opacity-95',
                                             )}
                                         />
                                         {hasUnread ? (
-                                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[11px] leading-none font-bold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.6)] dark:shadow-[0_0_0_2px_rgba(15,23,42,0.8)]">
-                                                {unreadCount > 99 ? '99+' : unreadCount}
+                                            <span className="absolute -top-1.5 -right-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-background bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[11px] leading-none font-bold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.6)] dark:shadow-[0_0_0_2px_rgba(15,23,42,0.8)]">
+                                                {unreadCount > 99
+                                                    ? '99+'
+                                                    : unreadCount}
                                             </span>
                                         ) : null}
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
-                                align="end"
-                                className="w-[min(24rem,calc(100vw-2rem))] max-w-[min(24rem,calc(100vw-2rem))] rounded-xl p-0"
-                                onOpenAutoFocus={(e) => e.preventDefault()}
-                            >
-                                <DropdownMenuLabel className="flex items-center justify-between px-3 py-2.5">
-                                    <span className="text-sm font-semibold">Notifications</span>
-                                    <div className="flex items-center gap-2">
-                                        {(notifications?.items?.length ?? 0) > 0 ? (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                                onClick={() => {
-                                                    router.delete('/notifications', {
-                                                        preserveScroll: true,
-                                                        preserveState: true,
-                                                    });
-                                                }}
-                                            >
-                                                Clear all
-                                            </Button>
-                                        ) : null}
-                                        <span className="text-muted-foreground text-xs">
-                                            {notifications?.unread_count ?? 0} unread
-                                        </span>
-                                    </div>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <div
-                                    ref={notificationListRef}
-                                    className="max-h-96 space-y-2 overflow-y-auto p-2.5"
+                                    align="end"
+                                    className="w-[min(24rem,calc(100vw-2rem))] max-w-[min(24rem,calc(100vw-2rem))] rounded-xl p-0"
+                                    onOpenAutoFocus={(e) => e.preventDefault()}
                                 >
-                                    {(notifications?.items?.length ?? 0) === 0 ? (
-                                        <p className="text-muted-foreground px-2 py-4 text-center text-sm">
-                                            No notifications
-                                        </p>
-                                    ) : (
-                                        notifications?.items?.map((item) => (
-                                            <NotificationBellListItem key={item.id} item={item} />
-                                        ))
-                                    )}
-                                </div>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <DropdownMenuLabel className="flex items-center justify-between px-3 py-2.5">
+                                        <span className="text-sm font-semibold">
+                                            Notifications
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {(notifications?.items?.length ??
+                                                0) > 0 ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                                    onClick={() => {
+                                                        router.delete(
+                                                            '/notifications',
+                                                            {
+                                                                preserveScroll: true,
+                                                                preserveState: true,
+                                                            },
+                                                        );
+                                                    }}
+                                                >
+                                                    Clear all
+                                                </Button>
+                                            ) : null}
+                                            <span className="text-xs text-muted-foreground">
+                                                {notifications?.unread_count ??
+                                                    0}{' '}
+                                                unread
+                                            </span>
+                                        </div>
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <div
+                                        ref={notificationListRef}
+                                        className="max-h-96 space-y-2 overflow-y-auto p-2.5"
+                                    >
+                                        {(notifications?.items?.length ?? 0) ===
+                                        0 ? (
+                                            <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                                                No notifications
+                                            </p>
+                                        ) : (
+                                            notifications?.items?.map(
+                                                (item) => (
+                                                    <NotificationBellListItem
+                                                        key={item.id}
+                                                        item={item}
+                                                    />
+                                                ),
+                                            )
+                                        )}
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </NotificationArrivalToastShell>
                         <div className="relative flex items-center space-x-1">
                             <Button
@@ -371,11 +390,11 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 >
                                     <Avatar className="size-8 overflow-hidden rounded-full">
                                         <AvatarImage
-                                            src={auth.user.avatar}
+                                            src={auth.user.avatar ?? undefined}
                                             alt={auth.user.name}
                                         />
                                         <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
-                                            {getInitials(auth.user.name)}
+                                            {getFirstNameLetter(auth.user.name)}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>

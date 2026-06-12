@@ -21,7 +21,20 @@ class ItRequestFactory extends Factory
         return [
             'employee_id' => Employee::factory(),
             'department_id' => Department::factory(),
-            'status' => 'submitted',
+            'software_id' => null,
+            'hardware_id' => null,
+            'status' => 'draft',
+            'date' => fake()->dateTimeBetween('-2 months', 'now')->format('Y-m-d'),
         ];
+    }
+
+    public function submitted(): static
+    {
+        return $this->state(fn () => ['status' => 'submitted']);
+    }
+
+    public function approved(): static
+    {
+        return $this->state(fn () => ['status' => 'approved']);
     }
 }

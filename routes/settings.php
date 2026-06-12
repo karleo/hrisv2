@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\SmtpController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -28,4 +29,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
+
+    Route::get('settings/smtp', [SmtpController::class, 'edit'])
+        ->name('smtp.edit');
+    Route::put('settings/smtp', [SmtpController::class, 'update'])
+        ->name('smtp.update');
+    Route::post('settings/smtp/test', [SmtpController::class, 'test'])
+        ->middleware('throttle:5,1')
+        ->name('smtp.test');
 });

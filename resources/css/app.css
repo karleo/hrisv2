@@ -143,6 +143,20 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    select:not(.sr-only):not([multiple]) {
+        @apply border-input bg-background text-foreground shadow-xs outline-none;
+        @apply focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px];
+    }
+
+    .dark select:not(.sr-only):not([multiple]) {
+        color-scheme: dark;
+    }
+
+    option {
+        background-color: var(--popover);
+        color: var(--popover-foreground);
+    }
 }
 
 @keyframes notification-toast-timer {
@@ -168,6 +182,23 @@
     100% {
         top: calc(92% - 2px);
         opacity: 0.45;
+    }
+}
+
+@layer components {
+    /**
+     * Login page ambient (auth-login-split-layout).
+     * Defined here so the background always applies even if a stale Vite bundle omits Tailwind arbitrary classes.
+     * Rebuild: npm run build (or npm run dev).
+     */
+    .login-shell-bg {
+        background-color: #e9edf4;
+        background-image: linear-gradient(135deg, #f4f6fa 0%, #e9edf4 45%, #dde3ec 100%);
+    }
+
+    html.dark .login-shell-bg {
+        background-color: #0f172a;
+        background-image: linear-gradient(160deg, #0f172a 0%, #1a2332 48%, #0c1018 100%);
     }
 }
 

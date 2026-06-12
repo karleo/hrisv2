@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('new_value')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['leave_request_id', 'created_at']);
+            $table->index(['leave_request_id', 'created_at'], 'lral_req_created_at_idx');
         });
     }
 

@@ -10,6 +10,7 @@ use App\Models\AppSetting;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\CompanyAccessScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class UserController extends Controller
 
     public function __construct(
         private readonly FaceVerificationContract $faceVerification,
+        private readonly CompanyAccessScope $companyScope,
     ) {}
 
     /**
@@ -64,11 +66,11 @@ class UserController extends Controller
     /**
      * Show the form for creating a new user.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('users/create', [
             'roles' => Role::query()->orderBy('name')->get(['id', 'name', 'slug']),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('employee_code')
                 ->get(['id', 'employee_code', 'first_name', 'last_name', 'email_address', 'user_id']),
         ]);
@@ -106,9 +108,9 @@ class UserController extends Controller
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
         try {
-            DB::transaction(function () use ($data, $employeeId, $imagesByAngle, $attemptFaceEnroll): void {
+            DB::transaction(function () use ($data, $employeeId, $imagesByAngle, $attemptFaceEnroll, $request): void {
                 $user = User::query()->create($data);
-                $this->syncEmployeeLink($user, $employeeId);
+                $this->syncEmployeeLink($user, $employeeId, $request->user());
                 if ($attemptFaceEnroll) {
                     $this->faceVerification->enrollProfile($user, $imagesByAngle);
                 }
@@ -131,7 +133,7 @@ class UserController extends Controller
     /**
      * Show the form for editing the specified user.
      */
-    public function edit(User $user): Response
+    public function edit(Request $request, User $user): Response
     {
         $user->load([
             'role:id,name',
@@ -160,7 +162,7 @@ class UserController extends Controller
                 'face_enrolled' => $user->face_enrolled_at !== null,
             ],
             'roles' => Role::query()->orderBy('name')->get(['id', 'name', 'slug']),
-            'employees' => Employee::query()
+            'employees' => $this->companyScope->scopedEmployeeQuery($request->user())
                 ->orderBy('employee_code')
                 ->get(['id', 'employee_code', 'first_name', 'last_name', 'user_id']),
         ]);
@@ -211,9 +213,9 @@ class UserController extends Controller
         $data['role_id'] = $this->resolvedRoleId($data['role_id'] ?? null);
 
         try {
-            DB::transaction(function () use ($user, $data, $employeeId, $imagesByAngle, $attemptFaceEnroll): void {
+            DB::transaction(function () use ($user, $data, $employeeId, $imagesByAngle, $attemptFaceEnroll, $request): void {
                 $user->update($data);
-                $this->syncEmployeeLink($user, $employeeId);
+                $this->syncEmployeeLink($user, $employeeId, $request->user());
                 if ($attemptFaceEnroll) {
                     $this->faceVerification->enrollProfile($user->fresh(), $imagesByAngle);
                 }
@@ -285,13 +287,16 @@ class UserController extends Controller
         );
     }
 
-    private function syncEmployeeLink(User $user, ?int $employeeId): void
+    private function syncEmployeeLink(User $user, ?int $employeeId, ?User $actor): void
     {
         Employee::query()->where('user_id', $user->id)->update(['user_id' => null]);
 
         if ($employeeId === null) {
             return;
         }
+
+        $employee = Employee::query()->findOrFail($employeeId);
+        $this->companyScope->assertCanAccessEmployee($actor, $employee);
 
         Employee::query()->where('id', $employeeId)->update(['user_id' => $user->id]);
     }

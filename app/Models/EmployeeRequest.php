@@ -6,6 +6,9 @@ use App\Support\DocumentCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @property int $id
@@ -41,6 +44,14 @@ class EmployeeRequest extends Model
     /** @use HasFactory<\Database\Factories\EmployeeRequestFactory> */
     use HasFactory;
 
+    /**
+     * @var list<string>
+     */
+    private const AUDIT_IGNORE_FIELDS = [
+        'created_at',
+        'updated_at',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $employeeRequest): void {
@@ -49,6 +60,41 @@ class EmployeeRequest extends Model
             }
 
             $employeeRequest->code = DocumentCode::employeeRequest($employeeRequest->date);
+        });
+
+        static::created(function (self $employeeRequest): void {
+            $employeeRequest->recordAuditEntries(
+                EmployeeRequestActivityLog::ACTION_CREATED,
+                $employeeRequest->auditLoggableValues(),
+                []
+            );
+        });
+
+        static::updated(function (self $employeeRequest): void {
+            $changes = $employeeRequest->getChanges();
+            unset($changes['updated_at']);
+            if ($changes === []) {
+                return;
+            }
+
+            $oldValues = [];
+            foreach ($changes as $field => $_value) {
+                $oldValues[$field] = $employeeRequest->getOriginal($field);
+            }
+
+            $employeeRequest->recordAuditEntries(
+                EmployeeRequestActivityLog::ACTION_UPDATED,
+                $changes,
+                $oldValues
+            );
+        });
+
+        static::deleted(function (self $employeeRequest): void {
+            $employeeRequest->recordAuditEntries(
+                EmployeeRequestActivityLog::ACTION_DELETED,
+                [],
+                $employeeRequest->auditLoggableValues()
+            );
         });
     }
 
@@ -126,5 +172,96 @@ class EmployeeRequest extends Model
     public function approvedByEmployee(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'approved_by_employee_id');
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(EmployeeRequestActivityLog::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function auditLoggableValues(): array
+    {
+        $values = [
+            'code' => $this->code,
+        ];
+
+        foreach ($this->getFillable() as $field) {
+            if (in_array($field, self::AUDIT_IGNORE_FIELDS, true)) {
+                continue;
+            }
+
+            $values[$field] = $this->getAttribute($field);
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param  array<string, mixed>  $newValues
+     * @param  array<string, mixed>  $oldValues
+     */
+    private function recordAuditEntries(string $action, array $newValues, array $oldValues): void
+    {
+        $actor = Auth::user();
+        $actorId = $actor?->id;
+        $actorName = $actor?->name ?? $actor?->email ?? 'System';
+
+        $fields = array_values(array_unique(array_merge(array_keys($newValues), array_keys($oldValues))));
+        if ($fields === []) {
+            return;
+        }
+
+        $rows = [];
+        $now = now();
+        foreach ($fields as $field) {
+            if (in_array($field, self::AUDIT_IGNORE_FIELDS, true)) {
+                continue;
+            }
+
+            $rows[] = [
+                'employee_request_id' => $this->id,
+                'actor_user_id' => $actorId,
+                'actor_name' => $actorName,
+                'action' => $action,
+                'field_name' => $field,
+                'old_value' => self::normalizeAuditValue($oldValues[$field] ?? null),
+                'new_value' => self::normalizeAuditValue($newValues[$field] ?? null),
+                'created_at' => $now,
+            ];
+        }
+
+        if ($rows !== []) {
+            EmployeeRequestActivityLog::query()->insert($rows);
+        }
+    }
+
+    private static function normalizeAuditValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->toDateTimeString();
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_array($value)) {
+            $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            return $encoded === false ? '[unserializable]' : $encoded;
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return '[unserializable]';
     }
 }

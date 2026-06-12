@@ -12,12 +12,15 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestActivityLog;
 use App\Models\LeaveType;
+use App\Models\RequestEmailLog;
 use App\Models\User;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
+use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
+use App\Support\RequestFormEmployeeSelection;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +32,11 @@ use Inertia\Response;
 
 class LeaveRequestController extends Controller
 {
-    public function __construct(private readonly RequestApprovalScope $approvalScope) {}
+    public function __construct(
+        private readonly RequestApprovalScope $approvalScope,
+        private readonly CompanyAccessScope $companyScope,
+        private readonly RequestFormEmployeeSelection $requestFormEmployees,
+    ) {}
 
     /**
      * Display a listing of the leave requests.
@@ -40,7 +47,9 @@ class LeaveRequestController extends Controller
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'department_id' => ['sometimes', 'nullable', 'integer', 'exists:departments,id'],
             'status' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month'])],
+            'date_preset' => ['sometimes', 'nullable', 'string', Rule::in(['today', 'yesterday', 'last_7_days', 'this_month', 'custom'])],
+            'date_from' => ['sometimes', 'nullable', 'date'],
+            'date_to' => ['sometimes', 'nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
         $departmentId = $validated['department_id'] ?? null;
@@ -50,8 +59,14 @@ class LeaveRequestController extends Controller
         $datePreset = isset($validated['date_preset']) && $validated['date_preset'] !== ''
             ? $validated['date_preset']
             : null;
+        $dateFrom = isset($validated['date_from']) && $validated['date_from'] !== ''
+            ? $validated['date_from']
+            : null;
+        $dateTo = isset($validated['date_to']) && $validated['date_to'] !== ''
+            ? $validated['date_to']
+            : null;
 
-        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter, $datePreset): void {
+        $applyFilters = function ($query) use ($request, $departmentId, $statusFilter, $datePreset, $dateFrom, $dateTo): void {
             $query->when(
                 $request->filled('search'),
                 fn ($q) => $q->whereHas('employee', function ($sub) use ($request): void {
@@ -73,6 +88,14 @@ class LeaveRequestController extends Controller
                         Carbon::now()->startOfMonth()->startOfDay(),
                         Carbon::now()->endOfMonth()->endOfDay(),
                     ]);
+                })
+                ->when($datePreset === 'custom', function ($q) use ($dateFrom, $dateTo): void {
+                    if ($dateFrom !== null) {
+                        $q->whereDate('created_at', '>=', $dateFrom);
+                    }
+                    if ($dateTo !== null) {
+                        $q->whereDate('created_at', '<=', $dateTo);
+                    }
                 });
         };
 
@@ -115,6 +138,8 @@ class LeaveRequestController extends Controller
                 'department_id' => $departmentId,
                 'status' => $statusFilter,
                 'date_preset' => $datePreset,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
             ],
             'departments' => Department::query()
                 ->orderBy('name')
@@ -129,11 +154,10 @@ class LeaveRequestController extends Controller
     public function create(Request $request): Response
     {
         $canViewActivityLogs = $request->user()?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
-        $employees = Employee::query()
-            ->with('department:id,name')
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'department_id', 'leave_opening_balance']);
+        $user = $request->user();
+        $employees = $this->requestFormEmployees->employeesForForm($user, [
+            'id', 'first_name', 'last_name', 'department_id', 'leave_opening_balance',
+        ])->load('department:id,name');
 
         $leaveBalanceByEmployeeId = $employees
             ->mapWithKeys(fn (Employee $employee): array => [
@@ -156,7 +180,8 @@ class LeaveRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'leaveTypes' => $this->availableLeaveTypeNames(),
-            'defaultEmployeeId' => $request->user()?->employee?->id,
+            'defaultEmployeeId' => $user?->loadMissing('employee')->employee?->id,
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => [],
         ]);
@@ -224,10 +249,9 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name']),
+            'employees' => $this->companyScope->employeesForRequestForms($actor, [
+                'id', 'first_name', 'last_name',
+            ]),
             'signaturesUrl' => $this->leaveRequestSignaturesPostUrl($leave_request),
             'submitUrl' => route('leave-requests.submit', $leave_request, false),
             'cancelUrl' => route('leave-requests.destroy', $leave_request, false),
@@ -237,6 +261,7 @@ class LeaveRequestController extends Controller
             'canEdit' => $this->canEdit($actor, $leave_request),
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => $canViewActivityLogs ? $this->activityLogsForLeaveRequest($leave_request) : [],
+            'emailLogs' => $this->emailLogsForRequest('leave_request', (int) $leave_request->id),
         ]);
     }
 
@@ -250,7 +275,8 @@ class LeaveRequestController extends Controller
             return redirect()->back()->with('error', 'Only draft leave requests can be submitted.');
         }
 
-        $employee = Employee::query()->find($leave_request->employee_id);
+        $leave_request->loadMissing('employee');
+        $employee = $leave_request->employee;
         if ($employee === null) {
             return redirect()->back()->with('error', 'Cannot submit: employee record is missing.');
         }
@@ -361,11 +387,10 @@ class LeaveRequestController extends Controller
                 'employee_signature_url' => $employeeSignatureUrl,
                 'approved_by_signature_url' => $approvedBySignatureUrl,
             ]),
-            'employees' => Employee::query()
-                ->with('department:id,name')
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'department_id']),
+            'employees' => $this->requestFormEmployees->employeesForForm($actor, [
+                'id', 'first_name', 'last_name', 'department_id',
+            ])->load('department:id,name'),
+            'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($actor),
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -378,6 +403,7 @@ class LeaveRequestController extends Controller
             'canCancel' => $this->canCancel($actor, $leave_request),
             'canViewActivityLogs' => $canViewActivityLogs,
             'activityLogs' => $canViewActivityLogs ? $this->activityLogsForLeaveRequest($leave_request) : [],
+            'emailLogs' => $this->emailLogsForRequest('leave_request', (int) $leave_request->id),
         ]);
     }
 
@@ -553,8 +579,7 @@ class LeaveRequestController extends Controller
         ?string $periodTo,
         string $startDayType = 'full',
         string $endDayType = 'full',
-    ): ?float
-    {
+    ): ?float {
         if (empty($periodFrom) || empty($periodTo)) {
             return null;
         }
@@ -697,6 +722,31 @@ class LeaveRequestController extends Controller
                     'performed_at' => $log->created_at?->toIso8601String(),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function emailLogsForRequest(string $requestType, int $requestId): array
+    {
+        return RequestEmailLog::query()
+            ->where('request_type', $requestType)
+            ->where('request_id', $requestId)
+            ->latest('performed_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (RequestEmailLog $log): array => [
+                'id' => (int) $log->id,
+                'status' => (string) $log->status,
+                'channel' => (string) $log->channel,
+                'notification_type' => (string) $log->notification_type,
+                'recipient_email' => (string) $log->recipient_email,
+                'reason' => $log->reason,
+                'error_message' => $log->error_message,
+                'performed_at' => $log->performed_at?->toIso8601String(),
+            ])
             ->values()
             ->all();
     }

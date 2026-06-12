@@ -1,6 +1,8 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Building2, Briefcase, CheckCircle2, Clock, Download, Eye, KeyRound, Mail, MapPin, Phone, User } from 'lucide-react';
 import { useState } from 'react';
+import { EmployeeAttendanceTab } from '@/components/employee-attendance-tab';
+import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import InputError from '@/components/input-error';
 import MultiAngleFaceProfileField, { type FaceProfileFiles } from '@/components/multi-angle-face-profile-field';
 import { Button } from '@/components/ui/button';
@@ -9,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { useI18n } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Department = {
@@ -33,9 +36,27 @@ type WorkTimetable = {
     name: string;
 };
 
+type AttendanceRow = {
+    date: string;
+    device_pin: string;
+    device_name: string | null;
+    clock_in: string | null;
+    clock_out: string | null;
+    working_hours: string;
+    overtime: string;
+    punch_count: number;
+};
+
+type AttendancePayload = {
+    filters: { from: string; to: string };
+    summary: { total_days: number; total_punches: number };
+    rows: AttendanceRow[];
+};
+
 type Employee = {
     id: number;
     employee_code: string;
+    biometric_user_id?: string | null;
     first_name: string;
     last_name: string;
     email_address: string;
@@ -53,6 +74,11 @@ type Employee = {
     documents?: Array<{
         id: number;
         name: string;
+        document_type?: {
+            id: number;
+            code: string;
+            name: string;
+        } | null;
         original_name: string;
         url: string;
     }>;
@@ -75,9 +101,54 @@ type FaceLoginInfo = {
 type EmployeeDocument = {
     id: number;
     name: string;
+    document_type?: {
+        id: number;
+        code: string;
+        name: string;
+    } | null;
     original_name: string;
     url: string;
+    expiry_date?: string | null;
+    status?: 'active' | 'expired' | 'archived' | string | null;
+    version_number?: number | null;
 };
+
+function formatDateDdMmYyyy(value: string | null | undefined): string {
+    if (!value) {
+        return '-';
+    }
+
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) {
+        return value;
+    }
+
+    const [, yyyy, mm, dd] = match;
+
+    return `${dd}/${mm}/${yyyy}`;
+}
+
+function documentStatusLabel(status: string | null | undefined): string {
+    switch (status) {
+        case 'expired':
+            return 'Expired';
+        case 'archived':
+            return 'Archived';
+        default:
+            return 'Active';
+    }
+}
+
+function documentStatusClasses(status: string | null | undefined): string {
+    switch (status) {
+        case 'expired':
+            return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300';
+        case 'archived':
+            return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300';
+        default:
+            return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300';
+    }
+}
 
 type LeaveUsageLineItem = {
     id: number;
@@ -95,6 +166,21 @@ type LeaveConfig = {
     approvedDaysUsed: number;
     liveRemainingBalance: number;
     usage: LeaveUsageLineItem[];
+};
+
+type EmailSignatureCompanyProfilePayload = {
+    company_name: string;
+    company_address_1?: string | null;
+    company_address_2?: string | null;
+    website?: string | null;
+    signature_template?: string | null;
+};
+
+type EmailSignaturePreviewPayload = {
+    fullName: string;
+    designation: string | null;
+    email: string;
+    phone: string | null;
 };
 
 type LocalDocumentPreview = {
@@ -116,18 +202,44 @@ const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
 const MAX_EXCEL_PREVIEW_ROWS = 120;
 const MAX_EXCEL_PREVIEW_COLUMNS = 24;
 
+type ProfileTab = 'profile' | 'security' | 'employment' | 'documents' | 'leave' | 'attendance';
+
 export default function EmployeeProfile({
     employee,
+    attendance,
     faceLogin,
     leaveConfig,
     hasEmployeeProfile,
+    emailSignatureCompanyProfile,
+    emailSignaturePreview,
 }: {
     employee: Employee | null;
+    attendance: AttendancePayload | null;
     faceLogin: FaceLoginInfo;
     leaveConfig: LeaveConfig;
     hasEmployeeProfile: boolean;
+    emailSignatureCompanyProfile: EmailSignatureCompanyProfilePayload | null;
+    emailSignaturePreview: EmailSignaturePreviewPayload;
 }) {
-    const [tab, setTab] = useState<'profile' | 'security' | 'documents' | 'leave'>('profile');
+    const hasBiometricMapping =
+        hasEmployeeProfile && String(employee?.biometric_user_id ?? '').trim().length > 0;
+    const initialTab = (() => {
+        if (typeof window === 'undefined') {
+            return 'profile' as const;
+        }
+
+        const tab = new URLSearchParams(window.location.search).get('tab');
+        if (tab === 'attendance' && hasBiometricMapping) {
+            return 'attendance' as const;
+        }
+        if (tab === 'documents' || tab === 'security' || tab === 'leave' || tab === 'employment') {
+            return tab;
+        }
+
+        return 'profile' as const;
+    })();
+    const [tab, setTab] = useState<ProfileTab>(initialTab);
+    const { t } = useI18n();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Profile', href: '/my-profile' },
     ];
@@ -136,6 +248,8 @@ export default function EmployeeProfile({
     const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
     const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
     const [previewLocalDocument, setPreviewLocalDocument] = useState<LocalDocumentPreview | null>(null);
+    const activeDocuments = (employee?.documents ?? []).filter((doc) => (doc.status ?? 'active') === 'active');
+    const historicalDocuments = (employee?.documents ?? []).filter((doc) => (doc.status ?? 'active') !== 'active');
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const { props } = usePage<{
         flash?: { success?: string; error?: string };
@@ -454,6 +568,15 @@ export default function EmployeeProfile({
                         >
                             Security
                         </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={tab === 'employment' ? 'default' : 'outline'}
+                            className="rounded-lg"
+                            onClick={() => setTab('employment')}
+                        >
+                            {t('profile.employmentTab', 'Employment')}
+                        </Button>
                         {hasEmployeeProfile ? (
                             <>
                                 <Button
@@ -474,6 +597,17 @@ export default function EmployeeProfile({
                                 >
                                     Leave
                                 </Button>
+                                {hasBiometricMapping ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={tab === 'attendance' ? 'default' : 'outline'}
+                                        className="rounded-lg"
+                                        onClick={() => setTab('attendance')}
+                                    >
+                                        Attendance
+                                    </Button>
+                                ) : null}
                             </>
                         ) : null}
                     </div>
@@ -761,6 +895,16 @@ export default function EmployeeProfile({
                         </CardContent>
                     </Card>
 
+                    <div className={tab === 'employment' ? '' : 'hidden'}>
+                        <EmployeeEmailSignatureCard
+                            fullName={emailSignaturePreview.fullName}
+                            designation={emailSignaturePreview.designation}
+                            email={emailSignaturePreview.email}
+                            phone={emailSignaturePreview.phone}
+                            companyProfile={emailSignatureCompanyProfile}
+                        />
+                    </div>
+
                     <Card className={tab === 'documents' && hasEmployeeProfile ? '' : 'hidden'}>
                         <CardHeader>
                             <CardTitle>Documents</CardTitle>
@@ -769,31 +913,129 @@ export default function EmployeeProfile({
                             {(employee?.documents?.length ?? 0) === 0 ? (
                                 <p className="text-muted-foreground text-sm">No documents available.</p>
                             ) : (
-                                employee?.documents?.map((doc) => (
-                                    <div key={doc.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-                                        <div className="min-w-0">
-                                            <p className="truncate font-medium">{doc.name}</p>
-                                            <p className="text-muted-foreground truncate text-xs">{doc.original_name}</p>
+                                <div className="space-y-5">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-sm font-semibold">Active Documents</h4>
+                                            <span className="text-xs text-muted-foreground">
+                                                {activeDocuments.length} item{activeDocuments.length === 1 ? '' : 's'}
+                                            </span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => void openDocumentPreview(doc)}
-                                            >
-                                                <Eye className="size-4" />
-                                                <span className="sr-only">Preview</span>
-                                            </Button>
-                                            <Button asChild type="button" variant="outline" size="sm">
-                                                <a href={doc.url} download={doc.original_name}>
-                                                    <Download className="mr-1 size-4" />
-                                                    Download
-                                                </a>
-                                            </Button>
-                                        </div>
+                                        {activeDocuments.length > 0 ? (
+                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                                <span>Document type</span>
+                                                <span>Status</span>
+                                                <span>Expiry Date</span>
+                                                <span className="text-right">Actions</span>
+                                            </div>
+                                        ) : null}
+                                        {activeDocuments.length > 0 ? activeDocuments.map((doc) => (
+                                            <div key={doc.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] items-center gap-3 rounded-md border p-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium">{doc.document_type?.name ?? doc.name}</p>
+                                                    <p className="text-muted-foreground truncate text-xs">{doc.original_name}</p>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${documentStatusClasses(doc.status)}`}>
+                                                            {documentStatusLabel(doc.status)}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            Version {doc.version_number ?? 1}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium">
+                                                        {formatDateDdMmYyyy(doc.expiry_date)}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => void openDocumentPreview(doc)}
+                                                    >
+                                                        <Eye className="size-4" />
+                                                        <span className="sr-only">Preview</span>
+                                                    </Button>
+                                                    <Button asChild type="button" variant="outline" size="sm">
+                                                        <a href={doc.url} download={doc.original_name}>
+                                                            <Download className="mr-1 size-4" />
+                                                            Download
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                                                No active documents.
+                                            </div>
+                                        )}
                                     </div>
-                                ))
+
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-sm font-semibold">Archived / Expired History</h4>
+                                            <span className="text-xs text-muted-foreground">
+                                                {historicalDocuments.length} item{historicalDocuments.length === 1 ? '' : 's'}
+                                            </span>
+                                        </div>
+                                        {historicalDocuments.length > 0 ? (
+                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                                <span>Document type</span>
+                                                <span>Status</span>
+                                                <span>Expiry Date</span>
+                                                <span className="text-right">Actions</span>
+                                            </div>
+                                        ) : null}
+                                        {historicalDocuments.length > 0 ? historicalDocuments.map((doc) => (
+                                            <div key={doc.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] items-center gap-3 rounded-md border bg-muted/20 p-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium">{doc.document_type?.name ?? doc.name}</p>
+                                                    <p className="text-muted-foreground truncate text-xs">{doc.original_name}</p>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${documentStatusClasses(doc.status)}`}>
+                                                            {documentStatusLabel(doc.status)}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            Version {doc.version_number ?? 1}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium">
+                                                        {formatDateDdMmYyyy(doc.expiry_date)}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => void openDocumentPreview(doc)}
+                                                    >
+                                                        <Eye className="size-4" />
+                                                        <span className="sr-only">Preview</span>
+                                                    </Button>
+                                                    <Button asChild type="button" variant="outline" size="sm">
+                                                        <a href={doc.url} download={doc.original_name}>
+                                                            <Download className="mr-1 size-4" />
+                                                            Download
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                                                No archived or expired records yet.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -885,6 +1127,24 @@ export default function EmployeeProfile({
                             </div>
                         </CardContent>
                     </Card>
+
+                    {tab === 'attendance' && hasBiometricMapping && employee ? (
+                        attendance ? (
+                            <EmployeeAttendanceTab
+                                employeeId={employee.id}
+                                attendance={attendance}
+                                viewMode
+                                context="my-profile"
+                            />
+                        ) : (
+                            <Card>
+                                <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                                    Attendance data is not available. Reload this page or contact HR if the issue
+                                    persists.
+                                </CardContent>
+                            </Card>
+                        )
+                    ) : null}
                 </div>
             </div>
 

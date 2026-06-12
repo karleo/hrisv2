@@ -9,13 +9,28 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
+import { useSidebarNavigation } from '@/contexts/sidebar-navigation-context';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const { isCurrentUrl } = useCurrentUrl();
+    const { isMobile, setOpenMobile } = useSidebar();
+    const cleanupMobileNavigation = useMobileNavigation();
+    const { beginNavigation } = useSidebarNavigation();
+
+    const handleNavigate = (): void => {
+        beginNavigation();
+        cleanupMobileNavigation();
+
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
     const hasActiveDescendant = (item: NavItem): boolean => {
         if (item.href && isCurrentUrl(item.href)) {
             return true;
@@ -40,9 +55,9 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         isActive={isActive}
                         className="h-8 rounded-full border border-transparent bg-transparent px-3 text-xs font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground data-[active=true]:bg-[#1b2046] data-[active=true]:font-semibold data-[active=true]:text-white"
                     >
-                        <Link href={item.href ?? '#'} prefetch>
+                        <Link href={item.href ?? '#'} prefetch onClick={handleNavigate}>
                             {item.icon && <item.icon />}
-                            <span className="min-w-0 flex-1 whitespace-nowrap">
+                            <span className="min-w-0 flex-1 truncate">
                                 {item.title}
                             </span>
                         </Link>
@@ -60,7 +75,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                             className="h-8 rounded-full border border-transparent bg-transparent px-3 text-xs font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground data-[active=true]:bg-[#1b2046] data-[active=true]:font-semibold data-[active=true]:text-white"
                         >
                             {item.icon && <item.icon />}
-                            <span className="min-w-0 flex-1 whitespace-nowrap">
+                            <span className="min-w-0 flex-1 truncate">
                                 {item.title}
                             </span>
                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90" />
@@ -138,7 +153,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                             className={cn(
                                 'mr-[-6px] rounded-2xl',
                                 isItemActive &&
-                                    "relative rounded-l-[999px] rounded-r-none bg-[#1b2046] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] before:absolute before:-top-3 before:-right-3 before:size-6 before:rounded-full before:bg-[#2b2f66] before:content-[''] after:absolute after:-bottom-3 after:-right-3 after:size-6 after:rounded-full after:bg-[#2b2f66] after:content-['']",
+                                    "relative rounded-l-[999px] rounded-r-none bg-[#1b2046] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] before:pointer-events-none before:absolute before:-top-3 before:-right-3 before:size-6 before:rounded-full before:bg-[#2b2f66] before:content-[''] after:pointer-events-none after:absolute after:-bottom-3 after:-right-3 after:size-6 after:rounded-full after:bg-[#2b2f66] after:content-['']",
                             )}
                         >
                             <SidebarMenuButton
@@ -150,7 +165,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     isItemActive && 'font-semibold text-white hover:bg-transparent hover:text-white',
                                 )}
                             >
-                                <Link href={item.href ?? '#'} prefetch>
+                                <Link href={item.href ?? '#'} prefetch onClick={handleNavigate}>
                                     {item.icon ? (
                                         <span className="flex size-6 shrink-0 items-center justify-center text-sidebar-foreground/90 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-7">
                                             <item.icon className="size-4.5 group-data-[collapsible=icon]:size-4" />

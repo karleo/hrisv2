@@ -217,7 +217,7 @@ export default function TimeAttendanceIndex({
                                             </Label>
                                             <select
                                                 id="employee_id"
-                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                                className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
                                                 value={
                                                     checkInAdminForm.data
                                                         .employee_id
@@ -235,6 +235,7 @@ export default function TimeAttendanceIndex({
                                                         <option
                                                             key={em.id}
                                                             value={em.id}
+                                                            className="bg-background text-foreground"
                                                         >
                                                             {em.name}
                                                         </option>
