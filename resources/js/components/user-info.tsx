@@ -5,9 +5,11 @@ import type { User } from '@/types';
 export function UserInfo({
     user,
     showEmail = false,
+    compact = false,
 }: {
     user: User;
     showEmail?: boolean;
+    compact?: boolean;
 }) {
     return (
         <>
@@ -17,14 +19,16 @@ export function UserInfo({
                     {getFirstNameLetter(user.name)}
                 </AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                {showEmail && (
-                    <span className="truncate text-xs text-muted-foreground">
-                        {user.email}
-                    </span>
-                )}
-            </div>
+            {!compact ? (
+                <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{user.name}</span>
+                    {showEmail ? (
+                        <span className="truncate text-xs text-muted-foreground">
+                            {user.email}
+                        </span>
+                    ) : null}
+                </div>
+            ) : null}
         </>
     );
 }

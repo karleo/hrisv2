@@ -141,16 +141,26 @@ export function AppSidebarHeader({
         );
     };
 
+    const pageTitle =
+        breadcrumbs.length > 0
+            ? breadcrumbs[breadcrumbs.length - 1]?.title
+            : '';
+
     return (
-        <header className="sticky top-0 z-30 shrink-0 border-b border-border/70 bg-background/95 px-4 shadow-sm backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 supports-[backdrop-filter]:bg-background/80 md:px-6">
-            <div className="flex h-16 items-center gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                    <SidebarTrigger className="-ml-1 text-foreground/80 hover:bg-muted hover:text-foreground" />
-                    <div className="[&_[data-slot=breadcrumb-link]]:text-foreground/75 [&_[data-slot=breadcrumb-link]:hover]:text-foreground [&_[data-slot=breadcrumb-list]]:text-foreground/70 [&_[data-slot=breadcrumb-page]]:font-semibold [&_[data-slot=breadcrumb-page]]:text-foreground [&_[data-slot=breadcrumb-separator]]:text-foreground/45">
+        <header className="sticky top-0 z-30 shrink-0 overflow-x-hidden border-b border-border/70 bg-background/95 px-2 shadow-sm backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 supports-[backdrop-filter]:bg-background/80 sm:px-4 md:px-6">
+            <div className="flex h-14 min-w-0 items-center gap-2 sm:h-16 sm:gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                    <SidebarTrigger className="-ml-1 shrink-0 text-foreground/80 hover:bg-muted hover:text-foreground" />
+                    {pageTitle ? (
+                        <p className="truncate text-sm font-semibold text-foreground sm:hidden">
+                            {pageTitle}
+                        </p>
+                    ) : null}
+                    <div className="hidden min-w-0 flex-1 overflow-hidden sm:block [&_[data-slot=breadcrumb-link]]:text-foreground/75 [&_[data-slot=breadcrumb-link]:hover]:text-foreground [&_[data-slot=breadcrumb-list]]:text-foreground/70 [&_[data-slot=breadcrumb-page]]:max-w-[14rem] [&_[data-slot=breadcrumb-page]]:truncate [&_[data-slot=breadcrumb-page]]:font-semibold [&_[data-slot=breadcrumb-page]]:text-foreground md:[&_[data-slot=breadcrumb-page]]:max-w-none [&_[data-slot=breadcrumb-separator]]:text-foreground/45">
                         <Breadcrumbs breadcrumbs={breadcrumbs} />
                     </div>
                 </div>
-                <div className="ml-auto flex items-center gap-1.5 rounded-xl border border-border/70 bg-card/80 p-1 shadow-xs">
+                <div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-xl border border-border/70 bg-card/80 p-0.5 shadow-xs sm:gap-1.5 sm:p-1">
                     <ThemeToggleSwitch
                         resolvedAppearance={resolvedAppearance}
                         onToggle={() =>
@@ -160,14 +170,14 @@ export function AppSidebarHeader({
                                     : 'dark',
                             )
                         }
-                        className="origin-center scale-75"
+                        className="origin-center scale-[0.65] sm:scale-75"
                     />
                     <DropdownMenu
                         open={messagesMenuOpen}
                         onOpenChange={setMessagesMenuOpen}
                     >
                         <DropdownMenuTrigger asChild>
-                            <Button className="relative h-9 rounded-lg px-3 text-xs font-semibold">
+                            <Button className="relative h-8 w-8 rounded-lg p-0 text-xs font-semibold sm:h-9 sm:w-auto sm:px-3">
                                 <MessageCircle className="size-4" />
                                 <span className="hidden sm:inline">Chat</span>
                                 {hasUnreadMessages ? (
@@ -266,10 +276,10 @@ export function AppSidebarHeader({
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="relative h-9 w-9 rounded-lg border border-indigo-100/80 bg-indigo-50/70 text-indigo-600 hover:border-indigo-200 hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20"
+                                className="relative h-8 w-8 rounded-lg border border-indigo-100/80 bg-indigo-50/70 text-indigo-600 hover:border-indigo-200 hover:bg-indigo-100 sm:h-9 sm:w-9 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20"
                                 aria-label={t('language.switcher', 'Language')}
                             >
-                                <Languages className="size-5" />
+                                <Languages className="size-4 sm:size-5" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
@@ -314,7 +324,7 @@ export function AppSidebarHeader({
                                     variant="ghost"
                                     size="icon"
                                     className={cn(
-                                        'relative h-9 w-9 rounded-lg border transition-all',
+                                        'relative h-8 w-8 rounded-lg border transition-all sm:h-9 sm:w-9',
                                         hasUnread
                                             ? 'border-sky-200/80 bg-sky-50 text-sky-700 shadow-sm hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-200 dark:hover:bg-sky-500/25'
                                             : 'border-indigo-100/80 bg-indigo-50/70 text-indigo-600 hover:border-indigo-200 hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20',
@@ -412,11 +422,16 @@ export function AppSidebarHeader({
                             <Button
                                 type="button"
                                 variant="ghost"
-                                className="h-9 max-w-[220px] rounded-lg px-2 text-foreground hover:bg-muted"
+                                className="h-8 w-8 shrink-0 rounded-lg p-0 text-foreground hover:bg-muted sm:h-9 sm:w-auto sm:max-w-[220px] sm:px-2"
                             >
-                                <div className="flex min-w-0 items-center gap-2">
-                                    <UserInfo user={auth.user} />
-                                    <ChevronsUpDown className="size-4 shrink-0 opacity-70" />
+                                <div className="flex min-w-0 items-center justify-center gap-2 sm:justify-start">
+                                    <div className="sm:hidden">
+                                        <UserInfo user={auth.user} compact />
+                                    </div>
+                                    <div className="hidden min-w-0 items-center gap-2 sm:flex">
+                                        <UserInfo user={auth.user} />
+                                        <ChevronsUpDown className="size-4 shrink-0 opacity-70" />
+                                    </div>
                                 </div>
                             </Button>
                         </DropdownMenuTrigger>
