@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use App\Models\AppVersion;
 use App\Models\User;
 use App\Support\CompanyAccessScope;
 use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
@@ -47,6 +48,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'appVersion' => fn () => AppVersion::currentVersion(),
             'locale' => app()->getLocale(),
             'locales' => LocaleConfig::supported(),
             'csrf_token' => csrf_token(),

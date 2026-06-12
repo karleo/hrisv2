@@ -8,13 +8,14 @@ import { BiometricSyncProvider } from '@/contexts/biometric-sync-context';
 import { EmployeePresenceProvider } from '@/contexts/employee-presence-context';
 import { SidebarNavigationProvider } from '@/contexts/sidebar-navigation-context';
 import type { AppLayoutProps } from '@/types';
+import { usePage } from '@inertiajs/react';
 
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.12';
+    const { appVersion } = usePage().props;
 
     return (
         <SidebarNavigationProvider>

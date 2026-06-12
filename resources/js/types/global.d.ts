@@ -6,6 +6,7 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            appVersion: string;
             locale: 'en' | 'ar';
             locales: string[];
             auth: Auth;

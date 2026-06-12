@@ -2,13 +2,14 @@ import { AppContent } from '@/components/app-content';
 import { AppHeader } from '@/components/app-header';
 import { AppShell } from '@/components/app-shell';
 import type { AppLayoutProps } from '@/types';
+import { usePage } from '@inertiajs/react';
 
 export default function AppHeaderLayout({
     children,
     breadcrumbs,
 }: AppLayoutProps) {
     const year = new Date().getFullYear();
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.11';
+    const { appVersion } = usePage().props;
 
     return (
         <AppShell>
