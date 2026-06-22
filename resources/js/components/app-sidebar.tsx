@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     AppWindow,
+    Bot,
     Briefcase,
     Building2,
     CalendarDays,
@@ -58,6 +59,13 @@ function buildMainNavItems(
             href: '/employee-messages',
             icon: Mail,
             module: 'employee_messages',
+        },
+        {
+            title: t('sidebar.employeeAssistant', 'Employee assistant'),
+            description: 'AI help for leave, requests, and app guidance',
+            href: '/employee-assistant',
+            icon: Bot,
+            module: 'employee_assistant',
         },
         {
             title: t('sidebar.dashboard', 'Dashboard'),
@@ -219,6 +227,12 @@ function buildMainNavItems(
                             title: t('sidebar.smtp', 'SMTP'),
                             href: '/settings/smtp',
                             icon: Mail,
+                            module: 'user_management',
+                        },
+                        {
+                            title: t('sidebar.employeeAssistantSettings', 'Employee assistant'),
+                            href: '/settings/ai-assistant',
+                            icon: Bot,
                             module: 'user_management',
                         },
                     ],

@@ -3,6 +3,7 @@ import { Form } from '@inertiajs/react';
 import { ArrowLeft, ImagePlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CompanyProfileController from '@/actions/App/Http/Controllers/CompanyProfileController';
+import { CompanyProfileDocumentsCard } from '@/components/company-profile-documents-card';
 import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -37,6 +38,29 @@ type CountryOption = {
     name: string;
 };
 
+type DocumentTypeOption = {
+    id: number;
+    code: string;
+    name: string;
+    requires_expiry_date: boolean;
+};
+
+type CompanyProfileDocument = {
+    id: number;
+    name: string;
+    document_type_id?: number | null;
+    document_type?: {
+        id: number;
+        code: string;
+        name: string;
+    } | null;
+    original_name: string;
+    url: string;
+    expiry_date?: string | null;
+    status?: 'active' | 'expired' | 'archived' | string | null;
+    version_number?: number | null;
+};
+
 type CompanyProfile = {
     id: number;
     logo: string | null;
@@ -54,6 +78,7 @@ type CompanyProfile = {
     website: string | null;
     signature_template: string | null;
     country: CountryOption | null;
+    documents?: CompanyProfileDocument[];
 };
 
 const signatureTokens = [
@@ -96,9 +121,11 @@ function backLogoPreviewsFromCompanyProfile(
 export default function Edit({
     companyProfile,
     countries,
+    documentTypes,
 }: {
     companyProfile: CompanyProfile;
     countries: CountryOption[];
+    documentTypes: DocumentTypeOption[];
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Company Profiles', href: index().url },
@@ -737,6 +764,13 @@ export default function Edit({
                                                 message={errors.website}
                                             />
                                         </div>
+
+                                        <CompanyProfileDocumentsCard
+                                            companyProfileId={companyProfile.id}
+                                            documents={companyProfile.documents ?? []}
+                                            documentTypes={documentTypes}
+                                            errors={errors}
+                                        />
                                     </CardContent>
                                     <CardFooter className="flex gap-3">
                                         <Button

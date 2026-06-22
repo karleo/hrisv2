@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\ExpireCompanyProfileDocuments;
 use App\Console\Commands\PruneOldEmployeeMessages;
 use App\Console\Commands\SendEmployeeDocumentExpiryNotifications;
 use App\Console\Commands\SyncBiometricDevicesCommand;
@@ -12,6 +13,10 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command(SendEmployeeDocumentExpiryNotifications::class)
+    ->daily()
+    ->withoutOverlapping();
+
+Schedule::command(ExpireCompanyProfileDocuments::class)
     ->daily()
     ->withoutOverlapping();
 

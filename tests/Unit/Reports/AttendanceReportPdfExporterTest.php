@@ -14,11 +14,14 @@ class AttendanceReportPdfExporterTest extends TestCase
         for ($day = 1; $day <= 20; $day++) {
             $rows[] = [
                 'date' => sprintf('2026-05-%02d', $day),
-                'employee_code' => 'EMP-0009',
                 'employee_name' => 'Ahamed Mansoor',
                 'clock_in' => '09:00:00',
                 'clock_out' => '18:00:00',
                 'working_hours' => '8h 57m',
+                'overtime' => '57m',
+                'overtime_minutes' => 57,
+                'series_number' => $day,
+                'day_name' => 'Friday',
             ];
         }
 
@@ -35,10 +38,15 @@ class AttendanceReportPdfExporterTest extends TestCase
             'companyName' => 'Prime Logistics',
             'companyLogoDataUri' => null,
             'generatedAt' => '09/06/2026 11:40:07',
+            'totalOvertime' => '19:00',
         ])->render();
 
         $this->assertStringContainsString('1-2', $html);
         $this->assertStringContainsString('2-2', $html);
+        $this->assertStringContainsString('Total overtime', $html);
+        $this->assertStringContainsString('19:00', $html);
+        $this->assertStringContainsString('>Day<', $html);
+        $this->assertStringNotContainsString('Employee code', $html);
     }
 
     public function test_paginate_splits_seventeen_rows_across_two_pages(): void
@@ -79,8 +87,39 @@ class AttendanceReportPdfExporterTest extends TestCase
             'companyName' => 'Prime Logistics',
             'companyLogoDataUri' => null,
             'generatedAt' => '09/06/2026 11:40:07',
+            'totalOvertime' => null,
         ])->render();
 
         $this->assertStringContainsString('1-1', $html);
+    }
+
+    public function test_prepare_rows_adds_series_number_day_name_and_total_overtime(): void
+    {
+        $exporter = new AttendanceReportPdfExporter;
+        $method = new \ReflectionMethod(AttendanceReportPdfExporter::class, 'prepareRowsForPdf');
+        $method->setAccessible(true);
+
+        /** @var array{rows: list<array<string, mixed>>, total_overtime: string|null} $prepared */
+        $prepared = $method->invoke($exporter, [
+            [
+                'date' => '2026-05-22',
+                'employee_name' => 'Leomar Ortigas',
+                'overtime' => '42m',
+                'overtime_minutes' => 42,
+            ],
+            [
+                'date' => '2026-05-25',
+                'employee_name' => 'Leomar Ortigas',
+                'overtime' => '1h 6m',
+                'overtime_minutes' => 66,
+            ],
+        ]);
+
+        $this->assertSame(1, $prepared['rows'][0]['series_number']);
+        $this->assertSame(2, $prepared['rows'][1]['series_number']);
+        $this->assertSame('Friday', $prepared['rows'][0]['day_name']);
+        $this->assertSame('Monday', $prepared['rows'][1]['day_name']);
+        $this->assertSame('22/05/2026', $prepared['rows'][0]['date']);
+        $this->assertSame('1:48', $prepared['total_overtime']);
     }
 }

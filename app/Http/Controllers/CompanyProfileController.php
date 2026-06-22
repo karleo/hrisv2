@@ -5,14 +5,19 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CompanyProfile\StoreCompanyProfileRequest;
 use App\Http\Requests\CompanyProfile\UpdateCompanyProfileRequest;
 use App\Models\CompanyProfile;
+use App\Models\CompanyProfileDocument;
 use App\Models\Country;
+use App\Models\DocumentType;
 use App\Support\CompanyAccessScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CompanyProfileController extends Controller
 {
@@ -110,12 +115,16 @@ class CompanyProfileController extends Controller
     {
         $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
 
-        $companyProfile->load('country');
+        $companyProfile->load(['country', 'documents.documentType']);
         $this->attachLogoUrls($companyProfile);
 
         return Inertia::render('company-profiles/edit', [
             'companyProfile' => $companyProfile,
             'countries' => Country::query()->orderBy('name')->get(['id', 'code', 'name']),
+            'documentTypes' => DocumentType::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'requires_expiry_date']),
         ]);
     }
 
@@ -130,7 +139,10 @@ class CompanyProfileController extends Controller
         $logo = $data['logo'] ?? null;
         $businessCardLogo = $data['business_card_logo'] ?? null;
         $businessCardBackLogos = $this->extractBusinessCardBackLogos($data);
-        unset($data['logo'], $data['business_card_logo']);
+        $documents = $data['documents'] ?? [];
+        $documentTypeIds = $request->input('document_type_ids', []);
+        $documentExpiryDates = $request->input('document_expiry_dates', []);
+        unset($data['logo'], $data['business_card_logo'], $data['documents'], $data['document_type_ids'], $data['document_expiry_dates']);
         foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
             unset($data[$column]);
         }
@@ -139,7 +151,27 @@ class CompanyProfileController extends Controller
 
         $this->storeUploadedLogos($companyProfile, $logo, $businessCardLogo, $businessCardBackLogos, deleteExisting: true);
 
-        return to_route('company-profiles.index');
+        foreach ($documents as $index => $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $documentType = DocumentType::query()->find($documentTypeIds[$index] ?? null);
+            if ($documentType === null) {
+                continue;
+            }
+
+            $path = $file->store("company-profiles/{$companyProfile->id}/documents", 'public');
+            $this->createCompanyProfileDocumentVersion(
+                $companyProfile,
+                $documentType,
+                $path,
+                $file->getClientOriginalName(),
+                $documentExpiryDates[$index] ?? null,
+            );
+        }
+
+        return to_route('company-profiles.edit', $companyProfile);
     }
 
     /**
@@ -162,10 +194,66 @@ class CompanyProfileController extends Controller
                 Storage::disk('public')->delete($companyProfile->{$column});
             }
         }
+        foreach ($companyProfile->documents as $document) {
+            Storage::disk('public')->delete($document->path);
+        }
         Storage::disk('public')->deleteDirectory('company-profiles/'.$companyProfile->id);
         $companyProfile->delete();
 
         return to_route('company-profiles.index');
+    }
+
+    public function showDocument(Request $request, CompanyProfile $companyProfile, CompanyProfileDocument $companyProfileDocument): BinaryFileResponse
+    {
+        $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
+
+        if ($companyProfileDocument->company_profile_id !== $companyProfile->id) {
+            abort(404);
+        }
+
+        $relativePath = $this->resolveExistingPublicDiskDocumentPath($companyProfileDocument);
+        if ($relativePath === null) {
+            abort(404, 'Document file not found.');
+        }
+
+        return response()->download(
+            Storage::disk('public')->path($relativePath),
+            $companyProfileDocument->original_name,
+        );
+    }
+
+    public function destroyDocument(Request $request, CompanyProfile $companyProfile, CompanyProfileDocument $companyProfileDocument): RedirectResponse
+    {
+        $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
+
+        if ($companyProfileDocument->company_profile_id !== $companyProfile->id) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($companyProfileDocument->path);
+        $companyProfileDocument->delete();
+
+        return back();
+    }
+
+    public function archiveDocument(Request $request, CompanyProfile $companyProfile, CompanyProfileDocument $companyProfileDocument): RedirectResponse
+    {
+        $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
+
+        if ($companyProfileDocument->company_profile_id !== $companyProfile->id) {
+            abort(404);
+        }
+
+        if (! $companyProfileDocument->isExpired()) {
+            return back()->with('error', 'Only expired documents can be archived.');
+        }
+
+        $companyProfileDocument->update([
+            'status' => CompanyProfileDocument::STATUS_ARCHIVED,
+            'archived_at' => now(),
+        ]);
+
+        return back()->with('success', 'Document archived successfully.');
     }
 
     private function attachLogoUrls(CompanyProfile $companyProfile): void
@@ -248,5 +336,75 @@ class CompanyProfileController extends Controller
         if ($updates !== []) {
             $companyProfile->update($updates);
         }
+    }
+
+    private function createCompanyProfileDocumentVersion(
+        CompanyProfile $companyProfile,
+        DocumentType $documentType,
+        string $path,
+        string $originalName,
+        mixed $expiryDate,
+    ): CompanyProfileDocument {
+        return DB::transaction(function () use ($companyProfile, $documentType, $path, $originalName, $expiryDate): CompanyProfileDocument {
+            $previousDocument = CompanyProfileDocument::query()
+                ->where('company_profile_id', $companyProfile->id)
+                ->where('document_type_id', $documentType->id)
+                ->orderByDesc('version_number')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($previousDocument !== null) {
+                $previousDocument->update([
+                    'status' => CompanyProfileDocument::STATUS_ARCHIVED,
+                    'archived_at' => now(),
+                ]);
+            }
+
+            return $companyProfile->documents()->create([
+                'document_type_id' => $documentType->id,
+                'name' => $documentType->name,
+                'path' => $path,
+                'original_name' => $originalName,
+                'expiry_date' => $this->normalizeDocumentExpiryDate($expiryDate),
+                'status' => CompanyProfileDocument::STATUS_ACTIVE,
+                'version_number' => (int) ($previousDocument?->version_number ?? 0) + 1,
+                'archived_at' => null,
+                'replaces_document_id' => $previousDocument?->id,
+            ]);
+        });
+    }
+
+    private function normalizeDocumentExpiryDate(mixed $value): ?string
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        return Carbon::parse((string) $value)->toDateString();
+    }
+
+    private function resolveExistingPublicDiskDocumentPath(CompanyProfileDocument $document): ?string
+    {
+        $raw = $document->path;
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace('\\', '/', $raw);
+        $normalized = ltrim($normalized, '/');
+
+        $candidates = [$normalized];
+        if (str_starts_with($normalized, 'storage/')) {
+            $candidates[] = substr($normalized, strlen('storage/'));
+        }
+
+        $disk = Storage::disk('public');
+        foreach (array_unique($candidates) as $candidate) {
+            if ($candidate !== '' && $disk->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

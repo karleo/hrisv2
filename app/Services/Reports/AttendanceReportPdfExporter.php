@@ -60,13 +60,8 @@ final class AttendanceReportPdfExporter
             $deviceLabel = BiometricDevice::query()->whereKey($deviceId)->value('name');
         }
 
-        $pdfRows = array_map(function (array $row): array {
-            $row['date'] = $this->formatPdfDate($row['date']);
-
-            return $row;
-        }, $rows);
-
-        $pages = $this->paginateRows($pdfRows);
+        $prepared = $this->prepareRowsForPdf($rows);
+        $pages = $this->paginateRows($prepared['rows']);
         $totalPages = max(1, count($pages));
 
         return Pdf::loadView('reports.attendance-report-pdf', [
@@ -79,6 +74,7 @@ final class AttendanceReportPdfExporter
             'companyName' => $company?->company_name ?? config('app.name'),
             'companyLogoDataUri' => $this->storageImageDataUri($company?->logo),
             'generatedAt' => now()->format('d/m/Y H:i:s'),
+            'totalOvertime' => $prepared['total_overtime'],
         ])
             ->setPaper('a4', 'landscape')
             ->download($filename);
@@ -105,6 +101,56 @@ final class AttendanceReportPdfExporter
         }
 
         return $pages;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{rows: list<array<string, mixed>>, total_overtime: string|null}
+     */
+    private function prepareRowsForPdf(array $rows): array
+    {
+        $totalOvertimeMinutes = 0;
+        $hasOvertimeData = false;
+        $preparedRows = [];
+
+        foreach ($rows as $index => $row) {
+            $dateKey = $row['date'];
+
+            if (isset($row['overtime_minutes']) && $row['overtime_minutes'] !== null) {
+                $totalOvertimeMinutes += (int) $row['overtime_minutes'];
+                $hasOvertimeData = true;
+            }
+
+            $preparedRows[] = array_merge($row, [
+                'date' => $this->formatPdfDate($dateKey),
+                'day_name' => $this->dayNameFromDate($dateKey),
+                'series_number' => $index + 1,
+            ]);
+        }
+
+        return [
+            'rows' => $preparedRows,
+            'total_overtime' => $hasOvertimeData
+                ? $this->formatOvertimeTotal($totalOvertimeMinutes)
+                : null,
+        ];
+    }
+
+    private function dayNameFromDate(string $date): string
+    {
+        try {
+            return Carbon::parse($date)->format('l');
+        } catch (\Throwable) {
+            return '—';
+        }
+    }
+
+    private function formatOvertimeTotal(int $minutes): string
+    {
+        $hours = intdiv($minutes, 60);
+        $remainder = $minutes % 60;
+
+        return sprintf('%d:%02d', $hours, $remainder);
     }
 
     private function filename(string $from, string $to, ?Employee $employee): string

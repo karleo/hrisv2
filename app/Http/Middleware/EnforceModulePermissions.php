@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use App\Http\Controllers\EmployeeAssistantController;
 use App\Http\Controllers\EmployeeMessageController;
 use App\Http\Controllers\EmployeeMessageTypingController;
 use App\Http\Controllers\EmployeeRequestController;
@@ -84,6 +85,10 @@ class EnforceModulePermissions
             return $next($request);
         }
 
+        if (self::allowsEmployeeAssistant($user, $controller)) {
+            return $next($request);
+        }
+
         if (self::allowsScopedRequestWorkflowAccess($user, $controller, $method)) {
             return $next($request);
         }
@@ -98,6 +103,15 @@ class EnforceModulePermissions
     private static function allowsEmployeeMessaging(User $user, string $controller): bool
     {
         if (! in_array($controller, [EmployeeMessageController::class, EmployeeMessageTypingController::class], true)) {
+            return false;
+        }
+
+        return $user->isAccountActive() && $user->employee !== null;
+    }
+
+    private static function allowsEmployeeAssistant(User $user, string $controller): bool
+    {
+        if ($controller !== EmployeeAssistantController::class) {
             return false;
         }
 

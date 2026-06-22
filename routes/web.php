@@ -6,6 +6,7 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DocumentTypeController;
+use App\Http\Controllers\EmployeeAssistantController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeMessageController;
 use App\Http\Controllers\EmployeeMessageTypingController;
@@ -96,10 +97,23 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employee-messages.conversations.read');
     Route::post('employee-messages/typing', [EmployeeMessageTypingController::class, 'store'])
         ->name('employee-messages.typing');
+    Route::get('employee-assistant', [EmployeeAssistantController::class, 'index'])
+        ->name('employee-assistant.index');
+    Route::post('employee-assistant/messages', [EmployeeAssistantController::class, 'storeMessage'])
+        ->middleware('throttle:20,1')
+        ->name('employee-assistant.messages.store');
+    Route::delete('employee-assistant/conversations/{conversation}', [EmployeeAssistantController::class, 'destroyConversation'])
+        ->name('employee-assistant.conversations.destroy');
     Route::resource('job-positions', JobPositionController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('countries', CountryController::class);
     Route::resource('company-profiles', CompanyProfileController::class);
+    Route::get('company-profiles/{company_profile}/documents/{company_profile_document}/view', [CompanyProfileController::class, 'showDocument'])
+        ->name('company-profiles.documents.show');
+    Route::delete('company-profiles/{company_profile}/documents/{company_profile_document}', [CompanyProfileController::class, 'destroyDocument'])
+        ->name('company-profiles.documents.destroy');
+    Route::post('company-profiles/{company_profile}/documents/{company_profile_document}/archive', [CompanyProfileController::class, 'archiveDocument'])
+        ->name('company-profiles.documents.archive');
     Route::resource('software', SoftwareController::class);
     Route::resource('hardware', HardwareController::class);
     Route::resource('hardware-asset-values', HardwareAssetValueController::class)->except(['show']);

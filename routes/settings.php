@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\AiAssistantController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SmtpController;
@@ -37,4 +38,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('settings/smtp/test', [SmtpController::class, 'test'])
         ->middleware('throttle:5,1')
         ->name('smtp.test');
+
+    Route::get('settings/ai-assistant', [AiAssistantController::class, 'edit'])
+        ->name('ai-assistant.edit');
+    Route::put('settings/ai-assistant', [AiAssistantController::class, 'update'])
+        ->name('ai-assistant.update');
+    Route::post('settings/ai-assistant/test', [AiAssistantController::class, 'test'])
+        ->middleware('throttle:5,1')
+        ->name('ai-assistant.test');
 });

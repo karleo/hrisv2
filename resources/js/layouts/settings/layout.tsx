@@ -37,6 +37,11 @@ const sidebarNavItems: NavItem[] = [
         href: '/settings/smtp',
         icon: null,
     },
+    {
+        title: 'Employee assistant',
+        href: '/settings/ai-assistant',
+        icon: null,
+    },
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {

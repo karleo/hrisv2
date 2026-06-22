@@ -160,7 +160,7 @@ class CompanyProfileTest extends TestCase
             $data
         );
 
-        $response->assertRedirect(route('company-profiles.index'));
+        $response->assertRedirect(route('company-profiles.edit', $companyProfile));
         $this->assertDatabaseHas('company_profiles', [
             'id' => $companyProfile->id,
             'company_name' => 'New Name',
@@ -191,7 +191,7 @@ class CompanyProfileTest extends TestCase
             'business_card_back_logo_2' => UploadedFile::fake()->image('new-back-logo.png'),
         ]);
 
-        $response->assertRedirect(route('company-profiles.index'));
+        $response->assertRedirect(route('company-profiles.edit', $companyProfile));
 
         $companyProfile->refresh();
 

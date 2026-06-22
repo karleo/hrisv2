@@ -10,6 +10,7 @@ enum PermissionModule: string
     case Departments = 'departments';
     case Employees = 'employees';
     case EmployeeMessages = 'employee_messages';
+    case EmployeeAssistant = 'employee_assistant';
     case JobPositions = 'job_positions';
     case LeaveTypes = 'leave_types';
     case Countries = 'countries';
@@ -37,6 +38,7 @@ enum PermissionModule: string
             self::Departments => 'Departments',
             self::Employees => 'Employees',
             self::EmployeeMessages => 'Messages',
+            self::EmployeeAssistant => 'Employee assistant',
             self::JobPositions => 'Job positions',
             self::LeaveTypes => 'Leave types',
             self::Countries => 'Countries',

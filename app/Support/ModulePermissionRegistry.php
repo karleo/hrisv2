@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DocumentTypeController;
+use App\Http\Controllers\EmployeeAssistantController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeMessageController;
 use App\Http\Controllers\EmployeeMessageTypingController;
@@ -72,6 +73,11 @@ final class ModulePermissionRegistry
         ],
         EmployeeMessageTypingController::class => [
             'store' => [PermissionModule::EmployeeMessages, ModuleAbility::Create],
+        ],
+        EmployeeAssistantController::class => [
+            'index' => [PermissionModule::EmployeeAssistant, ModuleAbility::View],
+            'storeMessage' => [PermissionModule::EmployeeAssistant, ModuleAbility::Create],
+            'destroyConversation' => [PermissionModule::EmployeeAssistant, ModuleAbility::Update],
         ],
         JobPositionController::class => [
             'index' => [PermissionModule::JobPositions, ModuleAbility::View],

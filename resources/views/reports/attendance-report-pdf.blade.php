@@ -105,6 +105,11 @@
             page-break-inside: avoid;
         }
 
+        table.data tfoot td {
+            background: #f3f4f6;
+            font-weight: bold;
+        }
+
         .empty {
             padding: 12px 0;
             color: #666;
@@ -152,8 +157,9 @@
                         <table class="data">
                             <thead>
                                 <tr>
+                                    <th>#</th>
                                     <th>Date</th>
-                                    <th>Employee code</th>
+                                    <th>Day</th>
                                     <th>Employee name</th>
                                     <th>Source</th>
                                     <th>Work mode</th>
@@ -166,8 +172,9 @@
                             <tbody>
                                 @foreach ($pageRows as $row)
                                     <tr>
+                                        <td>{{ $row['series_number'] }}</td>
                                         <td>{{ $row['date'] }}</td>
-                                        <td>{{ $row['employee_code'] ?? '—' }}</td>
+                                        <td>{{ $row['day_name'] ?? '—' }}</td>
                                         <td>{{ $row['employee_name'] }}</td>
                                         <td>{{ match ($row['source'] ?? 'biometric') {
                                             'manual' => 'Web check-in',
@@ -182,6 +189,14 @@
                                     </tr>
                                 @endforeach
                             </tbody>
+                            @if ($pageIndex === count($pages) - 1 && ($totalOvertime ?? null) !== null)
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="9" style="text-align: right;">Total overtime</td>
+                                        <td>{{ $totalOvertime }}</td>
+                                    </tr>
+                                </tfoot>
+                            @endif
                         </table>
                     @endif
                 </td>
