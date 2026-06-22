@@ -38,6 +38,7 @@ class RoleSeeder extends Seeder
                     'can_delete' => true,
                     'can_check_in' => true,
                     'can_check_out' => true,
+                    'can_verify' => true,
                 ]
             );
         }
@@ -67,6 +68,7 @@ class RoleSeeder extends Seeder
                     'can_delete' => false,
                     'can_check_in' => false,
                     'can_check_out' => false,
+                    'can_verify' => false,
                 ]
             );
         }
@@ -85,6 +87,7 @@ class RoleSeeder extends Seeder
             $isTimeAttendance = $module === PermissionModule::TimeAttendance;
             $isEmployeeMessages = $module === PermissionModule::EmployeeMessages;
             $isEmployeeAssistant = $module === PermissionModule::EmployeeAssistant;
+            $isPayroll = $module === PermissionModule::Payroll;
 
             RoleModulePermission::query()->updateOrCreate(
                 [
@@ -92,13 +95,92 @@ class RoleSeeder extends Seeder
                     'module' => $module,
                 ],
                 [
-                    'can_access' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant,
-                    'can_view' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_access' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll,
+                    'can_view' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll,
                     'can_create' => $isEmployeeMessages || $isEmployeeAssistant,
                     'can_update' => $isEmployeeMessages || $isEmployeeAssistant,
                     'can_delete' => false,
                     'can_check_in' => false,
                     'can_check_out' => false,
+                    'can_verify' => false,
+                ]
+            );
+        }
+
+        // HR Executive: can verify attendance (step 1) and view payroll periods, no salary processing.
+        $hrExecutive = Role::query()->updateOrCreate(
+            ['slug' => 'hr_executive'],
+            [
+                'name' => 'HR Executive',
+                'description' => 'Verifies employee attendance for pay periods. Cannot process salary.',
+                'is_system' => true,
+            ]
+        );
+
+        foreach (PermissionModule::cases() as $module) {
+            $isDashboard = $module === PermissionModule::Dashboard;
+            $isTimeAttendance = $module === PermissionModule::TimeAttendance;
+            $isEmployeeMessages = $module === PermissionModule::EmployeeMessages;
+            $isEmployeeAssistant = $module === PermissionModule::EmployeeAssistant;
+            $isPayroll = $module === PermissionModule::Payroll;
+            $isReports = $module === PermissionModule::Reports;
+            $isEmployees = $module === PermissionModule::Employees;
+            $isLeaveRequests = $module === PermissionModule::LeaveRequests;
+
+            RoleModulePermission::query()->updateOrCreate(
+                [
+                    'role_id' => $hrExecutive->id,
+                    'module' => $module,
+                ],
+                [
+                    'can_access' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll || $isReports || $isEmployees || $isLeaveRequests,
+                    'can_view' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll || $isReports || $isEmployees || $isLeaveRequests,
+                    'can_create' => $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_update' => $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_delete' => false,
+                    'can_check_in' => false,
+                    'can_check_out' => false,
+                    // HR Executive can verify attendance (step 1) on Payroll module
+                    'can_verify' => $isPayroll,
+                ]
+            );
+        }
+
+        // Finance Executive: can verify overtime (step 2) and process salary.
+        $financeExecutive = Role::query()->updateOrCreate(
+            ['slug' => 'finance_executive'],
+            [
+                'name' => 'Finance Executive',
+                'description' => 'Verifies overtime and processes salary after HR attendance verification.',
+                'is_system' => true,
+            ]
+        );
+
+        foreach (PermissionModule::cases() as $module) {
+            $isDashboard = $module === PermissionModule::Dashboard;
+            $isTimeAttendance = $module === PermissionModule::TimeAttendance;
+            $isEmployeeMessages = $module === PermissionModule::EmployeeMessages;
+            $isEmployeeAssistant = $module === PermissionModule::EmployeeAssistant;
+            $isPayroll = $module === PermissionModule::Payroll;
+            $isReports = $module === PermissionModule::Reports;
+            $isEmployees = $module === PermissionModule::Employees;
+
+            RoleModulePermission::query()->updateOrCreate(
+                [
+                    'role_id' => $financeExecutive->id,
+                    'module' => $module,
+                ],
+                [
+                    'can_access' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll || $isReports || $isEmployees,
+                    'can_view' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll || $isReports || $isEmployees,
+                    // Finance can create and update payroll runs (including salary processing)
+                    'can_create' => $isPayroll || $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_update' => $isPayroll || $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_delete' => false,
+                    'can_check_in' => false,
+                    'can_check_out' => false,
+                    // Finance Executive can verify overtime (step 2) on Payroll module
+                    'can_verify' => $isPayroll,
                 ]
             );
         }

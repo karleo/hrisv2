@@ -9,6 +9,7 @@ use App\Services\Biometric\Connectors\ZkTecoTcpPullConnector;
 use App\Services\FaceVerification\FaceVerificationService;
 use App\Services\Mail\GraphMailSender;
 use App\Services\Mail\MailSettingsManager;
+use App\Services\Storage\StorageSettingsManager;
 use App\Support\EmployeePresence\EmployeePresenceOnlineData;
 use App\Support\RepairBrokenRouteCache;
 use App\Support\RequestEmailLogger;
@@ -36,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(FaceVerificationContract::class, FaceVerificationService::class);
         $this->app->singleton(MailSettingsManager::class);
+        $this->app->singleton(StorageSettingsManager::class);
         $this->app->singleton(ZkTecoTcpPullConnector::class);
         $this->app->singleton(BiometricConnectorFactory::class);
     }
@@ -76,6 +78,12 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+
+        $this->app->booted(function (): void {
+            /** @var StorageSettingsManager $storageSettings */
+            $storageSettings = app(StorageSettingsManager::class);
+            $storageSettings->applyLatest();
+        });
 
         Event::listen(MessageSending::class, function (MessageSending $event): bool {
             /** @var MailSettingsManager $mailSettings */

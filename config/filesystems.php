@@ -64,12 +64,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Symbolic Links
+    | Symbolic Links (local disk only)
     |--------------------------------------------------------------------------
     |
-    | Here you may configure the symbolic links that will be created when the
-    | `storage:link` Artisan command is executed. The array keys should be
-    | the locations of the links and the values should be their targets.
+    | When FILESYSTEM_DISK=local, browsers load uploads from /storage via the
+    | public/storage symlink below. Run `php artisan storage:maintain` after
+    | deploy to create or repair that link (or use `php artisan storage:link`).
+    |
+    | When FILESYSTEM_DISK=s3, files are served from the S3 bucket URL instead;
+    | no symlink is needed on the app server. Run `php artisan storage:maintain`
+    | to verify AWS credentials and bucket access.
     |
     */
 

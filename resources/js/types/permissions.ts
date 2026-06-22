@@ -6,6 +6,7 @@ export type ModulePermissionFlags = {
     can_delete: boolean;
     can_check_in: boolean;
     can_check_out: boolean;
+    can_verify: boolean;
 };
 
 export type ModulePermissionsMap = Record<string, ModulePermissionFlags>;

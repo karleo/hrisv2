@@ -34,6 +34,36 @@ class AiAssistantSettingsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_ai_assistant_settings_update_replaces_corrupt_encrypted_api_key(): void
+    {
+        $admin = User::factory()->create();
+
+        $settings = AiAssistantSetting::singletonOrCreate([
+            'enabled' => true,
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+        ]);
+
+        $settings->forceFill([
+            'api_key' => 'corrupt-encrypted-value',
+        ])->saveQuietly();
+
+        $this->actingAs($admin)->put(route('ai-assistant.update'), [
+            'enabled' => true,
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+            'api_key' => 'sk-replacement-key',
+            'base_url' => 'https://api.openai.com/v1',
+            'max_history' => 20,
+            'rate_limit' => 20,
+        ])->assertRedirect(route('ai-assistant.edit'));
+
+        $settings->refresh();
+
+        $this->assertSame('sk-replacement-key', $settings->api_key);
+        $this->assertTrue($settings->hasStoredApiKey());
+    }
+
     public function test_ai_assistant_settings_update_encrypts_api_key_and_never_exposes_raw_key(): void
     {
         $admin = User::factory()->create();

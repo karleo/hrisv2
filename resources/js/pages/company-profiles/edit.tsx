@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
 import { ArrowLeft, ImagePlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -97,6 +96,11 @@ const businessCardBackLogoSlots = [1, 2, 3, 4] as const;
 type BusinessCardBackLogoSlot = (typeof businessCardBackLogoSlots)[number];
 type BackLogoPreviewState = Record<BusinessCardBackLogoSlot, string | null>;
 
+type CompanyProfileTab =
+    | 'company_information'
+    | 'documents'
+    | 'email_signature';
+
 type SignatureAddressSource = 'company_address_1' | 'company_address_2';
 
 function signatureAddressValue(
@@ -134,6 +138,19 @@ export default function Edit({
             href: edit({ company_profile: companyProfile.id }).url,
         },
     ];
+
+    const page = usePage();
+    const queryString = page.url.includes('?')
+        ? (page.url.split('?', 2)[1] ?? '')
+        : '';
+    const tabFromQuery = new URLSearchParams(queryString).get('tab');
+    const initialTab: CompanyProfileTab =
+        tabFromQuery === 'email_signature'
+            ? 'email_signature'
+            : tabFromQuery === 'documents'
+              ? 'documents'
+              : 'company_information';
+    const [tab, setTab] = useState<CompanyProfileTab>(initialTab);
 
     const logoInputRef = useRef<HTMLInputElement>(null);
     const businessCardLogoInputRef = useRef<HTMLInputElement>(null);
@@ -372,12 +389,58 @@ export default function Edit({
                         {...CompanyProfileController.update.form(
                             companyProfile.id,
                         )}
-                        className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)]"
+                        className="flex flex-col gap-6"
                         encType="multipart/form-data"
                     >
                         {({ processing, errors }) => (
                             <>
-                                <Card>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            tab === 'company_information'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            setTab('company_information')
+                                        }
+                                    >
+                                        Company Information
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            tab === 'documents'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() => setTab('documents')}
+                                    >
+                                        Company Documents
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            tab === 'email_signature'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            setTab('email_signature')
+                                        }
+                                    >
+                                        Email Signature
+                                    </Button>
+                                </div>
+
+                                <Card
+                                    className={
+                                        tab === 'company_information'
+                                            ? ''
+                                            : 'hidden'
+                                    }
+                                >
                                     <CardHeader>
                                         <CardTitle>
                                             Company Information
@@ -764,7 +827,17 @@ export default function Edit({
                                                 message={errors.website}
                                             />
                                         </div>
-
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={
+                                        tab === 'documents' ? '' : 'hidden'
+                                    }
+                                >
+                                    <CardHeader>
+                                        <CardTitle>Company Documents</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
                                         <CompanyProfileDocumentsCard
                                             companyProfileId={companyProfile.id}
                                             documents={companyProfile.documents ?? []}
@@ -772,24 +845,12 @@ export default function Edit({
                                             errors={errors}
                                         />
                                     </CardContent>
-                                    <CardFooter className="flex gap-3">
-                                        <Button
-                                            disabled={processing}
-                                            type="submit"
-                                        >
-                                            Update Company Profile
-                                        </Button>
-                                        <Link href={index()}>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </Link>
-                                    </CardFooter>
                                 </Card>
-                                <Card className="h-fit">
+                                <Card
+                                    className={
+                                        tab === 'email_signature' ? '' : 'hidden'
+                                    }
+                                >
                                     <CardHeader>
                                         <CardTitle>Signature Builder</CardTitle>
                                         <p className="text-sm text-muted-foreground">
@@ -1063,6 +1124,17 @@ export default function Edit({
                                         </div>
                                     </CardContent>
                                 </Card>
+
+                                <div className="flex gap-3">
+                                    <Button disabled={processing} type="submit">
+                                        Update Company Profile
+                                    </Button>
+                                    <Link href={index()}>
+                                        <Button type="button" variant="outline">
+                                            Cancel
+                                        </Button>
+                                    </Link>
+                                </div>
                             </>
                         )}
                     </Form>

@@ -85,7 +85,10 @@ php artisan key:generate
 # Linux/Mac: touch database/database.sqlite
 php artisan migrate --seed
 
-# 4. Build frontend assets (required before first visit if not using Vite dev server)
+# 4. Public uploads (local disk)
+php artisan storage:maintain
+
+# 5. Build frontend assets (required before first visit if not using Vite dev server)
 npm run build
 ```
 
@@ -143,7 +146,51 @@ php artisan view:cache
 | `php artisan migrate --seed` | Migrate and seed database |
 | `php artisan db:seed` | Seed only |
 | `php artisan optimize:clear` | Clear config, route, view, and cache |
+| `php artisan storage:maintain` | Local: create `public/storage` symlink; S3: verify bucket access |
 | `php artisan test` | Run PHPUnit tests |
+
+## File storage (local disk vs AWS S3)
+
+Uploads (signatures, photos, documents) use the `public` disk. How they are stored and served depends on `FILESYSTEM_DISK` in `.env`.
+
+### Local disk (default)
+
+```env
+FILESYSTEM_DISK=local
+```
+
+Files are saved under `storage/app/public` and must be exposed through a symlink:
+
+```bash
+php artisan storage:maintain
+```
+
+That creates `public/storage` → `storage/app/public` so URLs like `/storage/employees/...` work. Run this after every deploy. If `public/storage` already exists as a regular folder, use:
+
+```bash
+php artisan storage:maintain --force
+```
+
+On Windows, enable **Developer Mode** or run the terminal as Administrator if symlink creation fails.
+
+### AWS S3
+
+```env
+FILESYSTEM_DISK=s3
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=your-bucket
+AWS_URL=https://your-bucket.s3.amazonaws.com
+```
+
+No `public/storage` symlink is required on the server. Verify credentials and bucket access with:
+
+```bash
+php artisan storage:maintain
+```
+
+The IAM user needs `s3:PutObject`, `s3:GetObject`, and `s3:DeleteObject` on the bucket. Set `AWS_URL` to the bucket or CloudFront URL if files must be reachable in the browser.
 
 ## Demo data and logins
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Biometric\BiometricAttendanceController;
+use App\Http\Controllers\BiometricSettingController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DashboardController;
@@ -23,6 +24,12 @@ use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Payroll\EmployeeCompensationController;
+use App\Http\Controllers\Payroll\PayAllowanceTypeController;
+use App\Http\Controllers\Payroll\PayDeductionTypeController;
+use App\Http\Controllers\Payroll\PayrollPeriodVerificationController;
+use App\Http\Controllers\Payroll\PayrollRunController;
+use App\Http\Controllers\Payroll\PayslipController;
 use App\Http\Controllers\Reports\AttendanceReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
@@ -130,6 +137,46 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
 
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('attendance', [AttendanceReportController::class, 'index'])->name('attendance');
+    });
+
+    Route::prefix('payroll')->name('payroll.')->group(function () {
+        Route::get('employees/{employee}/compensation', [EmployeeCompensationController::class, 'show'])
+            ->name('compensation.show');
+        Route::post('employees/{employee}/compensation', [EmployeeCompensationController::class, 'store'])
+            ->name('compensation.store');
+        Route::put('employees/{employee}/compensation/{compensation}', [EmployeeCompensationController::class, 'update'])
+            ->name('compensation.update');
+
+        Route::resource('allowance-types', PayAllowanceTypeController::class)
+            ->parameters(['allowance-types' => 'pay_allowance_type'])
+            ->except(['show']);
+        Route::resource('deduction-types', PayDeductionTypeController::class)
+            ->parameters(['deduction-types' => 'pay_deduction_type'])
+            ->except(['show']);
+
+        Route::get('period-verifications', [PayrollPeriodVerificationController::class, 'index'])
+            ->name('period-verifications.index');
+        Route::post('period-verifications', [PayrollPeriodVerificationController::class, 'store'])
+            ->name('period-verifications.store');
+        Route::get('period-verifications/{period_verification}', [PayrollPeriodVerificationController::class, 'show'])
+            ->name('period-verifications.show');
+        Route::post('period-verifications/{period_verification}/verify-attendance', [PayrollPeriodVerificationController::class, 'verifyAttendance'])
+            ->name('period-verifications.verify-attendance');
+        Route::post('period-verifications/{period_verification}/verify-overtime', [PayrollPeriodVerificationController::class, 'verifyOvertime'])
+            ->name('period-verifications.verify-overtime');
+        Route::post('period-verifications/{period_verification}/reopen', [PayrollPeriodVerificationController::class, 'reopen'])
+            ->name('period-verifications.reopen');
+
+        Route::get('runs', [PayrollRunController::class, 'index'])->name('runs.index');
+        Route::post('runs', [PayrollRunController::class, 'store'])->name('runs.store');
+        Route::get('runs/{run}', [PayrollRunController::class, 'show'])->name('runs.show');
+        Route::post('runs/{run}/approve', [PayrollRunController::class, 'approve'])->name('runs.approve');
+        Route::post('runs/{run}/mark-paid', [PayrollRunController::class, 'markPaid'])->name('runs.mark-paid');
+        Route::get('runs/{run}/register.pdf', [PayslipController::class, 'downloadRegister'])->name('runs.register-pdf');
+        Route::get('runs/{run}/register.csv', [PayslipController::class, 'downloadRegisterCsv'])->name('runs.register-csv');
+        Route::get('runs/{run}/payslips/{runEmployee}', [PayslipController::class, 'downloadPayslip'])->name('runs.payslip');
+
+        Route::get('my-payslips', [PayslipController::class, 'myPayslips'])->name('my-payslips');
     });
 
     Route::prefix('biometric-attendance')->name('biometric-attendance.')->group(function () {

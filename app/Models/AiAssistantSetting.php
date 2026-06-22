@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedString;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Throwable;
@@ -29,7 +30,7 @@ class AiAssistantSetting extends Model
     {
         return [
             'enabled' => 'boolean',
-            'api_key' => 'encrypted',
+            'api_key' => EncryptedString::class,
             'max_history' => 'integer',
             'rate_limit' => 'integer',
             'last_tested_at' => 'datetime',
@@ -55,9 +56,7 @@ class AiAssistantSetting extends Model
 
     public function hasStoredApiKey(): bool
     {
-        $raw = $this->getRawOriginal('api_key');
-
-        return is_string($raw) && $raw !== '';
+        return is_string($this->api_key) && trim($this->api_key) !== '';
     }
 
     /**

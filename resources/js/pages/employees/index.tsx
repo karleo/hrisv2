@@ -3,6 +3,7 @@ import {
     CheckCircle2,
     ChevronRight,
     CircleAlert,
+    CircleDollarSign,
     CreditCard,
     Download,
     Eye,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Fragment, type FormEvent, useEffect, useRef, useState } from 'react';
 import EmployeeController from '@/actions/App/Http/Controllers/EmployeeController';
+import { show as compensationShow } from '@/actions/App/Http/Controllers/Payroll/EmployeeCompensationController';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table-toolbar';
 import { Button } from '@/components/ui/button';
@@ -37,6 +39,7 @@ import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
 import { create, edit, index } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
+import type { ModulePermissionsMap } from '@/types/permissions';
 
 type Department = {
     id: number;
@@ -169,7 +172,11 @@ export default function Index({
         },
     ];
     const { data: employeeList } = employees;
-    const { flash } = usePage().props as { flash?: { success?: string; error?: string } };
+    const { flash, modulePermissions } = usePage().props as {
+        flash?: { success?: string; error?: string };
+        modulePermissions?: ModulePermissionsMap;
+    };
+    const canViewPayroll = modulePermissions?.payroll?.can_view ?? false;
     const [businessCardEmployee, setBusinessCardEmployee] = useState<Employee | null>(null);
     const [groupMode, setGroupMode] = useState<'none' | 'department' | 'manager'>('none');
     const [viewMode, setViewMode] = useRemember<'table' | 'grid'>('grid', 'employees:index:view-mode');
@@ -735,6 +742,20 @@ export default function Index({
                                                                     <Pencil className="size-4" />
                                                                 </Button>
                                                             </Link>
+                                                            {canViewPayroll && (
+                                                                <Link
+                                                                    href={compensationShow({ employee: employee.id }).url}
+                                                                    aria-label="Salary configuration"
+                                                                >
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8 rounded-md"
+                                                                    >
+                                                                        <CircleDollarSign className="size-4" />
+                                                                    </Button>
+                                                                </Link>
+                                                            )}
                                                             <Dialog>
                                                                 <DialogTrigger asChild>
                                                                     <Button
@@ -919,6 +940,20 @@ export default function Index({
                                                                                 <Pencil className="size-4" />
                                                                             </Button>
                                                                         </Link>
+                                                                        {canViewPayroll && (
+                                                                            <Link
+                                                                                href={compensationShow({ employee: employee.id }).url}
+                                                                                aria-label="Salary configuration"
+                                                                            >
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="size-8 rounded-md"
+                                                                                >
+                                                                                    <CircleDollarSign className="size-4" />
+                                                                                </Button>
+                                                                            </Link>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -1009,6 +1044,13 @@ export default function Index({
                                                                     <Pencil className="size-4" />
                                                                 </Button>
                                                             </Link>
+                                                            {canViewPayroll && (
+                                                                <Link href={compensationShow({ employee: employee.id }).url} aria-label="Salary configuration">
+                                                                    <Button variant="ghost" size="icon" className="size-8 rounded-md">
+                                                                        <CircleDollarSign className="size-4" />
+                                                                    </Button>
+                                                                </Link>
+                                                            )}
                                                         </div>
                                                     </CardContent>
                                                 </Card>

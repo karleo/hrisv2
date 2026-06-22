@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Biometric\BiometricAttendanceController;
+use App\Http\Controllers\BiometricSettingController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
@@ -23,6 +24,12 @@ use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\Payroll\EmployeeCompensationController;
+use App\Http\Controllers\Payroll\PayAllowanceTypeController;
+use App\Http\Controllers\Payroll\PayDeductionTypeController;
+use App\Http\Controllers\Payroll\PayrollPeriodVerificationController;
+use App\Http\Controllers\Payroll\PayrollRunController;
+use App\Http\Controllers\Payroll\PayslipController;
 use App\Http\Controllers\Reports\AttendanceReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
@@ -245,6 +252,48 @@ final class ModulePermissionRegistry
         ],
         AttendanceReportController::class => [
             'index' => [PermissionModule::Reports, ModuleAbility::View],
+        ],
+        EmployeeCompensationController::class => [
+            'show' => [PermissionModule::Payroll, ModuleAbility::View],
+            'store' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'update' => [PermissionModule::Payroll, ModuleAbility::Update],
+        ],
+        PayAllowanceTypeController::class => [
+            'index' => [PermissionModule::Payroll, ModuleAbility::View],
+            'create' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'store' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'edit' => [PermissionModule::Payroll, ModuleAbility::Update],
+            'update' => [PermissionModule::Payroll, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Payroll, ModuleAbility::Delete],
+        ],
+        PayDeductionTypeController::class => [
+            'index' => [PermissionModule::Payroll, ModuleAbility::View],
+            'create' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'store' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'edit' => [PermissionModule::Payroll, ModuleAbility::Update],
+            'update' => [PermissionModule::Payroll, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Payroll, ModuleAbility::Delete],
+        ],
+        PayrollPeriodVerificationController::class => [
+            'index' => [PermissionModule::Payroll, ModuleAbility::View],
+            'store' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'show' => [PermissionModule::Payroll, ModuleAbility::View],
+            'verifyAttendance' => [PermissionModule::Payroll, ModuleAbility::Verify],
+            'verifyOvertime' => [PermissionModule::Payroll, ModuleAbility::Verify],
+            'reopen' => [PermissionModule::Payroll, ModuleAbility::Update],
+        ],
+        PayrollRunController::class => [
+            'index' => [PermissionModule::Payroll, ModuleAbility::View],
+            'store' => [PermissionModule::Payroll, ModuleAbility::Create],
+            'show' => [PermissionModule::Payroll, ModuleAbility::View],
+            'approve' => [PermissionModule::Payroll, ModuleAbility::Update],
+            'markPaid' => [PermissionModule::Payroll, ModuleAbility::Update],
+        ],
+        PayslipController::class => [
+            'myPayslips' => [PermissionModule::Payroll, ModuleAbility::View],
+            'downloadPayslip' => [PermissionModule::Payroll, ModuleAbility::View],
+            'downloadRegister' => [PermissionModule::Payroll, ModuleAbility::View],
+            'downloadRegisterCsv' => [PermissionModule::Payroll, ModuleAbility::View],
         ],
         WorkTimetableController::class => [
             'index' => [PermissionModule::WorkTimetables, ModuleAbility::View],

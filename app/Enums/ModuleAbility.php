@@ -11,4 +11,5 @@ enum ModuleAbility: string
     case Delete = 'delete';
     case CheckIn = 'check_in';
     case CheckOut = 'check_out';
+    case Verify = 'verify';
 }

@@ -28,6 +28,7 @@ enum PermissionModule: string
     case Reports = 'reports';
     case WorkTimetables = 'work_timetables';
     case ActivityLogs = 'activity_logs';
+    case Payroll = 'payroll';
 
     public function label(): string
     {
@@ -56,6 +57,7 @@ enum PermissionModule: string
             self::Reports => 'Reports',
             self::WorkTimetables => 'Work timetables',
             self::ActivityLogs => 'Activity logs',
+            self::Payroll => 'Payroll',
         };
     }
 }

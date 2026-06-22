@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             SoftwareSeeder::class,
             HardwareSeeder::class,
             DocumentTypeSeeder::class,
+            PayComponentTypeSeeder::class,
             AppVersionSeeder::class,
             WorkTimetableSeeder::class,
             BiometricDeviceSeeder::class,

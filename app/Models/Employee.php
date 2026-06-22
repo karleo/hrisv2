@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -155,6 +156,11 @@ class Employee extends Model
     public function timeEntries(): HasMany
     {
         return $this->hasMany(EmployeeTimeEntry::class)->orderByDesc('clock_in_at');
+    }
+
+    public function compensation(): HasOne
+    {
+        return $this->hasOne(EmployeeCompensation::class)->latestOfMany();
     }
 
     public function hasUsableWorkTimetable(): bool

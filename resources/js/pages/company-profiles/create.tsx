@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -63,7 +62,10 @@ type Country = {
     name: string;
 };
 
+type CompanyProfileTab = 'company_information' | 'email_signature';
+
 export default function Create({ countries }: { countries: Country[] }) {
+    const [tab, setTab] = useState<CompanyProfileTab>('company_information');
     const logoInputRef = useRef<HTMLInputElement>(null);
     const businessCardLogoInputRef = useRef<HTMLInputElement>(null);
     const businessCardBackLogoInputRefs = useRef<
@@ -253,12 +255,47 @@ export default function Create({ countries }: { countries: Country[] }) {
                 <div>
                     <Form
                         {...CompanyProfileController.store.form()}
-                        className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)]"
+                        className="flex flex-col gap-6"
                         encType="multipart/form-data"
                     >
                         {({ processing, errors }) => (
                             <>
-                                <Card>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            tab === 'company_information'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            setTab('company_information')
+                                        }
+                                    >
+                                        Company Information
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            tab === 'email_signature'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            setTab('email_signature')
+                                        }
+                                    >
+                                        Email Signature
+                                    </Button>
+                                </div>
+
+                                <Card
+                                    className={
+                                        tab === 'company_information'
+                                            ? ''
+                                            : 'hidden'
+                                    }
+                                >
                                     <CardHeader>
                                         <CardTitle>
                                             Company Information
@@ -577,24 +614,12 @@ export default function Create({ countries }: { countries: Country[] }) {
                                             />
                                         </div>
                                     </CardContent>
-                                    <CardFooter className="flex gap-3">
-                                        <Button
-                                            disabled={processing}
-                                            type="submit"
-                                        >
-                                            Create Company Profile
-                                        </Button>
-                                        <Link href={index()}>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </Link>
-                                    </CardFooter>
                                 </Card>
-                                <Card className="h-fit">
+                                <Card
+                                    className={
+                                        tab === 'email_signature' ? '' : 'hidden'
+                                    }
+                                >
                                     <CardHeader>
                                         <CardTitle>Signature Builder</CardTitle>
                                         <p className="text-sm text-muted-foreground">
@@ -881,6 +906,17 @@ export default function Create({ countries }: { countries: Country[] }) {
                                         </div>
                                     </CardContent>
                                 </Card>
+
+                                <div className="flex gap-3">
+                                    <Button disabled={processing} type="submit">
+                                        Create Company Profile
+                                    </Button>
+                                    <Link href={index()}>
+                                        <Button type="button" variant="outline">
+                                            Cancel
+                                        </Button>
+                                    </Link>
+                                </div>
                             </>
                         )}
                     </Form>

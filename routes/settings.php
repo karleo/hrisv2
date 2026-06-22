@@ -4,6 +4,7 @@ use App\Http\Controllers\Settings\AiAssistantController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SmtpController;
+use App\Http\Controllers\Settings\StorageMaintenanceController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -46,4 +47,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('settings/ai-assistant/test', [AiAssistantController::class, 'test'])
         ->middleware('throttle:5,1')
         ->name('ai-assistant.test');
+
+    Route::get('settings/storage-maintenance', [StorageMaintenanceController::class, 'edit'])
+        ->name('storage-maintenance.edit');
+    Route::put('settings/storage-maintenance', [StorageMaintenanceController::class, 'update'])
+        ->name('storage-maintenance.update');
+    Route::post('settings/storage-maintenance/run', [StorageMaintenanceController::class, 'run'])
+        ->middleware('throttle:5,1')
+        ->name('storage-maintenance.run');
+    Route::post('settings/storage-maintenance/database/backup', [StorageMaintenanceController::class, 'backupDatabase'])
+        ->name('storage-maintenance.database.backup');
+    Route::get('settings/storage-maintenance/database/download/{filename}', [StorageMaintenanceController::class, 'downloadBackup'])
+        ->name('storage-maintenance.database.download');
+    Route::post('settings/storage-maintenance/database/restore', [StorageMaintenanceController::class, 'restoreDatabase'])
+        ->name('storage-maintenance.database.restore');
+    Route::post('settings/storage-maintenance/database/restore-stored', [StorageMaintenanceController::class, 'restoreStoredDatabase'])
+        ->name('storage-maintenance.database.restore-stored');
 });
