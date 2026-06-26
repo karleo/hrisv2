@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Support\PublicStorageUrl;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PublicStorageUrlTest extends TestCase
@@ -74,5 +75,16 @@ class PublicStorageUrlTest extends TestCase
         $this->assertNotNull($url);
         $this->assertStringStartsWith('https://test-bucket.s3.amazonaws.com/employees/1/pic.jpg', $url);
         $this->assertStringContainsString('X-Amz-Signature=', $url);
+    }
+
+    public function test_data_uri_for_path_embeds_public_disk_image(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('company-profiles/1/logo.webp', 'fake-webp-bytes');
+
+        $dataUri = PublicStorageUrl::dataUriForPath('company-profiles/1/logo.webp');
+
+        $this->assertNotNull($dataUri);
+        $this->assertStringStartsWith('data:image/webp;base64,', $dataUri);
     }
 }

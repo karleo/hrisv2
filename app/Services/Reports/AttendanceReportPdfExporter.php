@@ -5,9 +5,9 @@ namespace App\Services\Reports;
 use App\Models\BiometricDevice;
 use App\Models\CompanyProfile;
 use App\Models\Employee;
+use App\Support\PublicStorageUrl;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 final class AttendanceReportPdfExporter
@@ -72,7 +72,7 @@ final class AttendanceReportPdfExporter
             'employeeLabel' => $employeeLabel,
             'deviceLabel' => $deviceLabel,
             'companyName' => $company?->company_name ?? config('app.name'),
-            'companyLogoDataUri' => $this->storageImageDataUri($company?->logo),
+            'companyLogoDataUri' => PublicStorageUrl::dataUriForPath($company?->logo),
             'generatedAt' => now()->format('d/m/Y H:i:s'),
             'totalOvertime' => $prepared['total_overtime'],
         ])
@@ -169,33 +169,5 @@ final class AttendanceReportPdfExporter
         } catch (\Throwable) {
             return $value;
         }
-    }
-
-    private function storageImageDataUri(?string $storagePath): ?string
-    {
-        if ($storagePath === null || trim($storagePath) === '') {
-            return null;
-        }
-
-        $relativePath = ltrim($storagePath, '/');
-
-        if (! Storage::disk('public')->exists($relativePath)) {
-            return null;
-        }
-
-        $fullPath = Storage::disk('public')->path($relativePath);
-        $mime = mime_content_type($fullPath);
-
-        if ($mime === false || ! str_starts_with($mime, 'image/')) {
-            return null;
-        }
-
-        $contents = Storage::disk('public')->get($relativePath);
-
-        if ($contents === null) {
-            return null;
-        }
-
-        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 }

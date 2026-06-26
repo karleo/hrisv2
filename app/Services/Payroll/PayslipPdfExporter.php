@@ -5,8 +5,8 @@ namespace App\Services\Payroll;
 use App\Models\CompanyProfile;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunEmployee;
+use App\Support\PublicStorageUrl;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 final class PayslipPdfExporter
@@ -23,20 +23,7 @@ final class PayslipPdfExporter
         $company = $employee?->companyProfile ?? CompanyProfile::query()->orderBy('id')->first(['id', 'company_name', 'logo']);
         $companyName = $company?->company_name ?? 'Company';
 
-        $companyLogoDataUri = null;
-        if ($company !== null && filled($company->logo)) {
-            $logoPath = $company->logo;
-            $contents = null;
-            if (Storage::disk('public')->exists($logoPath)) {
-                $contents = Storage::disk('public')->get($logoPath);
-            } elseif (file_exists(public_path($logoPath))) {
-                $contents = file_get_contents(public_path($logoPath));
-            }
-            if ($contents !== null) {
-                $mime = mime_content_type(public_path($logoPath)) ?: 'image/png';
-                $companyLogoDataUri = 'data:'.$mime.';base64,'.base64_encode($contents);
-            }
-        }
+        $companyLogoDataUri = PublicStorageUrl::dataUriForPath($company?->logo);
 
         $run->loadMissing('periodVerification');
         $periodFrom = $run->periodVerification?->period_from ?? '—';
@@ -85,20 +72,7 @@ final class PayslipPdfExporter
         $company = CompanyProfile::query()->orderBy('id')->first(['id', 'company_name', 'logo']);
         $companyName = $company?->company_name ?? 'Company';
 
-        $companyLogoDataUri = null;
-        if ($company !== null && filled($company->logo)) {
-            $logoPath = $company->logo;
-            $contents = null;
-            if (Storage::disk('public')->exists($logoPath)) {
-                $contents = Storage::disk('public')->get($logoPath);
-            } elseif (file_exists(public_path($logoPath))) {
-                $contents = file_get_contents(public_path($logoPath));
-            }
-            if ($contents !== null) {
-                $mime = mime_content_type(public_path($logoPath)) ?: 'image/png';
-                $companyLogoDataUri = 'data:'.$mime.';base64,'.base64_encode($contents);
-            }
-        }
+        $companyLogoDataUri = PublicStorageUrl::dataUriForPath($company?->logo);
 
         $periodFrom = $run->periodVerification?->period_from ?? '—';
         $periodTo = $run->periodVerification?->period_to ?? '—';
