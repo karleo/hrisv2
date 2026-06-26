@@ -81,6 +81,10 @@ function BiometricSyncLogsContent({ syncLogs, filters, devices }: BiometricSyncL
                     To import clock-in/out into the database, use{' '}
                     <Link href="/biometric-attendance/import" className="text-primary underline">
                         Import attendance
+                    </Link>{' '}
+                    or{' '}
+                    <Link href="/biometric-attendance/upload" className="text-primary underline">
+                        Upload file
                     </Link>
                     . This page shows the log only.
                 </p>

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Payroll;
 
+use App\Exceptions\PayrollWorkflowException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Payroll\DestroyPeriodVerificationRequest;
 use App\Http\Requests\Payroll\ReopenPeriodRequest;
 use App\Http\Requests\Payroll\StorePeriodVerificationRequest;
 use App\Http\Requests\Payroll\VerifyAttendanceRequest;
@@ -80,6 +82,7 @@ class PayrollPeriodVerificationController extends Controller
                 'finance_notes' => $periodVerification->finance_notes,
             ],
             'summary' => $summary,
+            'payrollRunMeta' => $service->payrollRunMeta($periodVerification),
         ]);
     }
 
@@ -126,9 +129,30 @@ class PayrollPeriodVerificationController extends Controller
         PayrollPeriodVerification $periodVerification,
         PayrollPeriodVerificationService $service,
     ): RedirectResponse {
-        $service->reopen($periodVerification);
+        try {
+            $service->reopen($periodVerification);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.period-verifications.show', $periodVerification)
+                ->with('error', $exception->getMessage());
+        }
 
         return redirect()->route('payroll.period-verifications.show', $periodVerification)
-            ->with('success', 'Period reopened. HR and Finance must re-verify before salary can be processed.');
+            ->with('success', 'Period reopened. Any non-paid payroll runs were cancelled. HR and Finance must re-verify.');
+    }
+
+    public function destroy(
+        DestroyPeriodVerificationRequest $request,
+        PayrollPeriodVerification $periodVerification,
+        PayrollPeriodVerificationService $service,
+    ): RedirectResponse {
+        try {
+            $service->destroy($periodVerification);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.period-verifications.show', $periodVerification)
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('payroll.period-verifications.index')
+            ->with('success', 'Pay period cancelled. You can create a new one with the same dates if needed.');
     }
 }

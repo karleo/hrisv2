@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Payroll;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use App\Exceptions\PayrollWorkflowException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Payroll\CancelPayrollRunRequest;
+use App\Http\Requests\Payroll\RecalculatePayrollRunRequest;
+use App\Http\Requests\Payroll\RevertPayrollRunRequest;
 use App\Http\Requests\Payroll\StorePayrollRunRequest;
 use App\Models\PayrollPeriodVerification;
 use App\Models\PayrollRun;
@@ -62,7 +66,11 @@ class PayrollRunController extends Controller
             return redirect()->back()->with('error', 'Payroll runs can only be created for fully verified pay periods.');
         }
 
-        $run = $calculationService->buildDraftRun($verification);
+        try {
+            $run = $calculationService->buildDraftRun($verification);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.runs.index')->with('error', $exception->getMessage());
+        }
 
         if (filled($validated['notes'] ?? null)) {
             $run->update(['notes' => $validated['notes']]);
@@ -94,6 +102,13 @@ class PayrollRunController extends Controller
             'net_salary' => $e->net_salary,
         ]);
 
+        $employeeCounts = $run->employees->countBy('employee_id');
+        $duplicateEmployeeIds = $employeeCounts
+            ->filter(fn (int $count) => $count > 1)
+            ->keys()
+            ->values()
+            ->all();
+
         return Inertia::render('payroll/runs/show', [
             'run' => [
                 'id' => $run->id,
@@ -110,6 +125,8 @@ class PayrollRunController extends Controller
                 'paid_at' => $run->paid_at?->toDateTimeString(),
             ],
             'employees' => $employees,
+            'duplicateEmployeeIds' => $duplicateEmployeeIds,
+            'hasDuplicateEmployees' => $duplicateEmployeeIds !== [],
         ]);
     }
 
@@ -123,7 +140,11 @@ class PayrollRunController extends Controller
             return redirect()->back()->with('error', 'Only draft or review-stage runs can be approved.');
         }
 
-        $calculationService->approveRun($run, $request->user()->id);
+        try {
+            $calculationService->approveRun($run, $request->user()->id);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.runs.show', $run)->with('error', $exception->getMessage());
+        }
 
         return redirect()->route('payroll.runs.show', $run)
             ->with('success', 'Payroll run approved.');
@@ -139,9 +160,63 @@ class PayrollRunController extends Controller
             return redirect()->back()->with('error', 'Only approved runs can be marked as paid.');
         }
 
-        $calculationService->markPaid($run);
+        try {
+            $calculationService->markPaid($run);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.runs.show', $run)->with('error', $exception->getMessage());
+        }
 
         return redirect()->route('payroll.runs.show', $run)
             ->with('success', 'Payroll run marked as paid. Payslips are now available to employees.');
+    }
+
+    public function recalculate(
+        RecalculatePayrollRunRequest $request,
+        PayrollRun $run,
+        PayrollCalculationService $calculationService,
+    ): RedirectResponse {
+        try {
+            $calculationService->recalculateRun($run);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.runs.show', $run)->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('payroll.runs.show', $run)
+            ->with('success', 'Payroll figures refreshed from current employee compensation.');
+    }
+
+    public function revert(
+        RevertPayrollRunRequest $request,
+        PayrollRun $run,
+        PayrollCalculationService $calculationService,
+    ): RedirectResponse {
+        try {
+            if ($run->isPaid()) {
+                $calculationService->revertPaid($run);
+                $message = 'Payroll run reverted to approved. You can adjust figures or undo approval before marking paid again.';
+            } else {
+                $calculationService->revertApproval($run);
+                $message = 'Payroll run reverted to draft. Review figures and approve again when ready.';
+            }
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.runs.show', $run)->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('payroll.runs.show', $run)->with('success', $message);
+    }
+
+    public function destroy(
+        CancelPayrollRunRequest $request,
+        PayrollRun $run,
+        PayrollCalculationService $calculationService,
+    ): RedirectResponse {
+        try {
+            $calculationService->cancelRun($run);
+        } catch (PayrollWorkflowException $exception) {
+            return redirect()->route('payroll.runs.show', $run)->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('payroll.runs.index')
+            ->with('success', 'Payroll run cancelled. You can create a new run for this period after re-verification if needed.');
     }
 }

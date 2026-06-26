@@ -5,6 +5,7 @@ const links = [
     { title: 'Devices', href: '/biometric-attendance' },
     { title: 'Connectivity', href: '/biometric-attendance/connectivity' },
     { title: 'Import attendance', href: '/biometric-attendance/import' },
+    { title: 'Upload file', href: '/biometric-attendance/upload' },
     { title: 'Raw punches', href: '/biometric-attendance/punches' },
     { title: 'Sync history', href: '/biometric-attendance/sync-logs' },
 ] as const;

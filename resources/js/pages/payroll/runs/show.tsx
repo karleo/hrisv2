@@ -1,9 +1,12 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { CheckCircle2, ChevronLeft, CircleDollarSign, Clock, Download } from 'lucide-react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
+import { CheckCircle2, ChevronLeft, CircleDollarSign, Clock, Download, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import {
     approve as approveAction,
+    destroy as cancelRunAction,
     index as runsIndex,
     markPaid as markPaidAction,
+    recalculate as recalculateAction,
+    revert as revertAction,
 } from '@/actions/App/Http/Controllers/Payroll/PayrollRunController';
 import {
     downloadRegister as downloadRegisterAction,
@@ -14,6 +17,15 @@ import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import type { ModulePermissionsMap } from '@/types/permissions';
@@ -112,9 +124,13 @@ function StatusBadge({ status }: { status: string }) {
 export default function PayrollRunShow({
     run,
     employees,
+    duplicateEmployeeIds = [],
+    hasDuplicateEmployees = false,
 }: {
     run: PayrollRun;
     employees: RunEmployee[];
+    duplicateEmployeeIds?: number[];
+    hasDuplicateEmployees?: boolean;
 }) {
     const { flash, modulePermissions } = usePage().props as {
         flash?: { success?: string; error?: string };
@@ -122,6 +138,7 @@ export default function PayrollRunShow({
     };
 
     const canUpdate = modulePermissions?.payroll?.can_update ?? false;
+    const canDelete = modulePermissions?.payroll?.can_delete ?? false;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Payroll', href: runsIndex().url },
@@ -132,8 +149,11 @@ export default function PayrollRunShow({
         },
     ];
 
-    const canApprove = canUpdate && (run.status === 'draft' || run.status === 'review');
-    const canMarkPaid = canUpdate && run.status === 'approved';
+    const canApprove = canUpdate && !hasDuplicateEmployees && (run.status === 'draft' || run.status === 'review');
+    const canMarkPaid = canUpdate && !hasDuplicateEmployees && run.status === 'approved';
+    const canRecalculate = canUpdate && run.status !== 'paid';
+    const canRevert = canUpdate && (run.status === 'approved' || run.status === 'paid');
+    const canCancel = canDelete && run.status !== 'paid';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -167,6 +187,13 @@ export default function PayrollRunShow({
                 {flash?.error && (
                     <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                         {flash.error}
+                    </div>
+                )}
+
+                {hasDuplicateEmployees && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        Duplicate employees detected in this run (IDs: {duplicateEmployeeIds.join(', ')}).
+                        Recalculate the run before approving or marking as paid.
                     </div>
                 )}
 
@@ -235,7 +262,7 @@ export default function PayrollRunShow({
                                                         emp.food_allowance +
                                                         emp.other_allowance;
                                                     return (
-                                                        <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
+                                                        <tr key={emp.id} className={`hover:bg-muted/30 transition-colors ${duplicateEmployeeIds.includes(emp.employee_id) ? 'bg-destructive/5' : ''}`}>
                                                             <td className="px-4 py-3 font-medium">{emp.employee_name}</td>
                                                             <td className="px-4 py-3 text-right tabular-nums">
                                                                 {formatCurrency(emp.basic_salary, run.currency)}
@@ -280,6 +307,32 @@ export default function PayrollRunShow({
                             </CardContent>
                         </Card>
 
+                        {/* Recalculate before approval */}
+                        {canRecalculate && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <RefreshCw className="size-4" />
+                                        Refresh calculations
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="mb-4 text-sm text-muted-foreground">
+                                        Double-check salaries by reloading figures from current employee compensation and attendance.
+                                        Use this before approving or marking as paid.
+                                    </p>
+                                    <Form action={recalculateAction(run.id)} method="post">
+                                        {({ processing }) => (
+                                            <Button type="submit" variant="outline" disabled={processing} className="gap-1.5">
+                                                <RefreshCw className="size-4" />
+                                                {processing ? 'Refreshing…' : 'Recalculate payroll'}
+                                            </Button>
+                                        )}
+                                    </Form>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         {/* Action buttons */}
                         {canApprove && (
                             <Card className="border-blue-300 dark:border-blue-700">
@@ -315,7 +368,7 @@ export default function PayrollRunShow({
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground mb-4">
-                                        Once salaries have been disbursed, mark this run as paid. Payslips will become visible to employees.
+                                        Confirm all employee salaries are correct, then mark this run as paid. Payslips will become visible to employees.
                                     </p>
                                     <Form action={markPaidAction(run.id)} method="post">
                                         {({ processing }) => (
@@ -325,6 +378,69 @@ export default function PayrollRunShow({
                                             </Button>
                                         )}
                                     </Form>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {(canRevert || canCancel) && (
+                            <Card className="border-amber-300 dark:border-amber-700">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                                        <RotateCcw className="size-4" />
+                                        Undo payroll run
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        {run.status === 'paid'
+                                            ? 'Revert to approved if salaries were marked paid by mistake.'
+                                            : run.status === 'approved'
+                                              ? 'Revert to draft to review figures again before approval.'
+                                              : 'Cancel this run to start over for the same verified period.'}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {canRevert && (
+                                            <Form action={revertAction(run.id)} method="post">
+                                                {({ processing }) => (
+                                                    <Button type="submit" variant="outline" disabled={processing} className="gap-1.5">
+                                                        <RotateCcw className="size-4" />
+                                                        {processing
+                                                            ? 'Reverting…'
+                                                            : run.status === 'paid'
+                                                              ? 'Undo mark as paid'
+                                                              : 'Undo approval'}
+                                                    </Button>
+                                                )}
+                                            </Form>
+                                        )}
+                                        {canCancel && (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="outline" className="gap-1.5 text-destructive hover:text-destructive">
+                                                        <Trash2 className="size-4" />
+                                                        Cancel run
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogTitle>Cancel payroll run</DialogTitle>
+                                                    <DialogDescription>
+                                                        This removes the payroll run and all calculated employee rows. You can create a new run after the period is verified again.
+                                                    </DialogDescription>
+                                                    <DialogFooter>
+                                                        <DialogClose asChild>
+                                                            <Button variant="outline">Keep run</Button>
+                                                        </DialogClose>
+                                                        <Button
+                                                            variant="destructive"
+                                                            onClick={() => router.delete(cancelRunAction.url(run.id))}
+                                                        >
+                                                            Cancel run
+                                                        </Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         )}

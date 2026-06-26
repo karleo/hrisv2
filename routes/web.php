@@ -166,12 +166,17 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
             ->name('period-verifications.verify-overtime');
         Route::post('period-verifications/{period_verification}/reopen', [PayrollPeriodVerificationController::class, 'reopen'])
             ->name('period-verifications.reopen');
+        Route::delete('period-verifications/{period_verification}', [PayrollPeriodVerificationController::class, 'destroy'])
+            ->name('period-verifications.destroy');
 
         Route::get('runs', [PayrollRunController::class, 'index'])->name('runs.index');
         Route::post('runs', [PayrollRunController::class, 'store'])->name('runs.store');
         Route::get('runs/{run}', [PayrollRunController::class, 'show'])->name('runs.show');
         Route::post('runs/{run}/approve', [PayrollRunController::class, 'approve'])->name('runs.approve');
         Route::post('runs/{run}/mark-paid', [PayrollRunController::class, 'markPaid'])->name('runs.mark-paid');
+        Route::post('runs/{run}/recalculate', [PayrollRunController::class, 'recalculate'])->name('runs.recalculate');
+        Route::post('runs/{run}/revert', [PayrollRunController::class, 'revert'])->name('runs.revert');
+        Route::delete('runs/{run}', [PayrollRunController::class, 'destroy'])->name('runs.destroy');
         Route::get('runs/{run}/register.pdf', [PayslipController::class, 'downloadRegister'])->name('runs.register-pdf');
         Route::get('runs/{run}/register.csv', [PayslipController::class, 'downloadRegisterCsv'])->name('runs.register-csv');
         Route::get('runs/{run}/payslips/{runEmployee}', [PayslipController::class, 'downloadPayslip'])->name('runs.payslip');
@@ -183,6 +188,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         Route::get('/', [BiometricAttendanceController::class, 'dashboard'])->name('dashboard');
         Route::get('connectivity', [BiometricAttendanceController::class, 'connectivity'])->name('connectivity');
         Route::get('import', [BiometricAttendanceController::class, 'import'])->name('import');
+        Route::get('upload', [BiometricAttendanceController::class, 'upload'])->name('upload');
+        Route::post('upload', [BiometricAttendanceController::class, 'uploadFile'])->name('upload.store');
         Route::get('punches', [BiometricAttendanceController::class, 'punches'])->name('punches');
         Route::get('sync-logs', [BiometricAttendanceController::class, 'syncLogs'])->name('sync-logs');
         Route::post('devices', [BiometricAttendanceController::class, 'storeDevice'])->name('devices.store');

@@ -1,6 +1,7 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { CheckCircle2, ChevronLeft, Clock, RotateCcw, ShieldCheck, ShieldX } from 'lucide-react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
+import { CheckCircle2, ChevronLeft, Clock, RotateCcw, ShieldCheck, ShieldX, Trash2 } from 'lucide-react';
 import {
+    destroy as destroyPeriodAction,
     reopen as reopenAction,
     verifyAttendance as verifyAttendanceAction,
     verifyOvertime as verifyOvertimeAction,
@@ -10,6 +11,15 @@ import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -94,12 +104,21 @@ function StatusStep({
     );
 }
 
+type PayrollRunMeta = {
+    total_runs: number;
+    has_paid_run: boolean;
+    active_run_id: number | null;
+    active_run_status: string | null;
+};
+
 export default function PeriodVerificationShow({
     period,
     summary,
+    payrollRunMeta,
 }: {
     period: Period;
     summary: Summary;
+    payrollRunMeta: PayrollRunMeta;
 }) {
     const { flash, modulePermissions } = usePage().props as {
         flash?: { success?: string; error?: string };
@@ -108,6 +127,7 @@ export default function PeriodVerificationShow({
 
     const canVerify = modulePermissions?.payroll?.can_verify ?? false;
     const canUpdate = modulePermissions?.payroll?.can_update ?? false;
+    const canDelete = modulePermissions?.payroll?.can_delete ?? false;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Payroll', href: periodVerificationsIndex().url },
@@ -289,21 +309,77 @@ export default function PeriodVerificationShow({
                         )}
 
                         {canUpdate && !isPendingHr && (
-                            <div className="flex justify-end">
-                                <Form action={reopenAction(period.id)} method="post">
-                                    {({ processing }) => (
-                                        <Button
-                                            type="submit"
-                                            variant="outline"
-                                            disabled={processing}
-                                            className="gap-1.5 text-destructive hover:text-destructive"
-                                        >
-                                            <ShieldX className="size-4" />
-                                            {processing ? 'Reopening…' : 'Reopen period (reset verification)'}
-                                        </Button>
+                            <Card className="border-amber-300 dark:border-amber-700">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                                        <RotateCcw className="size-4" />
+                                        Undo verification
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        Reopen this period to reset HR and Finance verification. Any draft or approved payroll runs
+                                        for this period will be cancelled automatically.
+                                        {payrollRunMeta.has_paid_run && (
+                                            <span className="mt-2 block font-medium text-destructive">
+                                                A paid payroll run exists — revert it to approved before reopening this period.
+                                            </span>
+                                        )}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Form action={reopenAction(period.id)} method="post">
+                                            {({ processing }) => (
+                                                <Button
+                                                    type="submit"
+                                                    variant="outline"
+                                                    disabled={processing || payrollRunMeta.has_paid_run}
+                                                    className="gap-1.5 text-destructive hover:text-destructive"
+                                                >
+                                                    <ShieldX className="size-4" />
+                                                    {processing ? 'Reopening…' : 'Reopen period'}
+                                                </Button>
+                                            )}
+                                        </Form>
+                                        {canDelete && (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        disabled={payrollRunMeta.has_paid_run}
+                                                        className="gap-1.5 text-destructive hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                        Cancel period
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogTitle>Cancel pay period</DialogTitle>
+                                                    <DialogDescription>
+                                                        This deletes the period verification record. You can create a new one with the
+                                                        same dates afterwards. Non-paid payroll runs will also be removed.
+                                                    </DialogDescription>
+                                                    <DialogFooter>
+                                                        <DialogClose asChild>
+                                                            <Button variant="outline">Keep period</Button>
+                                                        </DialogClose>
+                                                        <Button
+                                                            variant="destructive"
+                                                            onClick={() => router.delete(destroyPeriodAction.url(period.id))}
+                                                        >
+                                                            Cancel period
+                                                        </Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+                                    </div>
+                                    {payrollRunMeta.active_run_id && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Active payroll run: #{payrollRunMeta.active_run_id} ({payrollRunMeta.active_run_status})
+                                        </p>
                                     )}
-                                </Form>
-                            </div>
+                                </CardContent>
+                            </Card>
                         )}
                     </div>
 
