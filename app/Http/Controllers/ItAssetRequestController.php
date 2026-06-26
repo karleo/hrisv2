@@ -17,6 +17,7 @@ use App\Notifications\RequestSubmittedNotification;
 use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
 use App\Support\ItAssetValuation;
+use App\Support\PublicStorageUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
 use App\Support\RequestFormEmployeeSelection;
@@ -139,10 +140,10 @@ class ItAssetRequestController extends Controller
         $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($it_asset_request);
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->employee_signature, '/'))
+            ? PublicStorageUrl::forPath($it_asset_request->employee_signature)
             : null;
         $it_asset_request->issued_by_signature_url = $it_asset_request->issued_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->issued_by_signature, '/'))
+            ? PublicStorageUrl::forPath($it_asset_request->issued_by_signature)
             : null;
         $it_asset_request->hardware_items = $hardwareItems;
 
@@ -294,10 +295,10 @@ class ItAssetRequestController extends Controller
         $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($it_asset_request);
 
         $it_asset_request->employee_signature_url = $it_asset_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->employee_signature, '/'))
+            ? PublicStorageUrl::forPath($it_asset_request->employee_signature)
             : null;
         $it_asset_request->issued_by_signature_url = $it_asset_request->issued_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_asset_request->issued_by_signature, '/'))
+            ? PublicStorageUrl::forPath($it_asset_request->issued_by_signature)
             : null;
         $it_asset_request->hardware_items = $hardwareItems;
 
@@ -485,7 +486,7 @@ class ItAssetRequestController extends Controller
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+        return PublicStorageUrl::forPath($path);
     }
 
     private function assertCanView(?User $user, ItAssetRequest $itAssetRequest): void

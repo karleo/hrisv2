@@ -15,6 +15,6 @@ final class EmployeePhotoUrl
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim((string) $employee->photo, '/'));
+        return PublicStorageUrl::forPath((string) $employee->photo);
     }
 }

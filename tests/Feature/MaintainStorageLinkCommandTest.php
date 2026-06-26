@@ -41,15 +41,26 @@ class MaintainStorageLinkCommandTest extends TestCase
 
     public function test_storage_maintain_verifies_s3_when_default_disk_is_s3(): void
     {
-        Storage::fake('s3');
+        Storage::fake('public');
+
+        $s3Disk = [
+            'driver' => 's3',
+            'key' => 'test-key',
+            'secret' => 'test-secret',
+            'region' => 'us-east-1',
+            'bucket' => 'test-bucket',
+            'url' => 'https://test-bucket.s3.amazonaws.com',
+            'options' => ['ACL' => ''],
+            'retain_visibility' => false,
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ];
 
         config([
             'filesystems.default' => 's3',
-            'filesystems.disks.s3.key' => 'test-key',
-            'filesystems.disks.s3.secret' => 'test-secret',
-            'filesystems.disks.s3.region' => 'us-east-1',
-            'filesystems.disks.s3.bucket' => 'test-bucket',
-            'filesystems.disks.s3.url' => 'https://test-bucket.s3.amazonaws.com',
+            'filesystems.disks.s3' => $s3Disk,
+            'filesystems.disks.public' => $s3Disk,
         ]);
 
         $this->artisan('storage:maintain')

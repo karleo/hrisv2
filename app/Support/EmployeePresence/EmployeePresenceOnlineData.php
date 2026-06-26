@@ -4,6 +4,7 @@ namespace App\Support\EmployeePresence;
 
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\EmployeePhotoUrl;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Cache;
 
@@ -107,9 +108,7 @@ final class EmployeePresenceOnlineData
             'full_name' => trim("{$employee->first_name} {$employee->last_name}"),
             'department' => $employee->department?->name,
             'job_position' => $employee->jobPosition?->name,
-            'photo_url' => is_string($employee->photo) && $employee->photo !== ''
-                ? '/storage/'.ltrim($employee->photo, '/')
-                : null,
+            'photo_url' => EmployeePhotoUrl::forPublicDisk($employee),
         ];
     }
 }

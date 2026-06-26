@@ -18,6 +18,7 @@ use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
 use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
+use App\Support\PublicStorageUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
 use App\Support\RequestFormEmployeeSelection;
@@ -683,7 +684,7 @@ class LeaveRequestController extends Controller
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+        return PublicStorageUrl::forPath($path);
     }
 
     /**

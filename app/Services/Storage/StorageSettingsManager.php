@@ -66,18 +66,7 @@ class StorageSettingsManager
         }
 
         if ($resolved['driver'] === StorageSetting::DRIVER_S3) {
-            $s3Disk = [
-                'driver' => 's3',
-                'key' => $resolved['aws_access_key_id'],
-                'secret' => $resolved['aws_secret_access_key'],
-                'region' => $resolved['aws_default_region'],
-                'bucket' => $resolved['aws_bucket'],
-                'url' => $resolved['aws_url'],
-                'endpoint' => null,
-                'use_path_style_endpoint' => $resolved['aws_use_path_style_endpoint'],
-                'throw' => false,
-                'report' => false,
-            ];
+            $s3Disk = $this->s3DiskConfig($resolved);
 
             config([
                 'filesystems.default' => 's3',
@@ -204,5 +193,51 @@ class StorageSettingsManager
         $value = config($configKey);
 
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array{
+     *     aws_access_key_id: string|null,
+     *     aws_secret_access_key: string|null,
+     *     aws_default_region: string|null,
+     *     aws_bucket: string|null,
+     *     aws_url: string|null,
+     *     aws_use_path_style_endpoint: bool,
+     * }  $resolved
+     * @return array<string, mixed>
+     */
+    private function s3DiskConfig(array $resolved): array
+    {
+        return [
+            'driver' => 's3',
+            'key' => $resolved['aws_access_key_id'],
+            'secret' => $resolved['aws_secret_access_key'],
+            'region' => $resolved['aws_default_region'],
+            'bucket' => $resolved['aws_bucket'],
+            'url' => self::normalizeS3PublicUrl($resolved['aws_url']),
+            'endpoint' => null,
+            'use_path_style_endpoint' => $resolved['aws_use_path_style_endpoint'],
+            // Buckets with Object Ownership (ACLs disabled) reject PutObject ACL headers.
+            'options' => ['ACL' => ''],
+            'retain_visibility' => false,
+            'temporary_url_ttl_minutes' => (int) config('filesystems.disks.s3.temporary_url_ttl_minutes', 1440),
+            'throw' => false,
+            'report' => false,
+        ];
+    }
+
+    public static function normalizeS3PublicUrl(?string $url): ?string
+    {
+        if (! is_string($url) || $url === '') {
+            return $url;
+        }
+
+        $normalized = rtrim($url, '/');
+
+        if (str_ends_with($normalized, '/storage')) {
+            $normalized = substr($normalized, 0, -strlen('/storage'));
+        }
+
+        return $normalized !== '' ? $normalized : null;
     }
 }

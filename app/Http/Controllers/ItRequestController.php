@@ -16,6 +16,7 @@ use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
 use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
+use App\Support\PublicStorageUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
 use App\Support\RequestFormEmployeeSelection;
@@ -115,10 +116,10 @@ class ItRequestController extends Controller
         $it_request->load(['employee', 'department', 'software', 'hardware', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $it_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_request->employee_signature, '/'))
+            ? PublicStorageUrl::forPath($it_request->employee_signature)
             : null;
         $approvedBySignatureUrl = $it_request->approved_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_request->approved_by_signature, '/'))
+            ? PublicStorageUrl::forPath($it_request->approved_by_signature)
             : null;
 
         return Inertia::render('it-requests/show', [
@@ -258,10 +259,10 @@ class ItRequestController extends Controller
         $it_request->load(['employee', 'department', 'software', 'hardware', 'approvedByEmployee']);
 
         $employeeSignatureUrl = $it_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_request->employee_signature, '/'))
+            ? PublicStorageUrl::forPath($it_request->employee_signature)
             : null;
         $approvedBySignatureUrl = $it_request->approved_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($it_request->approved_by_signature, '/'))
+            ? PublicStorageUrl::forPath($it_request->approved_by_signature)
             : null;
 
         return Inertia::render('it-requests/edit', [
@@ -419,7 +420,7 @@ class ItRequestController extends Controller
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+        return PublicStorageUrl::forPath($path);
     }
 
     private function assertCanView(?User $user, ItRequest $itRequest): void

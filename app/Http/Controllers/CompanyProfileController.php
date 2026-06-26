@@ -9,6 +9,7 @@ use App\Models\CompanyProfileDocument;
 use App\Models\Country;
 use App\Models\DocumentType;
 use App\Support\CompanyAccessScope;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -259,20 +260,20 @@ class CompanyProfileController extends Controller
     private function attachLogoUrls(CompanyProfile $companyProfile): void
     {
         $companyProfile->logo_url = $companyProfile->logo
-            ? '/storage/'.ltrim($companyProfile->logo, '/')
+            ? PublicStorageUrl::forPath($companyProfile->logo)
             : null;
         $companyProfile->business_card_logo_url = $companyProfile->business_card_logo
-            ? '/storage/'.ltrim($companyProfile->business_card_logo, '/')
+            ? PublicStorageUrl::forPath($companyProfile->business_card_logo)
             : null;
         $companyProfile->business_card_back_logo_urls = array_map(
             static fn (string $column): ?string => $companyProfile->{$column}
-                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                ? PublicStorageUrl::forPath($companyProfile->{$column})
                 : null,
             self::BUSINESS_CARD_BACK_LOGO_COLUMNS,
         );
         foreach (self::BUSINESS_CARD_BACK_LOGO_COLUMNS as $column) {
             $companyProfile->{$column.'_url'} = $companyProfile->{$column}
-                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                ? PublicStorageUrl::forPath($companyProfile->{$column})
                 : null;
         }
     }

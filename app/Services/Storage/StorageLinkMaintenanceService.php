@@ -163,10 +163,14 @@ class StorageLinkMaintenanceService
     {
         $this->assertS3ConfigurationIsPresent();
 
-        $disk = Storage::disk('s3');
+        $disk = Storage::disk('public');
         $probePath = '.storage-maintenance-'.uniqid('', true);
 
-        $disk->put($probePath, 'ok');
+        if ($disk->put($probePath, 'ok') === false) {
+            throw new RuntimeException(
+                'S3 write probe failed on the public upload disk. If your bucket has ACLs disabled (Object Ownership), ensure the application is up to date. Otherwise verify IAM permissions (s3:PutObject) and bucket policy.',
+            );
+        }
 
         if (! $disk->exists($probePath)) {
             throw new RuntimeException('S3 write probe failed: file was not found after upload.');

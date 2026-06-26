@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\EmployeeTimeEntry;
 use App\Models\User;
 use App\Support\CompanyAccessScope;
+use App\Support\PublicStorageUrl;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -607,7 +608,7 @@ final class AttendanceReportService
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+        return PublicStorageUrl::forPath($path);
     }
 
     /**

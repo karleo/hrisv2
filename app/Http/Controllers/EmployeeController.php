@@ -27,6 +27,7 @@ use App\Services\Reports\AttendanceReportPdfExporter;
 use App\Services\Reports\AttendanceReportService;
 use App\Support\CompanyAccessScope;
 use App\Support\ItAssetValuation;
+use App\Support\PublicStorageUrl;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -69,7 +70,7 @@ class EmployeeController extends Controller
 
         if ($employee instanceof Employee) {
             $employee->photo_url = $employee->photo
-                ? '/storage/'.ltrim($employee->photo, '/')
+                ? PublicStorageUrl::forPath($employee->photo)
                 : null;
         }
 
@@ -358,7 +359,7 @@ class EmployeeController extends Controller
             ->paginate(15)
             ->through(function (Employee $employee) {
                 $employee->photo_url = $employee->photo
-                    ? '/storage/'.ltrim($employee->photo, '/')
+                    ? PublicStorageUrl::forPath($employee->photo)
                     : null;
                 $employee->user_active = $employee->user?->is_active ?? null;
 
@@ -883,10 +884,10 @@ class EmployeeController extends Controller
         $employee->load(['department', 'jobPosition', 'companyProfile']);
         $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
-            ? '/storage/'.ltrim($employee->photo, '/')
+            ? PublicStorageUrl::forPath($employee->photo)
             : null;
         $employee->company_logo_url = $employee->getAttribute('company_logo')
-            ? '/storage/'.ltrim((string) $employee->getAttribute('company_logo'), '/')
+            ? PublicStorageUrl::forPath((string) $employee->getAttribute('company_logo'))
             : null;
 
         return Inertia::render('employees/business-card', [
@@ -903,10 +904,10 @@ class EmployeeController extends Controller
         $employee->load(['department', 'jobPosition', 'companyProfile']);
         $this->attachBusinessCardCompanyProfile($employee);
         $employee->photo_url = $employee->photo
-            ? '/storage/'.ltrim($employee->photo, '/')
+            ? PublicStorageUrl::forPath($employee->photo)
             : null;
         $employee->company_logo_url = $employee->getAttribute('company_logo')
-            ? '/storage/'.ltrim((string) $employee->getAttribute('company_logo'), '/')
+            ? PublicStorageUrl::forPath((string) $employee->getAttribute('company_logo'))
             : null;
         $appName = (string) config('app.name');
         $vCard = $this->buildEmployeeVCard($employee, $appName);
@@ -942,10 +943,10 @@ class EmployeeController extends Controller
     private function attachCompanyProfileBusinessCardLogoUrls(CompanyProfile $companyProfile): void
     {
         $companyProfile->logo_url = $companyProfile->logo
-            ? '/storage/'.ltrim($companyProfile->logo, '/')
+            ? PublicStorageUrl::forPath($companyProfile->logo)
             : null;
         $companyProfile->business_card_logo_url = $companyProfile->business_card_logo
-            ? '/storage/'.ltrim($companyProfile->business_card_logo, '/')
+            ? PublicStorageUrl::forPath($companyProfile->business_card_logo)
             : null;
 
         $businessCardBackLogoColumns = [
@@ -957,7 +958,7 @@ class EmployeeController extends Controller
 
         $companyProfile->business_card_back_logo_urls = array_map(
             static fn (string $column): ?string => $companyProfile->{$column}
-                ? '/storage/'.ltrim($companyProfile->{$column}, '/')
+                ? PublicStorageUrl::forPath($companyProfile->{$column})
                 : null,
             $businessCardBackLogoColumns,
         );
@@ -1077,7 +1078,7 @@ class EmployeeController extends Controller
             },
         ]);
         $employee->photo_url = $employee->photo
-            ? '/storage/'.ltrim($employee->photo, '/')
+            ? PublicStorageUrl::forPath($employee->photo)
             : null;
 
         $approvedLeaveUsage = LeaveRequest::query()

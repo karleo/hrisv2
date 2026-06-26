@@ -56,6 +56,7 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'temporary_url_ttl_minutes' => (int) env('AWS_S3_SIGNED_URL_TTL_MINUTES', 1440),
             'throw' => false,
             'report' => false,
         ],

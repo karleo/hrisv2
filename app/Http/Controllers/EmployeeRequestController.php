@@ -17,6 +17,7 @@ use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
 use App\Support\CompanyAccessScope;
 use App\Support\EmployeePhotoUrl;
+use App\Support\PublicStorageUrl;
 use App\Support\RequestApprovalScope;
 use App\Support\RequestDecisionNotificationPayload;
 use App\Support\RequestFormEmployeeSelection;
@@ -246,13 +247,13 @@ class EmployeeRequestController extends Controller
         $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $employee_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
+            ? PublicStorageUrl::forPath($employee_request->employee_signature)
             : null;
         $ceoSignatureUrl = $employee_request->ceo_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->ceo_signature, '/'))
+            ? PublicStorageUrl::forPath($employee_request->ceo_signature)
             : null;
         $approvedBySignatureUrl = $employee_request->approved_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->approved_by_signature, '/'))
+            ? PublicStorageUrl::forPath($employee_request->approved_by_signature)
             : null;
 
         return Inertia::render('employee-requests/show', [
@@ -368,13 +369,13 @@ class EmployeeRequestController extends Controller
         $canViewActivityLogs = $actor?->hasModuleAbility(PermissionModule::ActivityLogs, ModuleAbility::View) ?? false;
 
         $employeeSignatureUrl = $employee_request->employee_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->employee_signature, '/'))
+            ? PublicStorageUrl::forPath($employee_request->employee_signature)
             : null;
         $ceoSignatureUrl = $employee_request->ceo_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->ceo_signature, '/'))
+            ? PublicStorageUrl::forPath($employee_request->ceo_signature)
             : null;
         $approvedBySignatureUrl = $employee_request->approved_by_signature
-            ? '/storage/'.str_replace('\\', '/', ltrim($employee_request->approved_by_signature, '/'))
+            ? PublicStorageUrl::forPath($employee_request->approved_by_signature)
             : null;
 
         return Inertia::render('employee-requests/edit', [
@@ -610,7 +611,7 @@ class EmployeeRequestController extends Controller
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+        return PublicStorageUrl::forPath($path);
     }
 
     /**

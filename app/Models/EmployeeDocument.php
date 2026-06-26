@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicStorageUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -132,6 +133,6 @@ class EmployeeDocument extends Model
 
     public function getUrlAttribute(): string
     {
-        return '/storage/'.ltrim($this->path, '/');
+        return PublicStorageUrl::forPath($this->path) ?? '';
     }
 }

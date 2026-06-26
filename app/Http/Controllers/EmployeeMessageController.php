@@ -10,6 +10,7 @@ use App\Models\EmployeeConversation;
 use App\Models\EmployeeMessage;
 use App\Support\CompanyAccessScope;
 use App\Support\EmployeeMessages\EmployeeMessagesHeaderData;
+use App\Support\PublicStorageUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -381,7 +382,7 @@ class EmployeeMessageController extends Controller
             'read_at' => $message->read_at?->toIso8601String(),
             'created_at' => $message->created_at?->toIso8601String(),
             'attachment_url' => is_string($path) && $path !== ''
-                ? '/storage/'.ltrim($path, '/')
+                ? PublicStorageUrl::forPath($path)
                 : null,
             'attachment_original_name' => $message->attachment_original_name,
         ];
@@ -403,7 +404,7 @@ class EmployeeMessageController extends Controller
             'department' => $employee->department?->name,
             'job_position' => $employee->jobPosition?->name,
             'photo_url' => is_string($employee->photo) && $employee->photo !== ''
-                ? '/storage/'.ltrim($employee->photo, '/')
+                ? PublicStorageUrl::forPath($employee->photo)
                 : null,
         ];
     }

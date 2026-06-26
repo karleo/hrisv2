@@ -18,6 +18,7 @@ use App\Models\WorkTimetableDay;
 use App\Services\AttendanceClassificationService;
 use App\Services\AttendanceDurationService;
 use App\Support\CompanyAccessScope;
+use App\Support\PublicStorageUrl;
 use App\Support\RequestFormEmployeeSelection;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -405,7 +406,7 @@ class EmployeeTimeEntryController extends Controller
             return null;
         }
 
-        return '/storage/'.str_replace('\\', '/', ltrim($path, '/'));
+        return PublicStorageUrl::forPath($path);
     }
 
     private function expectedLabelForEntry(EmployeeTimeEntry $entry): string

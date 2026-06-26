@@ -73,7 +73,7 @@ class StorageMaintenanceController extends Controller
             'aws_access_key_id' => $validated['aws_access_key_id'] ?? null,
             'aws_default_region' => $validated['aws_default_region'] ?? null,
             'aws_bucket' => $validated['aws_bucket'] ?? null,
-            'aws_url' => $validated['aws_url'] ?? null,
+            'aws_url' => StorageSettingsManager::normalizeS3PublicUrl($validated['aws_url'] ?? null),
             'aws_use_path_style_endpoint' => (bool) ($validated['aws_use_path_style_endpoint'] ?? false),
             'updated_by' => $request->user()->id,
         ]);

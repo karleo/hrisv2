@@ -78,6 +78,7 @@ class StorageMaintenanceTest extends TestCase
         $this->assertSame('s3', $resolved['driver']);
         $this->assertSame('test-bucket', config('filesystems.disks.s3.bucket'));
         $this->assertSame('s3', config('filesystems.disks.public.driver'));
+        $this->assertSame(['ACL' => ''], config('filesystems.disks.public.options'));
     }
 
     public function test_administrator_can_run_local_storage_maintenance_from_ui(): void
@@ -103,7 +104,7 @@ class StorageMaintenanceTest extends TestCase
 
     public function test_administrator_can_run_s3_storage_maintenance_from_ui(): void
     {
-        Storage::fake('s3');
+        Storage::fake('public');
 
         StorageSetting::singletonOrCreate(['driver' => 'local'])->update([
             'driver' => 's3',

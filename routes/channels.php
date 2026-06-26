@@ -2,6 +2,7 @@
 
 use App\Models\EmployeeConversation;
 use App\Models\User;
+use App\Support\EmployeePhotoUrl;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('employee.{employeeId}', function (User $user, int $employeeId): bool {
@@ -23,9 +24,7 @@ Broadcast::channel('employees.online', function (User $user): array|bool {
         'full_name' => trim("{$employee->first_name} {$employee->last_name}"),
         'department' => $employee->department?->name,
         'job_position' => $employee->jobPosition?->name,
-        'photo_url' => is_string($employee->photo) && $employee->photo !== ''
-            ? '/storage/'.ltrim($employee->photo, '/')
-            : null,
+        'photo_url' => EmployeePhotoUrl::forPublicDisk($employee),
     ];
 });
 
