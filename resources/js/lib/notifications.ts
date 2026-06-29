@@ -31,8 +31,8 @@ export function notificationHref(item: { data?: NotificationItemData }): string 
             return `/employee-requests/${requestId}`;
         case 'it_request':
             return `/it-requests/${requestId}`;
-        case 'it_asset_request':
-            return `/it-asset-requests/${requestId}`;
+        case 'it_asset':
+            return `/it-assets/${requestId}`;
         case 'employee_document_expiry':
             return '/my-profile';
         default:

@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
+use App\Http\Controllers\AccessoryController;
 use App\Http\Controllers\Biometric\BiometricAttendanceController;
 use App\Http\Controllers\BiometricSettingController;
 use App\Http\Controllers\CompanyProfileController;
@@ -18,7 +19,7 @@ use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\HardwareAssetValueController;
 use App\Http\Controllers\HardwareController;
-use App\Http\Controllers\ItAssetRequestController;
+use App\Http\Controllers\ItAssetController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveCalendarController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Payroll\PayrollPeriodVerificationController;
 use App\Http\Controllers\Payroll\PayrollRunController;
 use App\Http\Controllers\Payroll\PayslipController;
 use App\Http\Controllers\Reports\AttendanceReportController;
+use App\Http\Controllers\Reports\ItAssetInventoryReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
@@ -198,17 +200,28 @@ final class ModulePermissionRegistry
             'decide' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
             'updateSignatures' => [PermissionModule::EmployeeRequests, ModuleAbility::Update],
         ],
-        ItAssetRequestController::class => [
-            'index' => [PermissionModule::ItAssetRequests, ModuleAbility::View],
-            'create' => [PermissionModule::ItAssetRequests, ModuleAbility::Create],
-            'store' => [PermissionModule::ItAssetRequests, ModuleAbility::Create],
-            'show' => [PermissionModule::ItAssetRequests, ModuleAbility::View],
-            'edit' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
-            'update' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
-            'destroy' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
-            'submit' => [PermissionModule::ItAssetRequests, ModuleAbility::Create],
-            'decide' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
-            'updateSignatures' => [PermissionModule::ItAssetRequests, ModuleAbility::Update],
+        ItAssetController::class => [
+            'index' => [PermissionModule::ItAssets, ModuleAbility::View],
+            'returns' => [PermissionModule::ItAssets, ModuleAbility::View],
+            'create' => [PermissionModule::ItAssets, ModuleAbility::Create],
+            'store' => [PermissionModule::ItAssets, ModuleAbility::Create],
+            'show' => [PermissionModule::ItAssets, ModuleAbility::View],
+            'edit' => [PermissionModule::ItAssets, ModuleAbility::Update],
+            'update' => [PermissionModule::ItAssets, ModuleAbility::Update],
+            'destroy' => [PermissionModule::ItAssets, ModuleAbility::Update],
+            'assign' => [PermissionModule::ItAssets, ModuleAbility::Update],
+            'returnAsset' => [PermissionModule::ItAssets, ModuleAbility::Update],
+            'changeStatus' => [PermissionModule::ItAssets, ModuleAbility::Update],
+            'print' => [PermissionModule::ItAssets, ModuleAbility::View],
+            'showAssignmentDocument' => [PermissionModule::ItAssets, ModuleAbility::View],
+        ],
+        AccessoryController::class => [
+            'index' => [PermissionModule::Accessories, ModuleAbility::View],
+            'create' => [PermissionModule::Accessories, ModuleAbility::Create],
+            'store' => [PermissionModule::Accessories, ModuleAbility::Create],
+            'edit' => [PermissionModule::Accessories, ModuleAbility::Update],
+            'update' => [PermissionModule::Accessories, ModuleAbility::Update],
+            'destroy' => [PermissionModule::Accessories, ModuleAbility::Delete],
         ],
         RoleController::class => [
             'index' => [PermissionModule::RoleManagement, ModuleAbility::View],
@@ -252,7 +265,13 @@ final class ModulePermissionRegistry
             'useAdmsPush' => [PermissionModule::BiometricAttendance, ModuleAbility::Update],
             'probeDevice' => [PermissionModule::BiometricAttendance, ModuleAbility::View],
         ],
+        AttendanceManagementController::class => [
+            'index' => [PermissionModule::TimeAttendance, ModuleAbility::View],
+        ],
         AttendanceReportController::class => [
+            'index' => [PermissionModule::Reports, ModuleAbility::View],
+        ],
+        ItAssetInventoryReportController::class => [
             'index' => [PermissionModule::Reports, ModuleAbility::View],
         ],
         EmployeeCompensationController::class => [

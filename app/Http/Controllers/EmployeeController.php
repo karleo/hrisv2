@@ -17,7 +17,7 @@ use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
-use App\Models\ItAssetRequest;
+use App\Models\ItAssetAssignment;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -26,7 +26,6 @@ use App\Models\WorkTimetable;
 use App\Services\Reports\AttendanceReportPdfExporter;
 use App\Services\Reports\AttendanceReportService;
 use App\Support\CompanyAccessScope;
-use App\Support\ItAssetValuation;
 use App\Support\PublicStorageUrl;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,7 +47,6 @@ class EmployeeController extends Controller
 {
     public function __construct(
         private readonly FaceVerificationContract $faceVerification,
-        private readonly ItAssetValuation $valuation,
         private readonly CompanyAccessScope $companyScope,
     ) {}
 
@@ -1414,56 +1412,52 @@ class EmployeeController extends Controller
      */
     private function approvedAssetPayload(Employee $employee): array
     {
-        return ItAssetRequest::query()
-            ->with([
-                'issuedByEmployee:id,first_name,last_name',
-                'hardwareItems.hardware:id,code,name',
-                'hardwareItems.hardwareAssetValue:id,asset_model',
-            ])
+        return ItAssetAssignment::query()
             ->where('employee_id', $employee->id)
-            ->where('status', 'approved')
-            ->orderByDesc('decided_at')
-            ->orderByDesc('id')
+            ->with([
+                'itAsset.hardware:id,code,name',
+                'itAsset.software:id,code,name',
+                'itAsset.accessory:id,code,name',
+                'itAsset.hardwareAssetValue:id,asset_model,asset_value,asset_currency',
+                'documents',
+            ])
+            ->orderByDesc('assigned_at')
             ->get()
-            ->map(function (ItAssetRequest $request): array {
-                $hardwareItems = $this->valuation->resolvedHardwareItemsForDisplay($request);
+            ->map(function (ItAssetAssignment $assignment): array {
+                $asset = $assignment->itAsset;
 
                 return [
-                    'id' => (int) $request->id,
-                    'code' => (string) $request->code,
-                    'url' => route('it-asset-requests.show', $request, false),
-                    'issued_date' => $request->date_issued?->toDateString(),
-                    'approved_date' => $request->decided_at?->toDateString(),
-                    'issued_by' => $request->issuedByEmployee !== null
-                        ? trim($request->issuedByEmployee->first_name.' '.$request->issuedByEmployee->last_name)
-                        : null,
-                    'remarks' => $request->remarks,
-                    'hardware_items' => $this->assetHardwareItems($hardwareItems),
-                    'asset_totals' => $this->valuation->totalsForHardwareItems($hardwareItems),
+                    'assignment_id' => (int) $assignment->id,
+                    'id' => (int) $asset->id,
+                    'code' => (string) $asset->code,
+                    'url' => route('it-assets.show', $asset, false),
+                    'category' => $asset->category->value,
+                    'name' => $asset->name,
+                    'identifier' => $asset->identifier(),
+                    'assigned_at' => $assignment->assigned_at?->toDateString(),
+                    'returned_at' => $assignment->returned_at?->toDateString(),
+                    'is_active' => $assignment->returned_at === null,
+                    'assignment_notes' => $assignment->assignment_notes,
+                    'hardware_name' => $asset->hardware?->name,
+                    'software_name' => $asset->software?->name,
+                    'accessory_name' => $asset->accessory?->name,
+                    'asset_model' => $asset->hardwareAssetValue?->asset_model,
+                    'asset_value' => $asset->asset_value ?? $asset->hardwareAssetValue?->asset_value,
+                    'asset_currency' => $asset->asset_currency ?? $asset->hardwareAssetValue?->asset_currency,
+                    'license_key' => $asset->license_key,
+                    'expiry_date' => $asset->expiry_date?->toDateString(),
+                    'documents' => $assignment->documents
+                        ->map(fn ($document): array => [
+                            'id' => (int) $document->id,
+                            'original_name' => (string) $document->original_name,
+                            'url' => route('it-assets.assignment-documents.show', $document, false),
+                        ])
+                        ->values()
+                        ->all(),
                 ];
             })
             ->values()
             ->all();
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $hardwareItems
-     * @return array<int, array{hardware_id: int|null, hardware_code: string, hardware_name: string, asset_model: string|null, serial_number: string|null, asset_value: string|null, asset_currency: string|null}>
-     */
-    private function assetHardwareItems(array $hardwareItems): array
-    {
-        return array_map(
-            fn (array $item): array => [
-                'hardware_id' => $item['hardware']['id'] ?? $item['hardware_id'] ?? null,
-                'hardware_code' => (string) ($item['hardware']['code'] ?? ''),
-                'hardware_name' => (string) ($item['hardware']['name'] ?? ''),
-                'asset_model' => $item['asset_model'] ?? null,
-                'serial_number' => $item['serial_number'] ?? null,
-                'asset_value' => $item['asset_value'] ?? null,
-                'asset_currency' => $item['asset_currency'] ?? null,
-            ],
-            $hardwareItems
-        );
     }
 
     private function normalizeDocumentExpiryDate(mixed $value): ?string

@@ -100,11 +100,23 @@ function buildMainNavItems(
             module: 'it_requests',
         },
         {
-            title: t('sidebar.itAssetRequests', 'IT Asset Management'),
-            description: 'Asset issuance and signature tracking',
-            href: '/it-asset-requests',
-            icon: Cpu,
-            module: 'it_asset_requests',
+            title: t('sidebar.itAssets', 'IT Asset Management'),
+            description: 'Inventory, assignments, and returns',
+            icon: HardDrive,
+            items: [
+                {
+                    title: t('sidebar.itAssetInventory', 'Inventory'),
+                    href: '/it-assets',
+                    icon: HardDrive,
+                    module: 'it_assets',
+                },
+                {
+                    title: t('sidebar.itAssetReturns', 'Returns'),
+                    href: '/it-assets/returns',
+                    icon: HardDrive,
+                    module: 'it_assets',
+                },
+            ],
         },
         {
             title: t('sidebar.employeeRequests', 'Employee Requests'),
@@ -116,9 +128,21 @@ function buildMainNavItems(
         {
             title: t('sidebar.timeAttendance', 'Time & attendance'),
             description: 'Daily logs and attendance actions',
-            href: '/time-attendance',
             icon: Clock,
-            module: 'time_attendance',
+            items: [
+                {
+                    title: t('sidebar.myAttendance', 'My check-in'),
+                    href: '/time-attendance',
+                    icon: Clock,
+                    module: 'time_attendance',
+                },
+                {
+                    title: t('sidebar.attendanceManagement', 'Attendance management'),
+                    href: '/attendance-management',
+                    icon: FileBarChart,
+                    module: 'time_attendance',
+                },
+            ],
         },
         {
             title: t('sidebar.biometricAttendance', 'Biometric attendance'),
@@ -165,8 +189,14 @@ function buildMainNavItems(
             items: [
                 {
                     title: t('sidebar.attendanceReport', 'Attendance report'),
-                    href: '/reports/attendance',
+                    href: '/attendance-management',
                     icon: Clock,
+                    module: 'time_attendance',
+                },
+                {
+                    title: t('sidebar.itAssetInventoryReport', 'IT asset inventory'),
+                    href: '/reports/it-asset-inventory',
+                    icon: FileBarChart,
                     module: 'reports',
                 },
             ],
@@ -209,6 +239,12 @@ function buildMainNavItems(
                             href: hardwareIndex(),
                             icon: Cpu,
                             module: 'hardware',
+                        },
+                        {
+                            title: t('sidebar.accessories', 'Accessories'),
+                            href: '/accessories',
+                            icon: Cpu,
+                            module: 'accessories',
                         },
                         {
                             title: t('sidebar.assetValues', 'Asset Values'),

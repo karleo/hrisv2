@@ -48,13 +48,13 @@ export default function Edit({
     hardware: Hardware[];
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Asset Values', href: '/hardware-asset-values' },
+        { title: 'Models', href: '/hardware-asset-values' },
         { title: 'Edit', href: `/hardware-asset-values/${assetValue.id}/edit` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Edit Asset Value" />
+            <Head title="Edit Model" />
 
             <div className="flex min-h-[calc(100vh-8rem)] w-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
                 <Link
@@ -62,18 +62,18 @@ export default function Edit({
                     className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <ArrowLeft className="size-4" />
-                    Back to Asset Values
+                    Back to Models
                 </Link>
 
                 <Heading
-                    title="Edit Asset Value"
+                    title="Edit Model"
                     description="Update hardware valuation and asset details"
                 />
 
                 <div className="max-w-2xl">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Asset Value Information</CardTitle>
+                            <CardTitle>Model Information</CardTitle>
                         </CardHeader>
                         <Form
                             action={`/hardware-asset-values/${assetValue.id}`}
@@ -229,7 +229,7 @@ export default function Edit({
                                     </CardContent>
                                     <CardFooter className="flex gap-3">
                                         <Button disabled={processing} type="submit">
-                                            Update Asset Value
+                                            Update Model
                                         </Button>
                                         <Link href="/hardware-asset-values">
                                             <Button type="button" variant="outline">

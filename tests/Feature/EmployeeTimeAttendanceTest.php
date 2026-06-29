@@ -616,4 +616,106 @@ class EmployeeTimeAttendanceTest extends TestCase
                 ->where('attendance', null)
             );
     }
+
+    public function test_hr_executive_can_add_and_edit_attendance_for_employees(): void
+    {
+        $company = CompanyProfile::factory()->create();
+        $hrEmployee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $hrUser = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'hr_executive')->value('id'),
+            'email_verified_at' => now(),
+        ]);
+        $hrEmployee->update(['user_id' => $hrUser->id]);
+        $employee = Employee::factory()->create(['company_profile_id' => $company->id]);
+
+        $clockIn = now()->subDay()->setTime(8, 0);
+        $clockOut = now()->subDay()->setTime(17, 0);
+
+        $this->actingAs($hrUser)
+            ->post(route('time-attendance.store'), [
+                'employee_id' => $employee->id,
+                'clock_in_at' => $clockIn->toDateTimeString(),
+                'clock_out_at' => $clockOut->toDateTimeString(),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry = EmployeeTimeEntry::query()->where('employee_id', $employee->id)->first();
+        $this->assertNotNull($entry);
+        $this->assertEquals($clockIn->format('Y-m-d H:i'), $entry->clock_in_at->format('Y-m-d H:i'));
+
+        $updatedOut = $clockOut->copy()->addHour();
+
+        $this->actingAs($hrUser)
+            ->patch(route('time-attendance.update', $entry), [
+                'clock_in_at' => $clockIn->toDateTimeString(),
+                'clock_out_at' => $updatedOut->toDateTimeString(),
+                'daily_summary' => 'HR corrected checkout.',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry->refresh();
+        $this->assertEquals($updatedOut->format('Y-m-d H:i'), $entry->clock_out_at->format('Y-m-d H:i'));
+        $this->assertSame('HR corrected checkout.', $entry->daily_summary);
+    }
+
+    public function test_finance_executive_can_modify_overtime_without_changing_attendance(): void
+    {
+        $company = CompanyProfile::factory()->create();
+        $financeEmployee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $financeUser = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'finance_executive')->value('id'),
+            'email_verified_at' => now(),
+        ]);
+        $financeEmployee->update(['user_id' => $financeUser->id]);
+        $employee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $clockIn = now()->subDay()->setTime(8, 0);
+        $clockOut = now()->subDay()->setTime(17, 0);
+
+        $entry = EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => $clockIn,
+            'clock_out_at' => $clockOut,
+            'worked_minutes' => 540,
+            'overtime_minutes' => 60,
+            'work_mode' => AttendanceWorkMode::WorkFromHome->value,
+        ]);
+
+        $this->actingAs($financeUser)
+            ->patch(route('time-attendance.update', $entry), [
+                'overtime_minutes' => 90,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry->refresh();
+        $this->assertSame(90, $entry->overtime_minutes);
+        $this->assertEquals($clockOut->format('Y-m-d H:i'), $entry->clock_out_at->format('Y-m-d H:i'));
+    }
+
+    public function test_finance_executive_cannot_edit_attendance_times(): void
+    {
+        $company = CompanyProfile::factory()->create();
+        $financeEmployee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $financeUser = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'finance_executive')->value('id'),
+            'email_verified_at' => now(),
+        ]);
+        $financeEmployee->update(['user_id' => $financeUser->id]);
+        $employee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $entry = EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => now()->subHours(9),
+            'clock_out_at' => now()->subHour(),
+            'work_mode' => AttendanceWorkMode::WorkFromHome->value,
+        ]);
+
+        $this->actingAs($financeUser)
+            ->patch(route('time-attendance.update', $entry), [
+                'clock_in_at' => now()->subHours(10)->toDateTimeString(),
+                'clock_out_at' => now()->toDateTimeString(),
+            ])
+            ->assertForbidden();
+    }
 }

@@ -46,6 +46,9 @@ final class AttendanceReportService
      *         check_in_longitude: float|null,
      *         check_out_latitude: float|null,
      *         check_out_longitude: float|null,
+     *         time_entry_id: int|null,
+     *         daily_summary: string|null,
+     *         company_name: string|null,
      *     }>,
      *     total_punches: int,
      *     total_manual_entries: int,
@@ -57,15 +60,25 @@ final class AttendanceReportService
         ?int $employeeId = null,
         ?int $biometricDeviceId = null,
         ?User $viewer = null,
+        ?int $companyProfileId = null,
+        ?string $source = null,
     ): array {
         $query = BiometricPunch::query()
-            ->with(['employee:id,first_name,last_name,employee_code', 'device:id,name'])
+            ->with([
+                'employee:id,first_name,last_name,employee_code,company_profile_id',
+                'employee.companyProfile:id,company_name',
+                'device:id,name',
+            ])
             ->where('punched_at', '>=', $from.' 00:00:00')
             ->where('punched_at', '<=', $to.' 23:59:59')
             ->orderBy('punched_at');
 
         if ($viewer !== null) {
             $this->companyScope->scopeRelationViaEmployee($query, $viewer);
+        }
+
+        if ($companyProfileId !== null) {
+            $query->whereHas('employee', fn ($builder) => $builder->where('company_profile_id', $companyProfileId));
         }
 
         if ($employeeId !== null) {
@@ -77,14 +90,56 @@ final class AttendanceReportService
         }
 
         $punches = $query->get();
-        $manualEntries = $this->manualEntriesQuery($from, $to, $employeeId, $viewer)->get();
+        $manualEntries = $this->manualEntriesQuery($from, $to, $employeeId, $viewer, $companyProfileId)->get();
 
         $rows = $this->aggregateDailyRows($punches, null, $manualEntries);
+
+        if ($source !== null && $source !== '' && $source !== 'all') {
+            $rows = array_values(array_filter(
+                $rows,
+                static fn (array $row): bool => ($row['source'] ?? '') === $source,
+            ));
+        }
 
         return [
             'rows' => $rows,
             'total_punches' => $punches->count(),
             'total_manual_entries' => $manualEntries->count(),
+            'summary' => $this->summarizeRows($rows),
+        ];
+    }
+
+    /**
+     * @param  list<array{
+     *     employee_id: int|null,
+     *     working_minutes: int|null,
+     *     overtime_minutes: int|null,
+     *     punch_count: int,
+     * }>  $rows
+     * @return array{
+     *     total_employees: int,
+     *     total_days: int,
+     *     total_working_minutes: int,
+     *     total_overtime_minutes: int,
+     *     total_punches: int,
+     * }
+     */
+    public function summarizeRows(array $rows): array
+    {
+        $employeeIds = array_filter(array_unique(array_column($rows, 'employee_id')));
+
+        return [
+            'total_employees' => count($employeeIds),
+            'total_days' => count($rows),
+            'total_working_minutes' => (int) array_sum(array_map(
+                static fn (array $row): int => (int) ($row['working_minutes'] ?? 0),
+                $rows,
+            )),
+            'total_overtime_minutes' => (int) array_sum(array_map(
+                static fn (array $row): int => (int) ($row['overtime_minutes'] ?? 0),
+                $rows,
+            )),
+            'total_punches' => (int) array_sum(array_column($rows, 'punch_count')),
         ];
     }
 
@@ -116,6 +171,9 @@ final class AttendanceReportService
      *         check_in_longitude: float|null,
      *         check_out_latitude: float|null,
      *         check_out_longitude: float|null,
+     *         time_entry_id: int|null,
+     *         daily_summary: string|null,
+     *         company_name: string|null,
      *     }>,
      *     total_punches: int,
      *     total_manual_entries: int,
@@ -214,6 +272,9 @@ final class AttendanceReportService
          *     check_in_longitude: float|null,
          *     check_out_latitude: float|null,
          *     check_out_longitude: float|null,
+         *     time_entry_id: int|null,
+         *     daily_summary: string|null,
+         *     company_name: string|null,
          * }> $groups */
         $groups = [];
 
@@ -232,6 +293,7 @@ final class AttendanceReportService
                         ? trim($punch->employee->first_name.' '.$punch->employee->last_name)
                         : 'Unmapped (PIN '.$punch->device_user_id.')',
                     employeeCode: $punch->employee?->employee_code,
+                    companyName: $punch->employee?->companyProfile?->company_name,
                 );
             }
 
@@ -260,8 +322,11 @@ final class AttendanceReportService
                         ? trim($employee->first_name.' '.$employee->last_name)
                         : 'Employee #'.$entry->employee_id,
                     employeeCode: $employee?->employee_code,
+                    companyName: $employee?->companyProfile?->company_name,
                 );
             }
+
+            $groups[$groupKey]['time_entry_id'] = $entry->id;
 
             $groups[$groupKey]['manual_clock_ins'][] = $entry->clock_in_at->format('H:i:s');
 
@@ -279,6 +344,10 @@ final class AttendanceReportService
 
             if (filled($entry->check_out_remarks)) {
                 $groups[$groupKey]['check_out_remarks'] = $entry->check_out_remarks;
+            }
+
+            if (filled($entry->daily_summary)) {
+                $groups[$groupKey]['daily_summary'] = $entry->daily_summary;
             }
 
             if ($entry->check_in_photo_path !== null) {
@@ -357,6 +426,9 @@ final class AttendanceReportService
                 'check_in_longitude' => $group['check_in_longitude'],
                 'check_out_latitude' => $group['check_out_latitude'],
                 'check_out_longitude' => $group['check_out_longitude'],
+                'time_entry_id' => $group['time_entry_id'] ?? null,
+                'daily_summary' => $group['daily_summary'] ?? null,
+                'company_name' => $group['company_name'] ?? null,
             ];
         }
 
@@ -579,6 +651,7 @@ final class AttendanceReportService
         ?string $deviceName,
         string $employeeName,
         ?string $employeeCode,
+        ?string $companyName = null,
     ): array {
         return [
             'date' => $date,
@@ -587,6 +660,7 @@ final class AttendanceReportService
             'device_name' => $deviceName,
             'employee_name' => $employeeName,
             'employee_code' => $employeeCode,
+            'company_name' => $companyName,
             'punches' => [],
             'manual_clock_ins' => [],
             'manual_clock_outs' => [],
@@ -599,6 +673,8 @@ final class AttendanceReportService
             'check_in_longitude' => null,
             'check_out_latitude' => null,
             'check_out_longitude' => null,
+            'time_entry_id' => null,
+            'daily_summary' => null,
         ];
     }
 
@@ -646,15 +722,24 @@ final class AttendanceReportService
         string $to,
         ?int $employeeId,
         ?User $viewer,
+        ?int $companyProfileId = null,
     ): \Illuminate\Database\Eloquent\Builder {
         $query = EmployeeTimeEntry::query()
-            ->with(['employee:id,first_name,last_name,employee_code,biometric_user_id,work_timetable_id', 'employee.workTimetable.days'])
+            ->with([
+                'employee:id,first_name,last_name,employee_code,biometric_user_id,work_timetable_id,company_profile_id',
+                'employee.companyProfile:id,company_name',
+                'employee.workTimetable.days',
+            ])
             ->where('clock_in_at', '>=', $from.' 00:00:00')
             ->where('clock_in_at', '<=', $to.' 23:59:59')
             ->orderBy('clock_in_at');
 
         if ($viewer !== null) {
             $this->companyScope->scopeRelationViaEmployee($query, $viewer);
+        }
+
+        if ($companyProfileId !== null) {
+            $query->whereHas('employee', fn ($builder) => $builder->where('company_profile_id', $companyProfileId));
         }
 
         if ($employeeId !== null) {

@@ -9,11 +9,11 @@ use App\Http\Controllers\EmployeeMessageController;
 use App\Http\Controllers\EmployeeMessageTypingController;
 use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
-use App\Http\Controllers\ItAssetRequestController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Models\User;
+use App\Support\AttendanceEntryAuthorization;
 use App\Support\ModulePermissionRegistry;
 use App\Support\RequestApprovalScope;
 use Closure;
@@ -97,7 +97,31 @@ class EnforceModulePermissions
             return $next($request);
         }
 
+        if (self::allowsFinanceOvertimeAdjustment($user, $controller, $method, $request)) {
+            return $next($request);
+        }
+
         abort(403);
+    }
+
+    private static function allowsFinanceOvertimeAdjustment(
+        User $user,
+        string $controller,
+        string $method,
+        Request $request,
+    ): bool {
+        if ($controller !== EmployeeTimeEntryController::class || $method !== 'update') {
+            return false;
+        }
+
+        if (! app(AttendanceEntryAuthorization::class)->canModifyOvertime($user)) {
+            return false;
+        }
+
+        return $request->has('overtime_minutes')
+            && ! $request->has('clock_in_at')
+            && ! $request->has('clock_out_at')
+            && ! $request->has('daily_summary');
     }
 
     private static function allowsEmployeeMessaging(User $user, string $controller): bool
@@ -153,7 +177,6 @@ class EnforceModulePermissions
             LeaveRequestController::class,
             ItRequestController::class,
             EmployeeRequestController::class,
-            ItAssetRequestController::class,
         ];
 
         if (! in_array($controller, $requestControllers, true)) {

@@ -200,10 +200,10 @@ export default function PeriodVerificationShow({
                                 </div>
                                 <div className="mt-4 text-sm text-muted-foreground">
                                     <Link
-                                        href={`/reports/attendance?from=${period.period_from}&to=${period.period_to}`}
+                                        href={`/attendance-management?from=${period.period_from}&to=${period.period_to}`}
                                         className="underline underline-offset-4 hover:text-foreground"
                                     >
-                                        View detailed attendance report →
+                                        View attendance management →
                                     </Link>
                                 </div>
                             </CardContent>

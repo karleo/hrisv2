@@ -42,7 +42,7 @@ const ar = {
     'sidebar.biometricAttendance': 'الحضور البيومتري',
     'sidebar.attendanceReport': 'تقرير الحضور',
     'sidebar.smtp': 'بريد SMTP',
-    'sidebar.assetValues': 'قيم الأصول',
+    'sidebar.assetValues': 'النماذج',
     'dashboard.title': 'لوحة التحكم',
     'dashboard.approvalWorkspace': 'مساحة الموافقات',
     'dashboard.pendingOverview': 'نظرة عامة على الطلبات المعلّقة',

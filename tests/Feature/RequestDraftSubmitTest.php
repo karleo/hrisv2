@@ -6,7 +6,6 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
 use App\Models\EmployeeRequestActivityLog;
-use App\Models\ItAssetRequest;
 use App\Models\JobPosition;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -209,72 +208,5 @@ class RequestDraftSubmitTest extends TestCase
             ->has('companyLogoUrl')
             ->where('employeeRequest.code', $employeeRequest->code)
         );
-    }
-
-    public function test_it_asset_request_store_creates_draft_and_redirects_to_show(): void
-    {
-        $department = Department::factory()->create();
-        $employee = Employee::factory()->create([
-            'department_id' => $department->id,
-        ]);
-
-        $payload = [
-            'employee_id' => $employee->id,
-            'department_id' => $department->id,
-            'date' => '2026-04-01',
-        ];
-
-        $response = $this->post(route('it-asset-requests.store'), $payload);
-
-        $itAssetRequest = ItAssetRequest::firstOrFail();
-
-        $response->assertRedirect(route('it-asset-requests.show', $itAssetRequest));
-        $this->assertSame('draft', $itAssetRequest->status);
-    }
-
-    public function test_it_asset_request_store_persists_employee_signature_from_data_url(): void
-    {
-        Storage::fake('public');
-
-        $department = Department::factory()->create();
-        $employee = Employee::factory()->create([
-            'department_id' => $department->id,
-        ]);
-        $onePixelPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-
-        $response = $this->post(route('it-asset-requests.store'), [
-            'employee_id' => $employee->id,
-            'department_id' => $department->id,
-            'date' => '2026-04-01',
-            'employee_signature_data_url' => 'data:image/png;base64,'.$onePixelPngBase64,
-        ]);
-
-        $itAssetRequest = ItAssetRequest::firstOrFail();
-
-        $response->assertRedirect(route('it-asset-requests.show', $itAssetRequest));
-        $this->assertNotNull($itAssetRequest->fresh()->employee_signature);
-        Storage::disk('public')->assertExists($itAssetRequest->fresh()->employee_signature);
-    }
-
-    public function test_it_asset_request_submit_sets_submitted_when_draft(): void
-    {
-        $department = Department::factory()->create();
-        $employee = Employee::factory()->create([
-            'department_id' => $department->id,
-        ]);
-
-        $itAssetRequest = ItAssetRequest::query()->create([
-            'employee_id' => $employee->id,
-            'department_id' => $department->id,
-            'date' => '2026-04-01',
-            'status' => 'draft',
-        ]);
-
-        $response = $this->from(route('it-asset-requests.show', $itAssetRequest))
-            ->post(route('it-asset-requests.submit', $itAssetRequest));
-
-        $response->assertRedirect(route('it-asset-requests.index'));
-        $response->assertSessionHas('success');
-        $this->assertSame('submitted', $itAssetRequest->fresh()->status);
     }
 }

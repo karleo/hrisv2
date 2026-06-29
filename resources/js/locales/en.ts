@@ -42,7 +42,7 @@ const en = {
     'sidebar.biometricAttendance': 'Biometric attendance',
     'sidebar.attendanceReport': 'Attendance report',
     'sidebar.smtp': 'SMTP',
-    'sidebar.assetValues': 'Asset values',
+    'sidebar.assetValues': 'Models',
     'dashboard.title': 'Dashboard',
     'dashboard.approvalWorkspace': 'Approval workspace',
     'dashboard.pendingOverview': 'Pending requests overview',

@@ -51,9 +51,9 @@ final class DocumentCode
     }
 
     /**
-     * Generates IT Asset Request code in format: PRLIT-YYYY-#### (yearly sequence).
+     * Generates IT Asset code in format: PRLAS-YYYY-#### (yearly sequence).
      */
-    public static function itAssetRequest(?string $date = null): string
+    public static function itAsset(?string $date = null): string
     {
         $year = null;
 
@@ -67,8 +67,8 @@ final class DocumentCode
 
         $year = $year ?: now()->year;
 
-        $next = YearlySequence::next('it_asset_request', $year);
+        $next = YearlySequence::next('it_asset', $year);
 
-        return sprintf('PRLIT-%d-%04d', $year, $next);
+        return sprintf('PRLAS-%d-%04d', $year, $next);
     }
 }

@@ -21,7 +21,8 @@ enum PermissionModule: string
     case LeaveRequests = 'leave_requests';
     case ItRequests = 'it_requests';
     case EmployeeRequests = 'employee_requests';
-    case ItAssetRequests = 'it_asset_requests';
+    case Accessories = 'accessories';
+    case ItAssets = 'it_assets';
     case LeaveCalendar = 'leave_calendar';
     case TimeAttendance = 'time_attendance';
     case BiometricAttendance = 'biometric_attendance';
@@ -50,7 +51,8 @@ enum PermissionModule: string
             self::LeaveRequests => 'Leave requests',
             self::ItRequests => 'IT requests',
             self::EmployeeRequests => 'Employee requests',
-            self::ItAssetRequests => 'IT asset requests',
+            self::ItAssets => 'IT assets',
+            self::Accessories => 'Accessories',
             self::LeaveCalendar => 'Leave calendar',
             self::TimeAttendance => 'Time & attendance',
             self::BiometricAttendance => 'Biometric attendance',

@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Camera, Clock, MapPin, Trash2 } from 'lucide-react';
+import { Camera, Clock, MapPin, Pencil, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { AttendanceCheckInDialog, type WorkModeOption } from '@/components/attendance-check-in-dialog';
@@ -8,8 +8,17 @@ import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { WEEKDAY_LABELS } from '@/components/work-timetable-day-fields';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -93,6 +102,21 @@ function mapsLink(lat: number, lng: number): string {
     return `https://maps.google.com/?q=${lat},${lng}`;
 }
 
+function toDatetimeLocalValue(iso: string | null): string {
+    if (!iso) {
+        return '';
+    }
+
+    const date = new Date(iso);
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function datetimeLocalToServer(value: string): string {
+    return value.replace('T', ' ') + ':00';
+}
+
 export default function TimeAttendanceIndex({
     entries,
     filters,
@@ -100,7 +124,9 @@ export default function TimeAttendanceIndex({
     graceMinutes,
     openEntry,
     canCheckIn,
-    isAdministrator,
+    canManageEntries,
+    canDeleteEntries,
+    canModifyOvertime,
     canChooseEmployee = true,
     employeesForCheckIn,
     workModeOptions,
@@ -115,7 +141,9 @@ export default function TimeAttendanceIndex({
     graceMinutes: number;
     openEntry: OpenEntry | null;
     canCheckIn: boolean;
-    isAdministrator: boolean;
+    canManageEntries: boolean;
+    canDeleteEntries: boolean;
+    canModifyOvertime: boolean;
     canChooseEmployee?: boolean;
     employeesForCheckIn: EmployeeOption[];
     workModeOptions: WorkModeOption[];
@@ -127,11 +155,26 @@ export default function TimeAttendanceIndex({
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
 
-    // Admin check-in form (no dialog — just a dropdown + submit)
-    const [adminEmployeeId, setAdminEmployeeId] = useState<number | ''>(
+    // Manager check-in form (dropdown + optional manual times)
+    const [managerEmployeeId, setManagerEmployeeId] = useState<number | ''>(
         employeesForCheckIn[0]?.id ?? ''
     );
-    const [adminSubmitting, setAdminSubmitting] = useState(false);
+    const [managerClockIn, setManagerClockIn] = useState('');
+    const [managerClockOut, setManagerClockOut] = useState('');
+    const [managerSubmitting, setManagerSubmitting] = useState(false);
+
+    const [editingEntry, setEditingEntry] = useState<TimeEntryRow | null>(null);
+    const [editClockIn, setEditClockIn] = useState('');
+    const [editClockOut, setEditClockOut] = useState('');
+    const [editSummary, setEditSummary] = useState('');
+    const [editSubmitting, setEditSubmitting] = useState(false);
+
+    const [overtimeEntry, setOvertimeEntry] = useState<TimeEntryRow | null>(null);
+    const [overtimeMinutes, setOvertimeMinutes] = useState('');
+    const [overtimeSubmitting, setOvertimeSubmitting] = useState(false);
+
+    const showManagerCheckIn = canManageEntries && employeesForCheckIn.length > 0;
+    const showActionsColumn = canManageEntries || canDeleteEntries || canModifyOvertime;
 
     const filterSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -151,17 +194,77 @@ export default function TimeAttendanceIndex({
         }
     };
 
-    const handleAdminCheckIn = (e: FormEvent) => {
+    const handleManagerCheckIn = (e: FormEvent) => {
         e.preventDefault();
-        if (!adminEmployeeId) {
+        if (!managerEmployeeId) {
             return;
         }
-        setAdminSubmitting(true);
+        setManagerSubmitting(true);
         router.post(
             '/time-attendance',
-            { employee_id: adminEmployeeId },
             {
-                onFinish: () => setAdminSubmitting(false),
+                employee_id: managerEmployeeId,
+                ...(managerClockIn ? { clock_in_at: datetimeLocalToServer(managerClockIn) } : {}),
+                ...(managerClockOut ? { clock_out_at: datetimeLocalToServer(managerClockOut) } : {}),
+            },
+            {
+                onFinish: () => setManagerSubmitting(false),
+            }
+        );
+    };
+
+    const openEditDialog = (row: TimeEntryRow) => {
+        setEditingEntry(row);
+        setEditClockIn(toDatetimeLocalValue(row.clock_in_at));
+        setEditClockOut(toDatetimeLocalValue(row.clock_out_at));
+        setEditSummary(row.daily_summary ?? '');
+    };
+
+    const handleEditSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        if (!editingEntry) {
+            return;
+        }
+
+        setEditSubmitting(true);
+        router.patch(
+            `/time-attendance/${editingEntry.id}`,
+            {
+                clock_in_at: datetimeLocalToServer(editClockIn),
+                clock_out_at: editClockOut ? datetimeLocalToServer(editClockOut) : null,
+                daily_summary: editSummary,
+            },
+            {
+                onFinish: () => {
+                    setEditSubmitting(false);
+                    setEditingEntry(null);
+                },
+            }
+        );
+    };
+
+    const openOvertimeDialog = (row: TimeEntryRow) => {
+        setOvertimeEntry(row);
+        setOvertimeMinutes(String(row.overtime_minutes ?? 0));
+    };
+
+    const handleOvertimeSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        if (!overtimeEntry) {
+            return;
+        }
+
+        setOvertimeSubmitting(true);
+        router.patch(
+            `/time-attendance/${overtimeEntry.id}`,
+            {
+                overtime_minutes: Number(overtimeMinutes),
+            },
+            {
+                onFinish: () => {
+                    setOvertimeSubmitting(false);
+                    setOvertimeEntry(null);
+                },
             }
         );
     };
@@ -238,17 +341,16 @@ export default function TimeAttendanceIndex({
                                 <CardTitle className="text-base">Check in</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {isAdministrator ? (
-                                    // Admins check in for other employees — no dialog needed
-                                    <form onSubmit={handleAdminCheckIn}>
+                                {showManagerCheckIn ? (
+                                    <form onSubmit={handleManagerCheckIn} className="space-y-3">
                                         <div className="grid gap-2">
                                             <Label htmlFor="employee_id">Employee</Label>
                                             <select
                                                 id="employee_id"
                                                 className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-[3px] dark:[color-scheme:dark]"
-                                                value={adminEmployeeId}
+                                                value={managerEmployeeId}
                                                 onChange={(e) =>
-                                                    setAdminEmployeeId(Number(e.target.value))
+                                                    setManagerEmployeeId(Number(e.target.value))
                                                 }
                                                 required
                                             >
@@ -265,12 +367,32 @@ export default function TimeAttendanceIndex({
                                             <InputError message={pageErrors?.employee_id} />
                                             <InputError message={pageErrors?.check_in} />
                                         </div>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <div className="grid gap-1">
+                                                <Label htmlFor="manager_clock_in">Check-in (optional)</Label>
+                                                <Input
+                                                    id="manager_clock_in"
+                                                    type="datetime-local"
+                                                    value={managerClockIn}
+                                                    onChange={(e) => setManagerClockIn(e.target.value)}
+                                                />
+                                                <p className="text-muted-foreground text-xs">Leave blank to use the current time.</p>
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label htmlFor="manager_clock_out">Check-out (optional)</Label>
+                                                <Input
+                                                    id="manager_clock_out"
+                                                    type="datetime-local"
+                                                    value={managerClockOut}
+                                                    onChange={(e) => setManagerClockOut(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
                                         <Button
                                             type="submit"
-                                            className="mt-3"
-                                            disabled={adminSubmitting || !employeesForCheckIn.length}
+                                            disabled={managerSubmitting || !employeesForCheckIn.length}
                                         >
-                                            Check in now
+                                            {managerClockOut ? 'Save attendance' : 'Check in now'}
                                         </Button>
                                     </form>
                                 ) : (
@@ -288,7 +410,7 @@ export default function TimeAttendanceIndex({
                     )}
 
                     {/* Check-out card */}
-                    {openEntry && !isAdministrator && (
+                    {openEntry && !showManagerCheckIn && (
                         <Card className="flex-1">
                             <CardHeader>
                                 <CardTitle className="text-base">Check out</CardTitle>
@@ -369,7 +491,7 @@ export default function TimeAttendanceIndex({
                                             <th className="pb-2 pr-4 font-medium">vs sched.</th>
                                             <th className="pb-2 pr-4 font-medium">Remarks</th>
                                             <th className="pb-2 pr-4 font-medium">Evidence</th>
-                                            {isAdministrator && (
+                                            {showActionsColumn && (
                                                 <th className="pb-2 text-right font-medium">
                                                     Actions
                                                 </th>
@@ -485,18 +607,44 @@ export default function TimeAttendanceIndex({
                                                             && '—'}
                                                     </div>
                                                 </td>
-                                                {isAdministrator && (
+                                                {showActionsColumn && (
                                                     <td className="py-2 text-right">
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-destructive hover:text-destructive"
-                                                            onClick={() => handleDelete(row.id)}
-                                                            aria-label="Delete entry"
-                                                        >
-                                                            <Trash2 className="size-4" />
-                                                        </Button>
+                                                        <div className="flex justify-end gap-1">
+                                                            {canManageEntries && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => openEditDialog(row)}
+                                                                    aria-label="Edit attendance"
+                                                                >
+                                                                    <Pencil className="size-4" />
+                                                                </Button>
+                                                            )}
+                                                            {canModifyOvertime && row.clock_out_at && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => openOvertimeDialog(row)}
+                                                                    aria-label="Edit overtime"
+                                                                >
+                                                                    <Clock className="size-4" />
+                                                                </Button>
+                                                            )}
+                                                            {canDeleteEntries && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-destructive hover:text-destructive"
+                                                                    onClick={() => handleDelete(row.id)}
+                                                                    aria-label="Delete entry"
+                                                                >
+                                                                    <Trash2 className="size-4" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 )}
                                             </tr>
@@ -534,6 +682,94 @@ export default function TimeAttendanceIndex({
                         )}
                     </CardContent>
                 </Card>
+
+                <Dialog open={editingEntry !== null} onOpenChange={(open) => !open && setEditingEntry(null)}>
+                    <DialogContent>
+                        <DialogTitle>Edit attendance</DialogTitle>
+                        <DialogDescription>
+                            Update check-in and check-out times for {editingEntry?.employee_name}.
+                        </DialogDescription>
+                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="edit_clock_in">Check-in</Label>
+                                    <Input
+                                        id="edit_clock_in"
+                                        type="datetime-local"
+                                        value={editClockIn}
+                                        onChange={(e) => setEditClockIn(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="edit_clock_out">Check-out</Label>
+                                    <Input
+                                        id="edit_clock_out"
+                                        type="datetime-local"
+                                        value={editClockOut}
+                                        onChange={(e) => setEditClockOut(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="edit_summary">Daily summary</Label>
+                                <Textarea
+                                    id="edit_summary"
+                                    value={editSummary}
+                                    onChange={(e) => setEditSummary(e.target.value)}
+                                    rows={2}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button type="button" variant="outline">
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button type="submit" disabled={editSubmitting}>
+                                    {editSubmitting ? 'Saving…' : 'Save changes'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={overtimeEntry !== null} onOpenChange={(open) => !open && setOvertimeEntry(null)}>
+                    <DialogContent>
+                        <DialogTitle>Edit overtime</DialogTitle>
+                        <DialogDescription>
+                            Adjust overtime minutes for {overtimeEntry?.employee_name} on{' '}
+                            {overtimeEntry ? new Date(overtimeEntry.clock_in_at).toLocaleDateString() : ''}.
+                        </DialogDescription>
+                        <form onSubmit={handleOvertimeSubmit} className="space-y-4">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="overtime_minutes">Overtime (minutes)</Label>
+                                <Input
+                                    id="overtime_minutes"
+                                    type="number"
+                                    min={0}
+                                    max={1440}
+                                    value={overtimeMinutes}
+                                    onChange={(e) => setOvertimeMinutes(e.target.value)}
+                                    required
+                                />
+                                <p className="text-muted-foreground text-xs">
+                                    Current worked time: {formatMinutes(overtimeEntry?.worked_minutes)}
+                                </p>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button type="button" variant="outline">
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button type="submit" disabled={overtimeSubmitting}>
+                                    {overtimeSubmitting ? 'Saving…' : 'Save overtime'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

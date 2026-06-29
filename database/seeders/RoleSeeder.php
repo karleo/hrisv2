@@ -135,10 +135,10 @@ class RoleSeeder extends Seeder
                 [
                     'can_access' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll || $isReports || $isEmployees || $isLeaveRequests,
                     'can_view' => $isDashboard || $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant || $isPayroll || $isReports || $isEmployees || $isLeaveRequests,
-                    'can_create' => $isEmployeeMessages || $isEmployeeAssistant,
-                    'can_update' => $isEmployeeMessages || $isEmployeeAssistant,
-                    'can_delete' => false,
-                    'can_check_in' => false,
+                    'can_create' => $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_update' => $isTimeAttendance || $isEmployeeMessages || $isEmployeeAssistant,
+                    'can_delete' => $isTimeAttendance,
+                    'can_check_in' => $isTimeAttendance,
                     'can_check_out' => false,
                     // HR Executive can verify attendance (step 1) on Payroll module
                     'can_verify' => $isPayroll,

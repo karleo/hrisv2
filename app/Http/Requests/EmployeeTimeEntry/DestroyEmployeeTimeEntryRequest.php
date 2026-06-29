@@ -2,9 +2,8 @@
 
 namespace App\Http\Requests\EmployeeTimeEntry;
 
-use App\Enums\ModuleAbility;
-use App\Enums\PermissionModule;
 use App\Models\EmployeeTimeEntry;
+use App\Support\AttendanceEntryAuthorization;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DestroyEmployeeTimeEntryRequest extends FormRequest
@@ -15,11 +14,11 @@ class DestroyEmployeeTimeEntryRequest extends FormRequest
         /** @var EmployeeTimeEntry|null $entry */
         $entry = $this->route('employee_time_entry');
 
-        if ($user === null || $entry === null || ! $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::Delete)) {
+        if ($user === null || $entry === null) {
             return false;
         }
 
-        return $user->isAdministrator();
+        return app(AttendanceEntryAuthorization::class)->canDelete($user);
     }
 
     /**

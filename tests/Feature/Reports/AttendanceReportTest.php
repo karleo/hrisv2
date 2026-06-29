@@ -30,7 +30,7 @@ class AttendanceReportTest extends TestCase
 
     public function test_guest_cannot_view_attendance_report(): void
     {
-        $this->get(route('reports.attendance'))->assertRedirect();
+        $this->get(route('attendance-management.index'))->assertRedirect();
     }
 
     public function test_authorized_user_can_generate_attendance_report(): void
@@ -71,13 +71,13 @@ class AttendanceReportTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('reports.attendance', [
+            ->get(route('attendance-management.index', [
                 'from' => '2026-05-25',
                 'to' => '2026-05-25',
             ]))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('reports/attendance-report')
+                ->component('attendance-management/index')
                 ->has('rows.data', 1)
                 ->where('rows.data.0.employee_name', 'Ellen Kautzer')
                 ->where('rows.data.0.clock_in', '10:16:50')
@@ -109,7 +109,7 @@ class AttendanceReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->get(route('reports.attendance', [
+            ->get(route('attendance-management.index', [
                 'from' => '2026-05-20',
                 'to' => '2026-05-20',
                 'export' => 'csv',
@@ -123,6 +123,22 @@ class AttendanceReportTest extends TestCase
     public function test_employee_role_user_report_is_limited_to_own_attendance(): void
     {
         $role = Role::query()->where('slug', 'employee')->firstOrFail();
+        RoleModulePermission::query()->updateOrCreate(
+            [
+                'role_id' => $role->id,
+                'module' => PermissionModule::TimeAttendance,
+            ],
+            [
+                'can_access' => true,
+                'can_view' => true,
+                'can_create' => false,
+                'can_update' => false,
+                'can_delete' => false,
+                'can_check_in' => false,
+                'can_check_out' => false,
+            ],
+        );
+
         RoleModulePermission::query()->updateOrCreate(
             [
                 'role_id' => $role->id,
@@ -177,7 +193,7 @@ class AttendanceReportTest extends TestCase
         }
 
         $this->actingAs($user)
-            ->get(route('reports.attendance', [
+            ->get(route('attendance-management.index', [
                 'from' => '2026-05-25',
                 'to' => '2026-05-25',
             ]))
@@ -191,7 +207,7 @@ class AttendanceReportTest extends TestCase
                 ->where('rows.data.0.employee_name', 'Sharon Mendero'));
 
         $this->actingAs($user)
-            ->get(route('reports.attendance', [
+            ->get(route('attendance-management.index', [
                 'from' => '2026-05-25',
                 'to' => '2026-05-25',
                 'employee_id' => $otherEmployee->id,
@@ -229,7 +245,7 @@ class AttendanceReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->get(route('reports.attendance', [
+            ->get(route('attendance-management.index', [
                 'from' => '2026-05-25',
                 'to' => '2026-05-25',
                 'employee_id' => $employee->id,
@@ -244,6 +260,18 @@ class AttendanceReportTest extends TestCase
     private function userWithReportsAccess(): User
     {
         $role = Role::factory()->create();
+        RoleModulePermission::query()->create([
+            'role_id' => $role->id,
+            'module' => PermissionModule::TimeAttendance,
+            'can_access' => true,
+            'can_view' => true,
+            'can_create' => false,
+            'can_update' => false,
+            'can_delete' => false,
+            'can_check_in' => false,
+            'can_check_out' => false,
+        ]);
+
         RoleModulePermission::query()->create([
             'role_id' => $role->id,
             'module' => PermissionModule::Reports,

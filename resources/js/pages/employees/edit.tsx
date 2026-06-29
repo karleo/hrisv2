@@ -87,32 +87,31 @@ type LeaveConfig = {
     usage: LeaveUsageLineItem[];
 };
 
-type EmployeeAssetHardwareItem = {
-    hardware_id: number | null;
-    hardware_code: string;
-    hardware_name: string;
-    asset_model: string | null;
-    serial_number: string | null;
-    asset_value: string | null;
-    asset_currency: string | null;
-};
-
-type EmployeeAssetTotal = {
-    currency: string;
-    total: string;
-    count: number;
-};
-
-type EmployeeAssetRequest = {
+type EmployeeAssignedAsset = {
+    assignment_id: number;
     id: number;
     code: string;
     url: string;
-    issued_date: string | null;
-    approved_date: string | null;
-    issued_by: string | null;
-    remarks: string | null;
-    hardware_items: EmployeeAssetHardwareItem[];
-    asset_totals: EmployeeAssetTotal[];
+    category: string;
+    name: string;
+    identifier: string | null;
+    assigned_at: string | null;
+    returned_at: string | null;
+    is_active: boolean;
+    assignment_notes: string | null;
+    hardware_name: string | null;
+    software_name: string | null;
+    accessory_name: string | null;
+    asset_model: string | null;
+    asset_value: string | null;
+    asset_currency: string | null;
+    license_key: string | null;
+    expiry_date: string | null;
+    documents: Array<{
+        id: number;
+        original_name: string;
+        url: string;
+    }>;
 };
 
 type EmployeeNavigation = {
@@ -211,6 +210,14 @@ function formatDocumentDate(value: string | null | undefined): string {
     const [, yyyy, mm, dd] = match;
 
     return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatAssetCategory(category: string): string {
+    if (category === 'hardware') {
+        return 'Devices';
+    }
+
+    return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 function formatAssetValue(value: string | null | undefined, currency: string | null | undefined): string {
@@ -319,7 +326,7 @@ export default function Edit({
     activityLogs: ActivityLogEntry[];
     canViewActivityLogs?: boolean;
     leaveConfig: LeaveConfig;
-    asset: EmployeeAssetRequest[];
+    asset: EmployeeAssignedAsset[];
     attendance?: EmployeeAttendance | null;
     employeeNavigation: EmployeeNavigation;
     employeeLoginActive?: boolean | null;
@@ -2191,115 +2198,67 @@ export default function Edit({
                         {asset.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-10 text-center">
                                 <p className="text-sm font-medium text-foreground">
-                                    {t('employees.asset.empty', 'No approved assets found.')}
+                                    {t('employees.asset.empty', 'No asset assignment history found.')}
                                 </p>
                             </div>
                         ) : (
-                            asset.map((assetRequest) => (
-                                <div
-                                    key={assetRequest.id}
-                                    className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
-                                >
-                                    <div className="border-b bg-muted/20 px-5 py-4">
-                                        <div>
-                                            <Link
-                                                href={assetRequest.url}
-                                                className="text-sm font-semibold text-primary hover:underline"
-                                            >
-                                                {assetRequest.code}
-                                            </Link>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                {assetRequest.remarks || 'No remarks'}
-                                            </p>
-                                            {assetRequest.asset_totals.length > 0 ? (
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    {assetRequest.asset_totals.map((total) => (
-                                                        <span
-                                                            key={total.currency}
-                                                            className="rounded-full border bg-background px-3 py-1 text-xs font-semibold text-foreground"
-                                                        >
-                                                            Total {formatAssetValue(total.total, total.currency)}
+                            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b bg-muted/40">
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Code</th>
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Category</th>
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Item</th>
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Identifier</th>
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Assigned</th>
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</th>
+                                            <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Documents</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {asset.map((item) => (
+                                            <tr key={item.assignment_id} className="border-b last:border-0">
+                                                <td className="px-5 py-3">
+                                                    <Link href={item.url} className="font-mono text-xs text-primary hover:underline">{item.code}</Link>
+                                                </td>
+                                                <td className="px-5 py-3">{formatAssetCategory(item.category)}</td>
+                                                <td className="px-5 py-3">{item.name}</td>
+                                                <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{item.identifier ?? '—'}</td>
+                                                <td className="px-5 py-3 text-muted-foreground">{formatDocumentDate(item.assigned_at)}</td>
+                                                <td className="px-5 py-3">
+                                                    {item.is_active ? (
+                                                        <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950 dark:text-blue-200">Active</span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">
+                                                            Returned {item.returned_at ? formatDocumentDate(item.returned_at) : ''}
                                                         </span>
-                                                    ))}
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full min-w-[1200px] text-sm">
-                                            <thead>
-                                                <tr className="border-b bg-muted/40">
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Hardware
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Code
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Model
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Serial Number
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Value
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Issued Date
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Approved Date
-                                                    </th>
-                                                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Issued By
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {assetRequest.hardware_items.length > 0 ? (
-                                                    assetRequest.hardware_items.map((hardwareItem, itemIndex) => (
-                                                        <tr
-                                                            key={`${assetRequest.id}-${hardwareItem.hardware_id ?? 'snapshot'}-${itemIndex}`}
-                                                            className="border-b last:border-0"
-                                                        >
-                                                            <td className="px-5 py-3 font-medium text-foreground">
-                                                                {hardwareItem.hardware_name}
-                                                            </td>
-                                                            <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                                                                {hardwareItem.hardware_code || '—'}
-                                                            </td>
-                                                            <td className="px-5 py-3 text-muted-foreground">
-                                                                {hardwareItem.asset_model || '—'}
-                                                            </td>
-                                                            <td className="px-5 py-3 text-muted-foreground">
-                                                                {hardwareItem.serial_number || '—'}
-                                                            </td>
-                                                            <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                                                                {formatAssetValue(hardwareItem.asset_value, hardwareItem.asset_currency)}
-                                                            </td>
-                                                            <td className="px-5 py-3 text-muted-foreground">
-                                                                {formatDocumentDate(assetRequest.issued_date)}
-                                                            </td>
-                                                            <td className="px-5 py-3 text-muted-foreground">
-                                                                {formatDocumentDate(assetRequest.approved_date)}
-                                                            </td>
-                                                            <td className="px-5 py-3 text-muted-foreground">
-                                                                {assetRequest.issued_by || '—'}
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                ) : (
-                                                    <tr>
-                                                        <td colSpan={8} className="px-5 py-6 text-center text-sm text-muted-foreground">
-                                                            No hardware items found.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            ))
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-3">
+                                                    {item.documents.length === 0 ? (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    ) : (
+                                                        <ul className="space-y-1">
+                                                            {item.documents.map((doc) => (
+                                                                <li key={doc.id}>
+                                                                    <a
+                                                                        href={doc.url}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="text-xs text-primary hover:underline"
+                                                                    >
+                                                                        {doc.original_name}
+                                                                    </a>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
                 ) : null}

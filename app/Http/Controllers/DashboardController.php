@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttendanceWorkMode;
+use App\Enums\ItAssetCategory;
+use App\Enums\ItAssetStatus;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\Department;
 use App\Models\EmployeeRequest;
 use App\Models\EmployeeTimeEntry;
-use App\Models\ItAssetRequest;
+use App\Models\ItAsset;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -110,8 +112,14 @@ class DashboardController extends Controller
         $itPending = ItRequest::query()->where('status', 'submitted');
         $this->approvalScope->scopeVisible($itPending, $user);
 
-        $itAssetPending = ItAssetRequest::query()->where('status', 'submitted');
-        $this->approvalScope->scopeVisible($itAssetPending, $user);
+        $itAssetStats = [
+            'total' => ItAsset::query()->count(),
+            'available' => ItAsset::query()->where('status', ItAssetStatus::Available)->count(),
+            'assigned' => ItAsset::query()->where('status', ItAssetStatus::Assigned)->count(),
+            'hardware' => ItAsset::query()->where('category', ItAssetCategory::Hardware)->count(),
+            'software' => ItAsset::query()->where('category', ItAssetCategory::Software)->count(),
+            'accessory' => ItAsset::query()->where('category', ItAssetCategory::Accessory)->count(),
+        ];
 
         $leaveCalendarWidget = null;
         if ($canViewLeaveCalendar) {
@@ -224,8 +232,8 @@ class DashboardController extends Controller
                 'leave_requests' => $leavePending->count(),
                 'employee_requests' => $employeePending->count(),
                 'it_requests' => $itPending->count(),
-                'it_asset_requests' => $itAssetPending->count(),
             ],
+            'itAssetStats' => $itAssetStats,
             'recentPending' => [
                 'leave_requests' => tap(
                     LeaveRequest::query()
@@ -264,19 +272,6 @@ class DashboardController extends Controller
                     ->map(fn (ItRequest $item) => [
                         'id' => $item->id,
                         'code' => (string) $item->id,
-                        'employee' => trim(($item->employee?->first_name ?? '').' '.($item->employee?->last_name ?? '')),
-                    ]),
-                'it_asset_requests' => tap(
-                    ItAssetRequest::query()
-                        ->where('status', 'submitted')
-                        ->with('employee:id,first_name,last_name'),
-                    fn ($query) => $this->approvalScope->scopeVisible($query, $user)
-                )->latest()
-                    ->limit(5)
-                    ->get()
-                    ->map(fn (ItAssetRequest $item) => [
-                        'id' => $item->id,
-                        'code' => $item->code,
                         'employee' => trim(($item->employee?->first_name ?? '').' '.($item->employee?->last_name ?? '')),
                     ]),
             ],
