@@ -22,6 +22,11 @@ import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useAppearance } from '@/hooks/use-appearance';
 import {
+    formatLiveClockDate,
+    formatLiveClockTime,
+    useLiveClock,
+} from '@/hooks/use-live-clock';
+import {
     useEmployeeMessagesHeaderSync,
     type EmployeeMessagesHeaderData,
 } from '@/hooks/use-employee-messages-header-sync';
@@ -51,6 +56,7 @@ export function AppSidebarHeader({
     const notificationListRef = useNotificationListPointerGuard(
         notificationsMenuOpen,
     );
+    const now = useLiveClock();
     const { resolvedAppearance, updateAppearance } = useAppearance();
     const { t, locale } = useI18n();
 
@@ -148,7 +154,7 @@ export function AppSidebarHeader({
 
     return (
         <header className="sticky top-0 z-30 shrink-0 overflow-x-hidden border-b border-border/70 bg-background/95 px-2 shadow-sm backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 supports-[backdrop-filter]:bg-background/80 sm:px-4 md:px-6">
-            <div className="flex h-14 min-w-0 items-center gap-2 sm:h-16 sm:gap-3">
+            <div className="relative flex h-14 min-w-0 items-center gap-2 sm:h-16 sm:gap-3">
                 <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                     <SidebarTrigger className="-ml-1 shrink-0 text-foreground/80 hover:bg-muted hover:text-foreground" />
                     {pageTitle ? (
@@ -159,6 +165,18 @@ export function AppSidebarHeader({
                     <div className="hidden min-w-0 flex-1 overflow-hidden sm:block [&_[data-slot=breadcrumb-link]]:text-foreground/75 [&_[data-slot=breadcrumb-link]:hover]:text-foreground [&_[data-slot=breadcrumb-list]]:text-foreground/70 [&_[data-slot=breadcrumb-page]]:max-w-[14rem] [&_[data-slot=breadcrumb-page]]:truncate [&_[data-slot=breadcrumb-page]]:font-semibold [&_[data-slot=breadcrumb-page]]:text-foreground md:[&_[data-slot=breadcrumb-page]]:max-w-none [&_[data-slot=breadcrumb-separator]]:text-foreground/45">
                         <Breadcrumbs breadcrumbs={breadcrumbs} />
                     </div>
+                </div>
+                <div
+                    className="pointer-events-none absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 select-none flex-col items-center leading-tight md:flex"
+                    aria-live="polite"
+                    aria-label={`${formatLiveClockTime(now)}, ${formatLiveClockDate(now, locale)}`}
+                >
+                    <span className="text-sm font-semibold text-foreground tabular-nums">
+                        {formatLiveClockTime(now)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                        {formatLiveClockDate(now, locale)}
+                    </span>
                 </div>
                 <div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-xl border border-border/70 bg-card/80 p-0.5 shadow-xs sm:gap-1.5 sm:p-1">
                     <ThemeToggleSwitch
