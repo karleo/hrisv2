@@ -2,7 +2,7 @@ import type { PropsWithChildren } from 'react';
 
 import { cn } from '@/lib/utils';
 
-const LOGIN_ILLUSTRATION = '/images/login-illustration-dubai.png';
+const LOGIN_VIDEO = '/clips/3D_prime.mp4';
 const LOGIN_FORM_PATTERN = '/images/login-form-pattern.png';
 
 export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
@@ -84,9 +84,12 @@ export default function AuthLoginSplitLayout({ children }: PropsWithChildren) {
                                 'dark:bg-[radial-gradient(ellipse_at_30%_22%,rgba(59,91,140,0.2),transparent_55%)] dark:opacity-100',
                             )}
                         />
-                        <img
-                            src={LOGIN_ILLUSTRATION}
-                            alt=""
+                        <video
+                            src={LOGIN_VIDEO}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
                             className={cn(
                                 'relative h-full min-h-[320px] w-full object-cover object-center',
                                 'opacity-100',
