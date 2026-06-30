@@ -195,30 +195,29 @@ export function CompanyProfileDocumentsCard({
     }
 
     return (
-        <div className="grid gap-2 rounded-lg border border-border/80 bg-muted/20 p-4">
+        <div className="grid gap-6">
             <div>
-                <Label className="text-base font-medium">Company Documents</Label>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                     Upload multiple documents with type labels and expiry dates.
                     Expired documents can be archived. Max 10 MB each.
                 </p>
             </div>
 
             {(documents.length > 0) && (
-                <div className="space-y-5">
-                    <div className="space-y-2">
+                <div className="space-y-6">
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold">
                                 Active Documents
                             </h4>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
                                 {activeDocuments.length} item
                                 {activeDocuments.length === 1 ? '' : 's'}
                             </span>
                         </div>
                         {activeDocuments.length > 0 ? (
                             <>
-                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_104px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                <div className="hidden min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_104px] gap-3 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:grid">
                                     <span>Document type</span>
                                     <span>Status</span>
                                     <span>File</span>
@@ -228,7 +227,7 @@ export function CompanyProfileDocumentsCard({
                                 {activeDocuments.map((doc) => (
                                     <div
                                         key={doc.id}
-                                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_104px] items-center gap-3 rounded-md border border-border/70 bg-background px-3 py-2"
+                                        className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 sm:grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_104px] sm:items-center sm:gap-3 sm:p-3"
                                     >
                                         <div className="min-w-0">
                                             <p className="truncate text-xs font-medium text-foreground">
@@ -297,25 +296,25 @@ export function CompanyProfileDocumentsCard({
                                 ))}
                             </>
                         ) : (
-                            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                            <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
                                 No active documents.
                             </div>
                         )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold">
                                 Expired Documents
                             </h4>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                                 {expiredDocuments.length} item
                                 {expiredDocuments.length === 1 ? '' : 's'}
                             </span>
                         </div>
                         {expiredDocuments.length > 0 ? (
                             <>
-                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_120px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                <div className="hidden min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_120px] gap-3 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:grid">
                                     <span>Document type</span>
                                     <span>Status</span>
                                     <span>File</span>
@@ -325,7 +324,7 @@ export function CompanyProfileDocumentsCard({
                                 {expiredDocuments.map((doc) => (
                                     <div
                                         key={doc.id}
-                                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_120px] items-center gap-3 rounded-md border border-amber-200/70 bg-amber-50/30 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-950/20"
+                                        className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-amber-200/70 bg-amber-50/30 p-4 dark:border-amber-900/40 dark:bg-amber-950/20 sm:grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_120px] sm:items-center sm:gap-3 sm:p-3"
                                     >
                                         <div className="min-w-0">
                                             <p className="truncate text-xs font-medium text-foreground">
@@ -386,25 +385,25 @@ export function CompanyProfileDocumentsCard({
                                 ))}
                             </>
                         ) : (
-                            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                            <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
                                 No expired documents.
                             </div>
                         )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold">
                                 Archived History
                             </h4>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
                                 {archivedDocuments.length} item
                                 {archivedDocuments.length === 1 ? '' : 's'}
                             </span>
                         </div>
                         {archivedDocuments.length > 0 ? (
                             <>
-                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_72px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                <div className="hidden min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_72px] gap-3 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:grid">
                                     <span>Document type</span>
                                     <span>Status</span>
                                     <span>File</span>
@@ -414,7 +413,7 @@ export function CompanyProfileDocumentsCard({
                                 {archivedDocuments.map((doc) => (
                                     <div
                                         key={doc.id}
-                                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_72px] items-center gap-3 rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                                        className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-border/70 bg-muted/20 p-4 sm:grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)_140px_72px] sm:items-center sm:gap-3 sm:p-3"
                                     >
                                         <div className="min-w-0">
                                             <p className="truncate text-xs font-medium text-foreground">
@@ -463,7 +462,7 @@ export function CompanyProfileDocumentsCard({
                                 ))}
                             </>
                         ) : (
-                            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                            <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
                                 No archived records yet.
                             </div>
                         )}
@@ -471,23 +470,27 @@ export function CompanyProfileDocumentsCard({
                 </div>
             )}
 
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={addDocumentRow}
-            >
-                <Plus className="mr-2 size-4" />
-                Add document
-            </Button>
+            <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Upload new documents</p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg"
+                        onClick={addDocumentRow}
+                    >
+                        <Plus className="mr-2 size-4" />
+                        Add document
+                    </Button>
+                </div>
 
             {documentRows.length > 0 && (
                 <div className="space-y-3">
                     {documentRows.map((row, index) => (
                         <div
                             key={row.id}
-                            className="space-y-2 rounded-md border border-border bg-muted/30 p-3"
+                            className="space-y-2 rounded-xl border border-border/70 bg-background p-4 shadow-sm"
                         >
                             <div className="grid gap-2 md:grid-cols-[1fr_1fr_180px_auto] md:items-end">
                                 <div className="grid gap-1.5">
@@ -594,6 +597,7 @@ export function CompanyProfileDocumentsCard({
                     No documents uploaded yet.
                 </p>
             ) : null}
+            </div>
         </div>
     );
 }
