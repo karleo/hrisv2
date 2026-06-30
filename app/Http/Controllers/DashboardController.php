@@ -9,12 +9,12 @@ use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Models\Department;
 use App\Models\EmployeeRequest;
-use App\Models\EmployeeTimeEntry;
 use App\Models\ItAsset;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\User;
+use App\Services\EmployeeAttendanceStateService;
 use App\Support\CompanyAccessScope;
 use App\Support\RequestApprovalScope;
 use Carbon\Carbon;
@@ -27,6 +27,7 @@ class DashboardController extends Controller
     public function __construct(
         private readonly RequestApprovalScope $approvalScope,
         private readonly CompanyAccessScope $companyScope,
+        private readonly EmployeeAttendanceStateService $attendanceState,
     ) {}
 
     /**
@@ -50,11 +51,7 @@ class DashboardController extends Controller
                 || $user->isAdministrator()
             );
 
-        $openEntry = EmployeeTimeEntry::query()
-            ->where('employee_id', $employee->id)
-            ->whereNull('clock_out_at')
-            ->latest('clock_in_at')
-            ->first();
+        $openEntry = $this->attendanceState->resolveOpenAttendance($employee);
 
         if ($openEntry !== null) {
             // Already checked in — cannot check in again until checked out
@@ -72,15 +69,7 @@ class DashboardController extends Controller
 
         return [
             'can_check_in' => $canCheckIn,
-            'open_entry' => $openEntry
-                ? [
-                    'id' => $openEntry->id,
-                    'clock_in_at' => $openEntry->clock_in_at->toIso8601String(),
-                    'work_mode' => $openEntry->work_mode?->value,
-                    'work_mode_label' => $openEntry->workModeLabel(),
-                    'requires_field_evidence' => $openEntry->requiresFieldEvidence(),
-                ]
-                : null,
+            'open_entry' => $openEntry,
             'work_mode_options' => $workModeOptions,
         ];
     }

@@ -371,42 +371,79 @@ export function AppSidebar() {
             icon: CalendarDays,
         } satisfies NavItem;
 
-        let withLeaveCalendar = items;
+        const myProfileItem = {
+            title: t('sidebar.myProfile', 'My Profile'),
+            description: 'View your employee information',
+            href: '/my-profile',
+            icon: UserRound,
+        } satisfies NavItem;
+
+        let withPersonalItems = items;
         if (auth?.has_leave_calendar_access) {
             const dashboardIndex = items.findIndex(
                 (item) => hrefToUrl(item.href) === dashboard().url,
             );
             if (dashboardIndex >= 0) {
-                withLeaveCalendar = [
+                withPersonalItems = [
                     ...items.slice(0, dashboardIndex + 1),
                     leaveCalendarItem,
                     ...items.slice(dashboardIndex + 1),
                 ];
             } else {
-                withLeaveCalendar = [leaveCalendarItem, ...items];
+                withPersonalItems = [leaveCalendarItem, ...items];
+            }
+        }
+
+        if (auth?.has_my_profile_access) {
+            const dashboardIndex = withPersonalItems.findIndex(
+                (item) => hrefToUrl(item.href) === dashboard().url,
+            );
+            const leaveCalendarIndex = withPersonalItems.findIndex(
+                (item) => hrefToUrl(item.href) === '/leave-calendar',
+            );
+            const insertAfterIndex =
+                leaveCalendarIndex >= 0
+                    ? leaveCalendarIndex
+                    : dashboardIndex >= 0
+                      ? dashboardIndex
+                      : -1;
+
+            if (insertAfterIndex >= 0) {
+                withPersonalItems = [
+                    ...withPersonalItems.slice(0, insertAfterIndex + 1),
+                    myProfileItem,
+                    ...withPersonalItems.slice(insertAfterIndex + 1),
+                ];
+            } else {
+                withPersonalItems = [myProfileItem, ...withPersonalItems];
             }
         }
 
         const messageHref = '/employee-messages';
         const dashboardHref = dashboard().url;
         const leaveCalendarHref = '/leave-calendar';
+        const myProfileHref = '/my-profile';
 
-        const messageItem = withLeaveCalendar.find(
+        const messageItem = withPersonalItems.find(
             (item) => hrefToUrl(item.href) === messageHref,
         );
-        const dashboardItem = withLeaveCalendar.find(
+        const dashboardItem = withPersonalItems.find(
             (item) => hrefToUrl(item.href) === dashboardHref,
         );
-        const leaveCalendar = withLeaveCalendar.find(
+        const leaveCalendar = withPersonalItems.find(
             (item) => hrefToUrl(item.href) === leaveCalendarHref,
         );
+        const myProfile = withPersonalItems.find(
+            (item) => hrefToUrl(item.href) === myProfileHref,
+        );
 
-        const remaining = withLeaveCalendar.filter((item) => {
+        const remaining = withPersonalItems.filter((item) => {
             const href = hrefToUrl(item.href);
             return (
                 href !== messageHref &&
                 href !== dashboardHref &&
-                href !== leaveCalendarHref
+                href !== leaveCalendarHref &&
+                href !== myProfileHref
             );
         });
 
@@ -414,11 +451,13 @@ export function AppSidebar() {
             ...(messageItem ? [messageItem] : []),
             ...(dashboardItem ? [dashboardItem] : []),
             ...(leaveCalendar ? [leaveCalendar] : []),
+            ...(myProfile ? [myProfile] : []),
             ...remaining,
         ];
     }, [
         modulePermissions,
         auth?.has_leave_calendar_access,
+        auth?.has_my_profile_access,
         t,
     ]);
 

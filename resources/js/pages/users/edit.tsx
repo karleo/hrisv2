@@ -129,11 +129,13 @@ function UserEditForm({
     userFace,
     roles,
     employees,
+    faceLoginEnabled = false,
 }: {
     user: UserEdit;
     userFace: UserFace;
     roles: RoleOption[];
     employees: EmployeeOption[];
+    faceLoginEnabled?: boolean;
 }) {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] =
@@ -569,6 +571,7 @@ function UserEditForm({
                                 </p>
                             </div>
 
+                            {faceLoginEnabled ? (
                             <div className="border-border space-y-4 border-t pt-6">
                                 <p className="text-sm font-medium text-foreground">
                                     Face sign-in{' '}
@@ -672,6 +675,7 @@ function UserEditForm({
                                     </>
                                 ) : null}
                             </div>
+                            ) : null}
                         </CardContent>
                         <CardFooter className="mt-auto flex flex-wrap gap-3 border-t pt-6">
                             <Button
@@ -701,11 +705,13 @@ export default function Edit({
     userFace,
     roles,
     employees,
+    faceLoginEnabled = false,
 }: {
     user: UserEdit;
     userFace: UserFace;
     roles: RoleOption[];
     employees: EmployeeOption[];
+    faceLoginEnabled?: boolean;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Users', href: '/users' },
@@ -727,6 +733,7 @@ export default function Edit({
                 userFace={userFace}
                 roles={roles}
                 employees={employees}
+                faceLoginEnabled={faceLoginEnabled}
             />
         </AppLayout>
     );

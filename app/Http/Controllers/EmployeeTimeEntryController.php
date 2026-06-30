@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\WorkTimetableDay;
 use App\Services\AttendanceClassificationService;
 use App\Services\AttendanceDurationService;
+use App\Services\EmployeeAttendanceStateService;
 use App\Support\AttendanceEntryAuthorization;
 use App\Support\CompanyAccessScope;
 use App\Support\PublicStorageUrl;
@@ -34,6 +35,7 @@ class EmployeeTimeEntryController extends Controller
         private readonly CompanyAccessScope $companyScope,
         private readonly RequestFormEmployeeSelection $requestFormEmployees,
         private readonly AttendanceEntryAuthorization $attendanceAuth,
+        private readonly EmployeeAttendanceStateService $attendanceState,
     ) {}
 
     /**
@@ -138,11 +140,7 @@ class EmployeeTimeEntryController extends Controller
                 )->values()->all();
             }
 
-            $openEntry = EmployeeTimeEntry::query()
-                ->where('employee_id', $user->employee->id)
-                ->whereNull('clock_out_at')
-                ->latest('clock_in_at')
-                ->first();
+            $openEntry = $this->attendanceState->resolveOpenAttendance($user->employee);
 
             $canCheckIn = $user->employee->hasUsableWorkTimetable()
                 && $openEntry === null
@@ -192,15 +190,7 @@ class EmployeeTimeEntryController extends Controller
             'filters' => $request->only(['from', 'to']),
             'workSchedule' => $workSchedule,
             'graceMinutes' => (int) config('attendance.grace_minutes', 5),
-            'openEntry' => $openEntry
-                ? [
-                    'id' => $openEntry->id,
-                    'clock_in_at' => $openEntry->clock_in_at->toIso8601String(),
-                    'work_mode' => $openEntry->work_mode?->value,
-                    'work_mode_label' => $openEntry->workModeLabel(),
-                    'requires_field_evidence' => $openEntry->requiresFieldEvidence(),
-                ]
-                : null,
+            'openEntry' => $openEntry,
             'canCheckIn' => $canCheckIn,
             'canManageEntries' => $canManageEntries,
             'canDeleteEntries' => $canDeleteEntries,
@@ -242,7 +232,7 @@ class EmployeeTimeEntryController extends Controller
             ]);
         }
 
-        if (EmployeeTimeEntry::query()->where('employee_id', $employee->id)->whereNull('clock_out_at')->exists()) {
+        if ($this->attendanceState->hasOpenAttendance($employee)) {
             return back()->withErrors([
                 'check_in' => 'An open check-in already exists for this employee. Check out first.',
             ]);
@@ -306,36 +296,37 @@ class EmployeeTimeEntryController extends Controller
             ]);
         }
 
-        $entry = EmployeeTimeEntry::query()
-            ->where('employee_id', $user->employee->id)
-            ->whereNull('clock_out_at')
-            ->latest('clock_in_at')
-            ->first();
-
-        if ($entry === null) {
+        try {
+            $entry = $this->attendanceState->completeCheckout($user->employee, $data);
+        } catch (\RuntimeException) {
             return back()->withErrors([
                 'check_out' => 'No open check-in to complete.',
             ]);
         }
 
-        // Store check-out photo if provided
-        $photoPath = null;
-        if ($request->hasFile('check_out_photo')) {
-            $photoPath = $request->file('check_out_photo')
+        if ($entry->isOpen()) {
+            // Store check-out photo if provided
+            $photoPath = null;
+            if ($request->hasFile('check_out_photo')) {
+                $photoPath = $request->file('check_out_photo')
+                    ->store("employees/{$user->employee->id}/attendance/{$entry->id}", 'public');
+            }
+
+            $dailySummary = isset($data['daily_summary']) ? trim((string) $data['daily_summary']) : null;
+            if ($dailySummary === '') {
+                $dailySummary = null;
+            }
+
+            $entry->clock_out_at = now();
+            $entry->daily_summary = $dailySummary;
+            $entry->check_out_photo_path = $photoPath;
+            $entry->check_out_latitude = $data['check_out_latitude'] ?? null;
+            $entry->check_out_longitude = $data['check_out_longitude'] ?? null;
+            $entry->check_out_remarks = isset($data['check_out_remarks']) ? (trim((string) $data['check_out_remarks']) ?: null) : null;
+        } elseif ($request->hasFile('check_out_photo')) {
+            $entry->check_out_photo_path = $request->file('check_out_photo')
                 ->store("employees/{$user->employee->id}/attendance/{$entry->id}", 'public');
         }
-
-        $dailySummary = isset($data['daily_summary']) ? trim((string) $data['daily_summary']) : null;
-        if ($dailySummary === '') {
-            $dailySummary = null;
-        }
-
-        $entry->clock_out_at = now();
-        $entry->daily_summary = $dailySummary;
-        $entry->check_out_photo_path = $photoPath;
-        $entry->check_out_latitude = $data['check_out_latitude'] ?? null;
-        $entry->check_out_longitude = $data['check_out_longitude'] ?? null;
-        $entry->check_out_remarks = isset($data['check_out_remarks']) ? (trim((string) $data['check_out_remarks']) ?: null) : null;
 
         // Compute and persist worked hours and overtime
         $entry->calculateAndPersistWorkedTime(app(AttendanceDurationService::class));

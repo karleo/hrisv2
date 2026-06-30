@@ -34,6 +34,7 @@ const en = {
     'sidebar.users': 'Users',
     'sidebar.roles': 'Roles',
     'sidebar.leaveCalendar': 'Leave Calendar',
+    'sidebar.myProfile': 'My Profile',
     'sidebar.payroll': 'Payroll',
     'sidebar.periodVerification': 'Period verification',
     'sidebar.compensation': 'Employee compensation',

@@ -34,6 +34,7 @@ const ar = {
     'sidebar.users': 'المستخدمون',
     'sidebar.roles': 'الأدوار',
     'sidebar.leaveCalendar': 'تقويم الإجازات',
+    'sidebar.myProfile': 'ملفي الشخصي',
     'sidebar.payroll': 'الرواتب',
     'sidebar.periodVerification': 'التحقق من الفترة',
     'sidebar.compensation': 'رواتب الموظفين',

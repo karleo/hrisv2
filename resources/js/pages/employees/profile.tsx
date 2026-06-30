@@ -1,10 +1,24 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Building2, Briefcase, CheckCircle2, Clock, Download, Eye, KeyRound, Mail, MapPin, Phone, User } from 'lucide-react';
-import { useState } from 'react';
+import {
+    Building2,
+    Briefcase,
+    CalendarDays,
+    Clock,
+    Download,
+    Eye,
+    FileText,
+    HeartPulse,
+    KeyRound,
+    Mail,
+    MapPin,
+    Phone,
+    Shield,
+    User,
+} from 'lucide-react';
+import { type ComponentType, type ReactNode, useMemo, useState } from 'react';
 import { EmployeeAttendanceTab } from '@/components/employee-attendance-tab';
 import { EmployeeEmailSignatureCard } from '@/components/employee-email-signature-card';
 import InputError from '@/components/input-error';
-import MultiAngleFaceProfileField, { type FaceProfileFiles } from '@/components/multi-angle-face-profile-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { useI18n } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
 type Department = {
@@ -91,13 +106,6 @@ type Employee = {
     emergency_contact_phone?: string | null;
 };
 
-type FaceLoginInfo = {
-    enabled: boolean;
-    enrolled_at: string | null;
-    provider: string | null;
-    angles: string[];
-};
-
 type EmployeeDocument = {
     id: number;
     name: string;
@@ -112,6 +120,21 @@ type EmployeeDocument = {
     status?: 'active' | 'expired' | 'archived' | string | null;
     version_number?: number | null;
 };
+
+type LocalDocumentPreview = {
+    name: string;
+    url: string;
+    html?: string;
+    excelHtml?: string;
+    csvRows?: string[][];
+    note?: string;
+};
+
+const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
+const MAX_EXCEL_PREVIEW_ROWS = 120;
+const MAX_EXCEL_PREVIEW_COLUMNS = 24;
+
+type ProfileTab = 'profile' | 'security' | 'employment' | 'documents' | 'leave' | 'attendance';
 
 function formatDateDdMmYyyy(value: string | null | undefined): string {
     if (!value) {
@@ -183,31 +206,74 @@ type EmailSignaturePreviewPayload = {
     phone: string | null;
 };
 
-type LocalDocumentPreview = {
-    name: string;
-    url: string;
-    html?: string;
-    excelHtml?: string;
-    csvRows?: string[][];
-    note?: string;
-};
+function displayValue(value: string | null | undefined): string {
+    if (!value || value.trim() === '') {
+        return '—';
+    }
 
-const emptyFaceProfile = (): FaceProfileFiles => ({
-    front: null,
-    left: null,
-    right: null,
-});
+    return value;
+}
 
-const MAX_PREVIEW_PARSE_BYTES = 6 * 1024 * 1024;
-const MAX_EXCEL_PREVIEW_ROWS = 120;
-const MAX_EXCEL_PREVIEW_COLUMNS = 24;
+function ProfileSection({
+    title,
+    description,
+    children,
+    className,
+}: {
+    title: string;
+    description?: string;
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <section
+            className={cn(
+                'overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm',
+                className,
+            )}
+        >
+            <div className="border-b border-border/60 bg-muted/20 px-5 py-4 md:px-6">
+                <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+                {description ? (
+                    <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
+                ) : null}
+            </div>
+            <div className="grid gap-5 p-5 sm:grid-cols-2 md:px-6 md:py-5 xl:grid-cols-3">
+                {children}
+            </div>
+        </section>
+    );
+}
 
-type ProfileTab = 'profile' | 'security' | 'employment' | 'documents' | 'leave' | 'attendance';
+function ProfileField({
+    label,
+    value,
+    icon: Icon,
+    className,
+}: {
+    label: string;
+    value: ReactNode;
+    icon?: ComponentType<{ className?: string }>;
+    className?: string;
+}) {
+    return (
+        <div className={cn('space-y-1.5', className)}>
+            <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                {label}
+            </p>
+            <p className="inline-flex items-start gap-2 text-sm font-medium text-foreground">
+                {Icon ? (
+                    <Icon className="mt-0.5 size-4 shrink-0 text-primary/70" />
+                ) : null}
+                <span className="min-w-0 break-words">{value}</span>
+            </p>
+        </div>
+    );
+}
 
 export default function EmployeeProfile({
     employee,
     attendance,
-    faceLogin,
     leaveConfig,
     hasEmployeeProfile,
     emailSignatureCompanyProfile,
@@ -215,7 +281,6 @@ export default function EmployeeProfile({
 }: {
     employee: Employee | null;
     attendance: AttendancePayload | null;
-    faceLogin: FaceLoginInfo;
     leaveConfig: LeaveConfig;
     hasEmployeeProfile: boolean;
     emailSignatureCompanyProfile: EmailSignatureCompanyProfilePayload | null;
@@ -242,9 +307,6 @@ export default function EmployeeProfile({
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Profile', href: '/my-profile' },
     ];
-    const [showFaceSetup, setShowFaceSetup] = useState(false);
-    const [faceSaving, setFaceSaving] = useState(false);
-    const [faceProfile, setFaceProfile] = useState<FaceProfileFiles>(emptyFaceProfile);
     const [previewDocument, setPreviewDocument] = useState<EmployeeDocument | null>(null);
     const [previewLocalDocument, setPreviewLocalDocument] = useState<LocalDocumentPreview | null>(null);
     const activeDocuments = (employee?.documents ?? []).filter((doc) => (doc.status ?? 'active') === 'active');
@@ -252,21 +314,44 @@ export default function EmployeeProfile({
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const { props } = usePage<{
         flash?: { success?: string; error?: string };
-        errors?: Record<string, string>;
         auth?: { user?: { name?: string; email?: string } };
     }>();
-    const errors = props.errors ?? {};
     const passwordForm = useForm({
         current_password: '',
         password: '',
         password_confirmation: '',
     });
-    const faceProfileComplete = Boolean(faceProfile.front && faceProfile.left && faceProfile.right);
-    const processing = faceSaving;
-    const enrolledAtLabel = faceLogin.enrolled_at ? new Date(faceLogin.enrolled_at).toLocaleString() : null;
-    const enrolledAngles = faceLogin.angles.length > 0 ? faceLogin.angles.join(', ') : 'front, left, right';
     const authUserName = props.auth?.user?.name ?? '—';
     const authUserEmail = props.auth?.user?.email ?? '—';
+
+    const profileTabs = useMemo(() => {
+        const tabs: Array<{
+            id: ProfileTab;
+            label: string;
+            icon: ComponentType<{ className?: string }>;
+        }> = [
+            { id: 'profile', label: 'Profile', icon: User },
+            { id: 'security', label: 'Security', icon: Shield },
+            {
+                id: 'employment',
+                label: t('profile.employmentTab', 'Employment'),
+                icon: Briefcase,
+            },
+        ];
+
+        if (hasEmployeeProfile) {
+            tabs.push(
+                { id: 'documents', label: 'Documents', icon: FileText },
+                { id: 'leave', label: 'Leave', icon: CalendarDays },
+            );
+
+            if (showAttendanceTab) {
+                tabs.push({ id: 'attendance', label: 'Attendance', icon: Clock });
+            }
+        }
+
+        return tabs;
+    }, [hasEmployeeProfile, showAttendanceTab, t]);
 
     function formatLeaveDays(value: number | null | undefined): string {
         if (value === null || value === undefined || Number.isNaN(value)) {
@@ -537,86 +622,105 @@ export default function EmployeeProfile({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Profile" />
 
-            <div className="flex min-h-screen flex-col bg-muted/30 px-4 py-8 md:px-8">
-                <div className="mx-auto w-full max-w-5xl space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
-                        <p className="text-muted-foreground mt-1">
-                            {hasEmployeeProfile
-                                ? 'View your information from Employee Master.'
-                                : 'View your account profile information.'}
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 rounded-xl border bg-card p-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={tab === 'profile' ? 'default' : 'outline'}
-                            className="rounded-lg"
-                            onClick={() => setTab('profile')}
-                        >
-                            Profile
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={tab === 'security' ? 'default' : 'outline'}
-                            className="rounded-lg"
-                            onClick={() => setTab('security')}
-                        >
-                            Security
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={tab === 'employment' ? 'default' : 'outline'}
-                            className="rounded-lg"
-                            onClick={() => setTab('employment')}
-                        >
-                            {t('profile.employmentTab', 'Employment')}
-                        </Button>
-                        {hasEmployeeProfile ? (
-                            <>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={tab === 'documents' ? 'default' : 'outline'}
-                                    className="rounded-lg"
-                                    onClick={() => setTab('documents')}
-                                >
-                                    Documents
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={tab === 'leave' ? 'default' : 'outline'}
-                                    className="rounded-lg"
-                                    onClick={() => setTab('leave')}
-                                >
-                                    Leave
-                                </Button>
-                                {showAttendanceTab ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant={tab === 'attendance' ? 'default' : 'outline'}
-                                        className="rounded-lg"
-                                        onClick={() => setTab('attendance')}
-                                    >
-                                        Attendance
-                                    </Button>
-                                ) : null}
-                            </>
+            <div className="flex h-full flex-1 flex-col gap-5 p-4 md:p-6 lg:p-8">
+                <section className="overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shadow-sm dark:border-slate-700/70 dark:from-slate-800/90 dark:via-slate-800/45 dark:to-transparent">
+                    <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-6">
+                        <div className="flex min-w-0 items-center gap-4">
+                            {hasEmployeeProfile && employee ? (
+                                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm md:size-20">
+                                    {employee.photo_url ? (
+                                        <img
+                                            src={employee.photo_url}
+                                            alt="Employee photo"
+                                            className="size-full object-cover"
+                                        />
+                                    ) : (
+                                        <User className="size-8 text-muted-foreground md:size-10" />
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/80 shadow-sm md:size-20">
+                                    <User className="size-8 text-primary md:size-10" />
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <p className="text-muted-foreground text-xs font-medium tracking-[0.16em] uppercase">
+                                    Employee profile
+                                </p>
+                                <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight md:text-3xl">
+                                    {hasEmployeeProfile && employee
+                                        ? `${employee.first_name} ${employee.last_name}`
+                                        : 'My Profile'}
+                                </h1>
+                                <p className="text-muted-foreground mt-1 text-sm">
+                                    {hasEmployeeProfile && employee
+                                        ? `${employee.employee_code} · ${employee.job_position?.name ?? 'Employee'}`
+                                        : hasEmployeeProfile
+                                          ? 'View your information from Employee Master.'
+                                          : 'View your account profile information.'}
+                                </p>
+                            </div>
+                        </div>
+                        {hasEmployeeProfile && employee ? (
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur-sm">
+                                    <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        Department
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold">
+                                        {employee.department?.name ?? '—'}
+                                    </p>
+                                </div>
+                                <div className="rounded-xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur-sm">
+                                    <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        Company
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold">
+                                        {employee.company_profile?.company_name ?? '—'}
+                                    </p>
+                                </div>
+                                <div className="rounded-xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur-sm">
+                                    <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        Timetable
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold">
+                                        {employee.work_timetable?.name ?? '—'}
+                                    </p>
+                                </div>
+                            </div>
                         ) : null}
                     </div>
+                </section>
 
-                    <div className={`grid gap-6 ${hasEmployeeProfile ? 'md:grid-cols-[220px_1fr]' : ''} ${tab === 'profile' ? '' : 'hidden'}`}>
+                <nav className="overflow-x-auto rounded-2xl border border-border bg-card/90 p-2 shadow-sm backdrop-blur-sm">
+                    <div className="flex min-w-max gap-2">
+                        {profileTabs.map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => setTab(id)}
+                                className={cn(
+                                    'inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all',
+                                    tab === id
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
+                                )}
+                            >
+                                <Icon className="size-4" />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+
+                <div className="min-h-0 flex-1 space-y-6">
+                    <div className={cn('space-y-6', tab === 'profile' ? '' : 'hidden')}>
                         {hasEmployeeProfile && employee ? (
-                            <>
-                                <Card>
-                                    <CardContent className="flex flex-col items-center gap-3 p-6">
-                                        <div className="flex size-28 items-center justify-center overflow-hidden rounded-full border bg-muted">
+                            <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+                                <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm xl:sticky xl:top-6 xl:self-start">
+                                    <div className="h-1.5 bg-gradient-to-r from-primary/80 via-primary/50 to-transparent" />
+                                    <div className="flex flex-col items-center gap-4 p-6">
+                                        <div className="relative flex aspect-square w-full max-w-[220px] items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-muted/20 shadow-sm">
                                             {employee.photo_url ? (
                                                 <img
                                                     src={employee.photo_url}
@@ -624,289 +728,212 @@ export default function EmployeeProfile({
                                                     className="size-full object-cover"
                                                 />
                                             ) : (
-                                                <User className="size-10 text-muted-foreground" />
+                                                <User className="size-12 text-muted-foreground" />
                                             )}
                                         </div>
-                                        <div className="text-center">
-                                            <p className="font-semibold">{employee.first_name} {employee.last_name}</p>
-                                            <p className="text-muted-foreground text-sm">{employee.employee_code}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">Employee Information</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Full Name</p>
-                                            <p className="font-medium">{employee.first_name} {employee.last_name}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Employee Code</p>
-                                            <p className="font-medium">{employee.employee_code}</p>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Email</p>
-                                            <p className="inline-flex items-center gap-2 font-medium">
-                                                <Mail className="size-4 text-muted-foreground" />
-                                                {employee.email_address}
+                                        <div className="w-full rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-center">
+                                            <p className="text-lg font-bold tracking-tight">
+                                                {employee.first_name} {employee.last_name}
                                             </p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Contact Number</p>
-                                            <p className="inline-flex items-center gap-2 font-medium">
-                                                <Phone className="size-4 text-muted-foreground" />
-                                                {employee.contact_number ?? '—'}
+                                            <p className="text-muted-foreground mt-1 text-sm">
+                                                {employee.employee_code}
                                             </p>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Department</p>
-                                            <p className="inline-flex items-center gap-2 font-medium">
-                                                <Building2 className="size-4 text-muted-foreground" />
-                                                {employee.department?.name ?? '—'}
-                                            </p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Job Position</p>
-                                            <p className="inline-flex items-center gap-2 font-medium">
-                                                <Briefcase className="size-4 text-muted-foreground" />
+                                            <p className="text-muted-foreground mt-1 text-sm">
                                                 {employee.job_position?.name ?? '—'}
                                             </p>
                                         </div>
+                                    </div>
+                                </div>
 
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Work Timetable</p>
-                                            <p className="inline-flex items-center gap-2 font-medium">
-                                                <Clock className="size-4 text-muted-foreground" />
-                                                {employee.work_timetable?.name ?? '—'}
-                                            </p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Company</p>
-                                            <p className="font-medium">{employee.company_profile?.company_name ?? '—'}</p>
-                                        </div>
+                                <div className="space-y-6">
+                                    <ProfileSection
+                                        title="Contact & identity"
+                                        description="Primary contact details and employee identifiers."
+                                    >
+                                        <ProfileField
+                                            label="Full name"
+                                            value={`${employee.first_name} ${employee.last_name}`}
+                                            icon={User}
+                                        />
+                                        <ProfileField
+                                            label="Employee code"
+                                            value={employee.employee_code}
+                                        />
+                                        <ProfileField
+                                            label="Email"
+                                            value={employee.email_address}
+                                            icon={Mail}
+                                        />
+                                        <ProfileField
+                                            label="Contact number"
+                                            value={displayValue(employee.contact_number)}
+                                            icon={Phone}
+                                        />
+                                        <ProfileField
+                                            label="Phone"
+                                            value={displayValue(employee.phone)}
+                                            icon={Phone}
+                                        />
+                                        <ProfileField
+                                            label="Mobile"
+                                            value={displayValue(employee.mobile)}
+                                            icon={Phone}
+                                        />
+                                    </ProfileSection>
 
-                                        <div className="space-y-1 sm:col-span-2">
-                                            <p className="text-muted-foreground text-xs">Address</p>
-                                            <p className="inline-flex items-center gap-2 font-medium">
-                                                <MapPin className="size-4 text-muted-foreground" />
-                                                {[employee.address_1, employee.address_2].filter(Boolean).join(', ') || '—'}
-                                            </p>
-                                        </div>
+                                    <ProfileSection
+                                        title="Work details"
+                                        description="Your role, department, and schedule."
+                                    >
+                                        <ProfileField
+                                            label="Department"
+                                            value={displayValue(employee.department?.name)}
+                                            icon={Building2}
+                                        />
+                                        <ProfileField
+                                            label="Job position"
+                                            value={displayValue(employee.job_position?.name)}
+                                            icon={Briefcase}
+                                        />
+                                        <ProfileField
+                                            label="Work timetable"
+                                            value={displayValue(employee.work_timetable?.name)}
+                                            icon={Clock}
+                                        />
+                                        <ProfileField
+                                            label="Company"
+                                            value={displayValue(employee.company_profile?.company_name)}
+                                            icon={Building2}
+                                        />
+                                        <ProfileField
+                                            label="Address"
+                                            value={displayValue(
+                                                [employee.address_1, employee.address_2]
+                                                    .filter(Boolean)
+                                                    .join(', '),
+                                            )}
+                                            icon={MapPin}
+                                            className="sm:col-span-2 xl:col-span-3"
+                                        />
+                                    </ProfileSection>
 
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Phone</p>
-                                            <p className="font-medium">{employee.phone ?? '—'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Mobile</p>
-                                            <p className="font-medium">{employee.mobile ?? '—'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Date of Birth</p>
-                                            <p className="font-medium">{employee.date_of_birth ?? '—'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Gender</p>
-                                            <p className="font-medium">{employee.gender ?? '—'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Marital Status</p>
-                                            <p className="font-medium">{employee.marital_status ?? '—'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-muted-foreground text-xs">Emergency Contact Name</p>
-                                            <p className="font-medium">{employee.emergency_contact_name ?? '—'}</p>
-                                        </div>
-                                        <div className="space-y-1 sm:col-span-2">
-                                            <p className="text-muted-foreground text-xs">Emergency Contact Phone</p>
-                                            <p className="font-medium">{employee.emergency_contact_phone ?? '—'}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </>
+                                    <ProfileSection
+                                        title="Personal details"
+                                        description="Personal information on file."
+                                    >
+                                        <ProfileField
+                                            label="Date of birth"
+                                            value={displayValue(employee.date_of_birth)}
+                                        />
+                                        <ProfileField
+                                            label="Gender"
+                                            value={displayValue(employee.gender)}
+                                        />
+                                        <ProfileField
+                                            label="Marital status"
+                                            value={displayValue(employee.marital_status)}
+                                        />
+                                    </ProfileSection>
+
+                                    <ProfileSection
+                                        title="Emergency contact"
+                                        description="Who to reach in case of emergency."
+                                    >
+                                        <ProfileField
+                                            label="Contact name"
+                                            value={displayValue(employee.emergency_contact_name)}
+                                            icon={HeartPulse}
+                                        />
+                                        <ProfileField
+                                            label="Contact phone"
+                                            value={displayValue(employee.emergency_contact_phone)}
+                                            icon={Phone}
+                                        />
+                                    </ProfileSection>
+                                </div>
+                            </div>
                         ) : (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">Account Information</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-                                    <div className="space-y-1">
-                                        <p className="text-muted-foreground text-xs">Name</p>
-                                        <p className="font-medium">{authUserName}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-muted-foreground text-xs">Email</p>
-                                        <p className="font-medium">{authUserEmail}</p>
-                                    </div>
-                                    <div className="space-y-1 sm:col-span-2">
-                                        <p className="text-muted-foreground text-xs">Note</p>
-                                        <p className="text-muted-foreground">
-                                            No employee profile is linked to this account. Security settings are available under the Security tab.
-                                        </p>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <ProfileSection
+                                title="Account information"
+                                description="No employee profile is linked to this account."
+                            >
+                                <ProfileField label="Name" value={authUserName} icon={User} />
+                                <ProfileField label="Email" value={authUserEmail} icon={Mail} />
+                                <div className="sm:col-span-2 xl:col-span-3">
+                                    <p className="text-muted-foreground rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-sm">
+                                        Security settings are available under the Security tab.
+                                    </p>
+                                </div>
+                            </ProfileSection>
                         )}
                     </div>
 
-                    <Card className={tab === 'security' && hasEmployeeProfile ? '' : 'hidden'}>
-                        <CardHeader>
-                            <CardTitle>Account Security</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Keep your account secure by updating your password regularly.
-                            </p>
-                            <Button type="button" variant="outline" onClick={() => setPasswordDialogOpen(true)}>
-                                <KeyRound className="mr-2 size-4" />
-                                Change password
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card className={tab === 'security' ? '' : 'hidden'}>
-                        <CardHeader>
-                            <CardTitle>Face Login</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div
-                                className={`rounded-lg border px-3 py-2 text-sm ${
-                                    faceLogin.enabled
-                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-100'
-                                        : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100'
-                                }`}
-                            >
-                                <p className="inline-flex items-center gap-2 font-medium">
-                                    <CheckCircle2 className="size-4" aria-hidden />
-                                    {faceLogin.enabled ? 'Face login is enabled.' : 'Face login is disabled.'}
+                    <div className={cn(tab === 'security' ? '' : 'hidden')}>
+                        <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
+                            <div className="h-1 bg-gradient-to-r from-primary/70 to-transparent" />
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <KeyRound className="size-4 text-primary" />
+                                    Account security
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-muted-foreground text-sm">
+                                    Keep your account secure by updating your password regularly.
                                 </p>
-                                <p className="mt-1 text-xs opacity-90">
-                                    {faceLogin.enabled
-                                        ? `Angles: ${enrolledAngles}. ${
-                                              faceLogin.provider ? `Provider: ${faceLogin.provider}. ` : ''
-                                          }${enrolledAtLabel ? `Enrolled at: ${enrolledAtLabel}.` : ''}`
-                                        : 'Enable and capture front, left, and right angles to use face login.'}
-                                </p>
-                            </div>
-
-                            {props.flash?.success ? (
-                                <p
-                                    role="status"
-                                    className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100"
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setPasswordDialogOpen(true)}
                                 >
-                                    {props.flash.success}
-                                </p>
-                            ) : null}
-                            {props.flash?.error ? (
-                                <p
-                                    role="alert"
-                                    className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-                                >
-                                    {props.flash.error}
-                                </p>
-                            ) : null}
-
-                            <div className="rounded-lg border border-border p-4">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            Set up face login now?
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            Choose "Not now" to skip. You can always set it up later.
-                                        </p>
-                                    </div>
-                                    <div className="inline-flex rounded-lg border border-border bg-muted/30 p-1">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={showFaceSetup ? 'ghost' : 'default'}
-                                            className="rounded-md"
-                                            onClick={() => {
-                                                setShowFaceSetup(false);
-                                                setFaceProfile(emptyFaceProfile());
-                                            }}
-                                            disabled={processing}
-                                        >
-                                            Not now
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={showFaceSetup ? 'default' : 'ghost'}
-                                            className="rounded-md"
-                                            onClick={() => setShowFaceSetup(true)}
-                                            disabled={processing}
-                                        >
-                                            Set up now
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {faceLogin.enabled ? (
-                                    <p className="mt-3 text-xs text-muted-foreground">
-                                        To disable face login, contact an administrator.
-                                    </p>
-                                ) : null}
-                            </div>
-
-                            {showFaceSetup ? (
-                                <div className="space-y-3 rounded-lg border p-3">
-                                    <MultiAngleFaceProfileField
-                                        value={faceProfile}
-                                        onChange={setFaceProfile}
-                                        disabled={processing}
-                                        errors={{
-                                            face_capture_front: errors.face_capture_front,
-                                            face_capture_left: errors.face_capture_left,
-                                            face_capture_right: errors.face_capture_right,
-                                        }}
-                                    />
-                                    <InputError message={errors.face_capture_front} />
-                                    <Button
-                                        type="button"
-                                        disabled={!faceProfileComplete || processing}
-                                        onClick={() => {
-                                            router.post('/my-profile/face-login', {
-                                                forceFormData: true,
-                                                face_capture_front: faceProfile.front,
-                                                face_capture_left: faceProfile.left,
-                                                face_capture_right: faceProfile.right,
-                                            }, {
-                                                onStart: () => setFaceSaving(true),
-                                                onFinish: () => setFaceSaving(false),
-                                                onSuccess: () => {
-                                                    setShowFaceSetup(false);
-                                                    setFaceProfile(emptyFaceProfile());
-                                                },
-                                            });
-                                        }}
-                                    >
-                                        Save face login
-                                    </Button>
-                                </div>
-                            ) : null}
-                        </CardContent>
-                    </Card>
-
-                    <div className={tab === 'employment' ? '' : 'hidden'}>
-                        <EmployeeEmailSignatureCard
-                            fullName={emailSignaturePreview.fullName}
-                            designation={emailSignaturePreview.designation}
-                            email={emailSignaturePreview.email}
-                            phone={emailSignaturePreview.phone}
-                            companyProfile={emailSignatureCompanyProfile}
-                        />
+                                    <KeyRound className="mr-2 size-4" />
+                                    Change password
+                                </Button>
+                            </CardContent>
+                        </Card>
                     </div>
 
-                    <Card className={tab === 'documents' && hasEmployeeProfile ? '' : 'hidden'}>
+                    <div
+                        className={cn(
+                            'overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm',
+                            tab === 'employment' ? '' : 'hidden',
+                        )}
+                    >
+                        <div className="border-b border-border/60 bg-muted/20 px-5 py-4 md:px-6">
+                            <h3 className="flex items-center gap-2 text-sm font-semibold">
+                                <Briefcase className="size-4 text-primary" />
+                                {t('profile.employmentTab', 'Employment')}
+                            </h3>
+                            <p className="text-muted-foreground mt-0.5 text-xs">
+                                Email signature and employment branding.
+                            </p>
+                        </div>
+                        <div className="p-5 md:p-6">
+                            <EmployeeEmailSignatureCard
+                                fullName={emailSignaturePreview.fullName}
+                                designation={emailSignaturePreview.designation}
+                                email={emailSignaturePreview.email}
+                                phone={emailSignaturePreview.phone}
+                                companyProfile={emailSignatureCompanyProfile}
+                            />
+                        </div>
+                    </div>
+
+                    <Card
+                        className={cn(
+                            'overflow-hidden rounded-2xl border-border/80 shadow-sm',
+                            tab === 'documents' && hasEmployeeProfile ? '' : 'hidden',
+                        )}
+                    >
+                        <div className="h-1 bg-gradient-to-r from-primary/70 to-transparent" />
                         <CardHeader>
-                            <CardTitle>Documents</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <FileText className="size-4 text-primary" />
+                                Documents
+                            </CardTitle>
+                            <p className="text-muted-foreground text-sm">
+                                Active files and document history on your employee record.
+                            </p>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {(employee?.documents?.length ?? 0) === 0 ? (
@@ -921,15 +948,15 @@ export default function EmployeeProfile({
                                             </span>
                                         </div>
                                         {activeDocuments.length > 0 ? (
-                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_120px] gap-3 rounded-xl bg-muted/30 px-4 py-2.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                                                 <span>Document type</span>
                                                 <span>Status</span>
-                                                <span>Expiry Date</span>
+                                                <span>Expiry date</span>
                                                 <span className="text-right">Actions</span>
                                             </div>
                                         ) : null}
                                         {activeDocuments.length > 0 ? activeDocuments.map((doc) => (
-                                            <div key={doc.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] items-center gap-3 rounded-md border p-3">
+                                            <div key={doc.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_120px] items-center gap-3 rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm transition-colors hover:bg-muted/20">
                                                 <div className="min-w-0">
                                                     <p className="truncate font-medium">{doc.document_type?.name ?? doc.name}</p>
                                                     <p className="text-muted-foreground truncate text-xs">{doc.original_name}</p>
@@ -982,15 +1009,15 @@ export default function EmployeeProfile({
                                             </span>
                                         </div>
                                         {historicalDocuments.length > 0 ? (
-                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] gap-3 px-3 text-[11px] font-medium text-muted-foreground">
+                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_120px] gap-3 rounded-xl bg-muted/30 px-4 py-2.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                                                 <span>Document type</span>
                                                 <span>Status</span>
-                                                <span>Expiry Date</span>
+                                                <span>Expiry date</span>
                                                 <span className="text-right">Actions</span>
                                             </div>
                                         ) : null}
                                         {historicalDocuments.length > 0 ? historicalDocuments.map((doc) => (
-                                            <div key={doc.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_104px] items-center gap-3 rounded-md border bg-muted/20 p-3">
+                                            <div key={doc.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_190px_140px_120px] items-center gap-3 rounded-xl border border-border/70 bg-muted/15 p-4">
                                                 <div className="min-w-0">
                                                     <p className="truncate font-medium">{doc.document_type?.name ?? doc.name}</p>
                                                     <p className="text-muted-foreground truncate text-xs">{doc.original_name}</p>
@@ -1039,71 +1066,92 @@ export default function EmployeeProfile({
                         </CardContent>
                     </Card>
 
-                    <Card className={tab === 'leave' && hasEmployeeProfile ? '' : 'hidden'}>
+                    <Card
+                        className={cn(
+                            'overflow-hidden rounded-2xl border-border/80 shadow-sm',
+                            tab === 'leave' && hasEmployeeProfile ? '' : 'hidden',
+                        )}
+                    >
+                        <div className="h-1 bg-gradient-to-r from-primary/70 to-transparent" />
                         <CardHeader>
-                            <CardTitle>Leave Policy</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <CalendarDays className="size-4 text-primary" />
+                                Leave policy
+                            </CardTitle>
+                            <p className="text-muted-foreground text-sm">
+                                Your balance summary and approved leave usage.
+                            </p>
                         </CardHeader>
-                        <CardContent className="space-y-5">
-                            <div className="grid gap-3 sm:grid-cols-3">
-                                <div className="rounded-lg border border-border bg-muted/20 p-4">
-                                    <p className="text-xs text-muted-foreground">Opening Balance</p>
-                                    <p className="mt-1 text-2xl font-semibold">
-                                        {formatLeaveDays(leaveConfig.openingBalance)} days
+                        <CardContent className="space-y-6">
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 shadow-sm">
+                                    <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        Opening balance
+                                    </p>
+                                    <p className="mt-2 text-3xl font-bold tracking-tight">
+                                        {formatLeaveDays(leaveConfig.openingBalance)}
+                                        <span className="text-muted-foreground ml-1 text-base font-medium">days</span>
                                     </p>
                                 </div>
-                                <div className="rounded-lg border border-border bg-muted/20 p-4">
-                                    <p className="text-xs text-muted-foreground">Approved Leave Used</p>
-                                    <p className="mt-1 text-2xl font-semibold">
-                                        {formatLeaveDays(leaveConfig.approvedDaysUsed)} days
+                                <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 shadow-sm">
+                                    <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        Approved leave used
+                                    </p>
+                                    <p className="mt-2 text-3xl font-bold tracking-tight">
+                                        {formatLeaveDays(leaveConfig.approvedDaysUsed)}
+                                        <span className="text-muted-foreground ml-1 text-base font-medium">days</span>
                                     </p>
                                 </div>
-                                <div className="rounded-lg border border-emerald-300/50 bg-emerald-50/60 p-4 dark:border-emerald-700/50 dark:bg-emerald-950/20">
-                                    <p className="text-xs text-muted-foreground">Live Remaining Balance</p>
-                                    <p className="mt-1 text-2xl font-semibold">
-                                        {formatLeaveDays(leaveConfig.liveRemainingBalance)} days
+                                <div className="rounded-2xl border border-emerald-300/50 bg-gradient-to-br from-emerald-50/80 to-emerald-100/30 p-5 shadow-sm dark:border-emerald-700/50 dark:from-emerald-950/30 dark:to-emerald-900/10">
+                                    <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        Live remaining balance
+                                    </p>
+                                    <p className="mt-2 text-3xl font-bold tracking-tight text-emerald-700 dark:text-emerald-300">
+                                        {formatLeaveDays(leaveConfig.liveRemainingBalance)}
+                                        <span className="text-muted-foreground ml-1 text-base font-medium">days</span>
                                     </p>
                                 </div>
                             </div>
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-semibold">Leave Usage</h4>
-                                    <span className="text-xs text-muted-foreground">Approved requests only</span>
+                                    <h4 className="text-sm font-semibold">Leave usage</h4>
+                                    <span className="text-muted-foreground text-xs">Approved requests only</span>
                                 </div>
-                                <div className="overflow-hidden rounded-lg border border-border">
-                                    <div className="max-h-80 overflow-auto">
+                                <div className="overflow-hidden rounded-2xl border border-border/80 shadow-sm">
+                                    <div className="max-h-[28rem] overflow-auto">
                                         <table className="w-full text-sm">
-                                            <thead className="bg-muted/40 text-left">
+                                            <thead className="sticky top-0 z-10 bg-muted/60 text-left backdrop-blur-sm">
                                                 <tr>
-                                                    <th className="px-3 py-2 font-medium">Leave Type</th>
-                                                    <th className="px-3 py-2 font-medium">Category</th>
-                                                    <th className="px-3 py-2 font-medium">From</th>
-                                                    <th className="px-3 py-2 font-medium">To</th>
-                                                    <th className="px-3 py-2 font-medium">Days</th>
-                                                    <th className="px-3 py-2 font-medium">Status</th>
+                                                    <th className="px-4 py-3 font-semibold">Leave type</th>
+                                                    <th className="px-4 py-3 font-semibold">Category</th>
+                                                    <th className="px-4 py-3 font-semibold">From</th>
+                                                    <th className="px-4 py-3 font-semibold">To</th>
+                                                    <th className="px-4 py-3 font-semibold">Days</th>
+                                                    <th className="px-4 py-3 font-semibold">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {leaveConfig.usage.length > 0 ? (
                                                     leaveConfig.usage.map((item) => (
-                                                        <tr key={item.id} className="border-t border-border/70">
-                                                            <td className="px-3 py-2">{item.leave_type}</td>
-                                                            <td className="px-3 py-2">
-                                                                <span className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium">
+                                                        <tr key={item.id} className="border-t border-border/70 hover:bg-muted/20">
+                                                            <td className="px-4 py-3">{item.leave_type}</td>
+                                                            <td className="px-4 py-3">
+                                                                <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium">
                                                                     {item.leave_category === 'unpaid'
                                                                         ? 'Unpaid'
                                                                         : 'Paid'}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-2">{item.period_from ?? '—'}</td>
-                                                            <td className="px-3 py-2">{item.period_to ?? '—'}</td>
-                                                            <td className="px-3 py-2">
+                                                            <td className="px-4 py-3">{item.period_from ?? '—'}</td>
+                                                            <td className="px-4 py-3">{item.period_to ?? '—'}</td>
+                                                            <td className="px-4 py-3">
                                                                 {item.days !== null
                                                                     ? formatLeaveDays(item.days)
                                                                     : '—'}
                                                             </td>
-                                                            <td className="px-3 py-2">
-                                                                <span className="inline-flex rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                                                            <td className="px-4 py-3">
+                                                                <span className="inline-flex rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-200">
                                                                     Approved
                                                                 </span>
                                                             </td>
@@ -1113,7 +1161,7 @@ export default function EmployeeProfile({
                                                     <tr>
                                                         <td
                                                             colSpan={6}
-                                                            className="px-3 py-4 text-center text-muted-foreground"
+                                                            className="text-muted-foreground px-4 py-8 text-center"
                                                         >
                                                             No approved leave usage yet.
                                                         </td>
@@ -1127,23 +1175,25 @@ export default function EmployeeProfile({
                         </CardContent>
                     </Card>
 
-                    {tab === 'attendance' && showAttendanceTab && employee ? (
-                        attendance ? (
-                            <EmployeeAttendanceTab
-                                employeeId={employee.id}
-                                attendance={attendance}
-                                viewMode
-                                context="my-profile"
-                            />
-                        ) : (
-                            <Card>
-                                <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                                    Attendance data is not available. Reload this page or contact HR if the issue
-                                    persists.
-                                </CardContent>
-                            </Card>
-                        )
-                    ) : null}
+                    <div className={cn('space-y-4', tab === 'attendance' && showAttendanceTab ? '' : 'hidden')}>
+                        {employee ? (
+                            attendance ? (
+                                <EmployeeAttendanceTab
+                                    employeeId={employee.id}
+                                    attendance={attendance}
+                                    viewMode
+                                    context="my-profile"
+                                />
+                            ) : (
+                                <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
+                                    <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                                        Attendance data is not available. Reload this page or contact HR if the issue
+                                        persists.
+                                    </CardContent>
+                                </Card>
+                            )
+                        ) : null}
+                    </div>
                 </div>
             </div>
 

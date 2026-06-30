@@ -4,7 +4,7 @@ namespace App\Http\Requests\EmployeeTimeEntry;
 
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
-use App\Models\EmployeeTimeEntry;
+use App\Services\EmployeeAttendanceStateService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -84,12 +84,7 @@ class CheckOutEmployeeTimeEntryRequest extends FormRequest
             return false;
         }
 
-        $entry = EmployeeTimeEntry::query()
-            ->where('employee_id', $user->employee->id)
-            ->whereNull('clock_out_at')
-            ->latest('clock_in_at')
-            ->first();
-
-        return $entry?->requiresFieldEvidence() ?? false;
+        return app(EmployeeAttendanceStateService::class)
+            ->openEntryRequiresFieldEvidence($user->employee);
     }
 }

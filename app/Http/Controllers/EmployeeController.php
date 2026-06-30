@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Contracts\FaceVerificationContract;
-use App\Enums\FaceProfileAngle;
 use App\Enums\ModuleAbility;
 use App\Enums\PermissionModule;
 use App\Http\Requests\Employee\ImportEmployeesRequest;
@@ -36,7 +34,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -46,7 +43,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class EmployeeController extends Controller
 {
     public function __construct(
-        private readonly FaceVerificationContract $faceVerification,
         private readonly CompanyAccessScope $companyScope,
     ) {}
 
@@ -173,69 +169,7 @@ class EmployeeController extends Controller
                     ];
                 })->values()->all(),
             ],
-            'faceLogin' => [
-                'enabled' => $user->face_enrolled_at !== null || (is_array($user->face_profile) && $user->face_profile !== []),
-                'enrolled_at' => $user->face_enrolled_at?->toIso8601String(),
-                'provider' => $user->face_provider,
-                'angles' => array_values(array_filter(
-                    array_keys(is_array($user->face_profile) ? $user->face_profile : []),
-                    static fn (mixed $value): bool => in_array($value, array_map(
-                        static fn (FaceProfileAngle $angle): string => $angle->value,
-                        FaceProfileAngle::ordered(),
-                    ), true),
-                )),
-            ],
         ]);
-    }
-
-    public function updateProfileFaceLogin(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        if ($user === null) {
-            abort(403);
-        }
-
-        $employee = Employee::query()->where('user_id', $user->id)->first();
-        if ($employee === null) {
-            abort(403);
-        }
-
-        $imagesByAngle = [];
-        foreach (FaceProfileAngle::ordered() as $angle) {
-            $field = 'face_capture_'.$angle->value;
-            $file = $request->file($field);
-            if ($file === null || ! $file->isValid()) {
-                throw ValidationException::withMessages([
-                    $field => __('Please capture :angle angle before saving.', ['angle' => $angle->value]),
-                ]);
-            }
-            $imagesByAngle[$angle->value] = $file;
-        }
-
-        $this->faceVerification->enrollProfile($user, $imagesByAngle);
-
-        return back()->with('success', 'Face login enabled for your profile.');
-    }
-
-    public function destroyProfileFaceLogin(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        if ($user === null) {
-            abort(403);
-        }
-
-        if (! $user->isAdministrator()) {
-            abort(403);
-        }
-
-        $employee = Employee::query()->where('user_id', $user->id)->first();
-        if ($employee === null) {
-            abort(403);
-        }
-
-        $this->faceVerification->deleteReference($user);
-
-        return back()->with('success', 'Face login disabled for your profile.');
     }
 
     public function updateProfile(UpdateProfileRequest $request): RedirectResponse

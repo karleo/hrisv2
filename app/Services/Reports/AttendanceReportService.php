@@ -445,6 +445,30 @@ final class AttendanceReportService
         return $rows;
     }
 
+    public function openBiometricClockInForEmployeeOnDate(Employee $employee, Carbon $date): ?Carbon
+    {
+        $dateString = $date->toDateString();
+
+        $punches = BiometricPunch::query()
+            ->where('employee_id', $employee->id)
+            ->where('punched_at', '>=', $dateString.' 00:00:00')
+            ->where('punched_at', '<=', $dateString.' 23:59:59')
+            ->orderBy('punched_at')
+            ->get();
+
+        if ($punches->isEmpty()) {
+            return null;
+        }
+
+        [$clockIn, $clockOut] = $this->resolveClockTimes($punches->all());
+
+        if ($clockIn === null || $clockOut !== null) {
+            return null;
+        }
+
+        return Carbon::parse($dateString.' '.$clockIn, config('app.timezone'));
+    }
+
     /**
      * @param  list<BiometricPunch>  $dayPunches  Chronologically ordered punches for one employee/PIN and date.
      * @return array{0: string|null, 1: string|null}

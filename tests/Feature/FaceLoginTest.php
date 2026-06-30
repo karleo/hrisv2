@@ -20,6 +20,7 @@ class FaceLoginTest extends TestCase
     {
         parent::setUp();
         $this->withoutMiddleware(ValidateCsrfToken::class);
+        config()->set('face-login.enabled', true);
     }
 
     private function canonicalFaceBytes(): string

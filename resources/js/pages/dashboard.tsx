@@ -116,7 +116,9 @@ function toIsoDate(date: Date): string {
 }
 
 type AttendanceOpenEntry = {
-    id: number;
+    source: 'manual' | 'biometric';
+    id: number | null;
+    biometric_session_id: number | null;
     clock_in_at: string;
     work_mode: string | null;
     work_mode_label: string;
