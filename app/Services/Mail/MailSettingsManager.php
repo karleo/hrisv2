@@ -50,6 +50,21 @@ class MailSettingsManager
         return (bool) ($payload['workflow_email_enabled'] ?? false);
     }
 
+    public function isDocumentExpiryEmailEnabled(): bool
+    {
+        $payload = $this->resolved();
+
+        return (bool) ($payload['document_expiry_email_enabled'] ?? false);
+    }
+
+    public function documentExpiryNotifyDays(): int
+    {
+        $payload = $this->resolved();
+        $days = $payload['document_expiry_notify_days'] ?? MailSetting::DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS;
+
+        return max(1, (int) $days);
+    }
+
     public function transportMode(): string
     {
         $payload = $this->resolved();
@@ -85,7 +100,7 @@ class MailSettingsManager
     }
 
     /**
-     * @return array{mail_enabled: bool, workflow_email_enabled: bool, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
+     * @return array{mail_enabled: bool, workflow_email_enabled: bool, document_expiry_email_enabled: bool, document_expiry_notify_days: int, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
      */
     public function resolved(): array
     {
@@ -96,7 +111,7 @@ class MailSettingsManager
 
     /**
      * @param  array<string, mixed>  $override
-     * @return array{mail_enabled: bool, workflow_email_enabled: bool, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
+     * @return array{mail_enabled: bool, workflow_email_enabled: bool, document_expiry_email_enabled: bool, document_expiry_notify_days: int, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
      */
     public function resolvedWithOverride(array $override): array
     {
@@ -137,6 +152,8 @@ class MailSettingsManager
         return [
             'mail_enabled' => $normalized['mail_enabled'] ?? $base['mail_enabled'],
             'workflow_email_enabled' => $normalized['workflow_email_enabled'] ?? $base['workflow_email_enabled'],
+            'document_expiry_email_enabled' => $normalized['document_expiry_email_enabled'] ?? $base['document_expiry_email_enabled'],
+            'document_expiry_notify_days' => $normalized['document_expiry_notify_days'] ?? $base['document_expiry_notify_days'],
             'transport_mode' => $normalized['transport_mode'] ?? $base['transport_mode'],
             'source' => 'override',
             'mail' => $mail,
@@ -178,7 +195,7 @@ class MailSettingsManager
 
     /**
      * @param  array<string, mixed>  $override
-     * @return array{mail_enabled: bool, workflow_email_enabled: bool, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
+     * @return array{mail_enabled: bool, workflow_email_enabled: bool, document_expiry_email_enabled: bool, document_expiry_notify_days: int, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
      */
     public function applyOverride(array $override): array
     {
@@ -189,7 +206,7 @@ class MailSettingsManager
     }
 
     /**
-     * @return array{mail_enabled: bool, workflow_email_enabled: bool, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
+     * @return array{mail_enabled: bool, workflow_email_enabled: bool, document_expiry_email_enabled: bool, document_expiry_notify_days: int, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
      */
     private function resolveUncached(): array
     {
@@ -228,6 +245,8 @@ class MailSettingsManager
             return [
                 'mail_enabled' => (bool) $settings->mail_enabled,
                 'workflow_email_enabled' => (bool) $settings->workflow_email_enabled,
+                'document_expiry_email_enabled' => (bool) $settings->document_expiry_email_enabled,
+                'document_expiry_notify_days' => max(1, (int) ($settings->document_expiry_notify_days ?? MailSetting::DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS)),
                 'transport_mode' => $transportMode,
                 'source' => 'database',
                 'mail' => [
@@ -254,13 +273,15 @@ class MailSettingsManager
     }
 
     /**
-     * @return array{mail_enabled: bool, workflow_email_enabled: bool, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
+     * @return array{mail_enabled: bool, workflow_email_enabled: bool, document_expiry_email_enabled: bool, document_expiry_notify_days: int, transport_mode: string, source: string, mail: array<string, mixed>, graph: array<string, mixed>|null}
      */
     private function fallbackPayload(): array
     {
         return [
             'mail_enabled' => true,
             'workflow_email_enabled' => false,
+            'document_expiry_email_enabled' => false,
+            'document_expiry_notify_days' => MailSetting::DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS,
             'transport_mode' => 'smtp',
             'source' => 'env',
             'mail' => [
@@ -276,7 +297,7 @@ class MailSettingsManager
 
     /**
      * @param  array<string, mixed>  $override
-     * @return array{mail_enabled: bool|null, workflow_email_enabled: bool|null, transport_mode: string|null, graph_tenant_id: string|null, graph_client_id: string|null, graph_client_secret: string|null, graph_sender: string|null, host: string|null, port: int|null, encryption: string|null, username: string|null, password: string|null, timeout: int|null, from_address: string|null, from_name: string|null}
+     * @return array{mail_enabled: bool|null, workflow_email_enabled: bool|null, document_expiry_email_enabled: bool|null, document_expiry_notify_days: int|null, transport_mode: string|null, graph_tenant_id: string|null, graph_client_id: string|null, graph_client_secret: string|null, graph_sender: string|null, host: string|null, port: int|null, encryption: string|null, username: string|null, password: string|null, timeout: int|null, from_address: string|null, from_name: string|null}
      */
     private function normalizeOverride(array $override): array
     {
@@ -285,6 +306,12 @@ class MailSettingsManager
             : null;
         $workflowEmailEnabled = array_key_exists('workflow_email_enabled', $override)
             ? (bool) $override['workflow_email_enabled']
+            : null;
+        $documentExpiryEmailEnabled = array_key_exists('document_expiry_email_enabled', $override)
+            ? (bool) $override['document_expiry_email_enabled']
+            : null;
+        $documentExpiryNotifyDays = isset($override['document_expiry_notify_days']) && $override['document_expiry_notify_days'] !== ''
+            ? max(1, (int) $override['document_expiry_notify_days'])
             : null;
         $port = isset($override['port']) && $override['port'] !== ''
             ? (int) $override['port']
@@ -298,6 +325,8 @@ class MailSettingsManager
         return [
             'mail_enabled' => $mailEnabled,
             'workflow_email_enabled' => $workflowEmailEnabled,
+            'document_expiry_email_enabled' => $documentExpiryEmailEnabled,
+            'document_expiry_notify_days' => $documentExpiryNotifyDays,
             'transport_mode' => isset($override['transport_mode']) && $override['transport_mode'] !== '' ? (string) $override['transport_mode'] : null,
             'graph_tenant_id' => isset($override['graph_tenant_id']) && $override['graph_tenant_id'] !== '' ? (string) $override['graph_tenant_id'] : null,
             'graph_client_id' => isset($override['graph_client_id']) && $override['graph_client_id'] !== '' ? (string) $override['graph_client_id'] : null,

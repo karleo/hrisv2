@@ -23,6 +23,8 @@ type Preset = {
 type SettingsPayload = {
     mail_enabled: boolean;
     workflow_email_enabled: boolean;
+    document_expiry_email_enabled: boolean;
+    document_expiry_notify_days: number;
     transport_mode: 'smtp' | 'graph';
     provider_preset: string;
     host: string;
@@ -62,6 +64,8 @@ export default function SmtpSettings({
     const form = useForm({
         mail_enabled: settings.mail_enabled,
         workflow_email_enabled: settings.workflow_email_enabled,
+        document_expiry_email_enabled: settings.document_expiry_email_enabled,
+        document_expiry_notify_days: settings.document_expiry_notify_days,
         transport_mode: settings.transport_mode || 'smtp',
         provider_preset: settings.provider_preset || 'custom',
         host: settings.host || '',
@@ -167,6 +171,36 @@ export default function SmtpSettings({
                                     Controls only request workflow emails (Leave, IT, IT Asset, Employee requests).
                                 </p>
                             </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="document_expiry_email_enabled"
+                                checked={form.data.document_expiry_email_enabled}
+                                onCheckedChange={(checked) => form.setData('document_expiry_email_enabled', checked === true)}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="document_expiry_email_enabled">Enable document expiry emails</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Sends email alerts when employee documents are nearing or past their expiry date.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="grid max-w-xs gap-2">
+                            <Label htmlFor="document_expiry_notify_days">Notify days before expiry</Label>
+                            <Input
+                                id="document_expiry_notify_days"
+                                type="number"
+                                min={1}
+                                max={365}
+                                value={form.data.document_expiry_notify_days}
+                                onChange={(event) =>
+                                    form.setData('document_expiry_notify_days', Number(event.target.value))
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Daily reminders start this many days before the document expiry date. Default is 30 days.
+                            </p>
+                            <InputError message={form.errors.document_expiry_notify_days} />
                         </div>
 
                         <div className="grid gap-2">
