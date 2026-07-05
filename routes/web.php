@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AccessoryController;
+use App\Http\Controllers\AttendanceManagementController;
 use App\Http\Controllers\Biometric\BiometricAttendanceController;
 use App\Http\Controllers\BiometricSettingController;
 use App\Http\Controllers\CompanyProfileController;
@@ -16,7 +18,7 @@ use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\EmployeeTimeEntryController;
 use App\Http\Controllers\HardwareAssetValueController;
 use App\Http\Controllers\HardwareController;
-use App\Http\Controllers\ItAssetRequestController;
+use App\Http\Controllers\ItAssetController;
 use App\Http\Controllers\ItRequestController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\LeaveCalendarController;
@@ -30,7 +32,7 @@ use App\Http\Controllers\Payroll\PayDeductionTypeController;
 use App\Http\Controllers\Payroll\PayrollPeriodVerificationController;
 use App\Http\Controllers\Payroll\PayrollRunController;
 use App\Http\Controllers\Payroll\PayslipController;
-use App\Http\Controllers\Reports\AttendanceReportController;
+use App\Http\Controllers\Reports\ItAssetInventoryReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\UserController;
@@ -74,8 +76,6 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employees.import');
     Route::get('my-profile', [EmployeeController::class, 'profile'])->name('my-profile.show');
     Route::patch('my-profile', [EmployeeController::class, 'updateProfile'])->name('my-profile.update');
-    Route::post('my-profile/face-login', [EmployeeController::class, 'updateProfileFaceLogin'])->name('my-profile.face-login.update');
-    Route::delete('my-profile/face-login', [EmployeeController::class, 'destroyProfileFaceLogin'])->name('my-profile.face-login.destroy');
     Route::post('my-profile/documents', [EmployeeController::class, 'uploadProfileDocument'])->name('my-profile.documents.store');
     Route::delete('my-profile/documents/{employee_document}', [EmployeeController::class, 'destroyProfileDocument'])->name('my-profile.documents.destroy');
     Route::get('my-profile/documents/{employee_document}/view', [EmployeeController::class, 'showProfileDocument'])->name('my-profile.documents.show');
@@ -135,8 +135,14 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::post('time-attendance/check-out', [EmployeeTimeEntryController::class, 'checkOut'])
         ->name('time-attendance.check-out');
 
+    Route::get('attendance-management', [AttendanceManagementController::class, 'index'])
+        ->name('attendance-management.index');
+
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('attendance', [AttendanceReportController::class, 'index'])->name('attendance');
+        Route::get('attendance', fn () => redirect()->route('attendance-management.index', request()->query()))
+            ->name('attendance');
+        Route::get('it-asset-inventory', [ItAssetInventoryReportController::class, 'index'])
+            ->name('it-asset-inventory');
     });
 
     Route::prefix('payroll')->name('payroll.')->group(function () {
@@ -166,12 +172,17 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
             ->name('period-verifications.verify-overtime');
         Route::post('period-verifications/{period_verification}/reopen', [PayrollPeriodVerificationController::class, 'reopen'])
             ->name('period-verifications.reopen');
+        Route::delete('period-verifications/{period_verification}', [PayrollPeriodVerificationController::class, 'destroy'])
+            ->name('period-verifications.destroy');
 
         Route::get('runs', [PayrollRunController::class, 'index'])->name('runs.index');
         Route::post('runs', [PayrollRunController::class, 'store'])->name('runs.store');
         Route::get('runs/{run}', [PayrollRunController::class, 'show'])->name('runs.show');
         Route::post('runs/{run}/approve', [PayrollRunController::class, 'approve'])->name('runs.approve');
         Route::post('runs/{run}/mark-paid', [PayrollRunController::class, 'markPaid'])->name('runs.mark-paid');
+        Route::post('runs/{run}/recalculate', [PayrollRunController::class, 'recalculate'])->name('runs.recalculate');
+        Route::post('runs/{run}/revert', [PayrollRunController::class, 'revert'])->name('runs.revert');
+        Route::delete('runs/{run}', [PayrollRunController::class, 'destroy'])->name('runs.destroy');
         Route::get('runs/{run}/register.pdf', [PayslipController::class, 'downloadRegister'])->name('runs.register-pdf');
         Route::get('runs/{run}/register.csv', [PayslipController::class, 'downloadRegisterCsv'])->name('runs.register-csv');
         Route::get('runs/{run}/payslips/{runEmployee}', [PayslipController::class, 'downloadPayslip'])->name('runs.payslip');
@@ -183,6 +194,8 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         Route::get('/', [BiometricAttendanceController::class, 'dashboard'])->name('dashboard');
         Route::get('connectivity', [BiometricAttendanceController::class, 'connectivity'])->name('connectivity');
         Route::get('import', [BiometricAttendanceController::class, 'import'])->name('import');
+        Route::get('upload', [BiometricAttendanceController::class, 'upload'])->name('upload');
+        Route::post('upload', [BiometricAttendanceController::class, 'uploadFile'])->name('upload.store');
         Route::get('punches', [BiometricAttendanceController::class, 'punches'])->name('punches');
         Route::get('sync-logs', [BiometricAttendanceController::class, 'syncLogs'])->name('sync-logs');
         Route::post('devices', [BiometricAttendanceController::class, 'storeDevice'])->name('devices.store');
@@ -235,15 +248,15 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         ->name('employee-requests.decide');
     Route::post('employee-requests/{employee_request}/signatures', [EmployeeRequestController::class, 'updateSignatures'])
         ->name('employee-requests.signatures.update');
-    Route::resource('it-asset-requests', ItAssetRequestController::class);
-    Route::post('it-asset-requests/{it_asset_request}/submit', [ItAssetRequestController::class, 'submit'])
-        ->name('it-asset-requests.submit');
-    Route::post('it-asset-requests/{it_asset_request}/decide', [ItAssetRequestController::class, 'decide'])
-        ->name('it-asset-requests.decide');
-    Route::get('it-asset-requests/{it_asset_request}/print', [ItAssetRequestController::class, 'print'])
-        ->name('it-asset-requests.print');
-    Route::post('it-asset-requests/{it_asset_request}/signatures', [ItAssetRequestController::class, 'updateSignatures'])
-        ->name('it-asset-requests.signatures.update');
+    Route::get('it-assets/returns', [ItAssetController::class, 'returns'])->name('it-assets.returns');
+    Route::get('it-assets/{it_asset}/print', [ItAssetController::class, 'print'])->name('it-assets.print');
+    Route::get('it-assets/assignment-documents/{it_asset_assignment_document}', [ItAssetController::class, 'showAssignmentDocument'])
+        ->name('it-assets.assignment-documents.show');
+    Route::post('it-assets/{it_asset}/assign', [ItAssetController::class, 'assign'])->name('it-assets.assign');
+    Route::post('it-assets/{it_asset}/return', [ItAssetController::class, 'returnAsset'])->name('it-assets.return');
+    Route::patch('it-assets/{it_asset}/status', [ItAssetController::class, 'changeStatus'])->name('it-assets.status');
+    Route::resource('it-assets', ItAssetController::class);
+    Route::resource('accessories', AccessoryController::class)->except(['show']);
     Route::get('notifications/header', [NotificationController::class, 'header'])
         ->middleware('throttle:120,1')
         ->name('notifications.header');
@@ -257,8 +270,6 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
     Route::get('user-roles', [UserRoleController::class, 'index'])->name('user-roles.index');
     Route::patch('user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');
     Route::resource('roles', RoleController::class)->except(['show']);
-    Route::patch('users/settings/login-face-recognition', [UserController::class, 'updateLoginFaceRecognitionVisibility'])
-        ->name('users.login-face-recognition.update');
     Route::resource('users', UserController::class)->except(['show']);
     Route::delete('users/{user}/face-login', [UserController::class, 'destroyFaceLogin'])->name('users.face-login.destroy');
 });

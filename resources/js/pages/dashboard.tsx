@@ -11,7 +11,15 @@ type PendingSummary = {
     leave_requests: number;
     employee_requests: number;
     it_requests: number;
-    it_asset_requests: number;
+};
+
+type ItAssetStats = {
+    total: number;
+    available: number;
+    assigned: number;
+    hardware: number;
+    software: number;
+    accessory: number;
 };
 
 type PendingItem = {
@@ -24,7 +32,6 @@ type RecentPending = {
     leave_requests: PendingItem[];
     employee_requests: PendingItem[];
     it_requests: PendingItem[];
-    it_asset_requests: PendingItem[];
 };
 
 type DashboardCard = {
@@ -109,7 +116,9 @@ function toIsoDate(date: Date): string {
 }
 
 type AttendanceOpenEntry = {
-    id: number;
+    source: 'manual' | 'biometric';
+    id: number | null;
+    biometric_session_id: number | null;
     clock_in_at: string;
     work_mode: string | null;
     work_mode_label: string;
@@ -126,12 +135,14 @@ export default function Dashboard({
     attendance,
     pending,
     recentPending,
+    itAssetStats,
     leaveCalendarWidget,
     canViewLeaveCalendar,
 }: {
     attendance: AttendanceProps | null;
     pending: PendingSummary;
     recentPending: RecentPending;
+    itAssetStats?: ItAssetStats;
     leaveCalendarWidget: LeaveCalendarWidget | null;
     canViewLeaveCalendar: boolean;
 }) {
@@ -175,14 +186,14 @@ export default function Dashboard({
             summary: t('dashboard.itSummary', 'Support and service tickets'),
         },
         {
-            title: t('dashboard.itAssetRequests', 'IT Asset Requests'),
-            value: pending.it_asset_requests,
-            href: '/it-asset-requests',
-            items: recentPending.it_asset_requests,
-            itemHref: (id: number) => `/it-asset-requests/${id}`,
+            title: t('dashboard.itAssets', 'IT Assets'),
+            value: itAssetStats?.total ?? 0,
+            href: '/it-assets',
+            items: [],
+            itemHref: (id: number) => `/it-assets/${id}`,
             icon: Package,
             tone: 'from-emerald-500/10 to-green-500/10 border-emerald-500/20 dark:from-emerald-500/25 dark:to-green-500/18 dark:border-emerald-400/40',
-            summary: t('dashboard.itAssetSummary', 'Hardware and asset approvals'),
+            summary: `${itAssetStats?.assigned ?? 0} assigned · ${itAssetStats?.available ?? 0} available`,
         },
     ];
 

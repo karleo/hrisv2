@@ -100,11 +100,23 @@ function buildMainNavItems(
             module: 'it_requests',
         },
         {
-            title: t('sidebar.itAssetRequests', 'IT Asset Management'),
-            description: 'Asset issuance and signature tracking',
-            href: '/it-asset-requests',
-            icon: Cpu,
-            module: 'it_asset_requests',
+            title: t('sidebar.itAssets', 'IT Asset Management'),
+            description: 'Inventory, assignments, and returns',
+            icon: HardDrive,
+            items: [
+                {
+                    title: t('sidebar.itAssetInventory', 'Inventory'),
+                    href: '/it-assets',
+                    icon: HardDrive,
+                    module: 'it_assets',
+                },
+                {
+                    title: t('sidebar.itAssetReturns', 'Returns'),
+                    href: '/it-assets/returns',
+                    icon: HardDrive,
+                    module: 'it_assets',
+                },
+            ],
         },
         {
             title: t('sidebar.employeeRequests', 'Employee Requests'),
@@ -116,9 +128,21 @@ function buildMainNavItems(
         {
             title: t('sidebar.timeAttendance', 'Time & attendance'),
             description: 'Daily logs and attendance actions',
-            href: '/time-attendance',
             icon: Clock,
-            module: 'time_attendance',
+            items: [
+                {
+                    title: t('sidebar.myAttendance', 'My check-in'),
+                    href: '/time-attendance',
+                    icon: Clock,
+                    module: 'time_attendance',
+                },
+                {
+                    title: t('sidebar.attendanceManagement', 'Attendance management'),
+                    href: '/attendance-management',
+                    icon: FileBarChart,
+                    module: 'time_attendance',
+                },
+            ],
         },
         {
             title: t('sidebar.biometricAttendance', 'Biometric attendance'),
@@ -165,8 +189,14 @@ function buildMainNavItems(
             items: [
                 {
                     title: t('sidebar.attendanceReport', 'Attendance report'),
-                    href: '/reports/attendance',
+                    href: '/attendance-management',
                     icon: Clock,
+                    module: 'time_attendance',
+                },
+                {
+                    title: t('sidebar.itAssetInventoryReport', 'IT asset inventory'),
+                    href: '/reports/it-asset-inventory',
+                    icon: FileBarChart,
                     module: 'reports',
                 },
             ],
@@ -209,6 +239,12 @@ function buildMainNavItems(
                             href: hardwareIndex(),
                             icon: Cpu,
                             module: 'hardware',
+                        },
+                        {
+                            title: t('sidebar.accessories', 'Accessories'),
+                            href: '/accessories',
+                            icon: Cpu,
+                            module: 'accessories',
                         },
                         {
                             title: t('sidebar.assetValues', 'Asset Values'),
@@ -335,42 +371,79 @@ export function AppSidebar() {
             icon: CalendarDays,
         } satisfies NavItem;
 
-        let withLeaveCalendar = items;
+        const myProfileItem = {
+            title: t('sidebar.myProfile', 'My Profile'),
+            description: 'View your employee information',
+            href: '/my-profile',
+            icon: UserRound,
+        } satisfies NavItem;
+
+        let withPersonalItems = items;
         if (auth?.has_leave_calendar_access) {
             const dashboardIndex = items.findIndex(
                 (item) => hrefToUrl(item.href) === dashboard().url,
             );
             if (dashboardIndex >= 0) {
-                withLeaveCalendar = [
+                withPersonalItems = [
                     ...items.slice(0, dashboardIndex + 1),
                     leaveCalendarItem,
                     ...items.slice(dashboardIndex + 1),
                 ];
             } else {
-                withLeaveCalendar = [leaveCalendarItem, ...items];
+                withPersonalItems = [leaveCalendarItem, ...items];
+            }
+        }
+
+        if (auth?.has_my_profile_access) {
+            const dashboardIndex = withPersonalItems.findIndex(
+                (item) => hrefToUrl(item.href) === dashboard().url,
+            );
+            const leaveCalendarIndex = withPersonalItems.findIndex(
+                (item) => hrefToUrl(item.href) === '/leave-calendar',
+            );
+            const insertAfterIndex =
+                leaveCalendarIndex >= 0
+                    ? leaveCalendarIndex
+                    : dashboardIndex >= 0
+                      ? dashboardIndex
+                      : -1;
+
+            if (insertAfterIndex >= 0) {
+                withPersonalItems = [
+                    ...withPersonalItems.slice(0, insertAfterIndex + 1),
+                    myProfileItem,
+                    ...withPersonalItems.slice(insertAfterIndex + 1),
+                ];
+            } else {
+                withPersonalItems = [myProfileItem, ...withPersonalItems];
             }
         }
 
         const messageHref = '/employee-messages';
         const dashboardHref = dashboard().url;
         const leaveCalendarHref = '/leave-calendar';
+        const myProfileHref = '/my-profile';
 
-        const messageItem = withLeaveCalendar.find(
+        const messageItem = withPersonalItems.find(
             (item) => hrefToUrl(item.href) === messageHref,
         );
-        const dashboardItem = withLeaveCalendar.find(
+        const dashboardItem = withPersonalItems.find(
             (item) => hrefToUrl(item.href) === dashboardHref,
         );
-        const leaveCalendar = withLeaveCalendar.find(
+        const leaveCalendar = withPersonalItems.find(
             (item) => hrefToUrl(item.href) === leaveCalendarHref,
         );
+        const myProfile = withPersonalItems.find(
+            (item) => hrefToUrl(item.href) === myProfileHref,
+        );
 
-        const remaining = withLeaveCalendar.filter((item) => {
+        const remaining = withPersonalItems.filter((item) => {
             const href = hrefToUrl(item.href);
             return (
                 href !== messageHref &&
                 href !== dashboardHref &&
-                href !== leaveCalendarHref
+                href !== leaveCalendarHref &&
+                href !== myProfileHref
             );
         });
 
@@ -378,11 +451,13 @@ export function AppSidebar() {
             ...(messageItem ? [messageItem] : []),
             ...(dashboardItem ? [dashboardItem] : []),
             ...(leaveCalendar ? [leaveCalendar] : []),
+            ...(myProfile ? [myProfile] : []),
             ...remaining,
         ];
     }, [
         modulePermissions,
         auth?.has_leave_calendar_access,
+        auth?.has_my_profile_access,
         t,
     ]);
 

@@ -4,6 +4,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Feature toggle
+    |--------------------------------------------------------------------------
+    |
+    | When false, face login is disabled application-wide (login page, profile
+    | enrollment, and admin visibility toggles).
+    |
+    */
+    'enabled' => env('FACE_LOGIN_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Face verification driver
     |--------------------------------------------------------------------------
     |

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Enums\BiometricConnectionType;
 use App\Enums\BiometricPunchDirection;
+use App\Enums\ItAssetCategory;
+use App\Enums\ItAssetStatus;
 use App\Models\BiometricDevice;
 use App\Models\BiometricPunch;
 use App\Models\CompanyProfile;
@@ -11,7 +13,9 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Hardware;
 use App\Models\HardwareAssetValue;
-use App\Models\ItAssetRequest;
+use App\Models\ItAsset;
+use App\Models\ItAssetAssignment;
+use App\Models\ItAssetAssignmentDocument;
 use App\Models\JobPosition;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -554,65 +558,52 @@ class EmployeeTest extends TestCase
         );
     }
 
-    public function test_edit_includes_approved_assets_with_nested_hardware_items(): void
+    public function test_edit_includes_active_and_returned_asset_assignments_with_documents(): void
     {
         $employee = Employee::factory()->create();
-        $issuer = Employee::factory()->create([
-            'first_name' => 'Asset',
-            'last_name' => 'Issuer',
-        ]);
-        $laptop = Hardware::factory()->create([
-            'code' => 'LAP',
-            'name' => 'Laptop',
-        ]);
-        $monitor = Hardware::factory()->create([
-            'code' => 'MON',
-            'name' => 'Monitor',
-        ]);
+        $laptop = Hardware::factory()->create(['code' => 'LAP', 'name' => 'Laptop']);
         $laptopValue = HardwareAssetValue::factory()->create([
             'hardware_id' => $laptop->id,
             'asset_model' => 'Latitude 5440',
             'asset_value' => '2500.00',
             'asset_currency' => 'AED',
-            'effective_from' => now()->subDay()->toDateString(),
         ]);
 
-        $approvedRequest = ItAssetRequest::query()->create([
-            'employee_id' => $employee->id,
-            'department_id' => $employee->department_id,
-            'date' => '2026-05-01',
-            'date_issued' => '2026-05-02',
-            'status' => 'approved',
-            'decided_at' => '2026-05-03 10:00:00',
-            'issued_by_employee_id' => $issuer->id,
-            'remarks' => 'Issued for onboarding.',
-        ]);
-        $approvedRequest->hardwareItems()->createMany([
-            [
-                'hardware_asset_value_id' => $laptopValue->id,
-                'hardware_id' => $laptop->id,
-                'serial_number' => 'LAP-001',
-                'hardware_code_snapshot' => 'LAP',
-                'hardware_name_snapshot' => 'Laptop',
-                'asset_model_snapshot' => 'Latitude 5440',
-                'serial_number_snapshot' => 'LAP-001',
-                'asset_value_snapshot' => '2500.00',
-                'asset_currency_snapshot' => 'AED',
-            ],
-            [
-                'hardware_id' => $monitor->id,
-                'serial_number' => 'MON-001',
-                'hardware_code_snapshot' => 'MON',
-                'hardware_name_snapshot' => 'Monitor',
-                'serial_number_snapshot' => 'MON-001',
-            ],
+        $asset = ItAsset::factory()->hardware()->create([
+            'hardware_id' => $laptop->id,
+            'hardware_asset_value_id' => $laptopValue->id,
+            'name' => 'Office Laptop',
+            'serial_number' => 'LAP-001',
+            'status' => ItAssetStatus::Assigned,
+            'current_employee_id' => $employee->id,
         ]);
 
-        ItAssetRequest::query()->create([
+        $activeAssignment = ItAssetAssignment::factory()->create([
+            'it_asset_id' => $asset->id,
             'employee_id' => $employee->id,
-            'department_id' => $employee->department_id,
-            'date' => '2026-05-04',
-            'status' => 'submitted',
+            'assigned_at' => '2026-05-02 10:00:00',
+            'returned_at' => null,
+        ]);
+
+        ItAssetAssignmentDocument::factory()->create([
+            'it_asset_assignment_id' => $activeAssignment->id,
+            'original_name' => 'active-handover.pdf',
+        ]);
+
+        $returnedAsset = ItAsset::factory()->hardware()->create([
+            'name' => 'Returned Laptop',
+            'status' => ItAssetStatus::Available,
+        ]);
+        $returnedAssignment = ItAssetAssignment::factory()->returned()->create([
+            'it_asset_id' => $returnedAsset->id,
+            'employee_id' => $employee->id,
+            'assigned_at' => '2026-04-01 10:00:00',
+            'returned_at' => '2026-04-30 10:00:00',
+        ]);
+
+        ItAssetAssignmentDocument::factory()->create([
+            'it_asset_assignment_id' => $returnedAssignment->id,
+            'original_name' => 'returned-handover.pdf',
         ]);
 
         $response = $this->get(route('employees.edit', $employee).'?tab=asset');
@@ -620,96 +611,23 @@ class EmployeeTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('employees/edit')
-            ->has('asset', 1)
-            ->where('asset.0.id', $approvedRequest->id)
-            ->where('asset.0.code', $approvedRequest->code)
-            ->where('asset.0.url', route('it-asset-requests.show', $approvedRequest, false))
-            ->where('asset.0.issued_date', '2026-05-02')
-            ->where('asset.0.approved_date', '2026-05-03')
-            ->where('asset.0.issued_by', 'Asset Issuer')
-            ->where('asset.0.remarks', 'Issued for onboarding.')
-            ->has('asset.0.hardware_items', 2)
-            ->where('asset.0.hardware_items.0.hardware_name', 'Laptop')
-            ->where('asset.0.hardware_items.0.hardware_code', 'LAP')
-            ->where('asset.0.hardware_items.0.asset_model', 'Latitude 5440')
-            ->where('asset.0.hardware_items.0.serial_number', 'LAP-001')
-            ->where('asset.0.hardware_items.0.asset_value', '2500.00')
-            ->where('asset.0.hardware_items.0.asset_currency', 'AED')
-            ->where('asset.0.asset_totals.0.total', '2500.00')
-            ->where('asset.0.asset_totals.0.currency', 'AED')
-            ->where('asset.0.hardware_items.1.hardware_name', 'Monitor')
-            ->where('asset.0.hardware_items.1.hardware_code', 'MON')
-            ->where('asset.0.hardware_items.1.asset_model', null)
-            ->where('asset.0.hardware_items.1.serial_number', 'MON-001')
-        );
-    }
-
-    public function test_edit_asset_payload_supports_legacy_hardware_fallback(): void
-    {
-        $employee = Employee::factory()->create();
-        $hardware = Hardware::factory()->create([
-            'code' => 'PHN',
-            'name' => 'Phone',
-        ]);
-
-        $assetRequest = ItAssetRequest::query()->create([
-            'employee_id' => $employee->id,
-            'department_id' => $employee->department_id,
-            'date' => '2026-05-01',
-            'status' => 'approved',
-            'decided_at' => '2026-05-02 10:00:00',
-            'hardware_ids' => [$hardware->id],
-            'serial_number' => 'PHN-123',
-        ]);
-
-        $response = $this->get(route('employees.edit', $employee));
-
-        $response->assertOk();
-        $response->assertInertia(fn ($page) => $page
-            ->component('employees/edit')
-            ->has('asset', 1)
-            ->where('asset.0.id', $assetRequest->id)
-            ->where('asset.0.hardware_items.0.hardware_name', 'Phone')
-            ->where('asset.0.hardware_items.0.hardware_code', 'PHN')
-            ->where('asset.0.hardware_items.0.serial_number', 'PHN-123')
-        );
-    }
-
-    public function test_edit_asset_payload_uses_snapshot_when_hardware_is_deleted(): void
-    {
-        $employee = Employee::factory()->create();
-        $hardware = Hardware::factory()->create([
-            'code' => 'TAB',
-            'name' => 'Tablet',
-        ]);
-
-        $assetRequest = ItAssetRequest::query()->create([
-            'employee_id' => $employee->id,
-            'department_id' => $employee->department_id,
-            'date' => '2026-05-01',
-            'status' => 'approved',
-            'decided_at' => '2026-05-02 10:00:00',
-        ]);
-        $assetRequest->hardwareItems()->create([
-            'hardware_id' => $hardware->id,
-            'serial_number' => 'CURRENT-SERIAL',
-            'hardware_code_snapshot' => 'TAB-HIST',
-            'hardware_name_snapshot' => 'Historical Tablet',
-            'serial_number_snapshot' => 'TAB-HIST-001',
-        ]);
-
-        $hardware->delete();
-
-        $response = $this->get(route('employees.edit', $employee));
-
-        $response->assertOk();
-        $response->assertInertia(fn ($page) => $page
-            ->component('employees/edit')
-            ->has('asset', 1)
-            ->where('asset.0.id', $assetRequest->id)
-            ->where('asset.0.hardware_items.0.hardware_name', 'Historical Tablet')
-            ->where('asset.0.hardware_items.0.hardware_code', 'TAB-HIST')
-            ->where('asset.0.hardware_items.0.serial_number', 'TAB-HIST-001')
+            ->has('asset', 2)
+            ->where('asset.0.id', $asset->id)
+            ->where('asset.0.code', $asset->code)
+            ->where('asset.0.url', route('it-assets.show', $asset, false))
+            ->where('asset.0.category', ItAssetCategory::Hardware->value)
+            ->where('asset.0.name', 'Office Laptop')
+            ->where('asset.0.identifier', 'LAP-001')
+            ->where('asset.0.assigned_at', '2026-05-02')
+            ->where('asset.0.is_active', true)
+            ->where('asset.0.asset_model', 'Latitude 5440')
+            ->where('asset.0.asset_value', '2500.00')
+            ->where('asset.0.asset_currency', 'AED')
+            ->where('asset.0.documents.0.original_name', 'active-handover.pdf')
+            ->where('asset.1.id', $returnedAsset->id)
+            ->where('asset.1.is_active', false)
+            ->where('asset.1.returned_at', '2026-04-30')
+            ->where('asset.1.documents.0.original_name', 'returned-handover.pdf')
         );
     }
 

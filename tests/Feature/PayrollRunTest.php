@@ -296,4 +296,127 @@ class PayrollRunTest extends TestCase
         $expectedGross = 10000 + 2000 + 500 + 300 + 200; // 13000
         $this->assertEquals($expectedGross, $runEmployee->gross_salary);
     }
+
+    public function test_admin_can_revert_approved_run_to_draft(): void
+    {
+        $admin = $this->makeAdminUser();
+        $period = $this->makeVerifiedPeriod();
+        $run = PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => PayrollRun::STATUS_APPROVED,
+            'currency' => 'AED',
+            'total_gross' => 5000,
+            'total_deductions' => 0,
+            'total_net' => 5000,
+            'approved_by' => $admin->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('payroll.runs.revert', $run))
+            ->assertRedirect(route('payroll.runs.show', $run));
+
+        $this->assertDatabaseHas('payroll_runs', [
+            'id' => $run->id,
+            'status' => PayrollRun::STATUS_DRAFT,
+            'approved_by' => null,
+        ]);
+    }
+
+    public function test_admin_can_revert_paid_run_to_approved(): void
+    {
+        $admin = $this->makeAdminUser();
+        $period = $this->makeVerifiedPeriod();
+        $run = PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => PayrollRun::STATUS_PAID,
+            'currency' => 'AED',
+            'total_gross' => 5000,
+            'total_deductions' => 0,
+            'total_net' => 5000,
+            'paid_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('payroll.runs.revert', $run))
+            ->assertRedirect(route('payroll.runs.show', $run));
+
+        $this->assertDatabaseHas('payroll_runs', [
+            'id' => $run->id,
+            'status' => PayrollRun::STATUS_APPROVED,
+            'paid_at' => null,
+        ]);
+    }
+
+    public function test_admin_can_cancel_draft_run(): void
+    {
+        $admin = $this->makeAdminUser();
+        $period = $this->makeVerifiedPeriod();
+        $run = PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => PayrollRun::STATUS_DRAFT,
+            'currency' => 'AED',
+            'total_gross' => 0,
+            'total_deductions' => 0,
+            'total_net' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('payroll.runs.destroy', $run))
+            ->assertRedirect(route('payroll.runs.index'));
+
+        $this->assertDatabaseMissing('payroll_runs', ['id' => $run->id]);
+    }
+
+    public function test_admin_can_recalculate_draft_run(): void
+    {
+        $admin = $this->makeAdminUser();
+        $period = $this->makeVerifiedPeriod();
+        $employee = Employee::factory()->create();
+        EmployeeCompensation::factory()->create([
+            'employee_id' => $employee->id,
+            'basic_salary' => 4000,
+        ]);
+
+        $run = PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => PayrollRun::STATUS_DRAFT,
+            'currency' => 'AED',
+            'total_gross' => 0,
+            'total_deductions' => 0,
+            'total_net' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('payroll.runs.recalculate', $run))
+            ->assertRedirect(route('payroll.runs.show', $run));
+
+        $this->assertDatabaseHas('payroll_run_employees', [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $employee->id,
+            'basic_salary' => 4000,
+        ]);
+    }
+
+    public function test_cannot_create_second_run_for_same_period(): void
+    {
+        $admin = $this->makeAdminUser();
+        $period = $this->makeVerifiedPeriod();
+        PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => PayrollRun::STATUS_DRAFT,
+            'currency' => 'AED',
+            'total_gross' => 0,
+            'total_deductions' => 0,
+            'total_net' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/payroll/runs', [
+                'payroll_period_verification_id' => $period->id,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(1, PayrollRun::query()->where('payroll_period_verification_id', $period->id)->count());
+    }
 }

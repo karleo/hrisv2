@@ -22,7 +22,7 @@ class RoleController extends Controller
         PermissionModule::LeaveRequests,
         PermissionModule::ItRequests,
         PermissionModule::EmployeeRequests,
-        PermissionModule::ItAssetRequests,
+        PermissionModule::ItAssets,
     ];
 
     /**
