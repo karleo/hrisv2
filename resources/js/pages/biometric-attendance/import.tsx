@@ -114,14 +114,15 @@ function BiometricImportContent({
                         <p className="text-muted-foreground text-sm">
                             {usesAdmsPush ? (
                                 <>
-                                    On AWS, Import does not download the terminal memory in this request. It processes
-                                    punches already in HRIS, queues a <code className="text-xs">DATA QUERY ATTLOG</code>{' '}
-                                    for the device, and waits for the terminal to push history to{' '}
-                                    <code className="text-xs break-all">{iclockPushUrl}</code>. After Import: wait 2–5
-                                    minutes (or punch once), open Raw punches until the count grows, then Import again
-                                    with the same dates. Do not open <code className="text-xs">/iclock/getrequest</code>{' '}
-                                    in a browser — that steals commands from the device. Optional LAN shortcut only if
-                                    a device host IP is set and reachable.
+                                    On AWS, Import does not download the terminal memory in this request. Set{' '}
+                                    <strong>From / To</strong> to the range you need (including last month), then
+                                    Import. HRIS queues a <code className="text-xs">DATA QUERY ATTLOG</code>, resets
+                                    the device sync stamp so history can re-upload, and waits for the terminal to push
+                                    to <code className="text-xs break-all">{iclockPushUrl}</code>. After Import: wait
+                                    2–5 minutes (or punch once), open Raw punches until the count grows, then Import
+                                    again with the same dates. Do not open{' '}
+                                    <code className="text-xs">/iclock/getrequest</code> in a browser — that steals
+                                    commands from the device.
                                 </>
                             ) : usesDeviceWebReport ? (
                                 <>

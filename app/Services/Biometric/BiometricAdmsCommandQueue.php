@@ -2,24 +2,38 @@
 
 namespace App\Services\Biometric;
 
+use App\Models\BiometricAdmsCommand;
 use App\Models\BiometricDevice;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 final class BiometricAdmsCommandQueue
 {
-    private const string CACHE_PREFIX = 'biometric_adms_commands:';
-
     /**
      * @return list<string>
      */
     public function drain(BiometricDevice $device): array
     {
-        $key = $this->cacheKey($device->serial_number);
-        /** @var list<string> $commands */
-        $commands = Cache::pull($key, []);
+        return DB::transaction(function () use ($device): array {
+            $rows = BiometricAdmsCommand::query()
+                ->where('serial_number', $device->serial_number)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id', 'command']);
 
-        return $commands;
+            if ($rows->isEmpty()) {
+                return [];
+            }
+
+            BiometricAdmsCommand::query()
+                ->whereIn('id', $rows->pluck('id')->all())
+                ->delete();
+
+            /** @var list<string> $commands */
+            $commands = $rows->pluck('command')->all();
+
+            return $commands;
+        });
     }
 
     public function queueAttlogPull(BiometricDevice $device, Carbon $from, Carbon $until): void
@@ -27,6 +41,15 @@ final class BiometricAdmsCommandQueue
         $timezone = $device->timezone;
         $start = $from->copy()->timezone($timezone)->format('Y-m-d H:i:s');
         $end = $until->copy()->timezone($timezone)->format('Y-m-d H:i:s');
+
+        // Force the next handshake to request a full/range dump instead of "already synced".
+        $device->update([
+            'metadata' => array_merge($device->metadata ?? [], [
+                'last_attlog_stamp' => '0',
+                'last_operlog_stamp' => '0',
+                'force_attlog_resync_at' => now()->toIso8601String(),
+            ]),
+        ]);
 
         $this->push($device->serial_number, 'CHECK');
         $this->push($device->serial_number, 'INFO');
@@ -37,23 +60,17 @@ final class BiometricAdmsCommandQueue
 
     public function pendingCount(string $serialNumber): int
     {
-        /** @var list<string> $commands */
-        $commands = Cache::get($this->cacheKey($serialNumber), []);
-
-        return count($commands);
+        return BiometricAdmsCommand::query()
+            ->where('serial_number', $serialNumber)
+            ->count();
     }
 
     private function push(string $serialNumber, string $command): void
     {
-        $key = $this->cacheKey($serialNumber);
-        /** @var list<string> $commands */
-        $commands = Cache::get($key, []);
-        $commands[] = $command;
-        Cache::put($key, $commands, now()->addHours(6));
-    }
-
-    private function cacheKey(string $serialNumber): string
-    {
-        return self::CACHE_PREFIX.$serialNumber;
+        BiometricAdmsCommand::query()->create([
+            'serial_number' => $serialNumber,
+            'command' => $command,
+            'created_at' => now(),
+        ]);
     }
 }

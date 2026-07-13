@@ -28,14 +28,18 @@ final class IclockAdmsHandler
                     'last_adms_handshake_at' => now()->toIso8601String(),
                 ]),
             ]);
+            $device->refresh();
         }
 
-        $stamp = now()->format('YmdHis');
+        // Echo last stamp from the device (default 0). Never use wall-clock now — that
+        // tells many ZK firmwares "already synced" and blocks historical ATTLOG dumps.
+        $attStamp = $this->stampFromDevice($device, 'last_attlog_stamp');
+        $operStamp = $this->stampFromDevice($device, 'last_operlog_stamp', $attStamp);
 
         return implode("\n", [
             'GET OPTION FROM: '.($serial !== '' ? $serial : 'unknown'),
-            'ATTLOGStamp='.$stamp,
-            'OPERLOGStamp='.$stamp,
+            'ATTLOGStamp='.$attStamp,
+            'OPERLOGStamp='.$operStamp,
             'ErrorDelay=60',
             'Delay=30',
             'TransTimes=00:00;23:59',
@@ -66,7 +70,7 @@ final class IclockAdmsHandler
         }
 
         if ($table !== '' && strtoupper($table) !== 'ATTLOG') {
-            $this->touchDevice($device);
+            $this->touchDevice($device, $request);
 
             return 'OK';
         }
@@ -74,7 +78,7 @@ final class IclockAdmsHandler
         $body = $request->getContent();
 
         if ($body === '') {
-            $this->touchDevice($device);
+            $this->touchDevice($device, $request);
 
             return 'OK';
         }
@@ -84,15 +88,23 @@ final class IclockAdmsHandler
         $this->employeeMapper->mapForDevice($device);
         $sessions = $this->sessionPairing->processUnprocessedPunches($device);
 
+        $metadata = array_merge($device->metadata ?? [], [
+            'last_adms_push_at' => now()->toIso8601String(),
+            'last_adms_inserted' => $import['inserted'],
+            'last_adms_punch_count' => count($punches),
+        ]);
+
+        $stamp = $this->stampFromRequest($request);
+
+        if ($stamp !== null) {
+            $metadata['last_attlog_stamp'] = $stamp;
+        }
+
         $device->update([
             'last_sync_at' => now(),
             'last_sync_status' => BiometricSyncStatus::Completed->value,
             'last_error' => null,
-            'metadata' => array_merge($device->metadata ?? [], [
-                'last_adms_push_at' => now()->toIso8601String(),
-                'last_adms_inserted' => $import['inserted'],
-                'last_adms_punch_count' => count($punches),
-            ]),
+            'metadata' => $metadata,
         ]);
 
         Log::info('iclock ADMS attendance received', [
@@ -115,7 +127,7 @@ final class IclockAdmsHandler
             return 'OK';
         }
 
-        $this->touchDevice($device);
+        $this->touchDevice($device, $request);
 
         $commands = $this->commandQueue->drain($device);
 
@@ -145,13 +157,55 @@ final class IclockAdmsHandler
         return 'OK';
     }
 
-    private function touchDevice(BiometricDevice $device): void
+    private function touchDevice(BiometricDevice $device, ?Request $request = null): void
     {
-        $device->update([
-            'metadata' => array_merge($device->metadata ?? [], [
-                'last_adms_push_at' => now()->toIso8601String(),
-            ]),
+        $metadata = array_merge($device->metadata ?? [], [
+            'last_adms_push_at' => now()->toIso8601String(),
         ]);
+
+        if ($request !== null) {
+            $stamp = $this->stampFromRequest($request);
+
+            if ($stamp !== null) {
+                $metadata['last_attlog_stamp'] = $stamp;
+            }
+        }
+
+        $device->update([
+            'metadata' => $metadata,
+        ]);
+    }
+
+    private function stampFromRequest(Request $request): ?string
+    {
+        $stamp = $request->query('Stamp') ?? $request->query('stamp');
+
+        if (! is_string($stamp) && ! is_numeric($stamp)) {
+            return null;
+        }
+
+        $normalized = trim((string) $stamp);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function stampFromDevice(?BiometricDevice $device, string $key, string $default = '0'): string
+    {
+        if ($device === null) {
+            return $default;
+        }
+
+        $raw = $device->metadata[$key] ?? null;
+
+        if (is_string($raw) || is_numeric($raw)) {
+            $normalized = trim((string) $raw);
+
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return $default;
     }
 
     private function serialFromRequest(Request $request): string
