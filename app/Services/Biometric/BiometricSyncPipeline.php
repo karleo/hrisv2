@@ -114,6 +114,14 @@ final class BiometricSyncPipeline
                     $admsQueued,
                     $webFetchError,
                 );
+
+                if ($admsQueued) {
+                    $this->tracer->stage('pipeline_adms_commands_queued', [
+                        'serial' => $device->serial_number,
+                        'pending_commands' => $this->admsCommandQueue->pendingCount($device->serial_number),
+                        'stored_in_range' => $inRange,
+                    ]);
+                }
             } else {
                 $connector = $this->connectorFactory->forDevice($device);
                 $fetchFrom = $from;
@@ -360,14 +368,14 @@ final class BiometricSyncPipeline
         bool $admsCommandsQueued = false,
         ?string $webFetchError = null,
     ): ?string {
+        $pushUrl = BiometricPushUrl::cdataEndpoint();
+        $parts = [];
+
         if ($inRange === 0) {
             $lastPush = $device->metadata['last_adms_push_at'] ?? null;
-            $pushUrl = BiometricPushUrl::cdataEndpoint();
             $deviceWebUrl = $device->host !== null && $device->host !== ''
                 ? rtrim($device->deviceWebBaseUrl(), '/')
                 : null;
-
-            $parts = [];
 
             if ($webFetchError !== null) {
                 $parts[] = 'Web report pull failed: '.$webFetchError;
@@ -379,7 +387,7 @@ final class BiometricSyncPipeline
             }
 
             if ($admsCommandsQueued) {
-                $parts[] = 'ADMS commands were queued for the terminal. Set cloud server to '.$pushUrl.' (serial '.$device->serial_number.'), wait 2 minutes, punch once, then import again. AWS cannot pull from a private device IP — the terminal must push outbound.';
+                $parts[] = $this->admsQueuedWaitMessage($device, $pushUrl);
             } elseif ($lastPush) {
                 $parts[] = 'No punches in this date range. Last push: '.$lastPush.'.';
             } else {
@@ -390,16 +398,26 @@ final class BiometricSyncPipeline
         }
 
         if ($unmapped > 0) {
-            return "{$inRange} punch(es) in range; {$unmapped} still unmapped — set Biometric user ID on employees to match device PINs. View Sessions after mapping.";
+            $parts[] = "{$inRange} punch(es) in range; {$unmapped} still unmapped — set Biometric user ID on employees to match device PINs. View Sessions after mapping.";
+        } elseif ($reset === 0) {
+            $parts[] = 'Processed '.$inRange.' punch(es) already stored in HRIS for this date range. Open Sessions with the same dates to see clock-in/out.';
         }
 
-        if ($reset > 0) {
-            return null;
+        // Import queues DATA QUERY only — history arrives later when the terminal pushes ATTLOG.
+        if ($admsCommandsQueued) {
+            $parts[] = $this->admsQueuedWaitMessage($device, $pushUrl);
         }
 
-        return $inRange > 0
-            ? 'Processed stored punches for this date range. Open Sessions tab with the same dates to see clock-in/out.'
-            : null;
+        return $parts === [] ? null : implode(' ', $parts);
+    }
+
+    private function admsQueuedWaitMessage(BiometricDevice $device, string $pushUrl): string
+    {
+        return 'ADMS DATA QUERY was queued — this Import did not download the terminal\'s full attendance log. '
+            .'Set cloud server to '.$pushUrl.' (serial '.$device->serial_number.'), wait 2–5 minutes (or punch once to wake the device), '
+            .'refresh Raw punches for new rows, then Import again. '
+            .'Do not open /iclock/getrequest in a browser (that steals commands from the device). '
+            .'AWS cannot pull from a private device IP — the terminal must push outbound.';
     }
 
     private function noDeviceRecordsMessage(

@@ -106,7 +106,7 @@ function BiometricImportContent({
                     <CardHeader>
                         <CardTitle className="text-base">
                             {usesAdmsPush
-                                ? 'Process stored punches'
+                                ? 'Queue device history + process stored punches'
                                 : usesDeviceWebReport
                                   ? 'Pull from device web report'
                                   : 'Pull from device'}
@@ -114,11 +114,14 @@ function BiometricImportContent({
                         <p className="text-muted-foreground text-sm">
                             {usesAdmsPush ? (
                                 <>
-                                    Tries to pull from the device at{' '}
-                                    <code className="text-xs">http://{selectedDevice?.host}</code> (Report page) when
-                                    configured, processes any punches already pushed to{' '}
-                                    <code className="text-xs break-all">{iclockPushUrl}</code>, and queues ADMS commands
-                                    for live sync. Use the same dates as the device report.
+                                    On AWS, Import does not download the terminal memory in this request. It processes
+                                    punches already in HRIS, queues a <code className="text-xs">DATA QUERY ATTLOG</code>{' '}
+                                    for the device, and waits for the terminal to push history to{' '}
+                                    <code className="text-xs break-all">{iclockPushUrl}</code>. After Import: wait 2–5
+                                    minutes (or punch once), open Raw punches until the count grows, then Import again
+                                    with the same dates. Do not open <code className="text-xs">/iclock/getrequest</code>{' '}
+                                    in a browser — that steals commands from the device. Optional LAN shortcut only if
+                                    a device host IP is set and reachable.
                                 </>
                             ) : usesDeviceWebReport ? (
                                 <>

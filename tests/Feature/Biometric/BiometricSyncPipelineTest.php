@@ -180,6 +180,36 @@ class BiometricSyncPipelineTest extends TestCase
         $this->assertStringNotContainsString('Device host IP is not set', (string) $log->error_message);
         $this->assertStringContainsString('https://hris-stag.example.test/iclock/cdata', (string) $log->error_message);
         $this->assertStringContainsString('AWS cannot pull', (string) $log->error_message);
+        $this->assertStringContainsString('ADMS DATA QUERY was queued', (string) $log->error_message);
+    }
+
+    public function test_adms_import_with_existing_punches_still_warns_to_wait_for_device_push(): void
+    {
+        config(['biometric.push_base_url' => 'https://hris-stag.example.test']);
+
+        $device = $this->createDevice([
+            'is_active' => true,
+            'timezone' => 'Asia/Dubai',
+            'connection_type' => BiometricConnectionType::AdmsPush,
+            'host' => null,
+        ]);
+
+        $this->seedPunch($device, '9999', '2026-07-13 12:49:18', BiometricPunchDirection::In, null);
+
+        $log = app(BiometricSyncPipeline::class)->run(
+            $device,
+            triggeredBy: null,
+            from: Carbon::parse('2026-07-05 00:00:00', 'Asia/Dubai'),
+            until: Carbon::parse('2026-07-13 23:59:59', 'Asia/Dubai'),
+        );
+
+        $this->assertSame(BiometricSyncStatus::Completed, $log->status);
+        $this->assertSame(1, $log->fetched_count);
+        $this->assertNotNull($log->error_message);
+        $this->assertStringContainsString('ADMS DATA QUERY was queued', (string) $log->error_message);
+        $this->assertStringContainsString('did not download the terminal', (string) $log->error_message);
+        $this->assertStringContainsString('Import again', (string) $log->error_message);
+        $this->assertSame(5, app(\App\Services\Biometric\BiometricAdmsCommandQueue::class)->pendingCount($device->serial_number));
     }
 
     private function createDevice(array $overrides = []): BiometricDevice
