@@ -78,15 +78,20 @@ final class BiometricSyncPipeline
                     $this->admsCommandQueue->queueAttlogPull($device, $from, $until);
                     $admsQueued = true;
 
-                    [$webPunches, $webFetchError] = $this->webReportFallback->fetchPunches($device, $from, $until);
+                    // Cloud/AWS ADMS devices often have no LAN host; skip web-report fallback then.
+                    $hasLanHost = $device->host !== null && trim((string) $device->host) !== '';
 
-                    if ($webPunches !== []) {
-                        $webImport = $this->importer->import($device, $webPunches);
-                        $importResult['inserted'] += $webImport['inserted'];
-                        $importResult['duplicate'] += $webImport['duplicate'];
-                        $importResult['failed'] += $webImport['failed'];
-                        $deviceRecords = count($webPunches);
-                        $inRange = count($webPunches);
+                    if ($hasLanHost) {
+                        [$webPunches, $webFetchError] = $this->webReportFallback->fetchPunches($device, $from, $until);
+
+                        if ($webPunches !== []) {
+                            $webImport = $this->importer->import($device, $webPunches);
+                            $importResult['inserted'] += $webImport['inserted'];
+                            $importResult['duplicate'] += $webImport['duplicate'];
+                            $importResult['failed'] += $webImport['failed'];
+                            $deviceRecords = count($webPunches);
+                            $inRange = count($webPunches);
+                        }
                     }
                 }
 
@@ -368,16 +373,17 @@ final class BiometricSyncPipeline
                 $parts[] = 'Web report pull failed: '.$webFetchError;
             }
 
+            // On AWS/cloud, LAN web-report pull cannot reach the terminal — ADMS push is required.
             if ($deviceWebUrl !== null) {
-                $parts[] = 'Permanent fix: Connectivity → Switch to web report pull, or set connection to Device web report on Devices. Then import with the same dates you use on the device at '.$deviceWebUrl.'.';
+                $parts[] = 'LAN-only option: Connectivity → Switch to web report pull, then import with the same dates as the device report at '.$deviceWebUrl.'.';
             }
 
             if ($admsCommandsQueued) {
-                $parts[] = 'ADMS commands were queued for the terminal. Set cloud server to '.$pushUrl.' (serial '.$device->serial_number.'), wait 2 minutes, punch once, then import again.';
+                $parts[] = 'ADMS commands were queued for the terminal. Set cloud server to '.$pushUrl.' (serial '.$device->serial_number.'), wait 2 minutes, punch once, then import again. AWS cannot pull from a private device IP — the terminal must push outbound.';
             } elseif ($lastPush) {
                 $parts[] = 'No punches in this date range. Last push: '.$lastPush.'.';
             } else {
-                $parts[] = 'No punches in HRIS yet. Configure cloud server: '.$pushUrl.' (use PC LAN IP, not the device IP).';
+                $parts[] = 'No punches in HRIS yet. Configure cloud server on the terminal: '.$pushUrl.' (public HRIS URL on AWS, or PC LAN IP on Laragon — never localhost).';
             }
 
             return implode(' ', $parts);

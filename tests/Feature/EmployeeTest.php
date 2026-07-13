@@ -1076,6 +1076,51 @@ class EmployeeTest extends TestCase
         $this->assertStringContainsString('shiplevel14710.pdf', $contentDisposition);
     }
 
+    public function test_employee_document_view_route_returns_inline_file(): void
+    {
+        Storage::fake('public');
+
+        $employee = Employee::factory()->create();
+        $path = "employees/{$employee->id}/documents/passport.pdf";
+        Storage::disk('public')->put($path, '%PDF-1.4 fake passport content');
+
+        $document = $employee->documents()->create([
+            'name' => 'Passport',
+            'path' => $path,
+            'original_name' => 'Passport - Ivy.pdf',
+        ]);
+
+        $response = $this->get(route('employees.documents.show', [
+            'employee' => $employee,
+            'employee_document' => $document,
+        ]));
+
+        $response->assertOk();
+        $this->assertSame('%PDF-1.4 fake passport content', $response->streamedContent());
+        $contentDisposition = $response->headers->get('Content-Disposition', '');
+        $this->assertStringContainsString('inline', $contentDisposition);
+        $this->assertStringContainsString('Passport - Ivy.pdf', $contentDisposition);
+    }
+
+    public function test_employee_document_view_route_returns_not_found_when_file_missing(): void
+    {
+        Storage::fake('public');
+
+        $employee = Employee::factory()->create();
+        $document = $employee->documents()->create([
+            'name' => 'Passport',
+            'path' => "employees/{$employee->id}/documents/missing.pdf",
+            'original_name' => 'Passport - Ivy.pdf',
+        ]);
+
+        $response = $this->get(route('employees.documents.show', [
+            'employee' => $employee,
+            'employee_document' => $document,
+        ]));
+
+        $response->assertNotFound();
+    }
+
     public function test_shared_auth_includes_avatar_url_when_employee_has_photo(): void
     {
         Storage::fake('public');

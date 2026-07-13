@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CompanyProfileController extends Controller
 {
@@ -204,7 +204,7 @@ class CompanyProfileController extends Controller
         return to_route('company-profiles.index');
     }
 
-    public function showDocument(Request $request, CompanyProfile $companyProfile, CompanyProfileDocument $companyProfileDocument): BinaryFileResponse
+    public function showDocument(Request $request, CompanyProfile $companyProfile, CompanyProfileDocument $companyProfileDocument): StreamedResponse
     {
         $this->companyScope->assertCanAccessCompanyProfile($request->user(), (int) $companyProfile->id);
 
@@ -217,8 +217,9 @@ class CompanyProfileController extends Controller
             abort(404, 'Document file not found.');
         }
 
-        return response()->download(
-            Storage::disk('public')->path($relativePath),
+        // Stream via the public disk so local and S3 drivers both work (path() is local-only).
+        return Storage::disk('public')->download(
+            $relativePath,
             $companyProfileDocument->original_name,
         );
     }

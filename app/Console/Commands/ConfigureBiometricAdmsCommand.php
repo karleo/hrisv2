@@ -12,7 +12,8 @@ class ConfigureBiometricAdmsCommand extends Command
 {
     protected $signature = 'biometric:configure-adms
                             {device=12 : Biometric device ID}
-                            {--timezone=Asia/Dubai : Device timezone for date ranges}';
+                            {--timezone=Asia/Dubai : Device timezone for date ranges}
+                            {--cloud : Clear LAN host IP (AWS/cloud — terminal must push; HRIS cannot pull)}';
 
     protected $description = 'Apply ADMS push settings in HRIS and print iClock terminal setup steps';
 
@@ -21,7 +22,7 @@ class ConfigureBiometricAdmsCommand extends Command
         $pushBase = config('biometric.push_base_url');
 
         if (! is_string($pushBase) || $pushBase === '') {
-            $this->error('Set BIOMETRIC_PUSH_BASE_URL=http://YOUR_PC_LAN_IP:8000 in .env (not localhost).');
+            $this->error('Set BIOMETRIC_PUSH_BASE_URL to your public HRIS URL (AWS) or PC LAN IP (Laragon), not localhost.');
 
             return self::FAILURE;
         }
@@ -41,16 +42,19 @@ class ConfigureBiometricAdmsCommand extends Command
         }
 
         $timezone = (string) $this->option('timezone');
+        $clearHost = (bool) $this->option('cloud');
 
         $device->update([
             'connection_type' => BiometricConnectionType::AdmsPush,
             'is_active' => true,
             'timezone' => $timezone,
+            'host' => $clearHost ? null : $device->host,
             'last_error' => null,
             'last_sync_status' => null,
             'metadata' => array_merge($device->metadata ?? [], [
                 'protocol' => 'tcp',
                 'switched_to_adms_at' => now()->toIso8601String(),
+                'cloud_adms' => $clearHost,
             ]),
         ]);
 
@@ -66,23 +70,28 @@ class ConfigureBiometricAdmsCommand extends Command
         $this->line("  Push URL: {$cdataUrl}");
         $this->newLine();
 
+        if ($clearHost) {
+            $this->warn('Cloud mode: device host IP cleared. AWS cannot pull from a private LAN IP.');
+        }
+
         $this->warn('On the iClock990 terminal (physical device):');
         $this->line('  1. Menu → Communication → Cloud Server (or ADMS)');
         $this->line("  2. Server URL / address: {$cdataUrl}");
         $this->line("  3. Device serial must be: {$device->serial_number}");
         $this->line('  4. Enable cloud server / ADMS, save, wait 1–2 minutes');
         $this->line('  5. Punch in/out on the device');
+        $this->line('  6. Biometric → Connectivity: Last push must leave Never, then Import attendance');
         $this->newLine();
 
-        $this->line('Testing HRIS endpoint from this PC…');
+        $this->line('Testing push endpoint from this PC…');
 
-        $lanOk = $this->probeUrl($testUrl);
+        $endpointOk = $this->probeUrl($testUrl);
 
-        if ($lanOk) {
-            $this->info('Endpoint OK on LAN — configure the terminal with the URL above, then punch.');
+        if ($endpointOk) {
+            $this->info('Endpoint OK — configure the terminal with the URL above, then punch.');
         }
 
-        if (! $lanOk) {
+        if (! $endpointOk) {
             $localPort80 = 'http://127.0.0.1/iclock/cdata?SN='.$device->serial_number;
             $localPort8000 = 'http://127.0.0.1:8000/iclock/cdata?SN='.$device->serial_number;
 
@@ -95,7 +104,7 @@ class ConfigureBiometricAdmsCommand extends Command
                 $this->warn('HRIS responds on 127.0.0.1:8000 but NOT on your LAN IP.');
                 $this->line('Stop artisan serve and use Laragon (hrisv2.test) or run: composer run serve-lan');
             } else {
-                $this->error('HRIS is not responding. Start Laragon Apache or php artisan serve.');
+                $this->error('Push URL is not responding from this PC. Confirm BIOMETRIC_PUSH_BASE_URL and that AWS/Laragon is up.');
             }
         }
 

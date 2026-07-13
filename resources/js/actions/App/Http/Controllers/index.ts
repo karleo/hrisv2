@@ -5,6 +5,7 @@ import DepartmentController from './DepartmentController'
 import EmployeeController from './EmployeeController'
 import EmployeeMessageController from './EmployeeMessageController'
 import EmployeeMessageTypingController from './EmployeeMessageTypingController'
+import EmployeeAssistantController from './EmployeeAssistantController'
 import JobPositionController from './JobPositionController'
 import LeaveTypeController from './LeaveTypeController'
 import CountryController from './CountryController'
@@ -15,8 +16,10 @@ import HardwareAssetValueController from './HardwareAssetValueController'
 import DocumentTypeController from './DocumentTypeController'
 import EmployeeTimeEntryController from './EmployeeTimeEntryController'
 import Reports from './Reports'
+import Payroll from './Payroll'
 import Biometric from './Biometric'
 import WorkTimetableController from './WorkTimetableController'
+import BiometricSettingController from './BiometricSettingController'
 import LeaveRequestController from './LeaveRequestController'
 import LeaveCalendarController from './LeaveCalendarController'
 import ItRequestController from './ItRequestController'
@@ -35,6 +38,7 @@ DepartmentController: Object.assign(DepartmentController, DepartmentController),
 EmployeeController: Object.assign(EmployeeController, EmployeeController),
 EmployeeMessageController: Object.assign(EmployeeMessageController, EmployeeMessageController),
 EmployeeMessageTypingController: Object.assign(EmployeeMessageTypingController, EmployeeMessageTypingController),
+EmployeeAssistantController: Object.assign(EmployeeAssistantController, EmployeeAssistantController),
 JobPositionController: Object.assign(JobPositionController, JobPositionController),
 LeaveTypeController: Object.assign(LeaveTypeController, LeaveTypeController),
 CountryController: Object.assign(CountryController, CountryController),
@@ -45,8 +49,10 @@ HardwareAssetValueController: Object.assign(HardwareAssetValueController, Hardwa
 DocumentTypeController: Object.assign(DocumentTypeController, DocumentTypeController),
 EmployeeTimeEntryController: Object.assign(EmployeeTimeEntryController, EmployeeTimeEntryController),
 Reports: Object.assign(Reports, Reports),
+Payroll: Object.assign(Payroll, Payroll),
 Biometric: Object.assign(Biometric, Biometric),
 WorkTimetableController: Object.assign(WorkTimetableController, WorkTimetableController),
+BiometricSettingController: Object.assign(BiometricSettingController, BiometricSettingController),
 LeaveRequestController: Object.assign(LeaveRequestController, LeaveRequestController),
 LeaveCalendarController: Object.assign(LeaveCalendarController, LeaveCalendarController),
 ItRequestController: Object.assign(ItRequestController, ItRequestController),

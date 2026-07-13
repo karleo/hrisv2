@@ -40,7 +40,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -310,7 +309,7 @@ class EmployeeController extends Controller
         return back()->with('success', 'Document deleted.');
     }
 
-    public function showProfileDocument(Request $request, EmployeeDocument $employee_document): BinaryFileResponse
+    public function showProfileDocument(Request $request, EmployeeDocument $employee_document): StreamedResponse
     {
         $user = $request->user();
         if ($user === null) {
@@ -327,11 +326,10 @@ class EmployeeController extends Controller
             abort(404, 'Document file not found.');
         }
 
-        return response()->file(
-            Storage::disk('public')->path($relativePath),
-            [
-                'Content-Disposition' => 'inline; filename="'.$employee_document->original_name.'"',
-            ]
+        // Stream via the public disk so local and S3 drivers both work (path() is local-only).
+        return Storage::disk('public')->response(
+            $relativePath,
+            $employee_document->original_name,
         );
     }
 
@@ -1323,7 +1321,7 @@ class EmployeeController extends Controller
         return back();
     }
 
-    public function showDocument(Employee $employee, EmployeeDocument $employee_document): BinaryFileResponse
+    public function showDocument(Employee $employee, EmployeeDocument $employee_document): StreamedResponse
     {
         $this->companyScope->assertCanAccessEmployee(request()->user(), $employee);
 
@@ -1336,11 +1334,10 @@ class EmployeeController extends Controller
             abort(404, 'Document file not found.');
         }
 
-        return response()->file(
-            Storage::disk('public')->path($relativePath),
-            [
-                'Content-Disposition' => 'inline; filename="'.$employee_document->original_name.'"',
-            ]
+        // Stream via the public disk so local and S3 drivers both work (path() is local-only).
+        return Storage::disk('public')->response(
+            $relativePath,
+            $employee_document->original_name,
         );
     }
 

@@ -157,6 +157,31 @@ class BiometricSyncPipelineTest extends TestCase
         $this->assertNotNull($device->fresh()->last_sync_at);
     }
 
+    public function test_adms_import_without_lan_host_does_not_blame_missing_device_ip(): void
+    {
+        config(['biometric.push_base_url' => 'https://hris-stag.example.test']);
+
+        $device = $this->createDevice([
+            'is_active' => true,
+            'timezone' => 'Asia/Dubai',
+            'connection_type' => BiometricConnectionType::AdmsPush,
+            'host' => null,
+        ]);
+
+        $log = app(BiometricSyncPipeline::class)->run(
+            $device,
+            triggeredBy: null,
+            from: Carbon::parse('2026-07-05 00:00:00', 'Asia/Dubai'),
+            until: Carbon::parse('2026-07-13 23:59:59', 'Asia/Dubai'),
+        );
+
+        $this->assertSame(BiometricSyncStatus::Failed, $log->status);
+        $this->assertNotNull($log->error_message);
+        $this->assertStringNotContainsString('Device host IP is not set', (string) $log->error_message);
+        $this->assertStringContainsString('https://hris-stag.example.test/iclock/cdata', (string) $log->error_message);
+        $this->assertStringContainsString('AWS cannot pull', (string) $log->error_message);
+    }
+
     private function createDevice(array $overrides = []): BiometricDevice
     {
         return BiometricDevice::query()->create(array_merge([
