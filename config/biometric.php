@@ -81,6 +81,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Prefer HTTP for device ADMS URLs
+    |--------------------------------------------------------------------------
+    |
+    | Many ZKTeco/iClock firmwares fail TLS or cannot follow HTTPS redirects.
+    | When true, https:// push URLs are rewritten to http:// for terminal setup.
+    | The web server must serve /iclock/* on port 80 without a 301 to HTTPS.
+    |
+    */
+
+    'push_prefer_http' => filter_var(
+        env('BIOMETRIC_PUSH_PREFER_HTTP', true),
+        FILTER_VALIDATE_BOOLEAN,
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | ZKTeco device web report pull (/csl/report on device IP)
     |--------------------------------------------------------------------------
     */

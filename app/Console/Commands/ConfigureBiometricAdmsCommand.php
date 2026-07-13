@@ -84,7 +84,8 @@ class ConfigureBiometricAdmsCommand extends Command
         $this->line("  4. Device serial must be: {$device->serial_number}");
         $this->line('  5. Save, wait 1–2 minutes, punch once');
         $this->line('  6. Staging Connectivity → Last push must update to a NEW time, then Import attendance');
-        $this->line('  7. If HTTPS never connects, try HTTP on port 80 (many iClocks fail TLS).');
+        $this->line('  7. Prefer HTTP on the terminal. Staging must NOT 301 /iclock to HTTPS (see deploy/iclock-http.nginx.conf).');
+        $this->line('  8. If HTTPS never connects, use: http://'.BiometricPushUrl::hostForDeviceMenu().'/iclock/cdata');
         $this->newLine();
         $this->line('If ADMS never updates Last push: on Laragon (same LAN), web-report Import, then:');
         $this->line("  php artisan biometric:relay-punches {$device->id} --url={$cdataUrl} --from=YYYY-MM-DD --to=YYYY-MM-DD");

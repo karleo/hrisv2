@@ -367,10 +367,12 @@ function BiometricDashboardContent({
                                             <div className="md:col-span-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
                                                 <p className="font-medium">ADMS push setup (recommended if pull fails)</p>
                                                 <p className="text-muted-foreground mt-1">
-                                                    On the terminal: Communication → Cloud Server → Server address:{' '}
-                                                    <code className="text-xs">{iclockPushUrl}</code> (use your PC/LAN
-                                                    IP if the device cannot reach localhost). Serial number must match
-                                                    exactly. Punches arrive automatically; Sync remaps employees.
+                                                    On the terminal: Communication → <strong>ADMS</strong> → Server
+                                                    address:{' '}
+                                                    <code className="text-xs">{iclockPushUrl}</code> (prefer{' '}
+                                                    <strong>http://</strong> — many iClocks fail HTTPS). Enable ADMS,
+                                                    save, punch once. Connectivity → Last push must update. Import only
+                                                    remaps punches already received; serial must match exactly.
                                                 </p>
                                             </div>
                                         )}

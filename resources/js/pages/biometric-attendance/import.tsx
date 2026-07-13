@@ -118,10 +118,10 @@ function BiometricImportContent({
                                     <strong>From / To</strong> to the range you need (including last month), then
                                     Import. HRIS queues a <code className="text-xs">DATA QUERY ATTLOG</code>, resets
                                     the device sync stamp so history can re-upload, and waits for the terminal to push
-                                    to <code className="text-xs break-all">{iclockPushUrl}</code>. After Import: wait
-                                    2–5 minutes (or punch once), open Raw punches until the count grows, then Import
-                                    again with the same dates. Do not open{' '}
-                                    <code className="text-xs">/iclock/getrequest</code> in a browser — that steals
+                                    to <code className="text-xs break-all">{iclockPushUrl}</code> (use HTTP on the
+                                    device; HTTPS often fails). After Import: wait 2–5 minutes (or punch once), open
+                                    Raw punches until the count grows, then Import again with the same dates. Do not
+                                    open <code className="text-xs">/iclock/getrequest</code> in a browser — that steals
                                     commands from the device.
                                 </>
                             ) : usesDeviceWebReport ? (

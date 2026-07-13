@@ -152,18 +152,21 @@ function BiometricConnectivityContent({
                             </p>
                             <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm">
                                 <li>
-                                    Full URL (if one field):{' '}
+                                    Use <strong>HTTP</strong> on the terminal (many iClocks fail HTTPS):{' '}
                                     <code className="text-xs break-all">{iclockPushUrl}</code>
                                 </li>
                                 <li>
                                     Or host: <code className="text-xs">{admsServerHost ?? '—'}</code> · port:{' '}
-                                    <code className="text-xs">{admsServerPort ?? 443}</code> · HTTPS:{' '}
-                                    {admsUsesHttps === false ? 'OFF' : 'ON'}
+                                    <code className="text-xs">{admsServerPort ?? 80}</code> · HTTPS:{' '}
+                                    {admsUsesHttps ? 'ON' : 'OFF'}
                                 </li>
                                 <li>
-                                    After Import, pending commands must drop to 0 (device polled). If Last push does not
-                                    update, the terminal is not reaching AWS — try HTTP/port 80 or pull on LAN then
-                                    relay.
+                                    Staging must serve <code className="text-xs">/iclock/*</code> on port 80{' '}
+                                    <strong>without</strong> redirecting to HTTPS (see deploy/iclock-http.nginx.conf).
+                                </li>
+                                <li>
+                                    After a real punch, Connectivity → Last push must show a new time. Import only
+                                    processes punches already received.
                                 </li>
                             </ul>
                         </CardHeader>

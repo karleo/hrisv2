@@ -178,7 +178,7 @@ class BiometricSyncPipelineTest extends TestCase
         $this->assertSame(BiometricSyncStatus::Failed, $log->status);
         $this->assertNotNull($log->error_message);
         $this->assertStringNotContainsString('Device host IP is not set', (string) $log->error_message);
-        $this->assertStringContainsString('https://hris-stag.example.test/iclock/cdata', (string) $log->error_message);
+        $this->assertStringContainsString('http://hris-stag.example.test/iclock/cdata', (string) $log->error_message);
         $this->assertStringContainsString('AWS cannot pull', (string) $log->error_message);
         $this->assertStringContainsString('ADMS DATA QUERY was queued', (string) $log->error_message);
     }

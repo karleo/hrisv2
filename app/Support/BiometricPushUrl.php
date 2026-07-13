@@ -9,6 +9,20 @@ final class BiometricPushUrl
         $configured = config('biometric.push_base_url');
 
         if (is_string($configured) && $configured !== '') {
+            return self::normalizeForDevice(rtrim($configured, '/'));
+        }
+
+        return self::normalizeForDevice(rtrim((string) config('app.url'), '/'));
+    }
+
+    /**
+     * Raw configured base (no http rewrite) — for server diagnostics.
+     */
+    public static function configuredBaseUrl(): string
+    {
+        $configured = config('biometric.push_base_url');
+
+        if (is_string($configured) && $configured !== '') {
             return rtrim($configured, '/');
         }
 
@@ -38,9 +52,7 @@ final class BiometricPushUrl
             return $port;
         }
 
-        $scheme = parse_url(self::baseUrl(), PHP_URL_SCHEME);
-
-        return $scheme === 'http' ? 80 : 443;
+        return self::usesHttps() ? 443 : 80;
     }
 
     public static function usesHttps(): bool
@@ -54,5 +66,23 @@ final class BiometricPushUrl
 
         return str_contains($base, 'localhost')
             || str_contains($base, '127.0.0.1');
+    }
+
+    public static function prefersHttp(): bool
+    {
+        return (bool) config('biometric.push_prefer_http', true);
+    }
+
+    private static function normalizeForDevice(string $base): string
+    {
+        if (! self::prefersHttp()) {
+            return $base;
+        }
+
+        if (str_starts_with(strtolower($base), 'https://')) {
+            return 'http://'.substr($base, strlen('https://'));
+        }
+
+        return $base;
     }
 }
