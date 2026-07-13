@@ -74,13 +74,20 @@ class ConfigureBiometricAdmsCommand extends Command
             $this->warn('Cloud mode: device host IP cleared. AWS cannot pull from a private LAN IP.');
         }
 
-        $this->warn('On the iClock990 terminal (physical device):');
-        $this->line('  1. Menu → Communication → Cloud Server (or ADMS)');
-        $this->line("  2. Server URL / address: {$cdataUrl}");
-        $this->line("  3. Device serial must be: {$device->serial_number}");
-        $this->line('  4. Enable cloud server / ADMS, save, wait 1–2 minutes');
-        $this->line('  5. Punch in/out on the device');
-        $this->line('  6. Biometric → Connectivity: Last push must leave Never, then Import attendance');
+        $this->warn('On the iClock terminal (Menu → Communication → ADMS):');
+        $this->line('  1. Enable ADMS = ON');
+        $this->line('  2. If the menu has one Server URL field, use: '.$cdataUrl);
+        $this->line('  3. If the menu has separate fields:');
+        $this->line('       Server address / IP: '.BiometricPushUrl::hostForDeviceMenu());
+        $this->line('       Port: '.BiometricPushUrl::portForDeviceMenu());
+        $this->line('       HTTPS / SSL: '.(BiometricPushUrl::usesHttps() ? 'ON' : 'OFF'));
+        $this->line("  4. Device serial must be: {$device->serial_number}");
+        $this->line('  5. Save, wait 1–2 minutes, punch once');
+        $this->line('  6. Staging Connectivity → Last push must update to a NEW time, then Import attendance');
+        $this->line('  7. If HTTPS never connects, try HTTP on port 80 (many iClocks fail TLS).');
+        $this->newLine();
+        $this->line('If ADMS never updates Last push: on Laragon (same LAN), web-report Import, then:');
+        $this->line("  php artisan biometric:relay-punches {$device->id} --url={$cdataUrl} --from=YYYY-MM-DD --to=YYYY-MM-DD");
         $this->newLine();
 
         $this->line('Testing push endpoint from this PC…');

@@ -14,6 +14,7 @@ use App\Http\Requests\Biometric\UpdateBiometricDeviceRequest;
 use App\Models\BiometricDevice;
 use App\Models\BiometricPunch;
 use App\Models\BiometricSyncLog;
+use App\Services\Biometric\BiometricAdmsCommandQueue;
 use App\Services\Biometric\BiometricBackgroundSyncStarter;
 use App\Services\Biometric\BiometricDeviceProbeService;
 use App\Services\Biometric\BiometricEmployeeMapper;
@@ -103,6 +104,9 @@ class BiometricAttendanceController extends Controller
             'canManageDevices' => $user?->hasModuleAbility(PermissionModule::BiometricAttendance, ModuleAbility::Update) ?? false,
             'defaultImportRange' => $this->defaultImportDateRange(),
             'iclockPushUrl' => BiometricPushUrl::cdataEndpoint(),
+            'admsServerHost' => BiometricPushUrl::hostForDeviceMenu(),
+            'admsServerPort' => BiometricPushUrl::portForDeviceMenu(),
+            'admsUsesHttps' => BiometricPushUrl::usesHttps(),
             'pushUsesLocalhost' => BiometricPushUrl::usesLocalhost(),
             'hasAdmsDevices' => collect($devices)->contains(
                 fn (array $device): bool => $device['connection_type'] === BiometricConnectionType::AdmsPush->value,
@@ -618,6 +622,8 @@ class BiometricAttendanceController extends Controller
      */
     private function devicesForConnectivity(): array
     {
+        $commandQueue = app(BiometricAdmsCommandQueue::class);
+
         return BiometricDevice::query()
             ->orderBy('name')
             ->get()
@@ -632,9 +638,16 @@ class BiometricAttendanceController extends Controller
                 'last_sync_status' => $device->last_sync_status,
                 'last_error' => $device->last_error,
                 'protocol' => $device->zkProtocol(),
+                'serial_number' => $device->serial_number,
                 'last_adms_push_at' => is_string($device->metadata['last_adms_push_at'] ?? null)
                     ? $device->metadata['last_adms_push_at']
                     : null,
+                'last_adms_handshake_at' => is_string($device->metadata['last_adms_handshake_at'] ?? null)
+                    ? $device->metadata['last_adms_handshake_at']
+                    : null,
+                'pending_adms_commands' => $device->connection_type === BiometricConnectionType::AdmsPush
+                    ? $commandQueue->pendingCount($device->serial_number)
+                    : 0,
                 'last_connectivity_test_at' => is_string($device->metadata['last_connectivity_test_at'] ?? null)
                     ? $device->metadata['last_connectivity_test_at']
                     : null,

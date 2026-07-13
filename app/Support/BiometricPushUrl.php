@@ -20,6 +20,34 @@ final class BiometricPushUrl
         return self::baseUrl().'/iclock/cdata';
     }
 
+    /**
+     * Host/IP only — some ADMS menus want this with a separate Port field.
+     */
+    public static function hostForDeviceMenu(): string
+    {
+        $host = parse_url(self::baseUrl(), PHP_URL_HOST);
+
+        return is_string($host) && $host !== '' ? $host : self::baseUrl();
+    }
+
+    public static function portForDeviceMenu(): int
+    {
+        $port = parse_url(self::baseUrl(), PHP_URL_PORT);
+
+        if (is_int($port)) {
+            return $port;
+        }
+
+        $scheme = parse_url(self::baseUrl(), PHP_URL_SCHEME);
+
+        return $scheme === 'http' ? 80 : 443;
+    }
+
+    public static function usesHttps(): bool
+    {
+        return str_starts_with(strtolower(self::baseUrl()), 'https://');
+    }
+
     public static function usesLocalhost(): bool
     {
         $base = self::baseUrl();

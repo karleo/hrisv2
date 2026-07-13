@@ -51,11 +51,21 @@ final class BiometricAdmsCommandQueue
             ]),
         ]);
 
+        // Replace prior pending commands so repeated Imports do not stack forever.
+        $this->clearPending($device->serial_number);
+
         $this->push($device->serial_number, 'CHECK');
         $this->push($device->serial_number, 'INFO');
         $this->push($device->serial_number, "DATA QUERY ATTLOG StartTime={$start}\tEndTime={$end}");
         $this->push($device->serial_number, 'DATA QUERY ATTLOG');
         $this->push($device->serial_number, 'LOG');
+    }
+
+    public function clearPending(string $serialNumber): int
+    {
+        return BiometricAdmsCommand::query()
+            ->where('serial_number', $serialNumber)
+            ->delete();
     }
 
     public function pendingCount(string $serialNumber): int

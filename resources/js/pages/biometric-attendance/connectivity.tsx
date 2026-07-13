@@ -27,7 +27,10 @@ type DeviceRow = {
     last_sync_status: string | null;
     last_error: string | null;
     protocol: string;
+    serial_number?: string;
     last_adms_push_at: string | null;
+    last_adms_handshake_at?: string | null;
+    pending_adms_commands?: number;
     last_connectivity_test_at: string | null;
 };
 
@@ -37,6 +40,9 @@ export default function BiometricConnectivity(props: {
     canManageDevices: boolean;
     defaultImportRange: { from: string; to: string };
     iclockPushUrl: string;
+    admsServerHost?: string;
+    admsServerPort?: number;
+    admsUsesHttps?: boolean;
     pushUsesLocalhost: boolean;
     hasAdmsDevices: boolean;
     hasWebReportDevices: boolean;
@@ -54,6 +60,9 @@ function BiometricConnectivityContent({
     canManageDevices,
     defaultImportRange,
     iclockPushUrl,
+    admsServerHost,
+    admsServerPort,
+    admsUsesHttps,
     pushUsesLocalhost,
     hasAdmsDevices,
     hasWebReportDevices,
@@ -63,6 +72,9 @@ function BiometricConnectivityContent({
     canManageDevices: boolean;
     defaultImportRange: { from: string; to: string };
     iclockPushUrl: string;
+    admsServerHost?: string;
+    admsServerPort?: number;
+    admsUsesHttps?: boolean;
     pushUsesLocalhost: boolean;
     hasAdmsDevices: boolean;
     hasWebReportDevices: boolean;
@@ -133,11 +145,27 @@ function BiometricConnectivityContent({
                 {hasAdmsDevices && (
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">ADMS push URL (optional live sync)</CardTitle>
+                            <CardTitle className="text-base">ADMS setup on the physical terminal</CardTitle>
                             <p className="text-muted-foreground text-sm">
-                                For automatic punches, configure the terminal cloud server to:{' '}
-                                <code className="text-xs break-all">{iclockPushUrl}</code>
+                                Menu → Communication → <strong>ADMS</strong>. Enable ADMS, then set either the full URL
+                                or separate host/port fields.
                             </p>
+                            <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm">
+                                <li>
+                                    Full URL (if one field):{' '}
+                                    <code className="text-xs break-all">{iclockPushUrl}</code>
+                                </li>
+                                <li>
+                                    Or host: <code className="text-xs">{admsServerHost ?? '—'}</code> · port:{' '}
+                                    <code className="text-xs">{admsServerPort ?? 443}</code> · HTTPS:{' '}
+                                    {admsUsesHttps === false ? 'OFF' : 'ON'}
+                                </li>
+                                <li>
+                                    After Import, pending commands must drop to 0 (device polled). If Last push does not
+                                    update, the terminal is not reaching AWS — try HTTP/port 80 or pull on LAN then
+                                    relay.
+                                </li>
+                            </ul>
                         </CardHeader>
                     </Card>
                 )}
@@ -184,12 +212,30 @@ function BiometricConnectivityContent({
                                         : `:${device.port} (${(device.protocol ?? 'tcp').toUpperCase()})`}
                                 </p>
                                 {device.connection_type === 'adms_push' && (
-                                    <p>
-                                        <span className="text-muted-foreground">Last push:</span>{' '}
-                                        {device.last_adms_push_at
-                                            ? new Date(device.last_adms_push_at).toLocaleString()
-                                            : 'Never — configure cloud server on terminal'}
-                                    </p>
+                                    <>
+                                        <p>
+                                            <span className="text-muted-foreground">Last push:</span>{' '}
+                                            {device.last_adms_push_at
+                                                ? new Date(device.last_adms_push_at).toLocaleString()
+                                                : 'Never — configure ADMS on terminal'}
+                                        </p>
+                                        <p>
+                                            <span className="text-muted-foreground">Last handshake:</span>{' '}
+                                            {device.last_adms_handshake_at
+                                                ? new Date(device.last_adms_handshake_at).toLocaleString()
+                                                : 'Never'}
+                                        </p>
+                                        <p>
+                                            <span className="text-muted-foreground">Pending ADMS commands:</span>{' '}
+                                            {device.pending_adms_commands ?? 0}
+                                            {(device.pending_adms_commands ?? 0) > 0 && (
+                                                <span className="text-destructive">
+                                                    {' '}
+                                                    — device has not polled yet (punch once after Import)
+                                                </span>
+                                            )}
+                                        </p>
+                                    </>
                                 )}
                                 <p>
                                     <span className="text-muted-foreground">Last import:</span>{' '}

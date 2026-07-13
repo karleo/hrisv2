@@ -210,6 +210,7 @@ class BiometricSyncPipelineTest extends TestCase
         $this->assertStringContainsString('did not download the terminal', (string) $log->error_message);
         $this->assertStringContainsString('Import again', (string) $log->error_message);
         $this->assertSame(5, app(\App\Services\Biometric\BiometricAdmsCommandQueue::class)->pendingCount($device->serial_number));
+        $this->assertSame('0', $device->fresh()->metadata['last_attlog_stamp'] ?? null);
     }
 
     private function createDevice(array $overrides = []): BiometricDevice
