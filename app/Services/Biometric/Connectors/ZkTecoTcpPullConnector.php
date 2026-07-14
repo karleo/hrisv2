@@ -252,23 +252,33 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
             ? array_values(array_unique([$device->commKeyValue(), 0]))
             : $device->commKeyCandidates();
 
-        foreach ($keys as $password) {
-            $zk = $this->makeClient($device, $protocol, $password);
-
-            try {
-                if ($this->connectGuard->connect($zk)) {
-                    return [
-                        'client' => $zk,
-                        'password' => $password,
-                    ];
-                }
-
-                $failures[] = "key {$password}: no reply or auth failed";
-            } catch (\Throwable $e) {
-                $failures[] = "key {$password}: {$e->getMessage()}";
+        foreach ($keys as $index => $password) {
+            if ($index > 0) {
+                sleep(2);
             }
 
-            $zk->disconnect();
+            for ($attempt = 1; $attempt <= 3; $attempt++) {
+                $zk = $this->makeClient($device, $protocol, $password);
+
+                try {
+                    if ($this->connectGuard->connect($zk)) {
+                        return [
+                            'client' => $zk,
+                            'password' => $password,
+                        ];
+                    }
+
+                    $failures[] = "key {$password} try {$attempt}: no reply or auth failed";
+                } catch (\Throwable $e) {
+                    $failures[] = "key {$password} try {$attempt}: {$e->getMessage()}";
+                }
+
+                $zk->disconnect();
+
+                if ($attempt < 3) {
+                    usleep(800_000);
+                }
+            }
         }
 
         if ($failures !== []) {

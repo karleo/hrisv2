@@ -475,6 +475,27 @@ class BiometricAttendanceController extends Controller
         );
     }
 
+    public function useTcpPull(BiometricDevice $biometric_device): RedirectResponse
+    {
+        $biometric_device->update([
+            'connection_type' => BiometricConnectionType::TcpPull,
+            'port' => $biometric_device->port > 0 && $biometric_device->port !== 80
+                ? $biometric_device->port
+                : 4370,
+            'last_error' => null,
+            'last_sync_status' => null,
+            'metadata' => array_merge($biometric_device->metadata ?? [], [
+                'protocol' => $biometric_device->zkProtocol() ?: 'tcp',
+                'switched_to_tcp_pull_at' => now()->toIso8601String(),
+            ]),
+        ]);
+
+        return to_route('biometric-attendance.connectivity')->with(
+            'success',
+            'Device switched to TCP pull (port 4370). Power-cycle the terminal, wait 2 minutes, then Test connectivity. Comm Key in HRIS must match MENU → Comm → Comm Key.',
+        );
+    }
+
     public function useDeviceWebReport(BiometricDevice $biometric_device): RedirectResponse
     {
         $host = $biometric_device->host;

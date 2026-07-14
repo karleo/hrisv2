@@ -81,6 +81,7 @@ class ProbeBiometricDeviceCommand extends Command
             foreach ($device->commKeyCandidates() as $password) {
                 $result = $this->tryConnect($device, $protocol, $password, $connectGuard);
                 $this->line("  [{$protocol}] comm key {$password}: {$result}");
+                sleep(2);
             }
         }
 
@@ -101,26 +102,35 @@ class ProbeBiometricDeviceCommand extends Command
         }
 
         try {
-            $zk = new ZKTeco(
-                host: $device->host,
-                port: $device->port,
-                shouldPing: false,
-                timeout: 10,
-                password: $password,
-                protocol: $protocol,
-            );
+            $last = 'failed (code false)';
 
-            $result = $zk->connect();
+            for ($attempt = 1; $attempt <= 3; $attempt++) {
+                $zk = new ZKTeco(
+                    host: $device->host,
+                    port: $device->port,
+                    shouldPing: false,
+                    timeout: 10,
+                    password: $password,
+                    protocol: $protocol,
+                );
 
-            if ($connectGuard->connectSucceeded($result)) {
+                $result = $zk->connect();
+
+                if ($connectGuard->connectSucceeded($result)) {
+                    $zk->disconnect();
+
+                    return 'CONNECTED (code '.$result.')';
+                }
+
                 $zk->disconnect();
+                $last = 'failed (code '.var_export($result, true).')';
 
-                return 'CONNECTED (code '.$result.')';
+                if ($attempt < 3) {
+                    usleep(800_000);
+                }
             }
 
-            $zk->disconnect();
-
-            return 'failed (code '.var_export($result, true).')';
+            return $last;
         } catch (\Throwable $e) {
             return 'error: '.$e->getMessage();
         }

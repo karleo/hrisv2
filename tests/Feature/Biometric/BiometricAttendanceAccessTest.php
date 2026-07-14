@@ -412,4 +412,41 @@ class BiometricAttendanceAccessTest extends TestCase
                 'is_running' => true,
             ]);
     }
+
+    public function test_can_switch_device_to_tcp_pull(): void
+    {
+        $role = Role::factory()->create();
+        RoleModulePermission::query()->create([
+            'role_id' => $role->id,
+            'module' => PermissionModule::BiometricAttendance,
+            'can_access' => true,
+            'can_view' => true,
+            'can_create' => false,
+            'can_update' => true,
+            'can_delete' => false,
+            'can_check_in' => false,
+            'can_check_out' => false,
+        ]);
+
+        $user = User::factory()->create(['role_id' => $role->id]);
+        $device = BiometricDevice::query()->create([
+            'name' => 'iClock990',
+            'serial_number' => 'SN-TCP-SWITCH-1',
+            'connection_type' => BiometricConnectionType::AdmsPush,
+            'host' => '5.195.119.67',
+            'port' => 80,
+            'is_active' => true,
+            'last_error' => 'stale error',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('biometric-attendance.devices.use-tcp-pull', $device))
+            ->assertRedirect(route('biometric-attendance.connectivity'));
+
+        $device->refresh();
+
+        $this->assertSame(BiometricConnectionType::TcpPull, $device->connection_type);
+        $this->assertSame(4370, $device->port);
+        $this->assertNull($device->last_error);
+    }
 }

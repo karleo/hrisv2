@@ -322,6 +322,26 @@ function BiometricConnectivityContent({
                                         <Wifi className="mr-1 size-4" />
                                         Test connectivity
                                     </Button>
+                                    {device.connection_type !== 'tcp_pull' && canManageDevices && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() => {
+                                                if (
+                                                    confirm(
+                                                        'Switch to TCP pull on port 4370? Comm Key must match the terminal. Power-cycle the device first if sessions were failing.',
+                                                    )
+                                                ) {
+                                                    router.post(
+                                                        `/biometric-attendance/devices/${device.id}/use-tcp-pull`,
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            Switch to TCP pull
+                                        </Button>
+                                    )}
                                     {device.connection_type !== 'device_web_report' && canManageDevices && (
                                         <Button
                                             type="button"

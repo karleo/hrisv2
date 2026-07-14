@@ -192,6 +192,7 @@ Route::middleware(['auth', 'verified', EnforceModulePermissions::class])->group(
         Route::get('sync-status', [BiometricAttendanceController::class, 'syncStatus'])->name('sync-status');
         Route::post('devices/{biometric_device}/test', [BiometricAttendanceController::class, 'testConnection'])->name('devices.test');
         Route::post('devices/{biometric_device}/use-adms-push', [BiometricAttendanceController::class, 'useAdmsPush'])->name('devices.use-adms-push');
+        Route::post('devices/{biometric_device}/use-tcp-pull', [BiometricAttendanceController::class, 'useTcpPull'])->name('devices.use-tcp-pull');
         Route::post('devices/{biometric_device}/use-device-web-report', [BiometricAttendanceController::class, 'useDeviceWebReport'])->name('devices.use-device-web-report');
         Route::get('devices/{biometric_device}/probe', [BiometricAttendanceController::class, 'probeDevice'])->name('devices.probe');
     });

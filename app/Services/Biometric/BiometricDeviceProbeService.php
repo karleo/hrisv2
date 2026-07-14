@@ -99,7 +99,12 @@ final class BiometricDeviceProbeService
         if ($portReachable && extension_loaded('sockets') && ! $admsOnPort) {
             $protocol = $device->zkProtocol();
 
-            foreach ($device->commKeyCandidates() as $password) {
+            // Quick path: only saved key (+ 0/1). Full fallback lists lock iClock990 sessions.
+            foreach ($this->keysForQuickProbe($device) as $index => $password) {
+                if ($index > 0) {
+                    sleep(2);
+                }
+
                 $connectResult = $this->tryConnect($device, $protocol, $password, 10);
                 $attempts[] = strtoupper($protocol)." key {$password}: {$connectResult}";
 
@@ -196,8 +201,15 @@ final class BiometricDeviceProbeService
         $admsOnPort = $host !== '' && $this->devicePortSpeaksAdms($host, $port);
 
         if ($portReachable && extension_loaded('sockets') && ! $admsOnPort) {
+            $attemptIndex = 0;
+
             foreach ($device->zkProtocolsToTry() as $protocol) {
                 foreach ($device->commKeyCandidates() as $password) {
+                    if ($attemptIndex > 0) {
+                        sleep(2);
+                    }
+
+                    $attemptIndex++;
                     $result = $this->tryConnect($device, $protocol, $password, 10);
                     $attempts[] = strtoupper($protocol)." key {$password}: {$result}";
 
@@ -278,8 +290,19 @@ final class BiometricDeviceProbeService
             ? ' Set BIOMETRIC_PUSH_BASE_URL in .env to http://YOUR_PC_LAN_IP (not localhost).'
             : '';
 
-        return 'Port is open but ZK pull failed on every comm key tried (saved key, 0, 1, and fallbacks). Confirm MENU → Comm → Comm Key on the terminal matches HRIS, disable other ZK software on the device, then run: php artisan biometric:probe-device <id>'.$localhost
-            .' Or use "Switch to ADMS push" and set Cloud Server to '.BiometricPushUrl::cdataEndpoint().'.';
+        return 'Port is open but ZK TCP session failed. Power-cycle the terminal, close other ZK software, wait 2 minutes, then run: php artisan biometric:probe-device <id>.'
+            .$localhost
+            .' Confirm MENU → Comm → Comm Key matches HRIS. iClock990 often rejects TCP pull — if probe never shows CONNECTED, use "Switch to web report pull" (still pulls from the device IP) or ADMS push to '.BiometricPushUrl::cdataEndpoint().'.';
+    }
+
+    /**
+     * Keys for UI / sync pre-check. Avoid hammering fallbacks on every click.
+     *
+     * @return list<int>
+     */
+    private function keysForQuickProbe(BiometricDevice $device): array
+    {
+        return array_values(array_unique([$device->commKeyValue(), 0, 1]));
     }
 
     private function portReachable(string $host, int $port): bool
@@ -312,28 +335,37 @@ final class BiometricDeviceProbeService
 
     private function tryConnect(BiometricDevice $device, string $protocol, int $password, int $timeoutSeconds = 10): string
     {
-        try {
-            $zk = new ZKTeco(
-                host: (string) $device->host,
-                port: $device->port,
-                shouldPing: false,
-                timeout: $timeoutSeconds,
-                password: $password,
-                protocol: $protocol,
-            );
+        $lastResult = 'auth failed';
 
-            if ($this->connectGuard->connectSucceeded($zk->connect())) {
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            try {
+                $zk = new ZKTeco(
+                    host: (string) $device->host,
+                    port: $device->port,
+                    shouldPing: false,
+                    timeout: $timeoutSeconds,
+                    password: $password,
+                    protocol: $protocol,
+                );
+
+                if ($this->connectGuard->connectSucceeded($zk->connect())) {
+                    $zk->disconnect();
+
+                    return 'connected';
+                }
+
                 $zk->disconnect();
-
-                return 'connected';
+                $lastResult = 'auth failed';
+            } catch (\Throwable $e) {
+                $lastResult = $e->getMessage();
             }
 
-            $zk->disconnect();
-
-            return 'auth failed';
-        } catch (\Throwable $e) {
-            return $e->getMessage();
+            if ($attempt < 3) {
+                usleep(800_000);
+            }
         }
+
+        return $lastResult;
     }
 
     private function webReportLoginWorks(BiometricDevice $device): bool
