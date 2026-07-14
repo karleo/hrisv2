@@ -48,7 +48,7 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
 
         foreach ($protocols as $index => $protocol) {
             try {
-                $result = $this->readAttendanceWithProtocol($device, $protocol, $since, quickConnect: true);
+                $result = $this->readAttendanceWithProtocol($device, $protocol, $since, $until, quickConnect: true);
 
                 if ($result['yielded'] > 0) {
                     foreach ($result['punches'] as $punch) {
@@ -66,8 +66,9 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
 
                 $errors[] = strtoupper($protocol).': '.$result['message'];
 
-                if ($index === 0 && $result['connected']) {
-                    break;
+                // Connected but no punches in range / empty memory — not a connection failure.
+                if ($result['connected']) {
+                    return;
                 }
             } catch (RuntimeException $e) {
                 throw $e;
@@ -92,6 +93,7 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
         BiometricDevice $device,
         string $protocol,
         ?Carbon $since,
+        ?Carbon $until = null,
         bool $quickConnect = false,
     ): array {
         $session = $this->openSession($device, $protocol, $quickConnect);
@@ -111,13 +113,16 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
         $usedPassword = $session['password'];
 
         try {
+            // Many ZK firmwares (including iClock) require disable before ATTLOG download.
+            $zk->disableDevice();
+
             $records = $zk->getAttendances();
 
             if ($records === [] || $records === false) {
                 return [
                     'connected' => true,
                     'yielded' => 0,
-                    'message' => 'no attendance records on device (memory empty or log was cleared).',
+                    'message' => 'no attendance records on device (memory empty, log cleared, or this firmware does not expose ATTLOG over TCP). Check Report on http://'.$device->host.' — if punches exist there, use Switch to web report pull.',
                     'punches' => [],
                 ];
             }
@@ -138,6 +143,10 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
                 }
 
                 if ($since !== null && $punch->punchedAt->lt($since)) {
+                    continue;
+                }
+
+                if ($until !== null && $punch->punchedAt->gt($until)) {
                     continue;
                 }
 
@@ -166,6 +175,12 @@ final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
                 'punches' => $punches,
             ];
         } finally {
+            try {
+                $zk->enableDevice();
+            } catch (\Throwable) {
+                // Ignore enable failures after a failed/partial pull.
+            }
+
             $zk->disconnect();
         }
     }

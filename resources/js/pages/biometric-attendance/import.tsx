@@ -70,14 +70,10 @@ function BiometricImportContent({
                 <BiometricAttendanceNav currentPath="/biometric-attendance/import" />
 
                 {selectedDevice?.connection_type === 'tcp_pull' && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
-                        <strong>TCP pull does not work on this iClock990.</strong> On{' '}
-                        <Link href="/biometric-attendance/connectivity" className="font-medium underline">
-                            Connectivity
-                        </Link>
-                        , switch to <strong>Device web report</strong> (reads from{' '}
-                        <code className="text-xs">http://{selectedDevice.host}</code>) or ADMS push (
-                        <code className="text-xs break-all">{iclockPushUrl}</code>).
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                        TCP pull is active. Set <strong>From / To</strong> to the same dates as on the device Report
+                        page (check the <strong>year</strong>). Probe <code className="text-xs">CONNECTED</code> only
+                        means the session works — Import still has to download attendance from device memory.
                     </div>
                 )}
 
@@ -211,7 +207,7 @@ function BiometricImportContent({
                                             ? 'Pull report & import'
                                             : usesAdmsPush
                                               ? 'Import attendance'
-                                              : 'Pull & import (unavailable)'}
+                                              : 'Pull & import'}
                                     </Button>
                                 </div>
                             </form>
