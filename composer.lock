@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "043c36a7344f3ba8e293fe6bf08bd465",
+    "content-hash": "1894adc24a3748a02efb19b72804b0e2",
     "packages": [
         {
             "name": "0mithun/php-zkteco",
@@ -4333,6 +4333,39 @@
                 "source": "https://github.com/antonioribeiro/google2fa/tree/v9.0.0"
             },
             "time": "2025-09-19T22:51:08+00:00"
+        },
+        {
+            "name": "primelogistics/zk-biometric-client",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/zk-biometric-client",
+                "reference": "be880498bcaf44705659a661cb4a87d50a4e377f"
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.8",
+                "nesbot/carbon": "^3.0",
+                "php": "^8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PrimeLogistics\\ZkBiometricClient\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "PrimeLogistics\\ZkBiometricClient\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "ZKTeco web-report pull and ADMS ATTLOG POST client for HRIS and office relay",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "psr/clock",
@@ -11473,5 +11506,5 @@
         "php": "^8.2"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

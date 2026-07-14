@@ -34,6 +34,19 @@ type DeviceRow = {
     last_connectivity_test_at: string | null;
 };
 
+type OfficeRelayStatus = {
+    last_relay_at: string | null;
+    last_successful_upload_at: string | null;
+    pending_retries: number;
+    status: string;
+    serial_number?: string | null;
+    punches_pulled?: number;
+    punches_relayed?: number;
+    failures?: number;
+    watermark?: string | null;
+    updated_at?: string | null;
+};
+
 export default function BiometricConnectivity(props: {
     devices: DeviceRow[];
     canImport: boolean;
@@ -46,6 +59,7 @@ export default function BiometricConnectivity(props: {
     pushUsesLocalhost: boolean;
     hasAdmsDevices: boolean;
     hasWebReportDevices: boolean;
+    officeRelay?: OfficeRelayStatus;
 }) {
     return (
         <BiometricAttendanceLayout breadcrumbs={breadcrumbs} title="Device connectivity">
@@ -66,6 +80,7 @@ function BiometricConnectivityContent({
     pushUsesLocalhost,
     hasAdmsDevices,
     hasWebReportDevices,
+    officeRelay,
 }: {
     devices: DeviceRow[];
     canImport: boolean;
@@ -78,6 +93,7 @@ function BiometricConnectivityContent({
     pushUsesLocalhost: boolean;
     hasAdmsDevices: boolean;
     hasWebReportDevices: boolean;
+    officeRelay?: OfficeRelayStatus;
 }) {
     const { testConnection, startDeviceSync, isBusy } = useBiometricSync();
     const [pullFrom, setPullFrom] = useState(defaultImportRange.from);
@@ -92,6 +108,44 @@ function BiometricConnectivityContent({
                     description="Test login to the device, then pull attendance for a date range (same dates as on the device Report page)."
                 />
                 <BiometricAttendanceNav currentPath="/biometric-attendance/connectivity" />
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Office relay status</CardTitle>
+                        <p className="text-muted-foreground text-sm">
+                            Heartbeat from the office PC relay worker (pull on LAN, POST to{' '}
+                            <code className="text-xs">/iclock/cdata</code>).
+                        </p>
+                    </CardHeader>
+                    <CardContent className="grid gap-2 text-sm md:grid-cols-2">
+                        <p>
+                            <span className="text-muted-foreground">Current status:</span>{' '}
+                            {officeRelay?.status ?? 'unknown'}
+                        </p>
+                        <p>
+                            <span className="text-muted-foreground">Pending retries:</span>{' '}
+                            {officeRelay?.pending_retries ?? 0}
+                        </p>
+                        <p>
+                            <span className="text-muted-foreground">Last relay:</span>{' '}
+                            {officeRelay?.last_relay_at
+                                ? new Date(officeRelay.last_relay_at).toLocaleString()
+                                : 'Never'}
+                        </p>
+                        <p>
+                            <span className="text-muted-foreground">Last successful upload:</span>{' '}
+                            {officeRelay?.last_successful_upload_at
+                                ? new Date(officeRelay.last_successful_upload_at).toLocaleString()
+                                : 'Never'}
+                        </p>
+                        {officeRelay?.serial_number && (
+                            <p className="md:col-span-2">
+                                <span className="text-muted-foreground">Device serial:</span>{' '}
+                                {officeRelay.serial_number}
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {pushUsesLocalhost && (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">

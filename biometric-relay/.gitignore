@@ -1,0 +1,8 @@
+/vendor/
+/node_modules/
+.env
+.phpunit.result.cache
+storage/relay/*.json
+storage/logs/*.log
+!storage/relay/.gitignore
+!storage/logs/.gitignore

@@ -98,16 +98,21 @@ final class BiometricDeviceProbeService
 
         if ($portReachable && extension_loaded('sockets') && ! $admsOnPort) {
             $protocol = $device->zkProtocol();
-            $password = $device->commKeyValue();
-            $connectResult = $this->tryConnect($device, $protocol, $password, 5);
-            $attempts[] = strtoupper($protocol)." key {$password}: {$connectResult}";
 
-            if ($connectResult === 'connected') {
-                $pullCanConnect = true;
-                $workingKey = $password;
-                $workingProtocol = $protocol;
+            foreach ($device->commKeyCandidates() as $password) {
+                $connectResult = $this->tryConnect($device, $protocol, $password, 10);
+                $attempts[] = strtoupper($protocol)." key {$password}: {$connectResult}";
+
+                if ($connectResult === 'connected') {
+                    $pullCanConnect = true;
+                    $workingKey = $password;
+                    $workingProtocol = $protocol;
+                    break;
+                }
             }
         }
+
+        $extSockets = extension_loaded('sockets');
 
         $recommendation = $this->recommendation(
             $pullCanConnect,
@@ -116,6 +121,7 @@ final class BiometricDeviceProbeService
             $port,
             $workingProtocol,
             $workingKey,
+            $extSockets,
         );
 
         return [
@@ -124,7 +130,7 @@ final class BiometricDeviceProbeService
             'port' => $port,
             'connection_type' => $device->connection_type->value,
             'port_reachable' => $portReachable,
-            'ext_sockets' => extension_loaded('sockets'),
+            'ext_sockets' => $extSockets,
             'adms_http_on_device_port' => $admsOnPort,
             'pull_can_connect' => $pullCanConnect,
             'working_comm_key' => $workingKey,
@@ -192,7 +198,7 @@ final class BiometricDeviceProbeService
         if ($portReachable && extension_loaded('sockets') && ! $admsOnPort) {
             foreach ($device->zkProtocolsToTry() as $protocol) {
                 foreach ($device->commKeyCandidates() as $password) {
-                    $result = $this->tryConnect($device, $protocol, $password, 8);
+                    $result = $this->tryConnect($device, $protocol, $password, 10);
                     $attempts[] = strtoupper($protocol)." key {$password}: {$result}";
 
                     if ($result === 'connected') {
@@ -205,6 +211,8 @@ final class BiometricDeviceProbeService
             }
         }
 
+        $extSockets = extension_loaded('sockets');
+
         $recommendation = $this->recommendation(
             $pullCanConnect,
             $admsOnPort,
@@ -212,6 +220,7 @@ final class BiometricDeviceProbeService
             $port,
             $workingProtocol,
             $workingKey,
+            $extSockets,
         );
 
         return [
@@ -220,7 +229,7 @@ final class BiometricDeviceProbeService
             'port' => $port,
             'connection_type' => $device->connection_type->value,
             'port_reachable' => $portReachable,
-            'ext_sockets' => extension_loaded('sockets'),
+            'ext_sockets' => $extSockets,
             'adms_http_on_device_port' => $admsOnPort,
             'pull_can_connect' => $pullCanConnect,
             'working_comm_key' => $workingKey,
@@ -238,9 +247,19 @@ final class BiometricDeviceProbeService
         int $port,
         ?string $workingProtocol,
         ?int $workingKey,
+        bool $extSockets = true,
     ): string {
         if ($pullCanConnect) {
-            return "ZK pull works on {$workingProtocol} with comm key {$workingKey}. Set Protocol to ".strtoupper((string) $workingProtocol).' in the device form.';
+            $message = "ZK pull works on {$workingProtocol} with comm key {$workingKey}. Set Protocol to "
+                .strtoupper((string) $workingProtocol).' in the device form.';
+
+            if ($workingKey === 0) {
+                $message .= ' Leave Comm key empty (0).';
+            } else {
+                $message .= " Set Comm key to {$workingKey}.";
+            }
+
+            return $message;
         }
 
         if (! $portReachable) {
@@ -251,11 +270,16 @@ final class BiometricDeviceProbeService
             return 'This terminal speaks ADMS (HTTP) on port '.$port.'. Use the "Switch to ADMS push" button on the dashboard, then set the terminal cloud server to '.BiometricPushUrl::cdataEndpoint();
         }
 
+        if (! $extSockets) {
+            return 'Port is open but PHP ext-sockets is not enabled for the web server (PHP-FPM). Enable extension=sockets in php.ini, restart PHP-FPM, then test again. CLI probe may work while the dashboard fails until this is fixed.';
+        }
+
         $localhost = BiometricPushUrl::usesLocalhost()
             ? ' Set BIOMETRIC_PUSH_BASE_URL in .env to http://YOUR_PC_LAN_IP (not localhost).'
             : '';
 
-        return 'Port is open but ZK pull failed on the saved protocol and comm key. Use "Switch to ADMS push" on the dashboard, then on the terminal set Cloud Server to '.BiometricPushUrl::cdataEndpoint().'. For a full key scan run: php artisan biometric:probe-device'.$localhost;
+        return 'Port is open but ZK pull failed on every comm key tried (saved key, 0, 1, and fallbacks). Confirm MENU → Comm → Comm Key on the terminal matches HRIS, disable other ZK software on the device, then run: php artisan biometric:probe-device <id>'.$localhost
+            .' Or use "Switch to ADMS push" and set Cloud Server to '.BiometricPushUrl::cdataEndpoint().'.';
     }
 
     private function portReachable(string $host, int $port): bool
@@ -286,7 +310,7 @@ final class BiometricDeviceProbeService
         return str_contains($body, 'GET OPTION FROM') || str_contains($body, 'OK');
     }
 
-    private function tryConnect(BiometricDevice $device, string $protocol, int $password, int $timeoutSeconds = 5): string
+    private function tryConnect(BiometricDevice $device, string $protocol, int $password, int $timeoutSeconds = 10): string
     {
         try {
             $zk = new ZKTeco(

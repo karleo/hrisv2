@@ -15,7 +15,7 @@ use RuntimeException;
 
 final class ZkTecoTcpPullConnector implements BiometricDeviceConnector
 {
-    private const int CONNECT_TIMEOUT_SECONDS = 5;
+    private const int CONNECT_TIMEOUT_SECONDS = 10;
 
     private ?string $lastConnectDetail = null;
 

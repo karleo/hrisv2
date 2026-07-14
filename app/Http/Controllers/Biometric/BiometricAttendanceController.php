@@ -19,6 +19,7 @@ use App\Services\Biometric\BiometricBackgroundSyncStarter;
 use App\Services\Biometric\BiometricDeviceProbeService;
 use App\Services\Biometric\BiometricEmployeeMapper;
 use App\Services\Biometric\BiometricPipelineTracer;
+use App\Services\Biometric\BiometricRelayStatusStore;
 use App\Services\Biometric\BiometricStaleSyncLogCleaner;
 use App\Services\Biometric\BiometricSyncPipeline;
 use App\Services\Biometric\ZkDeviceWebReportClient;
@@ -114,6 +115,7 @@ class BiometricAttendanceController extends Controller
             'hasWebReportDevices' => collect($devices)->contains(
                 fn (array $device): bool => $device['connection_type'] === BiometricConnectionType::DeviceWebReport->value,
             ),
+            'officeRelay' => app(BiometricRelayStatusStore::class)->get(),
         ]);
     }
 

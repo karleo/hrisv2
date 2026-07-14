@@ -8,6 +8,15 @@
         "framework"
     ],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/zk-biometric-client",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "require": {
         "php": "^8.2",
         "0mithun/php-zkteco": "^1.3",
@@ -21,7 +30,8 @@
         "laravel/wayfinder": "^0.1.9",
         "league/flysystem-aws-s3-v3": "^3.35",
         "maatwebsite/excel": "^1.1",
-        "nativephp/mobile": "^3.0"
+        "nativephp/mobile": "^3.0",
+        "primelogistics/zk-biometric-client": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

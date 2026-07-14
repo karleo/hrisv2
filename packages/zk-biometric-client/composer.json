@@ -1,0 +1,24 @@
+{
+    "name": "primelogistics/zk-biometric-client",
+    "description": "ZKTeco web-report pull and ADMS ATTLOG POST client for HRIS and office relay",
+    "type": "library",
+    "version": "1.0.0",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2",
+        "guzzlehttp/guzzle": "^7.8",
+        "nesbot/carbon": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PrimeLogistics\\ZkBiometricClient\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PrimeLogistics\\ZkBiometricClient\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

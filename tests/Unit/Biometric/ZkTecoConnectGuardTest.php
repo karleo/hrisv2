@@ -14,6 +14,7 @@ class ZkTecoConnectGuardTest extends TestCase
 
         $this->assertTrue($guard->connectSucceeded(Util::CMD_ACK_OK));
         $this->assertTrue($guard->connectSucceeded(Util::CMD_ACK_AUTH));
+        $this->assertTrue($guard->connectSucceeded(true));
         $this->assertFalse($guard->connectSucceeded(Util::CMD_ACK_UNAUTH));
         $this->assertFalse($guard->connectSucceeded(false));
     }

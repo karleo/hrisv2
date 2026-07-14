@@ -18,11 +18,16 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function (): void {
             Route::prefix('iclock')
                 ->group(base_path('routes/iclock.php'));
+
+            Route::prefix('api')
+                ->middleware('api')
+                ->group(base_path('routes/biometric-relay-api.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
             'iclock/*',
+            'api/biometric/relay/*',
         ]);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);

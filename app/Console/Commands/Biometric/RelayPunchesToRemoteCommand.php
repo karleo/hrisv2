@@ -9,6 +9,9 @@ use App\Support\BiometricPushUrl;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use PrimeLogistics\ZkBiometricClient\Attlog\AttlogFormatter;
+use PrimeLogistics\ZkBiometricClient\Punch\PunchDirection as ClientPunchDirection;
+use PrimeLogistics\ZkBiometricClient\Punch\PunchRecord;
 
 class RelayPunchesToRemoteCommand extends Command
 {
@@ -74,15 +77,17 @@ class RelayPunchesToRemoteCommand extends Command
         $this->info("Relaying {$total} punch(es) from device #{$device->id} ({$device->serial_number})");
         $this->line("  To: {$endpoint}");
 
-        $query->chunkById($chunkSize, function ($punches) use ($endpoint, &$posted, &$failed): void {
-            $lines = [];
+        $formatter = new AttlogFormatter;
+
+        $query->chunkById($chunkSize, function ($punches) use ($endpoint, $formatter, $timezone, &$posted, &$failed): void {
+            $records = [];
 
             foreach ($punches as $punch) {
                 /** @var BiometricPunch $punch */
-                $lines[] = $this->attlogLine($punch);
+                $records[] = $this->toPunchRecord($punch, $timezone);
             }
 
-            $body = implode("\n", $lines);
+            $body = $formatter->body($records);
 
             try {
                 $response = Http::withBody($body, 'text/plain')
@@ -90,14 +95,14 @@ class RelayPunchesToRemoteCommand extends Command
                     ->post($endpoint);
 
                 if ($response->successful()) {
-                    $posted += count($lines);
-                    $this->line('  Posted chunk of '.count($lines).' → HTTP '.$response->status());
+                    $posted += count($records);
+                    $this->line('  Posted chunk of '.count($records).' → HTTP '.$response->status());
                 } else {
-                    $failed += count($lines);
+                    $failed += count($records);
                     $this->error('  Chunk failed HTTP '.$response->status().': '.substr($response->body(), 0, 200));
                 }
             } catch (\Throwable $exception) {
-                $failed += count($lines);
+                $failed += count($records);
                 $this->error('  Chunk error: '.$exception->getMessage());
             }
         });
@@ -109,22 +114,29 @@ class RelayPunchesToRemoteCommand extends Command
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }
 
-    private function attlogLine(BiometricPunch $punch): string
+    private function toPunchRecord(BiometricPunch $punch, string $timezone): PunchRecord
     {
         $raw = $punch->getRawOriginal('punched_at');
         $timestamp = is_string($raw) && trim($raw) !== ''
             ? trim($raw)
             : ($punch->punched_at?->format('Y-m-d H:i:s') ?? now()->format('Y-m-d H:i:s'));
 
-        $status = match ($punch->direction) {
-            BiometricPunchDirection::In => 0,
-            BiometricPunchDirection::Out => 1,
-            default => 0,
+        $direction = match ($punch->direction) {
+            BiometricPunchDirection::Out => ClientPunchDirection::Out,
+            default => ClientPunchDirection::In,
         };
 
-        $verify = $punch->verify_type ?? 1;
-        $work = $punch->work_code ?? '0';
-
-        return "{$punch->device_user_id}\t{$timestamp}\t{$status}\t{$verify}\t0\t{$work}";
+        return PunchRecord::fromDeviceWallClock(
+            deviceUserId: (string) $punch->device_user_id,
+            punchedAtStorage: $timestamp,
+            direction: $direction,
+            timezone: $timezone,
+            verifyType: $punch->verify_type,
+            workCode: $punch->work_code !== null ? (string) $punch->work_code : '0',
+            rawStatus: match ($punch->direction) {
+                BiometricPunchDirection::Out => 1,
+                default => 0,
+            },
+        );
     }
 }
