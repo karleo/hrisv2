@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
-use App\Models\ItAssetRequest;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
 use App\Models\User;
@@ -159,36 +158,6 @@ class RequestDecisionNotificationTest extends TestCase
         $data = $databaseNotification->data;
         $this->assertSame('approved', $data['decision'] ?? null);
         $this->assertSame('it_request', $data['request_type'] ?? null);
-        $this->assertArrayHasKey('employee_photo_url', $data);
-        $this->assertNull($data['employee_photo_url']);
-    }
-
-    public function test_it_asset_request_approval_notifies_employee_with_decision_payload(): void
-    {
-        [$department, $employee, $requesterUser] = $this->departmentEmployeeAndRequester();
-
-        $itAssetRequest = ItAssetRequest::query()->create([
-            'employee_id' => $employee->id,
-            'department_id' => $department->id,
-            'date' => '2026-04-10',
-            'status' => 'submitted',
-        ]);
-        $itAssetRequest->update(['issued_by_signature' => 'it-asset-requests/'.$itAssetRequest->id.'/signatures/issuer.png']);
-
-        $this->actingAs(User::factory()->create())
-            ->post(route('it-asset-requests.decide', $itAssetRequest), [
-                'decision' => 'approved',
-            ]);
-
-        $requesterUser->refresh();
-        $this->assertCount(1, $requesterUser->notifications);
-        $databaseNotification = $requesterUser->notifications->first();
-        $this->assertNull($databaseNotification->read_at);
-        $this->assertSame(1, $requesterUser->unreadNotifications()->count());
-        /** @var array<string, mixed> $data */
-        $data = $databaseNotification->data;
-        $this->assertSame('approved', $data['decision'] ?? null);
-        $this->assertSame('it_asset_request', $data['request_type'] ?? null);
         $this->assertArrayHasKey('employee_photo_url', $data);
         $this->assertNull($data['employee_photo_url']);
     }

@@ -17,6 +17,8 @@ use App\Models\User;
 use App\Models\WorkTimetableDay;
 use App\Services\AttendanceClassificationService;
 use App\Services\AttendanceDurationService;
+use App\Services\EmployeeAttendanceStateService;
+use App\Support\AttendanceEntryAuthorization;
 use App\Support\CompanyAccessScope;
 use App\Support\PublicStorageUrl;
 use App\Support\RequestFormEmployeeSelection;
@@ -32,6 +34,8 @@ class EmployeeTimeEntryController extends Controller
     public function __construct(
         private readonly CompanyAccessScope $companyScope,
         private readonly RequestFormEmployeeSelection $requestFormEmployees,
+        private readonly AttendanceEntryAuthorization $attendanceAuth,
+        private readonly EmployeeAttendanceStateService $attendanceState,
     ) {}
 
     /**
@@ -136,29 +140,24 @@ class EmployeeTimeEntryController extends Controller
                 )->values()->all();
             }
 
-            $openEntry = EmployeeTimeEntry::query()
-                ->where('employee_id', $user->employee->id)
-                ->whereNull('clock_out_at')
-                ->latest('clock_in_at')
-                ->first();
+            $openEntry = $this->attendanceState->resolveOpenAttendance($user->employee);
 
             $canCheckIn = $user->employee->hasUsableWorkTimetable()
                 && $openEntry === null
                 && $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::View);
         }
 
-        // Admins who also have a linked employee can check in for themselves via the dialog
-        if ($user->isAdministrator() && $user->employee) {
+        // Managers with check-in permission who also have a linked employee can check in for themselves
+        if ($this->attendanceAuth->canManageForOthers($user) && $user->employee) {
             $canCheckIn = $user->employee->hasUsableWorkTimetable()
                 && $openEntry === null;
-        } elseif ($user->isAdministrator()) {
-            // Pure admins without a linked employee keep the old admin check-in flow
+        } elseif ($this->attendanceAuth->canManageForOthers($user)) {
             $canCheckIn = $this->companyScope->scopedEmployeeQuery($user)->exists()
                 && $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::CheckIn);
         }
 
-        $employeesForCheckIn = $user->isAdministrator()
-            && $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::CheckIn)
+        $employeesForCheckIn = $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::CheckIn)
+            && $this->attendanceAuth->canManageForOthers($user)
             ? $this->companyScope->scopedEmployeeQuery($user)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
@@ -170,6 +169,11 @@ class EmployeeTimeEntryController extends Controller
                 ->values()
                 ->all()
             : [];
+
+        $canManageEntries = $this->attendanceAuth->canManageForOthers($user)
+            && $user->hasModuleAbility(PermissionModule::TimeAttendance, ModuleAbility::Update);
+        $canDeleteEntries = $this->attendanceAuth->canDelete($user);
+        $canModifyOvertime = $this->attendanceAuth->canModifyOvertime($user);
 
         // Work mode options for the check-in dialog
         $workModeOptions = array_map(
@@ -186,17 +190,11 @@ class EmployeeTimeEntryController extends Controller
             'filters' => $request->only(['from', 'to']),
             'workSchedule' => $workSchedule,
             'graceMinutes' => (int) config('attendance.grace_minutes', 5),
-            'openEntry' => $openEntry
-                ? [
-                    'id' => $openEntry->id,
-                    'clock_in_at' => $openEntry->clock_in_at->toIso8601String(),
-                    'work_mode' => $openEntry->work_mode?->value,
-                    'work_mode_label' => $openEntry->workModeLabel(),
-                    'requires_field_evidence' => $openEntry->requiresFieldEvidence(),
-                ]
-                : null,
+            'openEntry' => $openEntry,
             'canCheckIn' => $canCheckIn,
-            'isAdministrator' => $user->isAdministrator(),
+            'canManageEntries' => $canManageEntries,
+            'canDeleteEntries' => $canDeleteEntries,
+            'canModifyOvertime' => $canModifyOvertime,
             'canChooseEmployee' => $this->requestFormEmployees->canChooseEmployee($user),
             'employeesForCheckIn' => $employeesForCheckIn,
             'workModeOptions' => $workModeOptions,
@@ -211,9 +209,8 @@ class EmployeeTimeEntryController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        // Admin checking in for another employee (explicit employee_id sent)
-        // Admin self-check-in (no employee_id but has linked employee) — same as regular employee
-        if ($user->isAdministrator() && $request->filled('employee_id')) {
+        // Manager checking in for another employee (explicit employee_id sent)
+        if ($this->attendanceAuth->canManageForOthers($user) && $request->filled('employee_id')) {
             $employeeId = (int) $request->validated('employee_id');
         } elseif ($user->employee) {
             $employeeId = (int) $user->employee->id;
@@ -225,7 +222,7 @@ class EmployeeTimeEntryController extends Controller
 
         $employee = Employee::query()->findOrFail($employeeId);
 
-        if ($user->isAdministrator() && $request->filled('employee_id')) {
+        if ($this->attendanceAuth->canManageForOthers($user) && $request->filled('employee_id')) {
             $this->companyScope->assertCanAccessEmployee($user, $employee);
         }
 
@@ -235,22 +232,27 @@ class EmployeeTimeEntryController extends Controller
             ]);
         }
 
-        if (EmployeeTimeEntry::query()->where('employee_id', $employee->id)->whereNull('clock_out_at')->exists()) {
+        if ($this->attendanceState->hasOpenAttendance($employee)) {
             return back()->withErrors([
                 'check_in' => 'An open check-in already exists for this employee. Check out first.',
             ]);
         }
 
-        // Determine work mode; admin defaults to WFH if not provided
-        $workModeValue = $request->validated('work_mode');
+        // Determine work mode; managers default to WFH if not provided
+        $data = $request->validated();
+        $workModeValue = $data['work_mode'] ?? null;
         $workMode = $workModeValue
             ? AttendanceWorkMode::from((string) $workModeValue)
             : AttendanceWorkMode::WorkFromHome;
 
         // Create the entry first so we have an ID for the storage path
+        $clockInAt = isset($data['clock_in_at']) ? Carbon::parse($data['clock_in_at']) : now();
+        $clockOutAt = isset($data['clock_out_at']) ? Carbon::parse($data['clock_out_at']) : null;
+
         $entry = EmployeeTimeEntry::query()->create([
             'employee_id' => $employee->id,
-            'clock_in_at' => now(),
+            'clock_in_at' => $clockInAt,
+            'clock_out_at' => $clockOutAt,
             'work_mode' => $workMode->value,
         ]);
 
@@ -263,14 +265,20 @@ class EmployeeTimeEntryController extends Controller
 
         // Persist field evidence and remarks
         $entry->check_in_photo_path = $photoPath;
-        $entry->check_in_latitude = $request->validated('check_in_latitude');
-        $entry->check_in_longitude = $request->validated('check_in_longitude');
-        $entry->check_in_remarks = $request->validated('check_in_remarks');
+        $entry->check_in_latitude = $data['check_in_latitude'] ?? null;
+        $entry->check_in_longitude = $data['check_in_longitude'] ?? null;
+        $entry->check_in_remarks = $data['check_in_remarks'] ?? null;
+
+        if ($entry->clock_out_at !== null) {
+            $entry->calculateAndPersistWorkedTime(app(AttendanceDurationService::class));
+        }
 
         $entry->recalculateAttendanceStatuses(app(AttendanceClassificationService::class));
         $entry->save();
 
-        return to_route('time-attendance.index')->with('success', 'Checked in.');
+        $message = $entry->clock_out_at !== null ? 'Attendance entry saved.' : 'Checked in.';
+
+        return to_route('time-attendance.index')->with('success', $message);
     }
 
     /**
@@ -288,36 +296,37 @@ class EmployeeTimeEntryController extends Controller
             ]);
         }
 
-        $entry = EmployeeTimeEntry::query()
-            ->where('employee_id', $user->employee->id)
-            ->whereNull('clock_out_at')
-            ->latest('clock_in_at')
-            ->first();
-
-        if ($entry === null) {
+        try {
+            $entry = $this->attendanceState->completeCheckout($user->employee, $data);
+        } catch (\RuntimeException) {
             return back()->withErrors([
                 'check_out' => 'No open check-in to complete.',
             ]);
         }
 
-        // Store check-out photo if provided
-        $photoPath = null;
-        if ($request->hasFile('check_out_photo')) {
-            $photoPath = $request->file('check_out_photo')
+        if ($entry->isOpen()) {
+            // Store check-out photo if provided
+            $photoPath = null;
+            if ($request->hasFile('check_out_photo')) {
+                $photoPath = $request->file('check_out_photo')
+                    ->store("employees/{$user->employee->id}/attendance/{$entry->id}", 'public');
+            }
+
+            $dailySummary = isset($data['daily_summary']) ? trim((string) $data['daily_summary']) : null;
+            if ($dailySummary === '') {
+                $dailySummary = null;
+            }
+
+            $entry->clock_out_at = now();
+            $entry->daily_summary = $dailySummary;
+            $entry->check_out_photo_path = $photoPath;
+            $entry->check_out_latitude = $data['check_out_latitude'] ?? null;
+            $entry->check_out_longitude = $data['check_out_longitude'] ?? null;
+            $entry->check_out_remarks = isset($data['check_out_remarks']) ? (trim((string) $data['check_out_remarks']) ?: null) : null;
+        } elseif ($request->hasFile('check_out_photo')) {
+            $entry->check_out_photo_path = $request->file('check_out_photo')
                 ->store("employees/{$user->employee->id}/attendance/{$entry->id}", 'public');
         }
-
-        $dailySummary = isset($data['daily_summary']) ? trim((string) $data['daily_summary']) : null;
-        if ($dailySummary === '') {
-            $dailySummary = null;
-        }
-
-        $entry->clock_out_at = now();
-        $entry->daily_summary = $dailySummary;
-        $entry->check_out_photo_path = $photoPath;
-        $entry->check_out_latitude = $data['check_out_latitude'] ?? null;
-        $entry->check_out_longitude = $data['check_out_longitude'] ?? null;
-        $entry->check_out_remarks = isset($data['check_out_remarks']) ? (trim((string) $data['check_out_remarks']) ?: null) : null;
 
         // Compute and persist worked hours and overtime
         $entry->calculateAndPersistWorkedTime(app(AttendanceDurationService::class));
@@ -336,7 +345,15 @@ class EmployeeTimeEntryController extends Controller
         $user = $request->user();
         $data = $request->validated();
 
-        if ($user->isAdministrator()) {
+        $employee_time_entry->loadMissing('employee');
+
+        if ($employee_time_entry->employee !== null) {
+            $this->companyScope->assertCanAccessEmployee($user, $employee_time_entry->employee);
+        }
+
+        $explicitOvertime = array_key_exists('overtime_minutes', $data);
+
+        if ($this->attendanceAuth->canManageForOthers($user)) {
             if (array_key_exists('clock_in_at', $data)) {
                 $employee_time_entry->clock_in_at = $data['clock_in_at'];
             }
@@ -352,7 +369,14 @@ class EmployeeTimeEntryController extends Controller
                     $employee_time_entry->daily_summary = null;
                 }
             }
+            if ($explicitOvertime) {
+                $employee_time_entry->overtime_minutes = max(0, (int) $data['overtime_minutes']);
+            }
             $employee_time_entry->save();
+        } elseif ($this->attendanceAuth->canModifyOvertime($user) && $explicitOvertime) {
+            $employee_time_entry->update([
+                'overtime_minutes' => max(0, (int) $data['overtime_minutes']),
+            ]);
         } else {
             $summary = $data['daily_summary'] ?? null;
             if (is_string($summary)) {
@@ -370,8 +394,7 @@ class EmployeeTimeEntryController extends Controller
             ]);
         }
 
-        // Recalculate durations and statuses after admin correction
-        if ($employee_time_entry->clock_out_at !== null) {
+        if ($employee_time_entry->clock_out_at !== null && ! $explicitOvertime) {
             $employee_time_entry->calculateAndPersistWorkedTime(app(AttendanceDurationService::class));
         }
 
@@ -386,6 +409,12 @@ class EmployeeTimeEntryController extends Controller
      */
     public function destroy(DestroyEmployeeTimeEntryRequest $request, EmployeeTimeEntry $employee_time_entry): RedirectResponse
     {
+        $employee_time_entry->loadMissing('employee');
+
+        if ($employee_time_entry->employee !== null) {
+            $this->companyScope->assertCanAccessEmployee($request->user(), $employee_time_entry->employee);
+        }
+
         // Clean up any stored attendance photos before deleting the record
         if ($employee_time_entry->check_in_photo_path) {
             Storage::disk('public')->delete($employee_time_entry->check_in_photo_path);

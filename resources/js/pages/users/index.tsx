@@ -60,11 +60,9 @@ type Paginated<T> = {
 export default function Index({
     users,
     filters = {},
-    faceLoginVisibleOnLoginPage = true,
 }: {
     users: Paginated<UserRow>;
     filters?: { search?: string };
-    faceLoginVisibleOnLoginPage?: boolean;
 }) {
     const { props } = usePage<{ auth: { user: { id: number } } }>();
     const currentUserId = props.auth.user.id;
@@ -85,35 +83,6 @@ export default function Index({
                             </CardDescription>
                         </div>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                            <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-1">
-                                <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Login Face Recognition
-                                </span>
-                                <Button
-                                    size="sm"
-                                    variant={faceLoginVisibleOnLoginPage ? 'default' : 'outline'}
-                                    onClick={() =>
-                                        router.patch('/users/settings/login-face-recognition', { enabled: true }, {
-                                            preserveScroll: true,
-                                        })
-                                    }
-                                    disabled={faceLoginVisibleOnLoginPage}
-                                >
-                                    Enabled
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant={!faceLoginVisibleOnLoginPage ? 'destructive' : 'outline'}
-                                    onClick={() =>
-                                        router.patch('/users/settings/login-face-recognition', { enabled: false }, {
-                                            preserveScroll: true,
-                                        })
-                                    }
-                                    disabled={!faceLoginVisibleOnLoginPage}
-                                >
-                                    Disabled
-                                </Button>
-                            </div>
                             <DataTableToolbar
                                 searchUrl="/users"
                                 searchPlaceholder="Search name, email…"

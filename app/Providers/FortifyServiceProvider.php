@@ -7,7 +7,6 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Contracts\FaceVerificationContract;
 use App\Http\Responses\Fortify\LoginResponse as FortifyLoginResponse;
 use App\Http\Responses\Fortify\TwoFactorLoginResponse as FortifyTwoFactorLoginResponse;
-use App\Models\AppSetting;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -25,8 +24,6 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
-    private const LOGIN_FACE_RECOGNITION_SETTING_KEY = 'login_face_recognition_enabled';
-
     /**
      * Register any application services.
      */
@@ -182,10 +179,6 @@ class FortifyServiceProvider extends ServiceProvider
 
     private function isFaceLoginVisibleOnLoginPage(): bool
     {
-        if (! Schema::hasTable('app_settings')) {
-            return true;
-        }
-
-        return AppSetting::getBool(self::LOGIN_FACE_RECOGNITION_SETTING_KEY, true);
+        return (bool) config('face-login.enabled', false);
     }
 }

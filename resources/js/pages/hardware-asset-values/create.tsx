@@ -17,7 +17,7 @@ type Hardware = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Asset Values', href: '/hardware-asset-values' },
+    { title: 'Models', href: '/hardware-asset-values' },
     { title: 'Create', href: '/hardware-asset-values/create' },
 ];
 
@@ -29,7 +29,7 @@ const currencyOptions = ['AED', 'USD', 'SAR'];
 export default function Create({ hardware }: { hardware: Hardware[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Create Asset Value" />
+            <Head title="Create Model" />
 
             <div className="flex min-h-[calc(100vh-8rem)] w-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
                 <Link
@@ -37,18 +37,18 @@ export default function Create({ hardware }: { hardware: Hardware[] }) {
                     className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <ArrowLeft className="size-4" />
-                    Back to Asset Values
+                    Back to Models
                 </Link>
 
                 <Heading
-                    title="Create Asset Value"
+                    title="Create Model"
                     description="Add hardware valuation and asset details"
                 />
 
                 <div className="max-w-2xl">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Asset Value Information</CardTitle>
+                            <CardTitle>Model Information</CardTitle>
                         </CardHeader>
                         <Form action="/hardware-asset-values" method="post" className="w-full">
                             {({ processing, errors }) => (
@@ -192,7 +192,7 @@ export default function Create({ hardware }: { hardware: Hardware[] }) {
                                     </CardContent>
                                     <CardFooter className="flex gap-3">
                                         <Button disabled={processing} type="submit">
-                                            Create Asset Value
+                                            Create Model
                                         </Button>
                                         <Link href="/hardware-asset-values">
                                             <Button type="button" variant="outline">

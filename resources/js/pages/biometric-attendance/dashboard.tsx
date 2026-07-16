@@ -176,7 +176,7 @@ function BiometricDashboardContent({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title="Biometric attendance"
-                    description="Configure devices, then use Connectivity and Import attendance tabs."
+                    description="Configure devices, then use Connectivity, Import attendance, or Upload file tabs."
                 />
                 <BiometricAttendanceNav currentPath="/biometric-attendance" />
 

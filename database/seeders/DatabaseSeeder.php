@@ -36,6 +36,8 @@ class DatabaseSeeder extends Seeder
             EmployeeSeeder::class,
             DemoEmployeeSeeder::class,
             HardwareAssetValueSeeder::class,
+            AccessorySeeder::class,
+            ItAssetSeeder::class,
             LeaveRequestSeeder::class,
         ]);
 

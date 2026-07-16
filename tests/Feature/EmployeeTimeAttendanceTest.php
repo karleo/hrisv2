@@ -3,7 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\AttendanceWorkMode;
+use App\Enums\BiometricConnectionType;
+use App\Enums\BiometricPunchDirection;
 use App\Enums\PermissionModule;
+use App\Models\BiometricAttendanceSession;
+use App\Models\BiometricDevice;
+use App\Models\BiometricPunch;
 use App\Models\CompanyProfile;
 use App\Models\Employee;
 use App\Models\EmployeeTimeEntry;
@@ -11,9 +16,13 @@ use App\Models\Role;
 use App\Models\RoleModulePermission;
 use App\Models\User;
 use App\Models\WorkTimetableDay;
+use App\Services\Biometric\BiometricPunchData;
+use App\Services\Biometric\BiometricPunchImporter;
+use App\Services\Biometric\BiometricSessionPairingService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -615,5 +624,233 @@ class EmployeeTimeAttendanceTest extends TestCase
                 ->component('dashboard')
                 ->where('attendance', null)
             );
+    }
+
+    public function test_hr_executive_can_add_and_edit_attendance_for_employees(): void
+    {
+        $company = CompanyProfile::factory()->create();
+        $hrEmployee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $hrUser = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'hr_executive')->value('id'),
+            'email_verified_at' => now(),
+        ]);
+        $hrEmployee->update(['user_id' => $hrUser->id]);
+        $employee = Employee::factory()->create(['company_profile_id' => $company->id]);
+
+        $clockIn = now()->subDay()->setTime(8, 0);
+        $clockOut = now()->subDay()->setTime(17, 0);
+
+        $this->actingAs($hrUser)
+            ->post(route('time-attendance.store'), [
+                'employee_id' => $employee->id,
+                'clock_in_at' => $clockIn->toDateTimeString(),
+                'clock_out_at' => $clockOut->toDateTimeString(),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry = EmployeeTimeEntry::query()->where('employee_id', $employee->id)->first();
+        $this->assertNotNull($entry);
+        $this->assertEquals($clockIn->format('Y-m-d H:i'), $entry->clock_in_at->format('Y-m-d H:i'));
+
+        $updatedOut = $clockOut->copy()->addHour();
+
+        $this->actingAs($hrUser)
+            ->patch(route('time-attendance.update', $entry), [
+                'clock_in_at' => $clockIn->toDateTimeString(),
+                'clock_out_at' => $updatedOut->toDateTimeString(),
+                'daily_summary' => 'HR corrected checkout.',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry->refresh();
+        $this->assertEquals($updatedOut->format('Y-m-d H:i'), $entry->clock_out_at->format('Y-m-d H:i'));
+        $this->assertSame('HR corrected checkout.', $entry->daily_summary);
+    }
+
+    public function test_finance_executive_can_modify_overtime_without_changing_attendance(): void
+    {
+        $company = CompanyProfile::factory()->create();
+        $financeEmployee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $financeUser = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'finance_executive')->value('id'),
+            'email_verified_at' => now(),
+        ]);
+        $financeEmployee->update(['user_id' => $financeUser->id]);
+        $employee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $clockIn = now()->subDay()->setTime(8, 0);
+        $clockOut = now()->subDay()->setTime(17, 0);
+
+        $entry = EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => $clockIn,
+            'clock_out_at' => $clockOut,
+            'worked_minutes' => 540,
+            'overtime_minutes' => 60,
+            'work_mode' => AttendanceWorkMode::WorkFromHome->value,
+        ]);
+
+        $this->actingAs($financeUser)
+            ->patch(route('time-attendance.update', $entry), [
+                'overtime_minutes' => 90,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry->refresh();
+        $this->assertSame(90, $entry->overtime_minutes);
+        $this->assertEquals($clockOut->format('Y-m-d H:i'), $entry->clock_out_at->format('Y-m-d H:i'));
+    }
+
+    public function test_finance_executive_cannot_edit_attendance_times(): void
+    {
+        $company = CompanyProfile::factory()->create();
+        $financeEmployee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $financeUser = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'finance_executive')->value('id'),
+            'email_verified_at' => now(),
+        ]);
+        $financeEmployee->update(['user_id' => $financeUser->id]);
+        $employee = Employee::factory()->create(['company_profile_id' => $company->id]);
+        $entry = EmployeeTimeEntry::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => now()->subHours(9),
+            'clock_out_at' => now()->subHour(),
+            'work_mode' => AttendanceWorkMode::WorkFromHome->value,
+        ]);
+
+        $this->actingAs($financeUser)
+            ->patch(route('time-attendance.update', $entry), [
+                'clock_in_at' => now()->subHours(10)->toDateTimeString(),
+                'clock_out_at' => now()->toDateTimeString(),
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_dashboard_shows_checkout_when_biometric_session_is_open(): void
+    {
+        $role = $this->roleWithDashboardAndTimeAttendance();
+        $employee = Employee::factory()->create(['biometric_user_id' => '48']);
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'email_verified_at' => now(),
+        ]);
+        $employee->update(['user_id' => $user->id]);
+
+        $device = $this->createBiometricDevice();
+        $this->seedBiometricPunch(
+            $device,
+            '48',
+            now()->subHours(2)->format('Y-m-d H:i:s'),
+            BiometricPunchDirection::In,
+            $employee->id,
+        );
+        app(BiometricSessionPairingService::class)->processUnprocessedPunches($device);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('dashboard')
+                ->where('attendance.can_check_in', false)
+                ->where('attendance.open_entry.source', 'biometric')
+                ->where('attendance.open_entry.work_mode_label', 'Biometric device')
+            );
+    }
+
+    public function test_check_in_rejected_when_biometric_session_is_open(): void
+    {
+        $role = $this->roleWithTimeAttendance();
+        $employee = Employee::factory()->create(['biometric_user_id' => '49']);
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'email_verified_at' => now(),
+        ]);
+        $employee->update(['user_id' => $user->id]);
+
+        BiometricAttendanceSession::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => now()->subHour(),
+            'is_open' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('time-attendance.store'), [
+                'work_mode' => AttendanceWorkMode::WorkFromHome->value,
+            ])
+            ->assertSessionHasErrors('check_in');
+    }
+
+    public function test_employee_can_check_out_after_biometric_check_in(): void
+    {
+        $role = $this->roleWithTimeAttendance();
+        $employee = Employee::factory()->create(['biometric_user_id' => '50']);
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'email_verified_at' => now(),
+        ]);
+        $employee->update(['user_id' => $user->id]);
+
+        $session = BiometricAttendanceSession::query()->create([
+            'employee_id' => $employee->id,
+            'clock_in_at' => now()->subHours(3),
+            'is_open' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('time-attendance.check-out'), [
+                'daily_summary' => 'Closed out from web after biometric clock-in.',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('time-attendance.index'));
+
+        $entry = EmployeeTimeEntry::query()->where('employee_id', $employee->id)->first();
+        $this->assertNotNull($entry);
+        $this->assertNotNull($entry->clock_out_at);
+        $this->assertSame('Closed out from web after biometric clock-in.', $entry->daily_summary);
+
+        $session->refresh();
+        $this->assertFalse($session->is_open);
+        $this->assertNotNull($session->clock_out_at);
+    }
+
+    private function createBiometricDevice(): BiometricDevice
+    {
+        return BiometricDevice::query()->create([
+            'name' => 'Test device',
+            'model' => 'iClock990',
+            'serial_number' => 'TEST-'.uniqid(),
+            'connection_type' => BiometricConnectionType::TcpPull,
+            'host' => '127.0.0.1',
+            'port' => 4370,
+            'timezone' => 'UTC',
+            'is_active' => true,
+        ]);
+    }
+
+    private function seedBiometricPunch(
+        BiometricDevice $device,
+        string $deviceUserId,
+        string $punchedAt,
+        BiometricPunchDirection $direction,
+        int $employeeId,
+    ): BiometricPunch {
+        $importer = app(BiometricPunchImporter::class);
+        $data = new BiometricPunchData(
+            $deviceUserId,
+            Carbon::parse($punchedAt),
+            $direction,
+            rawStatus: $direction === BiometricPunchDirection::In ? 0 : 1,
+        );
+        $importer->import($device, [$data]);
+
+        $punch = BiometricPunch::query()
+            ->where('device_user_id', $deviceUserId)
+            ->where('punched_at', $punchedAt)
+            ->firstOrFail();
+        $punch->update(['employee_id' => $employeeId]);
+
+        return $punch;
     }
 }

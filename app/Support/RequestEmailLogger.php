@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\RequestEmailLog;
+use App\Notifications\EmployeeDocumentExpiryNotification;
 use App\Notifications\RequestDecisionNotification;
 use App\Notifications\RequestSubmittedNotification;
 
@@ -42,7 +43,7 @@ final class RequestEmailLogger
      */
     public static function payloadFromNotification(object $notification): ?array
     {
-        if ($notification instanceof RequestSubmittedNotification || $notification instanceof RequestDecisionNotification) {
+        if ($notification instanceof RequestSubmittedNotification || $notification instanceof RequestDecisionNotification || $notification instanceof EmployeeDocumentExpiryNotification) {
             return $notification->payload();
         }
 

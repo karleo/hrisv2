@@ -6,7 +6,6 @@ use App\Http\Middleware\EnforceModulePermissions;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
-use App\Models\ItAssetRequest;
 use App\Models\ItRequest;
 use App\Models\JobPosition;
 use App\Models\Role;
@@ -49,15 +48,6 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
                 ->where('defaultEmployeeId', null)
             );
 
-        $this->get(route('it-asset-requests.create'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('it-asset-requests/create')
-                ->where('employees.0.id', $employee->id)
-                ->where('employees.0.department_id', $department->id)
-                ->where('defaultEmployeeId', null)
-            );
-
         $this->get(route('employee-requests.create'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -88,13 +78,6 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('it-requests/create')
-                ->where('defaultEmployeeId', $employee->id)
-            );
-
-        $this->get(route('it-asset-requests.create'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('it-asset-requests/create')
                 ->where('defaultEmployeeId', $employee->id)
             );
 
@@ -177,13 +160,6 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $itAssetRequest = ItAssetRequest::query()->create([
-            'employee_id' => $employee->id,
-            'department_id' => $department->id,
-            'date' => '2026-03-24',
-            'status' => 'draft',
-        ]);
-
         $employeeRequest = EmployeeRequest::query()->create([
             'employee_id' => $employee->id,
             'job_position_id' => $jobPosition->id,
@@ -198,15 +174,6 @@ class RequestFormsEmployeeDepartmentAutofillTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('it-requests/edit')
                 ->has('signaturesUrl')
-                ->has('canDecide')
-                ->where('employees.0.id', $employee->id)
-                ->where('employees.0.department_id', $department->id)
-            );
-
-        $this->get(route('it-asset-requests.edit', $itAssetRequest))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('it-asset-requests/edit')
                 ->has('canDecide')
                 ->where('employees.0.id', $employee->id)
                 ->where('employees.0.department_id', $department->id)

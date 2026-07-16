@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Biometric\StoreBiometricDeviceRequest;
 use App\Http\Requests\Biometric\SyncBiometricDeviceRequest;
 use App\Http\Requests\Biometric\UpdateBiometricDeviceRequest;
+use App\Http\Requests\Biometric\UploadBiometricFileRequest;
 use App\Models\BiometricDevice;
 use App\Models\BiometricPunch;
 use App\Models\BiometricSyncLog;
@@ -18,6 +19,8 @@ use App\Services\Biometric\BiometricAdmsCommandQueue;
 use App\Services\Biometric\BiometricBackgroundSyncStarter;
 use App\Services\Biometric\BiometricDeviceProbeService;
 use App\Services\Biometric\BiometricEmployeeMapper;
+use App\Services\Biometric\BiometricFileUploadParser;
+use App\Services\Biometric\BiometricFileUploadService;
 use App\Services\Biometric\BiometricPipelineTracer;
 use App\Services\Biometric\BiometricRelayStatusStore;
 use App\Services\Biometric\BiometricStaleSyncLogCleaner;
@@ -132,6 +135,56 @@ class BiometricAttendanceController extends Controller
             'runningSyncCount' => BiometricSyncLog::query()->where('status', BiometricSyncStatus::Running)->count(),
             'defaultImportRange' => $this->defaultImportDateRange(),
         ]);
+    }
+
+    public function upload(Request $request, BiometricFileUploadParser $parser): Response
+    {
+        $this->staleSyncLogCleaner->markTimedOutRunningLogs();
+
+        $user = $request->user();
+
+        return Inertia::render('biometric-attendance/upload', [
+            'devices' => $this->devicesForUpload(),
+            'canUpload' => $user?->hasModuleAbility(PermissionModule::BiometricAttendance, ModuleAbility::Update) ?? false,
+            'supportedFormats' => collect($parser->supportedFormats())
+                ->map(fn (string $label, string $key): array => ['id' => $key, 'label' => $label])
+                ->values()
+                ->all(),
+        ]);
+    }
+
+    public function uploadFile(
+        UploadBiometricFileRequest $request,
+        BiometricFileUploadService $uploadService,
+    ): RedirectResponse {
+        $validated = $request->validated();
+        $device = BiometricDevice::query()->findOrFail($validated['biometric_device_id']);
+        $file = $request->file('file');
+
+        if ($file === null) {
+            return redirect()
+                ->back()
+                ->with('error', 'Please choose a file to upload.');
+        }
+
+        try {
+            $syncLog = $uploadService->upload(
+                $device,
+                $file,
+                $request->user()?->id,
+                $validated['format'] ?? null,
+            );
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('biometric-attendance.sync-logs')
+            ->with('success', $syncLog->error_message ?? 'File uploaded successfully.')
+            ->with('sync_log_id', $syncLog->id);
     }
 
     public function punches(Request $request): Response
@@ -674,6 +727,24 @@ class BiometricAttendanceController extends Controller
                 'last_connectivity_test_at' => is_string($device->metadata['last_connectivity_test_at'] ?? null)
                     ? $device->metadata['last_connectivity_test_at']
                     : null,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, host: string|null, timezone: string, is_active: bool}>
+     */
+    private function devicesForUpload(): array
+    {
+        return BiometricDevice::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'host', 'timezone', 'is_active'])
+            ->map(fn (BiometricDevice $device) => [
+                'id' => $device->id,
+                'name' => $device->name,
+                'host' => $device->host,
+                'timezone' => $device->timezone,
+                'is_active' => $device->is_active,
             ])
             ->all();
     }

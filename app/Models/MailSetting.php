@@ -8,9 +8,13 @@ use Throwable;
 
 class MailSetting extends Model
 {
+    public const DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS = 30;
+
     protected $fillable = [
         'mail_enabled',
         'workflow_email_enabled',
+        'document_expiry_email_enabled',
+        'document_expiry_notify_days',
         'transport_mode',
         'mailer',
         'provider_preset',
@@ -37,6 +41,8 @@ class MailSetting extends Model
         return [
             'mail_enabled' => 'boolean',
             'workflow_email_enabled' => 'boolean',
+            'document_expiry_email_enabled' => 'boolean',
+            'document_expiry_notify_days' => 'integer',
             'graph_client_secret' => 'encrypted',
             'port' => 'integer',
             'timeout' => 'integer',

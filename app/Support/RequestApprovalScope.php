@@ -217,7 +217,7 @@ class RequestApprovalScope
         $slug = strtolower((string) $user->role->slug);
         $name = strtolower((string) $user->role->name);
 
-        return in_array($slug, ['hr', 'human_resources', 'human-resources'], true)
+        return in_array($slug, ['hr', 'hr_executive', 'human_resources', 'human-resources'], true)
             || str_contains($slug, 'human-resource')
             || str_contains($slug, 'ceo')
             || str_contains($slug, 'chief-executive')

@@ -6,4 +6,5 @@ enum BiometricSyncType: string
 {
     case Manual = 'manual';
     case Scheduled = 'scheduled';
+    case FileUpload = 'file_upload';
 }

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\FaceVerificationContract;
+use App\Notifications\EmployeeDocumentExpiryNotification;
 use App\Notifications\RequestSubmittedNotification;
 use App\Services\Biometric\BiometricConnectorFactory;
 use App\Services\Biometric\Connectors\ZkTecoTcpPullConnector;
@@ -136,7 +137,7 @@ class AppServiceProvider extends ServiceProvider
             RequestEmailLogger::sent(
                 $payload,
                 $recipientEmail,
-                $event->notification instanceof RequestSubmittedNotification ? 'request_submitted' : 'request_decision',
+                self::notificationEmailType($event->notification),
                 $event->channel
             );
         });
@@ -162,10 +163,23 @@ class AppServiceProvider extends ServiceProvider
             RequestEmailLogger::failed(
                 $payload,
                 $recipientEmail,
-                $event->notification instanceof RequestSubmittedNotification ? 'request_submitted' : 'request_decision',
+                self::notificationEmailType($event->notification),
                 $event->channel,
                 $errorMessage
             );
         });
+    }
+
+    private static function notificationEmailType(object $notification): string
+    {
+        if ($notification instanceof RequestSubmittedNotification) {
+            return 'request_submitted';
+        }
+
+        if ($notification instanceof EmployeeDocumentExpiryNotification) {
+            return 'document_expiry';
+        }
+
+        return 'request_decision';
     }
 }

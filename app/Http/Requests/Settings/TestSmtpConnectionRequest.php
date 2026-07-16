@@ -15,6 +15,8 @@ class TestSmtpConnectionRequest extends FormRequest
         return [
             'mail_enabled' => ['required', 'boolean'],
             'workflow_email_enabled' => ['required', 'boolean'],
+            'document_expiry_email_enabled' => ['required', 'boolean'],
+            'document_expiry_notify_days' => ['required', 'integer', 'between:1,365'],
             'transport_mode' => ['required', Rule::in(['smtp', 'graph'])],
             'provider_preset' => ['nullable', 'string', Rule::in(['custom', 'gmail', 'microsoft365', 'zoho', 'yahoo', 'aws_ses'])],
             'host' => ['nullable', 'string', 'max:255', 'required_if:transport_mode,smtp'],
