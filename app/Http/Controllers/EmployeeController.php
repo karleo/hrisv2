@@ -384,8 +384,11 @@ class EmployeeController extends Controller
                 'totalDepartments' => (clone $departmentsQuery)->count(),
                 'noLoginAccessEmployees' => max($totalEmployees - $activeEmployees, 0),
             ],
-            'filters' => $request->only('search', 'department_id', 'employee_status'),
+            'filters' => $request->only('search', 'department_id', 'employee_status', 'company_profile_id'),
             'departments' => $departmentsQuery->orderBy('name')->get(['id', 'name']),
+            'companyProfiles' => $this->scopedCompanyProfilesQuery($user)
+                ->orderBy('company_name')
+                ->get(['id', 'company_name']),
         ]);
     }
 
@@ -609,6 +612,10 @@ class EmployeeController extends Controller
 
                     $innerQuery->where('employee_status', $status);
                 }
+            )
+            ->when(
+                $request->filled('company_profile_id'),
+                fn (Builder $innerQuery) => $innerQuery->where('company_profile_id', (int) $request->input('company_profile_id'))
             );
     }
 

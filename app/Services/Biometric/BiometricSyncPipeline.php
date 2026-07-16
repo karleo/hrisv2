@@ -429,8 +429,15 @@ final class BiometricSyncPipeline
         $range = $this->formatPullRange($device, $from, $until);
 
         $deviceWebUrl = $device->host !== null && $device->host !== ''
-            ? rtrim($device->deviceWebBaseUrl(), '/')
+            ? 'http://'.trim((string) $device->host)
             : 'http://DEVICE_IP';
+
+        if ($device->connection_type === BiometricConnectionType::TcpPull) {
+            return 'Device TCP session worked but returned no attendance records for '.$range.'. '
+                .'On the terminal screen (or device web Report if available), confirm punches exist for those dates. '
+                .'If the Report page shows punches but TCP always returns 0, this firmware may not expose ATTLOG over port 4370 — use Connectivity → Switch to ADMS push, or pull from the real LAN IP via office relay. '
+                .'If Report also shows no punches, punch on the device then import again.';
+        }
 
         return 'Device returned no attendance records for '.$range.'. '
             .'On the device at '.$deviceWebUrl.', open Report, set the same From/To dates, click Search, and confirm ID Number rows appear. '

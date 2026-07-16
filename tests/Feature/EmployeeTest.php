@@ -94,6 +94,43 @@ class EmployeeTest extends TestCase
         );
     }
 
+    public function test_index_filters_employees_by_company_profile(): void
+    {
+        $companyAlpha = CompanyProfile::factory()->create([
+            'company_name' => 'Alpha Holdings',
+        ]);
+        $companyBeta = CompanyProfile::factory()->create([
+            'company_name' => 'Beta Logistics',
+        ]);
+
+        Employee::factory()->create([
+            'first_name' => 'Ariana',
+            'last_name' => 'Stone',
+            'email_address' => 'ariana.stone@example.com',
+            'company_profile_id' => $companyAlpha->id,
+        ]);
+        Employee::factory()->create([
+            'first_name' => 'Basil',
+            'last_name' => 'Hart',
+            'email_address' => 'basil.hart@example.com',
+            'company_profile_id' => $companyBeta->id,
+        ]);
+
+        $response = $this->get(route('employees.index', [
+            'company_profile_id' => $companyAlpha->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('employees/index')
+            ->has('employees.data', 1)
+            ->where('employees.data.0.first_name', 'Ariana')
+            ->where('employees.data.0.last_name', 'Stone')
+            ->where('filters.company_profile_id', (string) $companyAlpha->id)
+            ->has('companyProfiles', 2)
+        );
+    }
+
     public function test_create_displays_form(): void
     {
         $response = $this->get(route('employees.create'));

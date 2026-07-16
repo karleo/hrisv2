@@ -58,6 +58,11 @@ type JobPosition = {
     name: string;
 };
 
+type CompanyProfile = {
+    id: number;
+    company_name: string;
+};
+
 type Employee = {
     id: number;
     employee_code: string;
@@ -154,6 +159,7 @@ export default function Index({
     employees,
     stats,
     filters = {},
+    companyProfiles = [],
 }: {
     employees: PaginatedEmployees;
     stats: {
@@ -162,7 +168,13 @@ export default function Index({
         totalDepartments: number;
         noLoginAccessEmployees: number;
     };
-    filters?: { search?: string; department_id?: string | number; employee_status?: string };
+    filters?: {
+        search?: string;
+        department_id?: string | number;
+        employee_status?: string;
+        company_profile_id?: string | number;
+    };
+    companyProfiles?: CompanyProfile[];
 }) {
     const { t } = useI18n();
     const breadcrumbs: BreadcrumbItem[] = [
@@ -225,6 +237,9 @@ export default function Index({
     if (filters.department_id) {
         exportQuery.set('department_id', String(filters.department_id));
     }
+    if (filters.company_profile_id) {
+        exportQuery.set('company_profile_id', String(filters.company_profile_id));
+    }
     if (groupMode !== 'none') {
         exportQuery.set('group_by', groupMode);
     }
@@ -257,8 +272,30 @@ export default function Index({
         if (filters.search) {
             params.search = filters.search;
         }
+        if (filters.company_profile_id) {
+            params.company_profile_id = String(filters.company_profile_id);
+        }
         if (value) {
             params.employee_status = value;
+        }
+
+        router.get(index().url, params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }
+
+    function handleCompanyFilterChange(value: string) {
+        const params: Record<string, string | number> = { page: 1 };
+        if (filters.search) {
+            params.search = filters.search;
+        }
+        if (filters.employee_status) {
+            params.employee_status = String(filters.employee_status);
+        }
+        if (value) {
+            params.company_profile_id = value;
         }
 
         router.get(index().url, params, {
@@ -486,7 +523,10 @@ export default function Index({
                                         searchUrl={index().url}
                                         searchPlaceholder="Search employee..."
                                         filters={filters}
-                                        persistQuery={{ employee_status: filters.employee_status }}
+                                        persistQuery={{
+                                            employee_status: filters.employee_status,
+                                            company_profile_id: filters.company_profile_id,
+                                        }}
                                         autoSearch
                                         showSearchButton={false}
                                     />
@@ -504,6 +544,18 @@ export default function Index({
                                         <option value="Absconded">Absconded</option>
                                         <option value="Suspended">Suspended</option>
                                         <option value="Employment Cancelled">Employment Cancelled</option>
+                                    </select>
+                                    <select
+                                        value={filters.company_profile_id ?? ''}
+                                        onChange={(e) => handleCompanyFilterChange(e.target.value)}
+                                        className="h-9 rounded-full border border-input bg-background px-3 text-sm text-foreground shadow-sm"
+                                    >
+                                        <option value="">All Companies</option>
+                                        {companyProfiles.map((companyProfile) => (
+                                            <option key={companyProfile.id} value={companyProfile.id}>
+                                                {companyProfile.company_name}
+                                            </option>
+                                        ))}
                                     </select>
                                     <div className="ml-auto flex flex-wrap items-center gap-2">
                                         {viewMode === 'table' && groupMode !== 'none' ? (
