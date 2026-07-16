@@ -55,7 +55,7 @@ type PaginatedAssetValues = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Asset Values', href: '/hardware-asset-values' },
+    { title: 'Models', href: '/hardware-asset-values' },
 ];
 
 function formatMoney(value: string | null, currency: string | null): string {
@@ -93,13 +93,13 @@ export default function Index({
 }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Asset Values" />
+            <Head title="Models" />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader className="flex flex-col gap-4 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <CardTitle>Asset Value Master</CardTitle>
+                            <CardTitle>Model Master</CardTitle>
                             <CardDescription>
                                 Manage hardware valuation, serials, vendors, and specifications
                             </CardDescription>
@@ -115,7 +115,7 @@ export default function Index({
                             <Link href="/hardware-asset-values/create">
                                 <Button>
                                     <Plus />
-                                    Add Asset Value
+                                    Add Model
                                 </Button>
                             </Link>
                         </div>

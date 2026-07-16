@@ -2,6 +2,7 @@
 
 namespace App\Services\Payroll;
 
+use App\Exceptions\PayrollWorkflowException;
 use App\Models\Employee;
 use App\Models\EmployeeCompensation;
 use App\Models\PayrollPeriodVerification;
@@ -17,6 +18,12 @@ final class PayrollCalculationService
      */
     public function buildDraftRun(PayrollPeriodVerification $verification): PayrollRun
     {
+        if ($verification->payrollRuns()->exists()) {
+            throw new PayrollWorkflowException(
+                'A payroll run already exists for this period. Cancel it before creating a new one.',
+            );
+        }
+
         $run = PayrollRun::query()->create([
             'company_profile_id' => $verification->company_profile_id,
             'payroll_period_verification_id' => $verification->id,
@@ -27,6 +34,109 @@ final class PayrollCalculationService
             'total_net' => 0,
         ]);
 
+        $this->populateRunEmployees($run, $verification);
+
+        return $run->fresh(['employees.employee']);
+    }
+
+    public function recalculateRun(PayrollRun $run): PayrollRun
+    {
+        if ($run->isPaid()) {
+            throw new PayrollWorkflowException('Paid payroll runs cannot be recalculated.');
+        }
+
+        $verification = $run->periodVerification;
+
+        if (! $verification instanceof PayrollPeriodVerification) {
+            throw new PayrollWorkflowException('Payroll run is missing its verified period.');
+        }
+
+        $run->employees()->delete();
+        $this->populateRunEmployees($run, $verification);
+
+        if ($run->isApproved()) {
+            $run->update([
+                'status' => PayrollRun::STATUS_DRAFT,
+                'approved_by' => null,
+                'approved_at' => null,
+            ]);
+        }
+
+        return $run->fresh(['employees.employee']);
+    }
+
+    public function assertNoDuplicateEmployees(PayrollRun $run): void
+    {
+        $duplicateEmployeeIds = $run->employees()
+            ->select('employee_id')
+            ->groupBy('employee_id')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('employee_id');
+
+        if ($duplicateEmployeeIds->isNotEmpty()) {
+            throw new PayrollWorkflowException(
+                'Duplicate employees found in this payroll run. Recalculate the run before continuing.',
+            );
+        }
+    }
+
+    public function approveRun(PayrollRun $run, int $userId): void
+    {
+        $this->assertNoDuplicateEmployees($run);
+
+        $run->update([
+            'status' => PayrollRun::STATUS_APPROVED,
+            'approved_by' => $userId,
+            'approved_at' => Carbon::now(),
+        ]);
+    }
+
+    public function markPaid(PayrollRun $run): void
+    {
+        $this->assertNoDuplicateEmployees($run);
+
+        $run->update([
+            'status' => PayrollRun::STATUS_PAID,
+            'paid_at' => Carbon::now(),
+        ]);
+    }
+
+    public function revertApproval(PayrollRun $run): void
+    {
+        if ($run->status !== PayrollRun::STATUS_APPROVED) {
+            throw new PayrollWorkflowException('Only approved payroll runs can be reverted to draft.');
+        }
+
+        $run->update([
+            'status' => PayrollRun::STATUS_DRAFT,
+            'approved_by' => null,
+            'approved_at' => null,
+        ]);
+    }
+
+    public function revertPaid(PayrollRun $run): void
+    {
+        if (! $run->isPaid()) {
+            throw new PayrollWorkflowException('Only paid payroll runs can be reverted to approved.');
+        }
+
+        $run->update([
+            'status' => PayrollRun::STATUS_APPROVED,
+            'paid_at' => null,
+        ]);
+    }
+
+    public function cancelRun(PayrollRun $run): void
+    {
+        if ($run->isPaid()) {
+            throw new PayrollWorkflowException('Paid payroll runs cannot be cancelled. Revert to approved first.');
+        }
+
+        $run->delete();
+    }
+
+    private function populateRunEmployees(PayrollRun $run, PayrollPeriodVerification $verification): void
+    {
         $employees = Employee::query()
             ->with(['compensation.items'])
             ->get();
@@ -55,8 +165,6 @@ final class PayrollCalculationService
             'total_deductions' => $totalDeductions,
             'total_net' => $totalNet,
         ]);
-
-        return $run->fresh(['employees.employee']);
     }
 
     private function calculateEmployee(
@@ -104,22 +212,5 @@ final class PayrollCalculationService
             ->where('clock_in_at', '<=', $periodTo.' 23:59:59')
             ->whereNotNull('overtime_minutes')
             ->sum('overtime_minutes');
-    }
-
-    public function approveRun(PayrollRun $run, int $userId): void
-    {
-        $run->update([
-            'status' => PayrollRun::STATUS_APPROVED,
-            'approved_by' => $userId,
-            'approved_at' => Carbon::now(),
-        ]);
-    }
-
-    public function markPaid(PayrollRun $run): void
-    {
-        $run->update([
-            'status' => PayrollRun::STATUS_PAID,
-            'paid_at' => Carbon::now(),
-        ]);
     }
 }

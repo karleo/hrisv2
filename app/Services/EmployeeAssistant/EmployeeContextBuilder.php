@@ -4,7 +4,7 @@ namespace App\Services\EmployeeAssistant;
 
 use App\Models\Employee;
 use App\Models\EmployeeRequest;
-use App\Models\ItAssetRequest;
+use App\Models\ItAssetAssignment;
 use App\Models\ItRequest;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -143,14 +143,18 @@ class EmployeeContextBuilder
                     ],
                 ),
                 'it_asset' => $this->recentRequests(
-                    ItAssetRequest::query()
+                    ItAssetAssignment::query()
                         ->where('employee_id', $employee->id)
-                        ->orderByDesc('updated_at')
+                        ->whereNull('returned_at')
+                        ->with('itAsset:id,code,category,name,status')
+                        ->orderByDesc('assigned_at')
                         ->limit(5),
-                    static fn (ItAssetRequest $request): array => [
-                        'code' => $request->code,
-                        'status' => $request->status,
-                        'date' => $request->date?->toDateString(),
+                    static fn (ItAssetAssignment $assignment): array => [
+                        'code' => $assignment->itAsset?->code,
+                        'category' => $assignment->itAsset?->category?->value,
+                        'name' => $assignment->itAsset?->name,
+                        'status' => $assignment->itAsset?->status?->value,
+                        'assigned_at' => $assignment->assigned_at?->toDateString(),
                     ],
                 ),
             ],

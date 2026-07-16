@@ -263,4 +263,80 @@ class PayrollPeriodVerificationTest extends TestCase
         $this->assertTrue($user->hasModuleAbility(PermissionModule::Payroll, ModuleAbility::Verify));
         $this->assertFalse($user->hasModuleAbility(PermissionModule::Payroll, ModuleAbility::Delete));
     }
+
+    public function test_reopen_cancels_non_paid_payroll_runs(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $period = PayrollPeriodVerification::query()->create([
+            'period_from' => '2026-06-01',
+            'period_to' => '2026-06-30',
+            'status' => PayrollPeriodVerification::STATUS_VERIFIED,
+            'hr_verified_by' => $admin->id,
+            'hr_verified_at' => now(),
+            'finance_verified_by' => $admin->id,
+            'finance_verified_at' => now(),
+        ]);
+
+        $run = \App\Models\PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => \App\Models\PayrollRun::STATUS_DRAFT,
+            'currency' => 'AED',
+            'total_gross' => 0,
+            'total_deductions' => 0,
+            'total_net' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('payroll.period-verifications.reopen', $period))
+            ->assertRedirect(route('payroll.period-verifications.show', $period));
+
+        $this->assertDatabaseMissing('payroll_runs', ['id' => $run->id]);
+        $this->assertSame(PayrollPeriodVerification::STATUS_REOPENED, $period->fresh()->status);
+    }
+
+    public function test_cannot_reopen_period_with_paid_payroll_run(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $period = PayrollPeriodVerification::query()->create([
+            'period_from' => '2026-06-01',
+            'period_to' => '2026-06-30',
+            'status' => PayrollPeriodVerification::STATUS_VERIFIED,
+        ]);
+
+        \App\Models\PayrollRun::query()->create([
+            'payroll_period_verification_id' => $period->id,
+            'status' => \App\Models\PayrollRun::STATUS_PAID,
+            'currency' => 'AED',
+            'total_gross' => 0,
+            'total_deductions' => 0,
+            'total_net' => 0,
+            'paid_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('payroll.period-verifications.reopen', $period))
+            ->assertRedirect(route('payroll.period-verifications.show', $period))
+            ->assertSessionHas('error');
+
+        $this->assertSame(PayrollPeriodVerification::STATUS_VERIFIED, $period->fresh()->status);
+    }
+
+    public function test_admin_can_destroy_period_without_paid_runs(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $period = PayrollPeriodVerification::query()->create([
+            'period_from' => '2026-06-01',
+            'period_to' => '2026-06-30',
+            'status' => PayrollPeriodVerification::STATUS_PENDING_HR,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('payroll.period-verifications.destroy', $period))
+            ->assertRedirect(route('payroll.period-verifications.index'));
+
+        $this->assertDatabaseMissing('payroll_period_verifications', ['id' => $period->id]);
+    }
 }

@@ -6,6 +6,10 @@ export function biometricReloadOnlyKeys(pathname: string): string[] | undefined 
         return ['runningSyncCount', 'activeDevices'];
     }
 
+    if (pathname === '/biometric-attendance/upload') {
+        return ['devices'];
+    }
+
     if (pathname === '/biometric-attendance/connectivity') {
         return ['devices'];
     }

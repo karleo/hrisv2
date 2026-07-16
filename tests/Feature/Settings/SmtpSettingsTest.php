@@ -39,6 +39,8 @@ class SmtpSettingsTest extends TestCase
         $response = $this->actingAs($admin)->put(route('smtp.update'), [
             'mail_enabled' => true,
             'workflow_email_enabled' => true,
+            'document_expiry_email_enabled' => true,
+            'document_expiry_notify_days' => 45,
             'provider_preset' => 'gmail',
             'host' => 'smtp.gmail.com',
             'port' => 587,
@@ -56,6 +58,8 @@ class SmtpSettingsTest extends TestCase
         $this->assertNotSame('plain-secret-password', $row->getRawOriginal('password'));
         $this->assertSame('plain-secret-password', $row->password);
         $this->assertTrue($row->workflow_email_enabled);
+        $this->assertTrue($row->document_expiry_email_enabled);
+        $this->assertSame(45, $row->document_expiry_notify_days);
 
         $page = $this->actingAs($admin)->get(route('smtp.edit'));
         $page->assertOk();
@@ -169,6 +173,8 @@ class SmtpSettingsTest extends TestCase
         $response = $this->actingAs($admin)->post(route('smtp.test'), [
             'mail_enabled' => false,
             'workflow_email_enabled' => false,
+            'document_expiry_email_enabled' => false,
+            'document_expiry_notify_days' => 30,
             'provider_preset' => 'gmail',
             'host' => 'smtp.office365.com',
             'port' => 587,
@@ -197,6 +203,8 @@ class SmtpSettingsTest extends TestCase
         $payload = [
             'mail_enabled' => false,
             'workflow_email_enabled' => false,
+            'document_expiry_email_enabled' => false,
+            'document_expiry_notify_days' => 30,
             'provider_preset' => 'custom',
             'host' => 'smtp.example.com',
             'port' => 587,
@@ -236,5 +244,26 @@ class SmtpSettingsTest extends TestCase
         $manager = app(MailSettingsManager::class);
 
         $this->assertFalse($manager->isWorkflowEmailEnabled());
+    }
+
+    public function test_document_expiry_settings_default_when_not_set(): void
+    {
+        MailSetting::query()->create([
+            'mail_enabled' => true,
+            'mailer' => 'smtp',
+            'host' => 'smtp.gmail.com',
+            'port' => 587,
+            'encryption' => 'tls',
+            'username' => 'default@example.com',
+            'password' => 'default-pass',
+            'from_address' => 'default@example.com',
+            'from_name' => 'Default',
+        ]);
+
+        /** @var MailSettingsManager $manager */
+        $manager = app(MailSettingsManager::class);
+
+        $this->assertFalse($manager->isDocumentExpiryEmailEnabled());
+        $this->assertSame(30, $manager->documentExpiryNotifyDays());
     }
 }

@@ -6,6 +6,7 @@ use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentExpiryNotificationLog;
 use App\Models\User;
 use App\Notifications\EmployeeDocumentExpiryNotification;
+use App\Services\Mail\MailSettingsManager;
 use App\Support\RequestApprovalScope;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -14,12 +15,13 @@ class SendEmployeeDocumentExpiryNotifications extends Command
 {
     protected $signature = 'employee-documents:send-expiry-notifications';
 
-    protected $description = 'Send daily notifications for employee documents expiring within 30 days.';
+    protected $description = 'Send daily notifications for employee documents nearing expiry.';
 
-    public function handle(RequestApprovalScope $approvalScope): int
+    public function handle(RequestApprovalScope $approvalScope, MailSettingsManager $mailSettings): int
     {
         $today = Carbon::today();
-        $endDate = $today->copy()->addDays(30);
+        $notifyDays = $mailSettings->documentExpiryNotifyDays();
+        $endDate = $today->copy()->addDays($notifyDays);
 
         $reminderDocuments = EmployeeDocument::query()
             ->with(['employee.user', 'documentType'])

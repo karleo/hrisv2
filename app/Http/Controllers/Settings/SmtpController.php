@@ -77,6 +77,8 @@ class SmtpController extends Controller
             'settings' => [
                 'mail_enabled' => $settings?->mail_enabled ?? true,
                 'workflow_email_enabled' => $settings?->workflow_email_enabled ?? false,
+                'document_expiry_email_enabled' => $settings?->document_expiry_email_enabled ?? false,
+                'document_expiry_notify_days' => $settings?->document_expiry_notify_days ?? MailSetting::DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS,
                 'transport_mode' => $settings?->transport_mode ?? 'smtp',
                 'provider_preset' => $settings?->provider_preset ?? 'custom',
                 'host' => $settings?->host ?? (string) config('mail.mailers.smtp.host'),
@@ -113,6 +115,8 @@ class SmtpController extends Controller
         $settings = MailSetting::singletonOrCreate([
             'mail_enabled' => true,
             'workflow_email_enabled' => false,
+            'document_expiry_email_enabled' => false,
+            'document_expiry_notify_days' => MailSetting::DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS,
             'transport_mode' => 'smtp',
             'mailer' => 'smtp',
         ]);
@@ -120,6 +124,8 @@ class SmtpController extends Controller
         $settings->fill([
             'mail_enabled' => (bool) $validated['mail_enabled'],
             'workflow_email_enabled' => (bool) $validated['workflow_email_enabled'],
+            'document_expiry_email_enabled' => (bool) $validated['document_expiry_email_enabled'],
+            'document_expiry_notify_days' => (int) $validated['document_expiry_notify_days'],
             'transport_mode' => (string) ($validated['transport_mode'] ?? 'smtp'),
             'mailer' => 'smtp',
             'provider_preset' => $validated['provider_preset'] ?? 'custom',
@@ -161,6 +167,8 @@ class SmtpController extends Controller
         $settings = MailSetting::singletonOrCreate([
             'mail_enabled' => true,
             'workflow_email_enabled' => false,
+            'document_expiry_email_enabled' => false,
+            'document_expiry_notify_days' => MailSetting::DEFAULT_DOCUMENT_EXPIRY_NOTIFY_DAYS,
             'transport_mode' => 'smtp',
             'mailer' => 'smtp',
         ]);
